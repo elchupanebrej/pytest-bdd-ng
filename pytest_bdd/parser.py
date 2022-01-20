@@ -19,21 +19,22 @@ from .warning_types import PytestBDDScenarioExamplesExtraParamsWarning, PytestBD
 SPLIT_LINE_RE = re.compile(r"(?<!\\)\|")
 STEP_PARAM_RE = re.compile(r"<(.+?)>")
 COMMENT_RE = re.compile(r"(^|(?<=\s))#")
-STEP_PREFIXES = [
-    ("Feature: ", types.FEATURE),
-    ("Scenario Outline: ", types.SCENARIO_OUTLINE),
-    ("Examples: Vertical", types.EXAMPLES_VERTICAL),
-    ("Examples:", types.EXAMPLES),
-    ("Scenario: ", types.SCENARIO),
-    ("Background:", types.BACKGROUND),
-    ("Given ", types.GIVEN),
-    ("When ", types.WHEN),
-    ("Then ", types.THEN),
-    ("@", types.TAG),
+STEP_PREFIXES = {
+    types.FEATURE: "Feature: ",
+    types.SCENARIO_OUTLINE: "Scenario Outline: ",
+    types.EXAMPLES_VERTICAL: "Examples: Vertical",
+    types.EXAMPLES: "Examples:",
+    types.SCENARIO: "Scenario: ",
+    types.BACKGROUND: "Background:",
+    types.GIVEN: "Given ",
+    types.WHEN: "When ",
+    types.THEN: "Then ",
+    types.TAG: "@",
     # Continuation of the previously mentioned step type
-    ("And ", None),
-    ("But ", None),
-]
+    types.AND_AND: "And ",
+    types.AND_BUT: "But ",
+    types.AND_STAR: "* ",
+}
 
 
 def split_line(line):
@@ -53,7 +54,7 @@ def parse_line(line):
 
     :return: `tuple` in form ("<prefix>", "<Line without the prefix>").
     """
-    for prefix, _ in STEP_PREFIXES:
+    for _, prefix in STEP_PREFIXES.items():
         if line.startswith(prefix):
             return prefix.strip(), line[len(prefix) :].strip()
     return "", line
@@ -79,8 +80,8 @@ def get_step_type(line):
 
     :return: SCENARIO, GIVEN, WHEN, THEN, or `None` if can't be detected.
     """
-    for prefix, _type in STEP_PREFIXES:
-        if line.startswith(prefix):
+    for _type, prefix in STEP_PREFIXES.items():
+        if line.startswith(prefix) and _type not in types.CONTINUATION_STEP_TYPES:
             return _type
 
 
@@ -197,7 +198,7 @@ def parse_feature(basedir: str, filename: str, encoding: str = "utf-8") -> "Feat
             current_tags = OrderedSet()
         elif mode == types.EXAMPLES_HEADERS:
             mode = types.EXAMPLE_LINE
-            current_example_table.example_params = [l for l in split_line(parsed_line) if l]
+            current_example_table.example_params = [*split_line(parsed_line)]
             try:
                 validate(current_example_table)
             except exceptions.ExamplesNotValidError as exc:
@@ -474,14 +475,19 @@ class Examples(list):
 
 @attrs
 class ExampleRow(SimpleMapping):
-    mapping = attrib()
+    mapping: typing.Union[typing.Mapping, typing.Iterable] = attrib()
     index = attrib(kw_only=True, default=None)
     kind = attrib(kw_only=True, default=None)
     tags = attrib(default=Factory(OrderedSet), kw_only=True)
     example_table: "ExampleTable" = attrib(kw_only=True, default=None)
 
     def __attrs_post_init__(self):
-        self._dict = dict(self.mapping)
+        self._dict = {}
+        for key, value in self.mapping.items() if isinstance(self.mapping, typing.Mapping) else self.mapping:
+            if key == "@":
+                self.tags |= {value}
+            else:
+                self._dict[key] = value
 
     @property
     def breadcrumb(self):
@@ -563,8 +569,9 @@ class ExampleTable:
     @example_params.validator
     def unique(self, attribute, value):
         unique_items = set()
+        excluded_items = {"@"}
         for item in value:
-            if item in unique_items:
+            if item not in excluded_items and item in unique_items:
                 raise exceptions.ExamplesNotValidError(
                     f"""Example rows should contain unique parameters. "{item}" appeared more than once"""
                 )
