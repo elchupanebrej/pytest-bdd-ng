@@ -485,7 +485,8 @@ class ExampleRow(SimpleMapping):
 
     def __attrs_post_init__(self):
         self._dict = {}
-        for key, value in self.mapping.items() if isinstance(self.mapping, typing.Mapping) else self.mapping:
+        mapping = self.mapping.items() if isinstance(self.mapping, typing.Mapping) else self.mapping
+        for key, value in mapping:
             if key == STEP_PREFIXES[types.TAG]:
                 self.tags |= {value}
             else:
