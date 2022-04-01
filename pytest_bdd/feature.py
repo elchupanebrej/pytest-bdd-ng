@@ -50,7 +50,7 @@ def get_feature(base_path: Path | str, filename: Path | str, encoding: str = "ut
            when multiple scenarios are referencing the same file.
     """
 
-    full_name = str((Path(base_path) / filename).absolute())
+    full_name = str((Path(base_path) / filename).resolve())
     feature = features.get(full_name)
     if not feature:
         feature = parse_feature(base_path, filename, encoding=encoding)
