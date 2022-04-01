@@ -29,13 +29,11 @@ def test_migrate(monkeypatch, capsys, testdir):
     out, err = capsys.readouterr()
     out = "\n".join(sorted(out.splitlines()))
     expected = textwrap.dedent(
-        """
-    migrated: {0}/test_foo.py
-    skipped: {0}/__init__.py""".format(
+        """\
+            migrated: {0}/test_foo.py
+            skipped: {0}/__init__.py""".format(
             tests.strpath
-        )[
-            1:
-        ]
+        )
     )
     assert out == expected
     assert tests.join("test_foo.py").read() == textwrap.dedent(
