@@ -62,7 +62,6 @@ def prepare_testdir(testdir, ini_base_dir):
 
     testdir.makepyfile(
         """
-    import io
     import os.path
 
     import pytest

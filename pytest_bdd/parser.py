@@ -112,7 +112,7 @@ def parse_feature(basedir: Path | str, filename: Path | str, encoding: str = "ut
     :param str filename: Relative path to the feature file.
     :param str encoding: Feature file encoding (utf-8 by default).
     """
-    abs_filename = str((Path(basedir) / filename).absolute())
+    abs_filename = str((Path(basedir) / filename).absolute().as_posix())
     rel_filename = (Path(Path(basedir).name) / filename).as_posix()
     current_node: Feature | ScenarioTemplate
     current_example_table: ExampleTable
