@@ -365,6 +365,7 @@ Step arguments could be defined without parsing
 If you want specify some default values for parameters without parsing them, you could do
 
 .. code-block:: python
+
     @given("I have default defined param", param_defaults={'default_param': 'foo'}, target_fixture='foo_fixture')
     def save_fixture(default_param):
         return default_param
@@ -374,12 +375,12 @@ Step arguments are fixtures as well!
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Step arguments are injected into pytest `request` context as normal fixtures with the names equal to the names of the
-arguments. This opens a number of possibilities:
+arguments by default. This opens a number of possibilities:
 
 * you can access step's argument as a fixture in other step function just by mentioning it as an argument (just like any other pytest fixture)
 * if the name of the step argument clashes with existing fixture, it will be overridden by step's argument value; this way you can set/override the value for some fixture deeply inside of the fixture tree in a ad-hoc way by just choosing the proper name for the step argument.
 
-By default all step arguments are passed to fixtures, what is equal to
+This behavior is same to:
 
 .. code-block:: python
 
@@ -1242,7 +1243,7 @@ pytest-bdd exposes several plugin fixtures to give more testing flexibility
     from pytest_bdd.model import UserStep
     from pytest_bdd import when
 
-    @when("I inject step \\"{keyword}\\" \\"{step_text}\\"")
+    @when('I inject step "{keyword}" "{step_text}')
     def inject_step(steps_left: deque, keyword, step_text, scenario):
         steps_left.appendleft(UserStep(text=step_text, keyword=keyword, scenario=scenario))
 
