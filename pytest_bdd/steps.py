@@ -49,7 +49,7 @@ from pytest_bdd.const import StepType
 from pytest_bdd.model import Feature, Scenario, Step
 from pytest_bdd.parsers import StepParser, get_parser
 from pytest_bdd.typing.pytest import Config, Parser, TypeAlias
-from pytest_bdd.utils import get_caller_module_locals
+from pytest_bdd.utils import get_caller_module_locals, setdefaultattr
 from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
 
 
@@ -302,7 +302,7 @@ class StepHandler:
                     with suppress(AttributeError):
                         yield from StepHandler.Matcher.find_step_definition_matches(registry.parent, matchers)
 
-    @attrs(auto_attribs=True)
+    @attrs(auto_attribs=True, eq=False)
     class Definition:
         func: Callable
         type_: str | None
@@ -322,43 +322,62 @@ class StepHandler:
 
     @attrs
     class Registry:
-        registry: list[StepHandler.Definition] = attrib(default=Factory(list))
+        registry: set[StepHandler.Definition] = attrib(default=Factory(set))
         parent: StepHandler.Registry = attrib(default=None, init=False)
 
         @classmethod
-        def register_step(
-            cls,
-            caller_locals: dict,
-            func,
-            type_,
-            parserlike,
-            converters,
-            params_fixtures_mapping,
-            param_defaults,
-            target_fixtures,
-            liberal,
-        ):
+        def setdefault_step_registry_fixture(cls, caller_locals: dict):
             if "step_registry" not in caller_locals.keys():
                 built_registry = cls()
-                caller_locals["step_registry"] = built_registry.bind_pytest_bdd_step_registry_fixture()
+                caller_locals["step_registry"] = built_registry.fixture
+            return caller_locals["step_registry"]
 
-            registry: StepHandler.Registry = caller_locals["step_registry"].__registry__
+        @classmethod
+        def register_step_definition(cls, step_definition, caller_locals: dict):
+            fixture = cls.setdefault_step_registry_fixture(caller_locals=caller_locals)
+            fixture.__registry__.registry.add(step_definition)
 
-            parser = get_parser(parserlike)
-            registry.registry.append(
-                StepHandler.Definition(  # type: ignore[call-arg]
-                    func=func,
-                    type_=type_,
-                    parser=parser,
-                    converters=converters,
-                    params_fixtures_mapping=params_fixtures_mapping,
-                    param_defaults=param_defaults,
-                    target_fixtures=target_fixtures,
-                    liberal=liberal,
-                )
-            )
+        @classmethod
+        def register_steps(cls, *step_funcs, caller_locals: dict):
+            for step_func in step_funcs:
+                for step_definition in step_func.__pytest_bdd_step_definitions__:
+                    cls.register_step_definition(step_definition, caller_locals=caller_locals)
 
-        def bind_pytest_bdd_step_registry_fixture(self):
+        @classmethod
+        def register_steps_from_locals(cls, caller_locals=None, steps=None):
+            if caller_locals is None:
+                caller_locals = get_caller_module_locals(depth=2)
+
+            def registrable_steps():
+                for name, obj in caller_locals.items():
+                    if hasattr(obj, "__pytest_bdd_step_definitions__") and (
+                        steps is None or any((name in steps, obj in steps))
+                    ):
+                        yield obj
+
+            cls.register_steps(*registrable_steps(), caller_locals=caller_locals)
+
+        @classmethod
+        def register_steps_from_module(cls, module, caller_locals=None, steps=None):
+            if caller_locals is None:
+                caller_locals = get_caller_module_locals(depth=2)
+
+            def registrable_steps():
+                # module items
+                for name, obj in module.__dict__.items():
+                    if hasattr(obj, "__pytest_bdd_step_definitions__") and (
+                        steps is None or any((name in steps, obj in steps))
+                    ):
+                        yield obj
+                # module registry items
+                for obj in getattr(module, "step_registry.__registry__.registry", set()):
+                    if hasattr(obj, "__pytest_bdd_step_definitions__") and (steps is None or obj in steps):
+                        yield obj
+
+            cls.register_steps(*set(registrable_steps()), caller_locals=caller_locals)
+
+        @property
+        def fixture(self):
             @pytest.fixture
             def step_registry(step_registry):
                 self.parent = step_registry
@@ -414,17 +433,29 @@ class StepHandler:
 
             :param function step_func: StepHandler definition function
             """
-            StepHandler.Registry.register_step(
-                caller_locals=get_caller_module_locals(depth=2),
+
+            step_definiton = StepHandler.Definition(  # type: ignore[call-arg]
                 func=step_func,
                 type_=step_type,
-                parserlike=step_parserlike,
+                parser=get_parser(step_parserlike),
                 converters=converters,
                 params_fixtures_mapping=params_fixtures_mapping,
                 param_defaults=param_defaults,
                 target_fixtures=target_fixtures,
                 liberal=liberal,
             )
+
+            setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set).add(step_definiton)
+
+            StepHandler.Registry.register_step_definition(
+                step_definition=step_definiton,
+                caller_locals=get_caller_module_locals(depth=2),
+            )
+
             return step_func
 
         return decorator
+
+
+step.from_locals = StepHandler.Registry.register_steps_from_locals  # type: ignore[attr-defined]
+step.from_module = StepHandler.Registry.register_steps_from_module  # type: ignore[attr-defined]
