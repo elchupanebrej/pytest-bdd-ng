@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import warnings
 from contextlib import suppress
-from typing import Any, Callable, Iterable, Iterator, Sequence
+from typing import Any, Callable, Iterable, Iterator, Sequence, cast
 from warnings import warn
 
 import pytest
@@ -307,11 +307,11 @@ class StepHandler:
         func: Callable
         type_: str | None
         parser: StepParser
-        converters: dict[str, Any]
-        params_fixtures_mapping: dict[str, str]
+        converters: dict[str, Callable]
+        params_fixtures_mapping: set[str] | dict[str, str] | Any
         param_defaults: dict
         target_fixtures: list[str]
-        liberal: bool
+        liberal: Any | None
 
         def get_parameters(self, step: Step):
             parsed_arguments = self.parser.parse_arguments(step.name) or {}
@@ -395,10 +395,10 @@ class StepHandler:
         step_parserlike: Any,
         converters: dict[str, Callable] | None = None,
         target_fixture: str | None = None,
-        target_fixtures: list[str] = None,
+        target_fixtures: list[str] | None = None,
         params_fixtures_mapping: set[str] | dict[str, str] | Any = True,
         param_defaults: dict | None = None,
-        liberal: bool | None = None,
+        liberal: Any | None = None,
     ) -> Callable:
         """StepHandler decorator for the type and the name.
 
@@ -438,10 +438,10 @@ class StepHandler:
                 func=step_func,
                 type_=step_type,
                 parser=get_parser(step_parserlike),
-                converters=converters,
+                converters=cast(dict, converters),
                 params_fixtures_mapping=params_fixtures_mapping,
-                param_defaults=param_defaults,
-                target_fixtures=target_fixtures,
+                param_defaults=cast(dict, param_defaults),
+                target_fixtures=cast(list, target_fixtures),
                 liberal=liberal,
             )
 
