@@ -49,7 +49,7 @@ from pytest_bdd.const import StepType
 from pytest_bdd.model import Feature, Scenario, Step
 from pytest_bdd.parsers import StepParser, get_parser
 from pytest_bdd.typing.pytest import Config, Parser, TypeAlias
-from pytest_bdd.utils import get_caller_module_locals, setdefaultattr
+from pytest_bdd.utils import deepattrgetter, get_caller_module_locals, setdefaultattr
 from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
 
 
@@ -370,9 +370,11 @@ class StepHandler:
                     ):
                         yield obj
                 # module registry items
-                for obj in getattr(module, "step_registry.__registry__.registry", set()):
-                    if hasattr(obj, "__pytest_bdd_step_definitions__") and (steps is None or obj in steps):
-                        yield obj
+                for obj in deepattrgetter("__registry__.registry", default=None)(module.__dict__.get("step_registry"))[
+                    0
+                ]:
+                    if steps is None or obj.func in steps:
+                        yield obj.func
 
             cls.register_steps(*set(registrable_steps()), caller_locals=caller_locals)
 
