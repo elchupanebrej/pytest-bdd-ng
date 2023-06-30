@@ -29,7 +29,7 @@ maintainers = [
 ]
 license = {file = "LICENSE.txt"}
 urls = {Repository ="https://github.com/elchupanebrej/pytest-bdd-ng"}
-version = "2.0.0"
+version = "2.0.1"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Pytest",
