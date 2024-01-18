@@ -1,0 +1,15 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+actor "Action" as test
+collections "Source" as repo
+control "Behave" as runner
+database "Artifact" as out
+participant "Console" as log
+
+'autonumber
+test -> runner: run pytest
+runner <--> repo: read
+runner -> runner: run tests
+runner -> out: write
+runner --> log: Log
+@enduml
