@@ -1,5 +1,5 @@
 @startuml
-'https://plantuml.com/sequence-diagram
+!theme sketchy-outline
 actor "Action" as test
 collections "Source" as repo
 control "Behave" as runner
