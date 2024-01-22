@@ -1,12 +1,13 @@
 import sys
 
 import anyio
-
 import dagger
 
 """
 Copy files to the build container and list them.
 """
+
+
 async def main():
     async with dagger.Connection(dagger.Config(log_output=sys.stderr)) as client:
         out = await (
@@ -18,5 +19,6 @@ async def main():
         )
 
     print(out)
+
 
 anyio.run(main)
