@@ -1,6 +1,8 @@
 Tutorial for Behave/Cucumber users
 ==================================
 
+If you have experience with Behave or Cucumber, this tutorial is for you.
+
 .. _tutorial: https://thebddcoach.com/post/a-quick-introduction-to-pytest-bdd-ng-for-people-who-are-already-familiar-with-cucumber-or-behave/
 
 Leslie's tutorial_ ...

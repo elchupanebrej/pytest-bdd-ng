@@ -1,0 +1,14 @@
+@startuml
+!theme sketchy-outline
+actor "Action" as test
+collections "Source" as repo
+control "Pytest" as runner
+database "Artifact" as out
+participant "Console" as log
+
+'autonumber
+test -> runner: run pytest
+runner <--> repo: read
+runner -> out: write
+runner --> log: Log
+@enduml
