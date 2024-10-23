@@ -118,8 +118,8 @@ def _(file_path: Path, line_count: int):
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
     converters=dict(file_path=Path),
 )
-def _(file_path: Path):
-    assert file_path.stat().st_size != 0
+def _(file_path: Path, testdir):
+    assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
 
 
 @then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters=dict(file_path=Path))
