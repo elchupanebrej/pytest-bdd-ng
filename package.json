@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@cucumber/html-formatter": "*",
+    "cucumber-html-reporter": "*"
+  }
+}
