@@ -1,8 +1,12 @@
+import inspect
 import json
 import logging
 import os
+import re
 import sys
+import tempfile
 from base64 import b64encode
+from functools import wraps
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
@@ -13,6 +17,8 @@ from threading import Event, Thread
 from time import sleep, time_ns
 from typing import Callable, Set, Union, cast
 
+import chevron
+import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
@@ -52,9 +58,27 @@ from pytest_bdd.compatibility.pytest import (
     get_metafunc_call_arg,
     is_set,
 )
+from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
+
+
+def _empty_gen():
+    yield
+
+
+def _if_not_disabled(func):
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        if not self.is_disabled:
+            return func(self, *args, **kwargs)
+
+    @wraps(func)
+    def gen_wrapper(self, *args, **kwargs):
+        yield from _empty_gen() if self.is_disabled else func(self, *args, **kwargs)
+
+    return gen_wrapper if inspect.isgeneratorfunction(func) else func_wrapper
 
 
 @attrs(eq=False)
@@ -64,24 +88,50 @@ class MessagePlugin:
     current_test_case_step_to_definition_mapping = attrib(default=None)
     parameter_type_registry: Set[int] = set()
     hook_registry: Set[int] = set()
+    npm_formatter_package = "@cucumber/html-formatter"
 
     def __attrs_post_init__(self):
-        self.is_disabled = self.config.option.messages_ndjson_path is None
+        self.is_disabled = all(
+            [
+                self.config.option.messages_ndjson_path is None,
+                self.config.option.cucumber_html_path is None,
+            ]
+        )
 
-        if not self.is_disabled:
-            self.process_messages_io_queue = Queue()
-            self.process_messages_stop_event = Event()
-            self.process_messages_thread = Thread(
-                target=type(self).process_messages,
-                args=(
-                    self.process_messages_io_queue,
-                    self.process_messages_stop_event,
-                    self.config.option.messages_ndjson_path,
-                ),
-                daemon=True,
-            )
-            self.process_messages_thread.start()
-            sleep(0)
+        self.is_messages_file_temp = self.config.option.messages_ndjson_path is None
+        if self.is_messages_file_temp:
+            handle, messages_file_path_raw = tempfile.mkstemp()
+            os.close(handle)
+            self.messages_file_path = Path(messages_file_path_raw)
+        else:
+            self.messages_file_path = Path(self.config.option.messages_ndjson_path)
+
+        if self.config.option.cucumber_html_path is not None:
+            self.check_npm_and_cucumber_packages()
+
+        self.start_process_messages_thread()
+
+    @_if_not_disabled
+    def start_process_messages_thread(self):
+        self.process_messages_io_queue = Queue()
+        self.process_messages_stop_event = Event()
+        self.process_messages_thread = Thread(
+            target=type(self).process_messages,
+            args=(
+                self.process_messages_io_queue,
+                self.process_messages_stop_event,
+                self.messages_file_path,
+            ),
+            daemon=True,
+        )
+        self.process_messages_thread.start()
+        sleep(0)
+
+    @_if_not_disabled
+    def finish_process_messages_thread(self):
+        self.process_messages_io_queue.join()
+        self.process_messages_stop_event.set()
+        self.process_messages_thread.join()
 
     @staticmethod
     def process_messages(queue: Queue, stop_event: Event, messages_file_path: Union[str, Path]):
@@ -112,7 +162,8 @@ class MessagePlugin:
                     f.writelines(lines)
                     f.flush()
 
-    def get_timestamp(self):
+    @staticmethod
+    def get_timestamp():
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
@@ -125,18 +176,53 @@ class MessagePlugin:
         group.addoption(
             "--messagesndjson",
             "--messages-ndjson",
+            "--messagesjsonl",
+            "--messages-jsonl",
             action="store",
             dest="messages_ndjson_path",
             metavar="path",
             default=None,
             help="messages ndjson report file at given path.",
         )
+        group = parser.getgroup("bdd", "Cucumber HTML")
+        group.addoption(
+            "--cucumber-html",
+            "--cucumberhtml",
+            action="store",
+            dest="cucumber_html_path",
+            metavar="path",
+            default=None,
+            help="cucumber html report at given path.",
+        )
+
+    @_if_not_disabled
+    def generate_html_report(self):
+        script_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.js")))
+        css_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.css")))
+        template_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "index.mustache.html")))
+
+        template_raw = template_path.read_text(encoding="utf-8")
+        template = re.sub(r"\{\{", "{{&", template_raw)  # It is not completely in agree with documentation
+
+        with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
+            messages = ",".join(f.readlines())
+
+        Path(self.config.option.cucumber_html_path).write_text(
+            chevron.render(
+                template,
+                {
+                    "css": css_path.read_text(encoding="utf-8"),
+                    "script": script_path.read_text(encoding="utf-8"),
+                    "messages": messages,
+                },
+            ),
+            encoding="utf-8",
+        )
 
     @hookimpl(hookwrapper=True)
+    @_if_not_disabled
     def pytest_generate_tests(self, metafunc):
         yield
-        if self.is_disabled:
-            return
 
         if all(
             [
@@ -165,17 +251,13 @@ class MessagePlugin:
                 if is_set(pickle) and id(pickle) not in pickle_registry:
                     cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
 
+    @_if_not_disabled
     def pytest_bdd_message(self, config: Config, message: Message):
-        if self.is_disabled:
-            return
-
         message_json = message.model_dump_json(exclude_none=True, by_alias=True)  # type: ignore[attr-defined] # migration to pydantic2
         self.process_messages_io_queue.put_nowait(message_json)
 
+    @_if_not_disabled
     def pytest_runtestloop(self, session: Session):
-        if self.is_disabled:
-            return
-
         config = session.config
         hook_handler = config.hook
 
@@ -184,10 +266,8 @@ class MessagePlugin:
             message=Message(test_run_started=TestRunStarted(timestamp=self.get_timestamp())),
         )
 
+    @_if_not_disabled
     def pytest_sessionstart(self, session):
-        if self.is_disabled:
-            return
-
         config = session.config
         hook_handler = config.hook
 
@@ -195,6 +275,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 meta=Meta(
+                    # TODO: Get from environment
                     protocol_version="22.0.0",
                     implementation=Product(
                         name="pytest-bdd-ng", version=str(get_distribution_version("pytest-bdd-ng"))
@@ -207,10 +288,8 @@ class MessagePlugin:
             ),
         )
 
+    @_if_not_disabled
     def pytest_sessionfinish(self, session, exitstatus):
-        if self.is_disabled:
-            return
-
         config = session.config
         hook_handler = config.hook
 
@@ -224,16 +303,20 @@ class MessagePlugin:
                 )
             ),
         )
-        self.process_messages_io_queue.join()
-        self.process_messages_stop_event.set()
-        self.process_messages_thread.join()
+
+        self.finish_process_messages_thread()
+        if self.config.option.cucumber_html_path is not None:
+            self.generate_html_report()
+        if self.is_messages_file_temp:
+            os.unlink(self.messages_file_path)
 
     @hookimpl(hookwrapper=True)
+    @_if_not_disabled
     def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
         func = fixturedef.func
         func_id = id(func)
 
-        if self.is_disabled or func_id in self.hook_registry:
+        if func_id in self.hook_registry:
             yield
             return
 
@@ -267,11 +350,9 @@ class MessagePlugin:
         yield
 
     @hookimpl(hookwrapper=True)
+    @_if_not_disabled
     def pytest_runtest_setup(self, item):
         yield
-
-        if self.is_disabled:
-            return
 
         session = item.session
         config: Union[
@@ -377,10 +458,8 @@ class MessagePlugin:
             message=Message(test_case=self.current_test_case),
         )
 
+    @_if_not_disabled
     def pytest_bdd_before_scenario(self, request, feature, scenario):
-        if self.is_disabled:
-            return
-
         config = request.config
         hook_handler = config.hook
 
@@ -397,10 +476,8 @@ class MessagePlugin:
             message=Message(test_case_started=self.current_test_case_start),
         )
 
+    @_if_not_disabled
     def pytest_bdd_after_scenario(self, request, feature, scenario):
-        if self.is_disabled:
-            return
-
         config = request.config
 
         hook_handler = config.hook
@@ -418,10 +495,8 @@ class MessagePlugin:
         )
         self.current_test_case = None
 
+    @_if_not_disabled
     def pytest_bdd_before_step(self, request, feature, scenario, step, step_func):
-        if self.is_disabled:
-            return
-
         config = request.config
         hook_handler = config.hook
 
@@ -441,10 +516,8 @@ class MessagePlugin:
             ),
         )
 
+    @_if_not_disabled
     def pytest_bdd_after_step(self, request, feature, scenario, step, step_func):
-        if self.is_disabled:
-            return
-
         config = request.config
         hook_handler = config.hook
 
@@ -479,12 +552,10 @@ class MessagePlugin:
             ),
         )
 
+    @_if_not_disabled
     def pytest_bdd_step_error(
         self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
     ):
-        if self.is_disabled:
-            return
-
         config = request.config
         hook_handler = config.hook
 
@@ -519,10 +590,8 @@ class MessagePlugin:
             ),
         )
 
+    @_if_not_disabled
     def pytest_bdd_attach(self, request, attachment, media_type, file_name):
-        if self.is_disabled:
-            return
-
         config = request.config
         hook_handler = config.hook
 
@@ -569,3 +638,15 @@ class MessagePlugin:
                 )
             ),
         )
+
+    def check_npm_and_cucumber_packages(self):
+        if not check_npm():
+            pytest.exit(f"Npm wasn't found in the environment so unable generate html report")
+
+        if not any(
+            [
+                check_npm_package(self.npm_formatter_package, global_install=True),
+                check_npm_package(self.npm_formatter_package),
+            ]
+        ):
+            pytest.exit(f"Npm package '{self.npm_formatter_package}' wasn't found so unable generate html report")

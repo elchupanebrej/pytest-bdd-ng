@@ -114,6 +114,14 @@ def _(file_path: Path, line_count: int):
     assert line_count == real_line_count
 
 
+@then(
+    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
+    converters=dict(file_path=Path),
+)
+def _(file_path: Path):
+    assert file_path.stat().st_size != 0
+
+
 @then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters=dict(file_path=Path))
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
