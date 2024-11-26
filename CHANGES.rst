@@ -6,6 +6,7 @@ Changelog
 
 Planned
 -------
+- Add official gherkin parser support >30
 - Refactor internal parser API: split loader and parser APIs
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
