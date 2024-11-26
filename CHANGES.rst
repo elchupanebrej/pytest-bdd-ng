@@ -53,11 +53,14 @@ Planned
 - Contribute to messages repository with python model
 - Add support of native legacy cucumber-json
 
-Unreleased
-----------
+2.3.1
+-----
+- Fixup documentation generation
+
+2.3.0
+-----
 - Add mobile readthedocs site support theme
 - Convert e2e test features definitions to markdown
-- Move documentation to Gherkin itself
 - Implement support of `Markdown <https://github.com/cucumber/gherkin/blob/main/MARKDOWN_WITH_GHERKIN.md>`_ using js based parser
 - Update versions:
 

@@ -7,11 +7,10 @@ Options:
     --snapshot=<snapshot_path> Path to save snapshot on found diff between old and new documentation
 """
 
-import io
 import sys
 from collections import deque
 from filecmp import dircmp
-from functools import partial, reduce
+from functools import reduce
 from itertools import chain
 from operator import methodcaller, truediv
 from os.path import commonpath
@@ -99,15 +98,11 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
             html_data = pycmarkgfm.gfm_to_html((features_path / rel_path).read_text())
 
-            html_content = pypandoc.convert_text(html_data, "json", format="html")
-            doc = pf.load(io.StringIO(html_content))
+            rst_content = pypandoc.convert_text(
+                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset+1}"]
+            )
 
-            with io.StringIO() as f:
-                pf.dump(pf.run_filter(partial(adjust_heading_level, level=offset + 1), doc=doc), f)
-
-                contents = f.getvalue()
-            output_rst = pypandoc.convert_text(contents, "rst", format="json")
-            abs_path.with_suffix(".rst").write_text(output_rst, encoding="utf-8")
+            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
 
             stemmed_path = Path(rel_path.stem).stem
 
