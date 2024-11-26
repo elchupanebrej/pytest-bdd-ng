@@ -52,6 +52,10 @@ Planned
 - Contribute to messages repository with python model
 - Add support of native legacy cucumber-json
 
+2.3.1
+-----
+- Fixup documentation generation
+
 2.3.0
 -----
 - Add mobile readthedocs site support theme
