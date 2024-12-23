@@ -68,9 +68,9 @@ except CalledProcessError:
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from pytest_bdd import hooks
+    from pytest_bdd.hooks import PytestBDDHookSpec
 
-    pluginmanager.add_hookspecs(hooks)
+    pluginmanager.add_hookspecs(PytestBDDHookSpec)
 
 
 @given("trace")
