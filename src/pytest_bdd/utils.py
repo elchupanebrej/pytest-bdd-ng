@@ -280,6 +280,9 @@ def compose(*funcs):
     return reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs)
 
 
+chain_map = compose(chain.from_iterable, map)
+
+
 def flip(func):
     def wrapped(*args, **kwargs):
         if len(args) > 1:
@@ -360,6 +363,3 @@ def is_url_parsable(urllike):
         return True
     except ValueError:
         return False
-
-
-chain_map = compose(chain.from_iterable, map)

@@ -81,6 +81,7 @@ def trace() -> None:
     pytest.set_trace()
 
 
+# Defining root step registry
 _step_registry = StepHandler.Registry()
 
 
