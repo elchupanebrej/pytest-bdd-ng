@@ -1,17 +1,19 @@
 """pytest-bdd missing test code generation."""
 
+from __future__ import annotations
+
 import argparse
 import os.path
 from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Optional, Union, cast
+from typing import cast
 
 import py
 from mako.template import Template
 
-from messages import Pickle, PickleStep  # type:ignore[attr-defined, import-untyped]
+from messages import Pickle, PickleStep, Type  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Parser, Session, wrap_session
 from pytest_bdd.model import Feature, StepType
@@ -36,7 +38,7 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 }
 
 
-def check_existense(file_name):
+def check_existence(file_name):
     """Check file or directory name for existence."""
     if not os.path.exists(file_name):
         raise argparse.ArgumentTypeError(f"{file_name} is an invalid file or directory name")
@@ -47,7 +49,7 @@ def add_options(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Generation")
 
-    group._addoption(
+    group.addoption(
         "--generate-missing",
         action="store_true",
         dest="generate_missing",
@@ -55,7 +57,7 @@ def add_options(parser: Parser) -> None:
         help="Generate missing bdd test code for given feature files and exit.",
     )
 
-    group._addoption(
+    group.addoption(
         "--generate",
         action="store_true",
         dest="generate",
@@ -63,17 +65,17 @@ def add_options(parser: Parser) -> None:
         help="Generate bdd test code for given feature files and exit.",
     )
 
-    group._addoption(
+    group.addoption(
         "--feature",
         metavar="FILE_OR_DIR",
         action="append",
-        type=check_existense,
+        type=check_existence,
         dest="features",
         help="Feature file or directory to generate code for. Multiple allowed.",
     )
 
 
-def cmdline_main(config: Config) -> Optional[int]:
+def cmdline_main(config: Config) -> int | None:
     """Check config option to show missing code."""
     if config.option.generate_missing:
         return generate_and_print_missing_code(config)
@@ -103,155 +105,212 @@ def generate_code(
     return cast(str, code)
 
 
-def generate_and_print_missing_code(config: Config) -> Union[int, ExitCode]:
-    """Wrap pytest session to show missing code."""
+def generate_and_print_missing_code_callback(config: Config, session: Session) -> None:
+    """Preparing fixture duplicates for output."""
+    tw = py.io.TerminalWriter()
+    config.hook.pytest_collection(session=session)
 
-    def _(config: Config, session: Session) -> None:
-        """Preparing fixture duplicates for output."""
-        tw = py.io.TerminalWriter()
-        config.hook.pytest_collection(session=session)
+    if not validate_feature_option(config, session, tw):
+        return
 
-        if config.option.features is None:
-            tw.line("The --feature parameter is required.", red=True)
-            session.exitstatus = 100
-            return
+    seen_feature_pickles_ids, non_matched_feature_pickle_steps = process_session_items(session)
 
-        seen_feature_pickles_ids = set()
-        non_matched_feature_pickle_steps = []
+    features, seen_features_uris = collect_features_and_seen_uris(config, seen_feature_pickles_ids)
 
-        for item in session.items:
-            is_legacy_pytest = compare_distribution_version("pytest", "7.0", lt)
+    non_seen_features, non_seen_feature_pickles = find_non_seen_features_and_pickles(
+        features, seen_feature_pickles_ids, seen_features_uris
+    )
 
-            method_name = "prepare" if is_legacy_pytest else "setup"
-            methodcaller(method_name, item)(item.session._setupstate)
+    unique_non_matched_feature_pickle_steps = find_unique_non_matched_steps(non_matched_feature_pickle_steps)
 
-            item = cast(Item, item)
-            item_request: FixtureRequest = item._request
-            pickle: Pickle = item_request.getfixturevalue("scenario")
-            feature: Feature = item_request.getfixturevalue("feature")
+    print_missing_code(
+        non_seen_features,
+        non_seen_feature_pickles,  # type: ignore[arg-type]
+        non_matched_feature_pickle_steps,
+        unique_non_matched_feature_pickle_steps,
+    )
 
-            seen_feature_pickles_ids.add((feature.uri, pickle.name))
+    if non_seen_feature_pickles or non_matched_feature_pickle_steps:
+        session.exitstatus = 100
 
-            previous_step = None
-            for step in pickle.steps:
-                try:
-                    item_request.config.hook.pytest_bdd_match_step_definition_to_step(
-                        request=item_request, feature=feature, scenario=pickle, step=step, previous_step=previous_step
-                    )
-                except StepHandler.Matcher.MatchNotFoundError:
-                    non_matched_feature_pickle_steps.append(((feature, pickle), step))
-                finally:
-                    previous_step = step
 
-            item.session._setupstate.teardown_exact(  # type: ignore[call-arg]
-                *((item,) if is_legacy_pytest else ()), None
+def validate_feature_option(config: Config, session: Session, tw: py.io.TerminalWriter) -> bool:
+    """Validate if the --feature parameter is provided."""
+    if config.option.features is None:
+        tw.line("The --feature parameter is required.", red=True)
+        session.exitstatus = 100
+        return False
+    return True
+
+
+def process_session_items(
+    session: Session,
+) -> tuple[set[tuple[str, str]], list[tuple[tuple[Feature, Pickle], PickleStep]]]:
+    """Process session items to gather matched and unmatched data."""
+    seen_feature_pickles_ids: set[tuple[str, str]] = set()
+    non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = []
+
+    for item in session.items:
+        process_single_item(cast(Item, item), seen_feature_pickles_ids, non_matched_feature_pickle_steps)
+
+    return seen_feature_pickles_ids, non_matched_feature_pickle_steps
+
+
+def process_single_item(
+    item: Item,
+    seen_feature_pickles_ids: set[tuple[str, str]],
+    non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
+) -> None:
+    """Handles processing for a single test item."""
+    is_legacy_pytest = compare_distribution_version("pytest", "7.0", lt)
+    method_name = "prepare" if is_legacy_pytest else "setup"
+    methodcaller(method_name, item)(item.session._setupstate)
+
+    item = cast(Item, item)
+    item_request: FixtureRequest = item._request
+    pickle: Pickle = item_request.getfixturevalue("scenario")
+    feature: Feature = item_request.getfixturevalue("feature")
+
+    seen_feature_pickles_ids.add((feature.uri, pickle.name))
+
+    process_pickle_steps(pickle, item_request, feature, non_matched_feature_pickle_steps)
+
+    item.session._setupstate.teardown_exact(*((item,) if is_legacy_pytest else ()), None)  # type: ignore[call-arg]
+
+
+def process_pickle_steps(
+    pickle: Pickle,
+    item_request: FixtureRequest,
+    feature: Feature,
+    non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
+) -> None:
+    """Process pickle steps to gather unmatched steps."""
+    previous_step: PickleStep | None = None
+    for step in pickle.steps:
+        try:
+            item_request.config.hook.pytest_bdd_match_step_definition_to_step(
+                request=item_request, feature=feature, scenario=pickle, step=step, previous_step=previous_step
             )
+        except StepHandler.Matcher.MatchNotFoundError:
+            non_matched_feature_pickle_steps.append(((feature, pickle), step))
+        finally:
+            previous_step = step
 
-        features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
 
-        seen_features_uris = set()
-        for feature_uri, pickle_name in seen_feature_pickles_ids:
-            if feature_uri not in seen_features_uris:
-                seen_features_uris.add(feature_uri)
+def collect_features_and_seen_uris(
+    config: Config, seen_feature_pickles_ids: set[tuple[str, str]]
+) -> tuple[Sequence[Feature], set[str]]:
+    """Collect all features and the set of seen feature URIs."""
+    features: Sequence[Feature] = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
+    seen_features_uris: set[str] = {feature_uri for feature_uri, _ in seen_feature_pickles_ids}
 
-        non_seen_features = list(filterfalse(lambda feature: feature.uri in seen_features_uris, features))
+    return features, seen_features_uris
 
-        non_seen_feature_pickles = list(
-            filter(
-                lambda feature_pickle: (feature_pickle[0].uri, feature_pickle[1].name) not in seen_feature_pickles_ids,
-                chain.from_iterable(map(lambda feature: zip_longest((), feature.pickles, fillvalue=feature), features)),
+
+def find_non_seen_features_and_pickles(
+    features: Sequence[Feature], seen_feature_pickles_ids: set[tuple[str, str]], seen_features_uris: set[str]
+) -> tuple[list[Feature], list[tuple[Feature, Pickle]]]:
+    """Identify features and pickles that were not seen."""
+    non_seen_features: list[Feature] = list(filterfalse(lambda feature: feature.uri in seen_features_uris, features))
+
+    non_seen_feature_pickles: list[tuple[Feature, Pickle]] = list(
+        filter(
+            lambda feature_pickle: (feature_pickle[0].uri, feature_pickle[1].name) not in seen_feature_pickles_ids,
+            chain.from_iterable(map(lambda feature: zip_longest((), feature.pickles, fillvalue=feature), features)),
+        )
+    )
+
+    return non_seen_features, non_seen_feature_pickles
+
+
+def find_unique_non_matched_steps(
+    non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
+) -> list[tuple[tuple[Feature, Pickle], PickleStep]]:
+    """Find unique non-matched feature pickle steps."""
+    unique_step_defs_ids: set[tuple[Type | None, str]] = {
+        (step.type, step.text) for _, step in non_matched_feature_pickle_steps
+    }
+    unique_non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = list(
+        map(
+            lambda step_def_id: next(
+                filter(
+                    lambda feature_pickle_step: (
+                        feature_pickle_step[1].type == step_def_id[0] and feature_pickle_step[1].text == step_def_id[1]
+                    ),
+                    non_matched_feature_pickle_steps,
+                )
+            ),
+            unique_step_defs_ids,
+        )
+    )
+    return unique_non_matched_feature_pickle_steps
+
+
+def generate_and_print_missing_code(config: Config) -> int | ExitCode:
+    """Wrap pytest session to show missing code."""
+    return wrap_session(config=config, doit=generate_and_print_missing_code_callback)
+
+
+def generate_and_print_code_callback(config: Config, session: Session) -> None:
+    """Preparing fixture duplicates for output."""
+    tw = py.io.TerminalWriter()
+
+    if config.option.features is None:
+        tw.line("The --feature parameter is required.", red=True)
+        session.exitstatus = 100
+        return
+
+    features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
+
+    feature_pickles: Sequence[tuple[Feature, Pickle]] = list(
+        chain.from_iterable(
+            map(
+                lambda feature: cast(
+                    Iterable[tuple[Feature, Pickle]], zip_longest((), feature.pickles, fillvalue=feature)
+                ),
+                features,
             )
         )
+    )
 
-        unique_step_defs_ids = {(step.type, step.text) for _, step in non_matched_feature_pickle_steps}
-        unique_non_matched_feature_pickle_steps = list(
+    feature_pickles_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]] = list(
+        chain.from_iterable(
             map(
-                lambda step_def_id: next(
+                lambda feature_pickle: cast(
+                    Iterable[tuple[tuple[Feature, Pickle], PickleStep]],
+                    zip_longest((), feature_pickle[1].steps, fillvalue=feature_pickle),
+                ),
+                feature_pickles,
+            )
+        )
+    )
+
+    unique_step_defs_ids = {(step.type, step.text) for (feature, pickle), step in feature_pickles_steps}
+    unique_feature_pickle_steps = sorted(
+        list(
+            map(
+                lambda step_def_id: next(  # type: ignore[no-any-return]
                     filter(
-                        lambda feature_pickle_step: (
-                            feature_pickle_step[1].type == step_def_id[0]
-                            and feature_pickle_step[1].text == step_def_id[1]
-                        ),
-                        non_matched_feature_pickle_steps,
+                        lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
+                        feature_pickles_steps,
                     )
                 ),
                 unique_step_defs_ids,
             )
-        )
+        ),
+        key=lambda feature_pickle_step: cast(str, feature_pickle_step[1].text),
+    )
 
-        print_missing_code(
-            non_seen_features,
-            non_seen_feature_pickles,  # type: ignore[arg-type]
-            non_matched_feature_pickle_steps,
-            unique_non_matched_feature_pickle_steps,
-        )
-
-        if non_seen_feature_pickles or non_matched_feature_pickle_steps:
-            session.exitstatus = 100
-
-    return wrap_session(config=config, doit=_)
+    code = generate_code(features, feature_pickles, unique_feature_pickle_steps)
+    tw.write(code)
 
 
-def generate_and_print_code(config: Config) -> Union[int, ExitCode]:
+def generate_and_print_code(config: Config) -> int | ExitCode:
     """Wrap pytest session to show missing code."""
-
-    def _(config: Config, session: Session) -> None:
-        """Preparing fixture duplicates for output."""
-        tw = py.io.TerminalWriter()
-
-        if config.option.features is None:
-            tw.line("The --feature parameter is required.", red=True)
-            session.exitstatus = 100
-            return
-
-        features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
-
-        feature_pickles: Sequence[tuple[Feature, Pickle]] = list(
-            chain.from_iterable(
-                map(
-                    lambda feature: cast(
-                        Iterable[tuple[Feature, Pickle]], zip_longest((), feature.pickles, fillvalue=feature)
-                    ),
-                    features,
-                )
-            )
-        )
-
-        feature_pickles_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]] = list(
-            chain.from_iterable(
-                map(
-                    lambda feature_pickle: cast(
-                        Iterable[tuple[tuple[Feature, Pickle], PickleStep]],
-                        zip_longest((), feature_pickle[1].steps, fillvalue=feature_pickle),
-                    ),
-                    feature_pickles,
-                )
-            )
-        )
-
-        unique_step_defs_ids = {(step.type, step.text) for (feature, pickle), step in feature_pickles_steps}
-        unique_feature_pickle_steps = sorted(
-            list(
-                map(
-                    lambda step_def_id: next(  # type: ignore[no-any-return]
-                        filter(
-                            lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
-                            feature_pickles_steps,
-                        )
-                    ),
-                    unique_step_defs_ids,
-                )
-            ),
-            key=lambda feature_pickle_step: cast(str, feature_pickle_step[1].text),
-        )
-
-        code = generate_code(features, feature_pickles, unique_feature_pickle_steps)
-        tw.write(code)
-
     verbosity = config.option.verbose
     try:
         config.option.verbose = -2
-        exit_code = wrap_session(config=config, doit=_)
+        exit_code = wrap_session(config=config, doit=generate_and_print_code_callback)
     finally:
         config.option.verbose = verbosity
 
