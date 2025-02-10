@@ -1,24 +1,22 @@
 from collections import deque
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Sequence
 from contextlib import suppress
 from functools import partial
-from inspect import signature
-from itertools import chain, starmap
-from operator import attrgetter, contains, methodcaller
+from itertools import starmap
+from operator import contains, methodcaller
 from pathlib import Path
-from subprocess import CalledProcessError
 from types import ModuleType
-from typing import Any, Deque, Optional, Union
+from typing import Deque, Optional, Union
 from unittest.mock import patch
 
 import pytest
 from _pytest.nodes import Collector
-from pathvalidate import is_valid_filepath
 
+import pytest_bdd.feature_locator as feature_locator
+import pytest_bdd.util.code_generation as code_generation
 from messages import Pickle  # type:ignore[attr-defined, import-untyped]
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from pytest_bdd import cucumber_json, generation, gherkin_terminal_reporter, given, steps, then, when
-from pytest_bdd.allure_logging import AllurePytestBDD
+from pytest_bdd import given, steps, then, when
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
@@ -28,47 +26,37 @@ from pytest_bdd.compatibility.pytest import (
     Mark,
     MarkDecorator,
     Metafunc,
-    Parser,
     PytestPluginManager,
 )
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.message_plugin import MessagePlugin
-from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.const import PYTEST_BDD_MARK
+from pytest_bdd.feature_locator import ScenarioLocatorBuilder
+from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature
-from pytest_bdd.npm_resource import check_npm, check_npm_package
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.reporting import ScenarioReporterPlugin
+from pytest_bdd.plugin import cucumber_json, gherkin_terminal_reporter
+from pytest_bdd.plugin.allure_logger import AllurePytestBDD
+from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
+from pytest_bdd.plugin.pytest_bdd import feature_autoload
+from pytest_bdd.plugin.reporter import ScenarioReporterPlugin
 from pytest_bdd.runner import ScenarioRunner
-from pytest_bdd.scenario import FeaturePathType
-from pytest_bdd.scenario import add_options as scenario_add_options
-from pytest_bdd.scenario import scenarios
-from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.utils import IdGenerator, chain_map, getitemdefault, is_url_parsable, setdefaultattr
+
+from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
+from pytest_bdd.util.other import IdGenerator
+from pytest_bdd.util.toolz_extra import chain_map, setdefaultattr
 
 if STRUCT_BDD_INSTALLED:
     from pytest_bdd.struct_bdd.plugin import StructBDDPlugin
 
-try:
-    is_npm_gherkin_installed = all(
-        [
-            check_npm(),
-            any(
-                [
-                    check_npm_package("@cucumber/gherkin", global_install=True),
-                    check_npm_package("@cucumber/gherkin"),
-                ]
-            ),
-        ]
-    )
-except CalledProcessError:
-    is_npm_gherkin_installed = False
+from pytest_bdd.compatibility.pytest import Parser
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from pytest_bdd.hooks import PytestBDDHookSpec
+    from pytest_bdd.plugin.pytest_bdd.hook import PytestBDDHookSpec
 
     pluginmanager.add_hookspecs(PytestBDDHookSpec)
 
@@ -126,30 +114,25 @@ def attach(request: FixtureRequest):
 
 def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
-    add_bdd_ini(parser)
+    feature_locator.add_options(parser)
     steps.add_options(parser)
-    scenario_add_options(parser)
+    feature_autoload.add_options(parser)
     cucumber_json.add_options(parser)
-    generation.add_options(parser)
+    code_generation.add_options(parser)
     gherkin_terminal_reporter.add_options(parser)
-    MessagePlugin.add_options(parser)
-
-
-def add_bdd_ini(parser: Parser) -> None:
-    parser.addini("bdd_features_base_dir", "Base features directory.")
-    parser.addini("bdd_features_base_url", "Base features url.")
+    GherkinMessageReporter.add_options(parser)
 
 
 @pytest.mark.trylast
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
-    config.addinivalue_line("markers", "pytest_bdd_scenario: marker to identify pytest_bdd tests")
+    config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
     cucumber_json.configure(config)
     gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner())
-    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
+    config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
@@ -188,101 +171,6 @@ def pytest_plugin_registered(plugin, manager):
         StepHandler.Registry.inject_registry_fixture_and_register_steps(plugin)
 
 
-def _build_filter(filter_):
-    if callable(filter_):
-        updated_filter = filter_
-    else:
-        if filter_ is None:
-            updated_filter = None
-        else:
-            if not isinstance(filter_, str):
-                filter_ = str(filter_)
-
-            def updated_filter(config, feature, scenario):
-                return scenario.name == filter_
-
-    return updated_filter
-
-
-def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[Any]:
-    raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
-    raw_mark_arguments.apply_defaults()
-    mark_arguments = raw_mark_arguments.arguments
-
-    locators_iterables = [mark_arguments["locators"]]
-
-    filter_ = _build_filter(getitemdefault(mark_arguments, "filter_", default=None))
-
-    features_base_dir = mark.kwargs.get("features_base_dir")
-    if features_base_dir is None:
-        try:
-            features_base_dir = config.getini("bdd_features_base_dir")
-        except (ValueError, KeyError):
-            features_base_dir = config.rootpath
-    if callable(features_base_dir):
-        features_base_dir = features_base_dir(config)
-
-    features_base_url = mark.kwargs.get("features_base_url")
-    if features_base_url is None:
-        try:
-            features_base_url = config.getini("bdd_features_base_url") or None
-        except (ValueError, KeyError):
-            features_base_url = None
-    if callable(features_base_url):
-        features_base_url = features_base_url(config)
-
-    features_path_type = mark_arguments["features_path_type"]
-    if features_path_type is None:
-        features_path_type = FeaturePathType.UNDEFINED
-    elif isinstance(features_path_type, str):
-        features_path_type = FeaturePathType(features_path_type)
-    elif isinstance(features_path_type, FeaturePathType):
-        pass
-    else:
-        raise ValueError(f"Unknown feature path type")
-
-    feature_paths = list(mark_arguments["feature_paths"] or [])
-
-    if features_path_type is FeaturePathType.PATH:
-        file_locator_feature_paths = feature_paths
-    elif features_path_type is FeaturePathType.UNDEFINED:
-        file_locator_feature_paths = [*filter(lambda p: is_valid_filepath(Path(p), platform="auto"), feature_paths)]
-    else:
-        file_locator_feature_paths = []
-
-    path_locator = FileScenarioLocator(  # type: ignore[call-arg]
-        feature_paths=file_locator_feature_paths,
-        filter_=filter_,
-        encoding=mark_arguments["encoding"],
-        features_base_dir=features_base_dir,
-        mimetype=mark_arguments["features_mimetype"],
-        parser_type=mark_arguments["parser_type"],
-        parse_args=mark_arguments["parse_args"],
-    )
-
-    locators_iterables.append([path_locator])
-
-    if features_path_type is FeaturePathType.URL:
-        url_locator_feature_paths = feature_paths
-    elif features_path_type is FeaturePathType.UNDEFINED:
-        url_locator_feature_paths = [*filter(is_url_parsable, feature_paths)]
-    else:
-        url_locator_feature_paths = []
-
-    url_locator = UrlScenarioLocator(  # type: ignore[call-arg]
-        url_paths=url_locator_feature_paths,
-        filter_=mark_arguments["filter_"],
-        encoding=mark_arguments["encoding"],
-        features_base_url=features_base_url,
-        mimetype=mark_arguments["features_mimetype"],
-        parser_type=mark_arguments["parser_type"],
-        parse_args=mark_arguments["parse_args"],
-    )
-
-    locators_iterables.append([url_locator])
-    return chain(*locators_iterables)
-
-
 def _build_scenario_param(feature: Feature, pickle: Pickle, feature_data: str, config: Config):
     marks = []
     for tag in feature._get_pickle_tag_names(pickle):
@@ -303,10 +191,10 @@ def pytest_generate_tests(metafunc: Metafunc):
 
     # build marker locators
     marks: Sequence[Mark] = metafunc.definition.own_markers
-    mark_names = list(map(attrgetter("name"), marks))
-    if "pytest_bdd_scenario" in mark_names:
+    mark_names = [mark.name for mark in marks]
+    if PYTEST_BDD_MARK in mark_names:
         scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
-        locators = chain_map(partial(_build_scenario_locators_from_mark, config=config), scenario_marks)
+        locators = ScenarioLocatorBuilder(scenario_marks, config=config).build_locators()
         feature_scenario_feature_source = chain_map(methodcaller("resolve", config), locators)
 
         metafunc.parametrize(
@@ -316,18 +204,14 @@ def pytest_generate_tests(metafunc: Metafunc):
 
 
 def pytest_cmdline_main(config: Config) -> Optional[int]:
-    return generation.cmdline_main(config)
+    return code_generation.cmdline_main(config)
 
 
 def _pytest_collect_file(parent: Collector, file_path=None):
-    file_path = Path(file_path)
-    config = parent.session.config
-    is_enabled_feature_autoload = config.getoption("feature_autoload")
-    if is_enabled_feature_autoload is None:
-        is_enabled_feature_autoload = not config.getini("disable_feature_autoload")
-    if not is_enabled_feature_autoload:
+    if not feature_autoload.is_enabled(parent.session.config):
         return
 
+    file_path = Path(file_path)
     config = parent.config
     hook = parent.config.hook
 

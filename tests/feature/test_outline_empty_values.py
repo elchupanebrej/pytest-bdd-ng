@@ -1,6 +1,6 @@
 """Scenario Outline with empty example values tests."""
 
-from pytest_bdd.utils import collect_dumped_objects
+from pytest_bdd.util.other import collect_dumped_objects
 
 
 def test_scenario_with_empty_example_values(testdir):
@@ -23,7 +23,7 @@ def test_scenario_with_empty_example_values(testdir):
         # language=python
         """\
         from pytest_bdd import given, when, then, parsers
-        from pytest_bdd.utils import dump_obj
+        from pytest_bdd.util.other import dump_obj
 
         # Using `parsers.re` so that we can match empty values
 

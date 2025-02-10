@@ -16,11 +16,12 @@ from mako.template import Template
 from messages import Pickle, PickleStep, Type  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Parser, Session, wrap_session
+from pytest_bdd.const import CodeGeneration
 from pytest_bdd.model import Feature, StepType
-from pytest_bdd.packaging import compare_distribution_version
 from pytest_bdd.parser import GherkinParser
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import make_python_name
+from pytest_bdd.util.other import format_as_simplified_python_identifier
+from pytest_bdd.util.packaging import compare_distribution_version
 
 STEP_TYPE_TO_STEP_PREFIX = {
     StepType.unknown: "*",
@@ -52,7 +53,7 @@ def add_options(parser: Parser) -> None:
     group.addoption(
         "--generate-missing",
         action="store_true",
-        dest="generate_missing",
+        dest=CodeGeneration.Cli.GENERATE_MISSING_CODE.value,
         default=False,
         help="Generate missing bdd test code for given feature files and exit.",
     )
@@ -60,7 +61,7 @@ def add_options(parser: Parser) -> None:
     group.addoption(
         "--generate",
         action="store_true",
-        dest="generate",
+        dest=CodeGeneration.Cli.GENERATE_CODE.value,
         default=False,
         help="Generate bdd test code for given feature files and exit.",
     )
@@ -70,7 +71,7 @@ def add_options(parser: Parser) -> None:
         metavar="FILE_OR_DIR",
         action="append",
         type=check_existence,
-        dest="features",
+        dest=CodeGeneration.Cli.GENERATE_FROM_FEATURES.value,
         help="Feature file or directory to generate code for. Multiple allowed.",
     )
 
@@ -97,7 +98,7 @@ def generate_code(
         features=features,
         feature_pickles=feature_pickles,
         feature_pickle_steps=feature_pickle_steps,
-        make_python_name=make_python_name,
+        make_python_name=format_as_simplified_python_identifier,
         make_python_docstring=make_python_docstring,
         make_string_literal=make_string_literal,
         step_type_to_method_name=STEP_TYPE_TO_STEP_METHOD_NAME,

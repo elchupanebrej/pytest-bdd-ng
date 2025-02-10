@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
 from pathlib import Path
-from typing import Optional, Tuple, cast
+from typing import Optional, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -10,8 +10,8 @@ from pytest_bdd.compatibility.pytest import Module as PytestModule
 from pytest_bdd.scenario import FeaturePathType as PathType
 from pytest_bdd.scenario import scenarios
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import convert_str_to_python_name
-from pytest_bdd.webloc import read as webloc_read
+from pytest_bdd.util.other import format_as_python_identifier
+from pytest_bdd.util.webloc import read as webloc_read
 
 
 class Module(PytestModule):
@@ -34,7 +34,7 @@ class FeatureFileModule(Module):
         return self._build_test_module(feature_pathlike, features_path_type, base_dir)
 
     def _build_test_module(self, path: Optional[Path], features_path_type: PathType, base_dir: Optional[Path]):
-        module_name = convert_str_to_python_name(f"{path}_{uuid4()}")
+        module_name = format_as_python_identifier(f"{path}_{uuid4()}")
 
         module_spec = ModuleSpec(module_name, None)
         module = module_from_spec(module_spec)

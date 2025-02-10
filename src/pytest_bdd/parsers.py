@@ -9,7 +9,7 @@ from operator import attrgetter, contains, methodcaller
 from re import Match
 from re import Pattern as _RePattern
 from re import compile as re_compile
-from typing import Any, Dict, Optional, Protocol, Type, Union, cast, runtime_checkable
+from typing import Any, Optional, Protocol, Union, cast, runtime_checkable
 
 import parse as base_parse
 import parse_type.cfparse as base_cfparse
@@ -22,7 +22,7 @@ from cucumber_expressions.regular_expression import RegularExpression as Cucumbe
 from messages import ExpressionType  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
-from pytest_bdd.utils import StringableProtocol, stringify
+from pytest_bdd.util.other import StringRepresentable, normalize_to_string
 
 
 class ParserBuildValueError(ValueError): ...
@@ -160,7 +160,7 @@ class re(StepParser):
         return bool(self.regex.fullmatch(name))
 
     def __str__(self):
-        return stringify(self.pattern)
+        return normalize_to_string(self.pattern)
 
 
 class parse(StepParser):
@@ -171,15 +171,15 @@ class parse(StepParser):
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, format, *args, **kwargs):
-        if isinstance(format, (StringableProtocol, str, bytes)):
+        if isinstance(format, (StringRepresentable, str, bytes)):
             self.__init_stringable__(format, *args, **kwargs)
         else:
             raise ParserBuildValueError(f"Unable build parser for format {format}")  # pragma: no cover
 
     def __init_stringable__(
-        self, format: Union[StringableProtocol, str, bytes], *args: Any, builder=base_parse.compile, **kwargs: Any
+        self, format: Union[StringRepresentable, str, bytes], *args: Any, builder=base_parse.compile, **kwargs: Any
     ) -> None:
-        self.format = stringify(format)
+        self.format = normalize_to_string(format)
         self.parser = builder(self.format, *args, **kwargs)
 
     @__init__.register
@@ -230,8 +230,8 @@ class string(StepParser):
 
     type = ExpressionTypeExtension.pytest_bdd_string_expression
 
-    def __init__(self, name: Union[StringableProtocol, str, bytes]) -> None:
-        self.name = stringify(name)
+    def __init__(self, name: Union[StringRepresentable, str, bytes]) -> None:
+        self.name = normalize_to_string(name)
 
     def parse_arguments(
         self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
@@ -376,8 +376,8 @@ class heuristic(StepParser):
         format,
         parameter_type_registry: Optional[Union[ParameterTypeRegistry, RegistryMode, Any]] = RegistryMode.FIXTURE,
     ):
-        if isinstance(format, (StringableProtocol, str, bytes)):
-            self.format = stringify(format)
+        if isinstance(format, (StringRepresentable, str, bytes)):
+            self.format = normalize_to_string(format)
         else:
             self.format = format
         self.parameter_type_registry = parameter_type_registry

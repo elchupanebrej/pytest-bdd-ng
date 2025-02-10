@@ -5,7 +5,8 @@ from _pytest.outcomes import Failed
 from attr import attrib, attrs
 from pytest import raises
 
-from pytest_bdd.utils import deepattrgetter, doesnt_raise, flip, setdefaultattr
+from pytest_bdd.util.pytest_extra import doesnt_raise
+from pytest_bdd.util.toolz_extra import deepattrgetter, flip, setdefaultattr
 
 
 def test_get_attribute():

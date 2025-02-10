@@ -25,7 +25,7 @@ from messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-def
 from messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
 from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
-from pytest_bdd.utils import flip
+from pytest_bdd.util.toolz_extra import flip
 
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_bdd.compatibility.pytest import Testdir
@@ -519,7 +519,7 @@ def test_hook_type_messages(testdir, tmp_path):
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, before_mark, after_tag, around_mark
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')

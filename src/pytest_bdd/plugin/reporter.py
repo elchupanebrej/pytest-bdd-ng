@@ -5,7 +5,7 @@ that enriches the pytest test reporting.
 """
 
 import time
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable
 
 import pytest
 from attr import Factory, attrib, attrs

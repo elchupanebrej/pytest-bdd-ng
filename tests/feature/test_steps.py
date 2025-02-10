@@ -2,7 +2,7 @@ import textwrap
 
 import pytest
 
-from pytest_bdd.utils import collect_dumped_objects
+from pytest_bdd.util.other import collect_dumped_objects
 
 
 def test_steps(testdir):
@@ -1235,7 +1235,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             # language=python
             """\
             from pytest_bdd import parsers, given, then
-            from pytest_bdd.utils import dump_obj
+            from pytest_bdd.util.other import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def root_conftest_catchall(thing):
@@ -1264,7 +1264,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         # language=python
         test_a="""\
             from pytest_bdd import given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_bdd.util.other import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def in_root_test_a_catch_all(thing):
@@ -1283,7 +1283,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         # language=python
         test_c="""\
             from pytest_bdd import given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_bdd.util.other import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def in_root_test_c_catch_all(thing):
@@ -1307,7 +1307,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             # language=python
             """\
                 from pytest_bdd import given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_bdd.util.other import dump_obj
 
                 @given(parsers.re("(?P<thing>.*)"))
                 def in_root_test_b_test_a_catch_all(thing):
@@ -1328,7 +1328,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             # language=python
             """\
                 from pytest_bdd import given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_bdd.util.other import dump_obj
 
                 @given(parsers.re("(?P<thing>.*)"))
                 def in_root_test_b_test_c_catch_all(thing):
@@ -1351,7 +1351,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             # language=python
             f"""\
                 from pytest_bdd import scenarios, given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_bdd.util.other import dump_obj
                 from pathlib import Path
 
                 test_scenarios = scenarios(Path(r"{tmp_path}") / "specific.feature")
@@ -1368,7 +1368,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             # language=python
             f"""\
             from pytest_bdd import scenarios, given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_bdd.util.other import dump_obj
             from pathlib import Path
 
             test_scenarios = scenarios(Path(r"{tmp_path}") /"specific.feature")

@@ -10,7 +10,7 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Protocol, Tuple, Type, Union, cast, runtime_checkable
+from typing import Callable, Optional, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urljoin
 
 import aiohttp
@@ -22,10 +22,12 @@ from pydantic import ValidationError
 from messages import Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import get_config_root_path
-from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.const import FeatureBaseLoad
+from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature, Pickle
 from pytest_bdd.scenario import Args
-from pytest_bdd.utils import PytestBDDIdGeneratorHandler, is_local_url
+from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.util.url import is_local_url
 
 
 @runtime_checkable
@@ -156,7 +158,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
         try:
             if self.features_base_dir is None:
-                features_base_dir = cast(Config, config).getini("bdd_features_base_dir")
+                # TODO: refactor, move out from class usage to initialization or higher
+                features_base_dir = cast(Config, config).getini(FeatureBaseLoad.Ini.DIR_OPTION.value)
             else:
                 features_base_dir = self.features_base_dir
         except (ValueError, KeyError):

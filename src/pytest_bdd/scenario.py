@@ -2,39 +2,21 @@ import collections
 from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Optional, Type, Union
+from typing import Callable, Optional, Union
 
 from pytest import mark
 
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import Parser
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.utils import compose, make_python_name
+from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.util.other import format_as_simplified_python_identifier
+from pytest_bdd.util.toolz_extra import compose
 
 Args = collections.namedtuple("Args", ["args", "kwargs"])
 
 
-def add_options(parser: Parser):
-    """Add pytest-bdd options."""
-    group = parser.getgroup("bdd", "Scenario")
-    group.addoption(
-        "--disable-feature-autoload",
-        action="store_false",
-        dest="feature_autoload",
-        default=None,
-        help="Turn off feature files autoload",
-    )
-    parser.addini(
-        "disable_feature_autoload",
-        default=False,
-        type="bool",
-        help="Turn off feature files autoload",
-    )
-
-
 def get_python_name_generator(name: str) -> Iterable[str]:
     """Generate a sequence of suitable python names out of given arbitrary string name."""
-    python_name = make_python_name(name)
+    python_name = format_as_simplified_python_identifier(name)
     suffix = ""
     index = 0
 

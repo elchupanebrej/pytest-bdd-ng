@@ -56,14 +56,15 @@ from pytest_bdd.compatibility.pytest import (
     get_metafunc_call_arg,
     is_set,
 )
-from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
-from pytest_bdd.packaging import get_distribution_version
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
+from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
+from pytest_bdd.util.packaging import get_distribution_version
+from pytest_bdd.util.toolz_extra import deepattrgetter
 
 
 @attrs(eq=False)
-class MessagePlugin:
+class GherkinMessageReporter:
     config: Config = attrib()
     current_test_case = attrib(default=None)
     current_test_case_step_to_definition_mapping = attrib(default=None)

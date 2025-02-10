@@ -21,9 +21,9 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
 
 from messages import KeywordType, MediaType, Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.typing import Self
-from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
-from pytest_bdd.utils import deepattrgetter
+from pytest_bdd.util.toolz_extra import deepattrgetter
 
 # mypy: disable-error-code="typeddict-unknown-key, typeddict-item"
 

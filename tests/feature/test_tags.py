@@ -2,7 +2,7 @@
 
 from operator import ge
 
-from pytest_bdd.packaging import compare_distribution_version
+from pytest_bdd.util.packaging import compare_distribution_version
 
 
 def test_tags_selector(testdir):

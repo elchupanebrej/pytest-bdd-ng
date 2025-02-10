@@ -13,9 +13,9 @@ from pytest_httpserver import HTTPServer
 from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
 from pytest_bdd.compatibility.pytest import assert_outcomes
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.testing_utils import data_table_to_dicts
-from pytest_bdd.utils import compose
+from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.util.data_table import data_table_to_dicts
+from pytest_bdd.util.toolz_extra import compose
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir

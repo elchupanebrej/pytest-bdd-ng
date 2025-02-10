@@ -6,13 +6,13 @@ from textwrap import dedent
 from pytest import mark, param
 
 from pytest_bdd.compatibility.pytest import assert_outcomes
-from pytest_bdd.packaging import compare_distribution_version
-from pytest_bdd.utils import collect_dumped_objects
+from pytest_bdd.util.other import collect_dumped_objects
+from pytest_bdd.util.packaging import compare_distribution_version
 
 # language=python
 STEPS = """\
     from pytest_bdd import parsers, given, when, then
-    from pytest_bdd.utils import dump_obj
+    from pytest_bdd.util.other import dump_obj
 
 
     @given(parsers.parse("there are {start:d} cucumbers"), target_fixture="start_cucumbers")
@@ -41,7 +41,7 @@ STEPS = """\
 # language=python
 STEPS_OUTLINED = """\
     from pytest_bdd import given, when, then, scenario, parsers
-    from pytest_bdd.utils import dump_obj
+    from pytest_bdd.util.other import dump_obj
 
     @scenario(
         "outline.feature",
@@ -263,7 +263,7 @@ def test_outline_with_escaped_pipes(testdir, parser):
         # language=python
         f"""\
         from pytest_bdd import given, parsers
-        from pytest_bdd.utils import dump_obj
+        from pytest_bdd.util.other import dump_obj
 
         @given(parsers.parse("I print the {{string}}"))
         def i_print_the_string(string):

@@ -1,11 +1,12 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, Tuple, Union, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, runtime_checkable
 
 from attr import attrib, attrs
 
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.utils import IdGenerator, PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.model import Feature

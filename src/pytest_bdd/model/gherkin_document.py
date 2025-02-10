@@ -43,7 +43,7 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     Tag,
 )
 from pytest_bdd.const import TAG_PREFIX
-from pytest_bdd.utils import _itemgetter, deepattrgetter
+from pytest_bdd.util.toolz_extra import deepattrgetter, itemgetter_
 
 
 @attrs
@@ -175,10 +175,11 @@ class Feature:
         return list(filter(lambda node: type(node) is TableRow, self._get_linked_ast_nodes(pickle)))
 
     def _get_linked_ast_nodes(self, obj):
-        return _itemgetter(
-            *((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
-            *getattr(obj, "ast_node_ids", ()),
-        )(self.registry)
+        items = [
+            *filter(lambda _: _ != "", ((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ())),
+            *filter(lambda _: _ != "", getattr(obj, "ast_node_ids", ())),
+        ]
+        return itemgetter_(*items)(self.registry)
 
     def _get_pickle_tag_names(self, pickle: Pickle):
         return sorted(map(lambda tag: tag.name.lstrip(TAG_PREFIX), pickle.tags))  # type: ignore[no-any-return]

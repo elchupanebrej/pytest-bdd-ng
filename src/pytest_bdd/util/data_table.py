@@ -3,7 +3,7 @@ from itertools import islice
 from operator import attrgetter
 from typing import TYPE_CHECKING, Optional
 
-from pytest_bdd.utils import compose
+from pytest_bdd.util.toolz_extra import compose
 
 if TYPE_CHECKING:  # pragma: no cover
     from messages import DataTable  # type:ignore[attr-defined, import-untyped]

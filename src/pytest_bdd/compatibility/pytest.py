@@ -4,7 +4,6 @@ Compatibility module for pytest
 
 from __future__ import annotations
 
-import sys
 from operator import ge
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -22,7 +21,7 @@ from pytest import Module as PytestModule
 from pytest import fail as _pytest_fail
 
 from pytest_bdd.compatibility.typing import TypeAlias
-from pytest_bdd.packaging import compare_distribution_version
+from pytest_bdd.util.packaging import compare_distribution_version
 
 __all__ = [
     "assert_outcomes",

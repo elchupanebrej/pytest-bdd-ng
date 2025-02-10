@@ -2,19 +2,21 @@ from collections import deque
 from contextlib import contextmanager
 from functools import partial
 from itertools import zip_longest
-from operator import attrgetter
 from typing import Optional, cast
 
 from pluggy import PluginManager
 from pytest import hookimpl
 
+import pytest_bdd.types.exception as exceptions
 from messages import PickleStep  # type:ignore[attr-defined, import-untyped]
-from pytest_bdd import exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
+from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.model import Feature
 from pytest_bdd.model import Pickle as Scenario
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import DefaultMapping, get_args, inject_fixture
+from pytest_bdd.util.inspect_extra import get_args
+from pytest_bdd.util.pytest_extra import inject_fixture
+from pytest_bdd.util.toolz_extra import DefaultMapping
 
 
 class ScenarioRunner:
@@ -27,7 +29,8 @@ class ScenarioRunner:
     @hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item):
         __tracebackhide__ = True
-        if "pytest_bdd_scenario" in list(map(attrgetter("name"), item.iter_markers())):
+        mark_names = [mark.name for mark in item.iter_markers()]
+        if PYTEST_BDD_MARK in mark_names:
             self.request = item._request
             self.feature = self.request.getfixturevalue("feature")
             self.scenario = self.request.getfixturevalue("scenario")

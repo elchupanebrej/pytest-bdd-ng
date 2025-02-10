@@ -6,11 +6,12 @@ import os
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Optional, Protocol, Union, cast, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
 from pytest_bdd.compatibility.pytest import Parser, TerminalReporter, TestReport
+from pytest_bdd.const import FeatureAutoLoad
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Config as BaseConfig
@@ -29,14 +30,21 @@ else:
 def add_options(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Cucumber JSON")
+    help = "create cucumber json style report file at given path."
     group.addoption(
         "--cucumberjson",
         "--cucumber-json",
         action="store",
-        dest="cucumber_json_path",
+        dest=FeatureAutoLoad.Cli.CUCUMBER_JSON_PATH_OPTION.value,
         metavar="path",
         default=None,
-        help="create cucumber json style report file at given path.",
+        help=help,
+    )
+    parser.addini(
+        FeatureAutoLoad.Ini.CUCUMBER_JSON_PATH_OPTION.value,
+        default=False,
+        type="bool",
+        help=help,
     )
 
 

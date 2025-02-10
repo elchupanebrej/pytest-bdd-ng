@@ -38,6 +38,7 @@ def given_beautiful_article(article):
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
+from enum import Enum
 from functools import partial
 from inspect import getfile, getsourcelines
 from typing import Any, Callable, Optional, Union, cast
@@ -60,6 +61,11 @@ from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
 from pytest_bdd.parsers import StepParser
+from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
+from pytest_bdd.util.inspect_extra import get_caller_module_locals
+from pytest_bdd.util.other import format_as_python_identifier
+from pytest_bdd.util.toolz_extra import chain_map, getitemdefault, setdefaultattr
 from pytest_bdd.utils import (
     PytestBDDIdGeneratorHandler,
     chain_map,
@@ -72,21 +78,30 @@ from pytest_bdd.utils import (
 from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
 
 
+class IniOptions(Enum):
+    LIBERAL_STEPS = "liberal_steps"
+
+
+class CliOptions(Enum):
+    LIBERAL_STEPS = "liberal_steps"
+
+
 def add_options(parser: Parser):
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Steps")
+    help = "Allow use different keywords with same step definition"
     group.addoption(
         "--liberal-steps",
         action="store_true",
-        dest="liberal_steps",
+        dest=CliOptions.LIBERAL_STEPS.value,
         default=None,
-        help="Allow use different keywords with same step definition",
+        help=help,
     )
     parser.addini(
-        "liberal_steps",
+        IniOptions.LIBERAL_STEPS.value,
         default=False,
         type="bool",
-        help="Allow use different keywords with same step definition",
+        help=help,
     )
 
 
@@ -567,8 +582,8 @@ class StepHandler:
 
             setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set).add(step_definition)
 
-            # Allow step function to have same names, so injecting same steps with generated names into the module scope
-            converted_name = convert_str_to_python_name(f'step_{step_type or ""}_{step_parserlike}_{uuid4()}')
+            # Allow step function to have same names, so injecting same steps with generated names into module scope
+            converted_name = format_as_python_identifier(f'step_{step_type or ""}_{step_parserlike}_{uuid4()}')
             get_caller_module_locals(stacklevel=stacklevel)[converted_name] = step_func
 
             return step_func

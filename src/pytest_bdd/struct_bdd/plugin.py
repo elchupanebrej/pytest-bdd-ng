@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from pytest_bdd.compatibility.pytest import PYTEST7, Config, Module
-from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.struct_bdd.model import StepPrototype
 from pytest_bdd.struct_bdd.parser import StructBDDParser
 
