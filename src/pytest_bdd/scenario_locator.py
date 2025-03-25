@@ -4,6 +4,7 @@ import ssl
 import sys
 from collections.abc import Iterable
 from contextlib import suppress
+from enum import Enum
 from functools import partial, reduce
 from itertools import filterfalse
 from operator import methodcaller, truediv
@@ -163,7 +164,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
     )
     features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
-    mimetype: Optional[str] = attrib(default=None)
+    mimetype: Optional[Union[str, Enum]] = attrib(default=None)
     parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
     parse_args: Args = attrib(
         default=Factory(FileScenarioLocatorDefaults.parse_args),
@@ -233,6 +234,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             if self.mimetype is None:
                 media_type = hook_handler.pytest_bdd_get_mimetype(config=config, path=feature_path)
+            elif isinstance(self.mimetype, (Enum,)):
+                media_type = self.mimetype.value
             else:
                 media_type = self.mimetype
 

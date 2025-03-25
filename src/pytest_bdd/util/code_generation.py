@@ -8,7 +8,7 @@ from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import cast
+from typing import Any, Union, cast
 
 import py
 from mako.template import Template
@@ -158,7 +158,7 @@ def process_session_items(
 
 
 def process_single_item(
-    item: Item,
+    item: Item | Any,
     seen_feature_pickles_ids: set[tuple[str, str]],
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:

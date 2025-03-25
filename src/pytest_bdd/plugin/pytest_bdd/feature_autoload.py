@@ -1,6 +1,4 @@
-from pytest import Config
-
-from pytest_bdd.compatibility.pytest import Parser
+from pytest_bdd.compatibility.pytest import Config, Parser
 from pytest_bdd.const import FeatureAutoLoad
 
 

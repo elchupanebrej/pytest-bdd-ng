@@ -10,8 +10,9 @@ from pathvalidate import is_valid_filepath
 from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import Mark
+from pytest_bdd.compatibility.pytest import Config, Mark
 from pytest_bdd.const import FeatureBaseLoad
+from pytest_bdd.model import Feature
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
 from pytest_bdd.util.other import StringRepresentable
@@ -25,7 +26,7 @@ def add_options(parser):
 
 class MarkArguments(TypedDict):
     feature_paths: list[Union[Path, str]]  # List of paths to features
-    filter_: Optional[Union[str, Callable]]  # Callable or string filter
+    filter_: Optional[Callable[[Config, Feature, Any], tuple[Feature, Any]]]  # Callable or string filter
     return_test_decorator: bool
     encoding: str
     features_base_dir: Optional[Union[Path, str]]
