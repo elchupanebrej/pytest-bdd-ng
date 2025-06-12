@@ -10,11 +10,11 @@ from contextlib import contextmanager, nullcontext, suppress
 from enum import Enum
 from functools import reduce
 from inspect import getframeinfo, signature
-from itertools import tee
+from itertools import chain, tee
 from operator import attrgetter, getitem, itemgetter
 from re import Pattern
 from sys import _getframe
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Protocol, Type, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urlparse
 
 from _pytest.fixtures import FixtureDef, FixtureRequest
@@ -37,7 +37,7 @@ def get_args(func: Callable) -> Sequence[str]:
     :param func: The function to inspect.
 
     :return: A list of argument names.
-    :rtype: list
+    :rtype: List
     """
     params = signature(func).parameters.values()
     return [param.name for param in params if param.kind == param.POSITIONAL_OR_KEYWORD]
@@ -241,10 +241,33 @@ def deepattrgetter(*attrs, **kwargs):
 
 
 def setdefaultattr(
-    obj, key, value: Union[Literal[Empty.empty], Any] = Empty.empty, value_factory: Optional[Callable] = None
+    obj,
+    key,
+    value: Union[Literal[Empty.empty], Any] = Empty.empty,
+    value_factory: Optional[Callable] = None,
 ):
+    """
+    Set an attribute on an object if it does not already exist.
+
+    If the attribute `key` exists on `obj`, return its value.
+    Otherwise, set it to `value` (or the result of `value_factory` if provided) and return the new value.
+
+    Args:
+        obj: The object to set the attribute on.
+        key: The attribute name.
+        value: The value to set if the attribute does not exist. Use `Empty.empty` to indicate no value.
+        value_factory: A callable that returns the value to set if the attribute does not exist.
+
+    Returns:
+        The value of the attribute.
+
+    Raises:
+        ValueError: If both `value` and `value_factory` are specified, or if neither is specified.
+    """
     if value is not Empty.empty and value_factory is not None:
         raise ValueError("Both 'value' and 'value_factory' were specified")
+    if value is Empty.empty and value_factory is None:
+        raise ValueError("At least one of 'value' and 'value_factory' must be specified")
     with suppress(AttributeError):
         return getattr(obj, key)
     if value_factory is not None:
@@ -337,3 +360,6 @@ def is_url_parsable(urllike):
         return True
     except ValueError:
         return False
+
+
+chain_map = compose(chain.from_iterable, map)

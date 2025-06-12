@@ -45,7 +45,7 @@ from pytest_bdd.scenario import add_options as scenario_add_options
 from pytest_bdd.scenario import scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
+from pytest_bdd.utils import IdGenerator, chain_map, getitemdefault, is_url_parsable, setdefaultattr
 
 if STRUCT_BDD_INSTALLED:
     from pytest_bdd.struct_bdd.plugin import StructBDDPlugin
@@ -81,16 +81,16 @@ def trace() -> None:
     pytest.set_trace()
 
 
-__registry = StepHandler.Registry()
+_step_registry = StepHandler.Registry()
 
 
 @pytest.fixture
 def step_registry() -> StepHandler.Registry:
     """Fixture containing registry of all user-defined steps"""
-    return __registry
+    return _step_registry
 
 
-step_registry.__pytest_bdd_step_registry__ = __registry  # type: ignore[attr-defined]
+step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[attr-defined]
 
 
 @pytest.fixture
@@ -295,9 +295,6 @@ def _build_scenario_param(feature: Feature, pickle: Pickle, feature_data: str, c
         id=f"{feature.uri}-{feature.name}-{pickle.name}{feature.build_pickle_table_rows_breadcrumb(pickle)}",
         marks=marks,
     )
-
-
-chain_map = compose(chain.from_iterable, map)
 
 
 def pytest_generate_tests(metafunc: Metafunc):

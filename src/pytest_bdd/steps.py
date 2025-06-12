@@ -38,8 +38,9 @@ def given_beautiful_article(article):
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
+from functools import partial
 from inspect import getfile, getsourcelines
-from typing import Any, Callable, Dict, Optional, Set, Type, Union, cast
+from typing import Any, Callable, Optional, Union, cast
 from uuid import uuid4
 from warnings import warn
 
@@ -48,6 +49,7 @@ from _pytest.fixtures import FixtureRequest
 from attr import Factory, attrib, attrs
 from ordered_set import OrderedSet
 from pydantic import ValidationError
+from typing_extensions import Protocol, runtime_checkable
 
 from messages import ExpressionType, Location, Pickle  # type:ignore[attr-defined, import-untyped]
 from messages import PickleStep as Step  # type:ignore[attr-defined]
@@ -60,7 +62,9 @@ from pytest_bdd.model.messages_extension import ExpressionType as ExpressionType
 from pytest_bdd.parsers import StepParser
 from pytest_bdd.utils import (
     PytestBDDIdGeneratorHandler,
+    chain_map,
     convert_str_to_python_name,
+    flip,
     get_caller_module_locals,
     getitemdefault,
     setdefaultattr,
@@ -441,44 +445,51 @@ class StepHandler:
                 **{arg: self.converters.get(arg, lambda _: _)(value) for arg, value in parsed_arguments.items()},
             }
 
+    @runtime_checkable
+    class StepProtocol(Protocol):
+        __pytest_bdd_step_definitions__: set["StepHandler.Definition"]
+
+    @runtime_checkable
+    class NamespaceStepRegistryProtocol(Protocol):
+        _step_registry: "StepHandler.Registry"
+
     @attrs
     class Registry:
         registry: set["StepHandler.Definition"] = attrib(default=Factory(set))
         parent: "StepHandler.Registry" = attrib(default=None, init=False)
 
         @classmethod
-        def inject_registry_fixture_and_register_steps(cls, obj):
-            steps = [
-                step_candidate
-                for step_candidate in obj.__dict__.values()
-                if hasattr(step_candidate, "__pytest_bdd_step_definitions__")
-            ]
-            if not steps:
+        def inject_registry_fixture_and_register_steps(cls, namespace: "StepHandler.NamespaceStepRegistryProtocol"):
+            # Go around namespace and search for step definition containers
+            step_containers: list[StepHandler.StepProtocol] = list(
+                filter(partial(flip(isinstance), StepHandler.StepProtocol), namespace.__dict__.values())
+            )
+
+            if not step_containers:
                 return
-            setdefaultattr(obj, "step_registry", value_factory=lambda: StepHandler.Registry().fixture)
-            obj.step_registry.__pytest_bdd_step_registry__.register_steps(steps)
 
-            for step_func in steps:
-                for step_definition in step_func.__pytest_bdd_step_definitions__:
-                    step_definition: StepHandler.Definition = step_definition
-                    for fixture_name in step_definition.fixtures_mapped_from_step_definition:
+            # Add step registry for a namespace if step containers were found
+            step_definition_registry: StepHandler.Registry = setdefaultattr(
+                namespace, "_step_registry", value_factory=StepHandler.Registry
+            )
+            setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
+            step_definitions: list[StepHandler.Definition] = list(
+                chain_map(lambda step_container: step_container.__pytest_bdd_step_definitions__, step_containers)
+            )
+            step_definition_registry.registry.update(step_definitions)
 
-                        @pytest.fixture
-                        def _(request):
-                            try:
-                                return request.getfixturevalue(fixture_name)
-                            except FixtureLookupError:
-                                ...
+            for fixture_name in chain_map(
+                lambda step_definition: step_definition.fixtures_mapped_from_step_definition, step_definitions
+            ):
 
-                        setdefaultattr(obj, fixture_name, value_factory=lambda: (_))
+                @pytest.fixture
+                def fixtures_mapped_from_step_definition(request):
+                    try:
+                        return request.getfixturevalue(fixture_name)
+                    except FixtureLookupError:
+                        ...
 
-        def register_step_definition(self, step_definition):
-            self.registry.add(step_definition)
-
-        def register_steps(self, step_funcs):
-            for step_func in step_funcs:
-                for step_definition in step_func.__pytest_bdd_step_definitions__:
-                    self.register_step_definition(step_definition)
+                setdefaultattr(namespace, fixture_name, fixtures_mapped_from_step_definition)
 
         @property
         def fixture(self):
@@ -556,7 +567,7 @@ class StepHandler:
 
             setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set).add(step_definition)
 
-            # Allow step function have same names, so injecting same steps with generated names into module scope
+            # Allow step function to have same names, so injecting same steps with generated names into the module scope
             converted_name = convert_str_to_python_name(f'step_{step_type or ""}_{step_parserlike}_{uuid4()}')
             get_caller_module_locals(stacklevel=stacklevel)[converted_name] = step_func
 
