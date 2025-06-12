@@ -1,10 +1,10 @@
 # Feature: Features could be tagged
-  For picking up tests to run we can use
-  `tests selection <http://pytest.org/latest/usage.html#specifying-tests-selecting-tests>`_ technique.
+  For picking up tests to run we can use [tests selection](http://pytest.org/latest/usage.html#specifying-tests-selecting-tests)
+  technique.
   The problem is that you have to know how your tests are organized,
   knowing only the feature files organization is not enough.
-  `cucumber tags <https://github.com/cucumber/cucumber/wiki/Tags>`_ introduces standard way of
-  categorizing your features and scenarios
+  [cucumber tags](https://github.com/cucumber/cucumber/wiki/Tags) introduces
+  standard way of categorizing your features and scenarios.
 
 ## Rule:
 ### Background:
@@ -54,54 +54,70 @@
       fail('Enforce fail')
     ```
 
-### Scenario:
+### Scenario: Run pytest with marker passed
 * When run pytest
+
     | cli_args | -m | passed |
     |----------|----|--------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |
 
-### Scenario:
+### Scenario: Run pytest with marker failed
 * When run pytest
+
     | cli_args | -m | failed |
     |----------|----|--------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 0      | 1      |
 
-### Scenario:
+### Scenario: Run pytest with marker passed or failed
 * When run pytest
+
     | cli_args | -m | passed or failed |
     |----------|----|------------------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-### Scenario:
+### Scenario: Run pytest with marker not both
 * When run pytest
+
     | cli_args | -m | not both |
     |----------|----|----------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-### Scenario:
+### Scenario: Run pytest with marker both
 * When run pytest
+
     | cli_args | -m | both |
     |----------|----|------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-### Scenario:
+### Scenario: Run pytest with no marker
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 2      | 2      |

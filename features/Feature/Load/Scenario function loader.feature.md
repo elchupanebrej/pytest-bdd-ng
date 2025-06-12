@@ -22,7 +22,8 @@
 
     @scenario(Path(r"{tmp_path}") / "Passing.feature")
     def test_passing_feature():
-      # It is however encouraged to try as much as possible to have your logic only inside the Given, When, Then steps.
+      # It is however encouraged to try as much as possible
+      # to have your logic only inside the Given, When, Then steps.
       ...
     ```
 
@@ -34,11 +35,13 @@
 
     @scenarios(Path(r"{tmp_path}") / "Passing.feature", return_test_decorator=True)
     def test_passing_feature():
-      # It is however encouraged to try as much as possible to have your logic only inside the Given, When, Then steps.
+      # It is however encouraged to try as much as possible
+      # to have your logic only inside the Given, When, Then steps.
       ...
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -53,6 +56,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -67,6 +71,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

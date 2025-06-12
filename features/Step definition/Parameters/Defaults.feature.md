@@ -36,6 +36,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

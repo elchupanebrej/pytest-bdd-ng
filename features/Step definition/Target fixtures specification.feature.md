@@ -29,10 +29,12 @@
       assert request.getfixturevalue('pickle_age') == pickle_age
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -64,10 +66,12 @@
       assert request.getfixturevalue('cucumber_kind') == cucumber_kind
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

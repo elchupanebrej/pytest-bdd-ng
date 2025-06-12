@@ -14,15 +14,14 @@ from functools import reduce
 from itertools import chain
 from operator import methodcaller, truediv
 from os.path import commonpath
-from pathlib import Path
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 
 import panflute as pf  # type: ignore[import-not-found]
-import pycmarkgfm  # type: ignore[import-not-found]
 import pypandoc  # type: ignore[import-not-found]
 from docopt import docopt
+from pathlib2 import Path
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 
@@ -96,13 +95,14 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
             abs_path = temp_path / rel_path
             abs_path.parent.mkdir(exist_ok=True, parents=True)
 
-            html_data = pycmarkgfm.gfm_to_html((features_path / rel_path).read_text())
-
             rst_content = pypandoc.convert_text(
-                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset+1}"]
+                (features_path / rel_path).read_text(),
+                "rst",
+                format="gfm",
+                extra_args=[f"--shift-heading-level-by={offset+1}", "--eol=lf"],
             )
 
-            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
+            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8", newline="\n")
 
             stemmed_path = Path(rel_path.stem).stem
 
@@ -147,7 +147,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
         processable_paths.extendleft(sub_processable_paths)
 
-    index_file.write_text(content.rstrip("\n") + "\n")
+    index_file.write_text(content.rstrip("\n") + "\n", newline="\n")
 
 
 def main():  # pragma: no cover

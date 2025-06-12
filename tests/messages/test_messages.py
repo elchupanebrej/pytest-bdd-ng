@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Type, Union, cast
+from typing import TYPE_CHECKING, Union, cast
 
 from pydantic import ValidationError
 
@@ -92,7 +92,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import  given
+        from pytest_bdd import given
         from parse_type.cfparse import Parser as cfparse
 
         @given(

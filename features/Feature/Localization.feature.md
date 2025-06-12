@@ -1,6 +1,6 @@
 # Scenarios tags could be localized
-  pytest-bdd-ng supports all localizations which
-  Gherkin does: https://cucumber.io/docs/gherkin/languages/
+  pytest-bdd-ng supports all [localizations](https://cucumber.io/docs/gherkin/languages/)
+  which Gherkin does
 
 ## Scenario:
 * Given File "Localized.feature" with content:
@@ -31,6 +31,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |

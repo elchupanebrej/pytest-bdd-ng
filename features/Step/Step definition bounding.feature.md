@@ -29,12 +29,14 @@
     def step_counter():
       yield {'step': 0, 'given': 0,'when': 0,'then': 0,}
 
-    # Step with any kind of keyword could be bounded to step decorated with "step" definition
+    # Step with any kind of keyword could be bounded
+    # to step decorated with "step" definition
     @step('Step is executed by plain step decorator')
     def plain_step(step_counter):
       step_counter['step'] += 1
 
-    # Step with "Given" keyword could be bounded to step decorated with "given" definition
+    # Step with "Given" keyword could be bounded
+    # to step decorated with "given" definition
     @given('Step is executed by given step decorator')
     def given_step(step_counter):
       step_counter['given'] += 1
@@ -61,14 +63,17 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ## Scenario: Steps could be executed by aliased step keyword decorator
-    Could be useful to declare the same fixtures or steps with
-    different names for better readability. In order to use the same step
-    function with multiple step names simply decorate it multiple times.
+
+It Could be useful to declare the same fixtures or steps with
+different names for better readability. To use the same step
+function with multiple step names, decorate it multiple times.
+
 * Given File "steps.feature" with content:
     ```gherkin
     Feature: Steps could be executed by aliased step keyword decorator
@@ -106,13 +111,16 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ## Rule: Steps could be executed by liberal step keyword decorator
-    Step definition decorator could be "liberal"
-    - so it could be bound to any kind of keyword
+
+Step definition decorator could be "liberal",
+so it could be bound to any kind of keyword.
+
 ### Background:
 * Given File "steps.feature" with content:
     ```gherkin
@@ -168,6 +176,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -196,10 +205,12 @@
       assert step_counter['steps_count'] == oracle_steps
     ```
 * When run pytest
+
     | cli_args | --liberal-steps |
     |----------|-----------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |

@@ -22,9 +22,10 @@
     ```
 
 ### Example: Heuristic parser guesses a type and builds particular parser to be applied
-      Tries to select right parser between string, cucumber_expression, cfparse and re.
-      Any object that supports `__str__` interface and does not support parser interface
-      will be wrapped with this parser
+  Tries to select right parser between string, cucumber_expression,
+  cfparse and re.
+  Any object that supports `__str__` interface and does not support parser
+  interface will be wrapped with this parser
 
 * Given File "conftest.py" with content:
     ```python
@@ -73,21 +74,22 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Example: by "parse"
-      http://pypi.python.org/pypi/parse
+  [parse](http://pypi.python.org/pypi/parse) step parser
 
-      Provides a simple parser that replaces regular expressions for
-      step parameters with a readable syntax like ``{param:Type}``.
-      The syntax is inspired by the Python builtin ``string.format()``
-      function.
-      Step parameters must use the named fields syntax of pypi_parse_
-      in step definitions. The named fields are extracted,
-      optionally type converted and then used as step function arguments.
-      Supports type conversions by using type converters passed via `extra_types`
+  Provides a simple parser that replaces regular expressions for
+  step parameters with a readable syntax like ``{param:Type}``.
+  The syntax is inspired by the Python builtin ``string.format()``
+  function.
+  Step parameters must use the named fields syntax of pypi_parse_
+  in step definitions. The named fields are extracted,
+  optionally type converted and then used as step function arguments.
+  Supports type conversions by using type converters passed via `extra_types`
 
 * Given File "conftest.py" with content:
     ```python
@@ -129,21 +131,23 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Example: by "cfparse"
-      http://pypi.python.org/pypi/parse_type
 
-      Provides an extended parser with "Cardinality Field" (CF) support.
-      Automatically creates missing type converters for related cardinality
-      as long as a type converter for cardinality=1 is provided.
-      Supports parse expressions like:
-      ``{values:Type+}`` (cardinality=1..N, many)
-      ``{values:Type*}`` (cardinality=0..N, many0)
-      ``{value:Type?}``  (cardinality=0..1, optional)
-      Supports type conversions (as above).
+[cfparse](http://pypi.python.org/pypi/parse_type) step parser
+
+Provides an extended parser with "Cardinality Field" (CF) support.
+Automatically creates missing type converters for related cardinality
+as long as a type converter for cardinality=1 is provided.
+Supports parse expressions like:
+``{values:Type+}`` (cardinality=1..N, many)
+``{values:Type*}`` (cardinality=0..N, many0)
+``{value:Type?}``  (cardinality=0..1, optional)
+Supports type conversions (as above).
 
 * Given File "conftest.py" with content:
     ```python
@@ -185,14 +189,17 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Example: by "cucumber-expressions"
-      https://github.com/cucumber/cucumber-expressions
-      Cucumber Expressions is an alternative to Regular Expressions
-      with a more intuitive syntax.
+
+[cucumber expression](http://pypi.python.org/pypi/cucumber-expressions) step parser
+
+Cucumber Expressions is an alternative to Regular Expressions
+with a more intuitive syntax.
 
 * And File "conftest.py" with content:
     ```python
@@ -249,15 +256,16 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Example: by "cucumber-regular-expressions"
-    https://github.com/cucumber/cucumber-expressions
+[cucumber regular expression](https://github.com/cucumber/cucumber-regular-expressions) step parser
 
-    Cucumber Expressions is an alternative
-    to Regular Expressions with a more intuitive syntax.
+Cucumber Expressions is an alternative
+to Regular Expressions with a more intuitive syntax.
 
 * And File "conftest.py" with content:
     ```python
@@ -317,16 +325,18 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Example: by "regular-expressions"
-    This uses full regular expressions to parse the clause text. You will
-    need to use named groups "(?P<name>...)" to define the variables pulled
-    from the text and passed to your "step()" function.
-    Type conversion can only be done via "converters" step decorator
-    argument (see example in according feature).
+
+This uses full regular expressions to parse the clause text. You will
+need to use named groups "(?P<name>...)" to define the variables pulled
+from the text and passed to your "step()" function.
+Type conversion can only be done via "converters" step decorator
+argument (see example in according feature).
 
 * Given File "conftest.py" with content:
     ```python
@@ -367,6 +377,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

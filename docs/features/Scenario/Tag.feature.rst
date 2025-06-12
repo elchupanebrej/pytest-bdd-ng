@@ -4,160 +4,148 @@ Feature: Scenarios could be tagged
 Background:
 '''''''''''
 
--  Given File "steps.feature" with content:
+- Given File "steps.feature" with content:
+  .. code:: gherkin
 
-   .. code:: gherkin
+     Feature: Steps are executed by corresponding step keyword decorator
+       @passed
+       Scenario: Passed
+         Given I produce passed test
 
-      Feature: Steps are executed by corresponding step keyword decorator
-        @passed
-        Scenario: Passed
-          Given I produce passed test
+       @failed
+       Scenario: Failed
+         Given I produce failed test
 
-        @failed
-        Scenario: Failed
-          Given I produce failed test
+       @both
+       Rule:
+         Scenario: Passed
+           Given I produce passed test
 
-        @both
-        Rule:
-          Scenario: Passed
-            Given I produce passed test
+         Scenario: Failed
+           Given I produce failed test
 
-          Scenario: Failed
-            Given I produce failed test
+- Given File "pytest.ini" with content:
+  .. code:: ini
 
--  Given File "pytest.ini" with content:
+     [pytest]
+     markers =
+       passed
+       failed
+       both
 
-   .. code:: ini
+- And File "conftest.py" with content:
+  .. code:: python
 
-      [pytest]
-      markers =
-        passed
-        failed
-        both
+     from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import given
 
--  And File "conftest.py" with content:
+     @given('I produce passed test')
+     def passing_step():
+       ...
 
-   .. code:: python
+     @given('I produce failed test')
+     def failing_step():
+       fail('Enforce fail')
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+Scenario: Run pytest selecting tests tagged with ``passed``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-      @given('I produce passed test')
-      def passing_step():
-        ...
+- When run pytest
 
-      @given('I produce failed test')
-      def failing_step():
-        fail('Enforce fail')
+  ======== == ======
+  cli_args -m passed
+  ======== == ======
+  ======== == ======
 
-Scenario:
-'''''''''
+- Then pytest outcome must contain tests with statuses:
 
--  When run pytest
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
-   ======== == ======
-   cli_args -m passed
-   ======== == ======
-   ======== == ======
+Scenario: Run pytest selecting tests tagged with ``failed``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Then pytest outcome must contain tests with statuses:
+- When run pytest
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ======== == ======
+  cli_args -m failed
+  ======== == ======
+  ======== == ======
 
-.. _scenario-1:
+- Then pytest outcome must contain tests with statuses:
 
-Scenario:
-'''''''''
+  ====== ======
+  passed failed
+  ====== ======
+  0      1
+  ====== ======
 
--  When run pytest
+Scenario: Run pytest selecting tests tagged with ``passed`` or ``failed``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-   ======== == ======
-   cli_args -m failed
-   ======== == ======
-   ======== == ======
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+  ======== == ================
+  cli_args -m passed or failed
+  ======== == ================
+  ======== == ================
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      1
-   ====== ======
+- Then pytest outcome must contain tests with statuses:
 
-.. _scenario-2:
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-Scenario:
-'''''''''
+Scenario: Run pytest selecting tests not tagged with ``both``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  When run pytest
+- When run pytest
 
-   ======== == ================
-   cli_args -m passed or failed
-   ======== == ================
-   ======== == ================
+  ======== == ========
+  cli_args -m not both
+  ======== == ========
+  ======== == ========
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-.. _scenario-3:
+Scenario: Run pytest selecting tests tagged with ``both``
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-Scenario:
-'''''''''
+- When run pytest
 
--  When run pytest
+  ======== == ====
+  cli_args -m both
+  ======== == ====
+  ======== == ====
 
-   ======== == ========
-   cli_args -m not both
-   ======== == ========
-   ======== == ========
+- Then pytest outcome must contain tests with statuses:
 
--  Then pytest outcome must contain tests with statuses:
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+Scenario: Run pytest without marker selection (all tests)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-.. _scenario-4:
+- When run pytest
 
-Scenario:
-'''''''''
+- Then pytest outcome must contain tests with statuses:
 
--  When run pytest
-
-   ======== == ====
-   cli_args -m both
-   ======== == ====
-   ======== == ====
-
--  Then pytest outcome must contain tests with statuses:
-
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
-
-.. _scenario-5:
-
-Scenario:
-'''''''''
-
--  When run pytest
--  Then pytest outcome must contain tests with statuses:
-
-   ====== ======
-   passed failed
-   ====== ======
-   2      2
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  2      2
+  ====== ======

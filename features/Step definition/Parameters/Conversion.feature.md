@@ -25,15 +25,17 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ## Rule: for anonymous groups
-    Step definitions parameters could not have a name, so
-    we have to name them before conversion
 
-### Scenario:
+Step definitions parameters could not have a name, so
+we have to name them before conversion
+
+### Scenario: anonymous group parameter conversion with named mapping
 * Given File "conftest.py" with content:
     ```python
     from enum import Enum
@@ -53,11 +55,12 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
-### Scenario:
+### Scenario: cucumber expressions parameter conversion
 * Given File "conftest.py" with content:
     ```python
     from enum import Enum
@@ -84,6 +87,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

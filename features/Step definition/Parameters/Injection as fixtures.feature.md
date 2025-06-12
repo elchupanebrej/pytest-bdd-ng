@@ -58,9 +58,12 @@
       assert Freshness(freshness)==oracle_freshness
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
+
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 2      |
@@ -110,10 +113,12 @@
         request.getfixturevalue('freshness')
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -163,10 +168,12 @@
         request.getfixturevalue('freshness')
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
@@ -204,10 +211,12 @@
         request.getfixturevalue('age')
     ```
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

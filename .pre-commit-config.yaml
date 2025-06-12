@@ -50,6 +50,10 @@ repos:
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
@@ -65,8 +69,8 @@ repos:
         types: [python]
         pass_filenames: false
         additional_dependencies:
-          - 'docopt-ng'
-          - 'pandoc'
-          - 'panflute'
-          - 'pycmarkgfm'
-          - 'pypandoc'
+          - docopt-ng
+          - pandoc
+          - panflute
+          - pathlib2
+          - pypandoc

@@ -18,6 +18,7 @@
     * Given Passing step
     ```
 * Given Install npm packages
+
     | packages | @cucumber/gherkin |
     |----------|-------------------|
 
@@ -34,16 +35,19 @@
 ### Scenario: Feature is loaded by default
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 2      |
 
 ### Scenario: Feature autoload could be disabled via command line
 * When run pytest
+
     | cli_args | --disable-feature-autoload |
     |----------|----------------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 0      |
@@ -56,6 +60,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 0      |

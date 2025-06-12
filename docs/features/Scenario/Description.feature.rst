@@ -10,32 +10,32 @@ official HTML formatter support this.
 Scenario:
 '''''''''
 
--  Given File "Description.feature" with content:
+- Given File "Description.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature:
-        Scenario:
-          My Scenario description
+     Feature:
+       Scenario:
+         My Scenario description
 
-          Given I check scenario description
+         Given I check scenario description
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given('I check scenario description')
-      def step(scenario):
-        assert "My Scenario description" in scenario.description
+     @given('I check scenario description')
+     def step(scenario):
+       assert "My Scenario description" in scenario.description
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

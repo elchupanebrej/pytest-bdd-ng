@@ -1,12 +1,12 @@
 Feature: Features could be tagged
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For picking up tests to run we can use
-``tests selection <http://pytest.org/latest/usage.html#specifying-tests-selecting-tests>``\ \_
+For picking up tests to run we can use `tests
+selection <http://pytest.org/latest/usage.html#specifying-tests-selecting-tests>`__
 technique. The problem is that you have to know how your tests are
 organized, knowing only the feature files organization is not enough.
-``cucumber tags <https://github.com/cucumber/cucumber/wiki/Tags>``\ \_
-introduces standard way of categorizing your features and scenarios
+`cucumber tags <https://github.com/cucumber/cucumber/wiki/Tags>`__
+introduces standard way of categorizing your features and scenarios.
 
 Rule:
 '''''
@@ -14,169 +14,155 @@ Rule:
 Background:
            
 
--  Given File "Passed.feature" with content:
+- Given File "Passed.feature" with content:
+  .. code:: gherkin
 
-   .. code:: gherkin
+     @passed
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Passed
+         Given I produce passed test
 
-      @passed
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Passed
-          Given I produce passed test
+- Given File "Failed.feature" with content:
+  .. code:: gherkin
 
--  Given File "Failed.feature" with content:
+     @failed
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Failed
+         Given I produce failed test
 
-   .. code:: gherkin
+- Given File "Both.feature" with content:
+  .. code:: gherkin
 
-      @failed
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Failed
-          Given I produce failed test
+     @both
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Passed
+         Given I produce passed test
 
--  Given File "Both.feature" with content:
+       Scenario: Failed
+         Given I produce failed test
 
-   .. code:: gherkin
+- Given File "pytest.ini" with content:
+  .. code:: ini
 
-      @both
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Passed
-          Given I produce passed test
+     [pytest]
+     markers =
+       passed
+       failed
+       both
 
-        Scenario: Failed
-          Given I produce failed test
+- And File "conftest.py" with content:
+  .. code:: python
 
--  Given File "pytest.ini" with content:
+     from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import given
 
-   .. code:: ini
+     @given('I produce passed test')
+     def passing_step():
+       ...
 
-      [pytest]
-      markers =
-        passed
-        failed
-        both
+     @given('I produce failed test')
+     def failing_step():
+       fail('Enforce fail')
 
--  And File "conftest.py" with content:
+Scenario: Run pytest with marker passed
+                                       
 
-   .. code:: python
+- When run pytest
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+  ======== == ======
+  cli_args -m passed
+  ======== == ======
+  ======== == ======
 
-      @given('I produce passed test')
-      def passing_step():
-        ...
+- Then pytest outcome must contain tests with statuses:
 
-      @given('I produce failed test')
-      def failing_step():
-        fail('Enforce fail')
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
-Scenario:
-         
+Scenario: Run pytest with marker failed
+                                       
 
--  When run pytest
+- When run pytest
 
-   ======== == ======
-   cli_args -m passed
-   ======== == ======
-   ======== == ======
+  ======== == ======
+  cli_args -m failed
+  ======== == ======
+  ======== == ======
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  0      1
+  ====== ======
 
-.. _scenario-1:
+Scenario: Run pytest with marker passed or failed
+                                                 
 
-Scenario:
-         
+- When run pytest
 
--  When run pytest
+  ======== == ================
+  cli_args -m passed or failed
+  ======== == ================
+  ======== == ================
 
-   ======== == ======
-   cli_args -m failed
-   ======== == ======
-   ======== == ======
+- Then pytest outcome must contain tests with statuses:
 
--  Then pytest outcome must contain tests with statuses:
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      1
-   ====== ======
+Scenario: Run pytest with marker not both
+                                         
 
-.. _scenario-2:
+- When run pytest
 
-Scenario:
-         
+  ======== == ========
+  cli_args -m not both
+  ======== == ========
+  ======== == ========
 
--  When run pytest
+- Then pytest outcome must contain tests with statuses:
 
-   ======== == ================
-   cli_args -m passed or failed
-   ======== == ================
-   ======== == ================
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
--  Then pytest outcome must contain tests with statuses:
+Scenario: Run pytest with marker both
+                                     
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+- When run pytest
 
-.. _scenario-3:
+  ======== == ====
+  cli_args -m both
+  ======== == ====
+  ======== == ====
 
-Scenario:
-         
+- Then pytest outcome must contain tests with statuses:
 
--  When run pytest
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-   ======== == ========
-   cli_args -m not both
-   ======== == ========
-   ======== == ========
+Scenario: Run pytest with no marker
+                                   
 
--  Then pytest outcome must contain tests with statuses:
+- When run pytest
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+- Then pytest outcome must contain tests with statuses:
 
-.. _scenario-4:
-
-Scenario:
-         
-
--  When run pytest
-
-   ======== == ====
-   cli_args -m both
-   ======== == ====
-   ======== == ====
-
--  Then pytest outcome must contain tests with statuses:
-
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
-
-.. _scenario-5:
-
-Scenario:
-         
-
--  When run pytest
--  Then pytest outcome must contain tests with statuses:
-
-   ====== ======
-   passed failed
-   ====== ======
-   2      2
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  2      2
+  ====== ======
