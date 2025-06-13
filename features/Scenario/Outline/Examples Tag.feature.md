@@ -2,6 +2,7 @@
 ## Rule:
 ### Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps are executed by corresponding step keyword decorator
 
@@ -24,7 +25,9 @@
           |passed |
           |failed |
     ```
+
 * Given File "pytest.ini" with content:
+
     ```ini
     [pytest]
     markers =
@@ -32,7 +35,9 @@
       failed
       both
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given
@@ -118,6 +123,7 @@
 <!-- markdownlint-disable-next-line MD024 -->
 ### Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     @feature_tag
     Feature: Steps are executed by corresponding step keyword decorator
@@ -133,14 +139,18 @@
           |outcome|
           |failed |
     ```
+
 * Given File "pytest.ini" with content:
+
     ```ini
     [pytest]
     markers =
       feature_tag
       examples_tag
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given

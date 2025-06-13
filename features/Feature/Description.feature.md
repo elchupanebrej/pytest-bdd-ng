@@ -7,13 +7,16 @@
 
 ## Scenario:
 * Given File "Description.feature" with content:
+
     ```gherkin
     Feature:
       My Feature description
       Scenario:
         Given I check feature description
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -21,6 +24,7 @@
     def step(feature):
       assert feature.description == "My Feature description"
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 

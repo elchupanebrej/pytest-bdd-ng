@@ -1,6 +1,7 @@
 # Feature: Gherkin steps bounding to steps definitions
 ## Scenario: Steps are executed by corresponding step keyword decorator
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps are executed by corresponding step keyword decorator
 
@@ -18,7 +19,9 @@
             |step|given|when|then|
             |   1|    1|   1|   1|
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
     from pytest import fixture
@@ -61,6 +64,7 @@
 
       assert oracle_result == step_counter
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -75,6 +79,7 @@ different names for better readability. To use the same step
 function with multiple step names, decorate it multiple times.
 
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps could be executed by aliased step keyword decorator
       Scenario:
@@ -87,7 +92,9 @@ function with multiple step names, decorate it multiple times.
 
           Then there are "4" passed aliased steps
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -109,6 +116,7 @@ function with multiple step names, decorate it multiple times.
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -123,6 +131,7 @@ so it could be bound to any kind of keyword.
 
 ### Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps could be executed by liberal step keyword decorator
       Scenario:
@@ -153,6 +162,7 @@ so it could be bound to any kind of keyword.
 
 ### Scenario: Same step is used with different keywords
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -174,6 +184,7 @@ so it could be bound to any kind of keyword.
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -183,6 +194,7 @@ so it could be bound to any kind of keyword.
 
 ### Scenario: Keyworded steps could be treated as liberal by pytest command line option
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -204,6 +216,7 @@ so it could be bound to any kind of keyword.
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
 
     | cli_args | --liberal-steps |

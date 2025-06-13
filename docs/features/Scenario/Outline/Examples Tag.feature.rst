@@ -8,6 +8,7 @@ Background:
            
 
 - Given File "steps.feature" with content:
+
   .. code:: gherkin
 
      Feature: Steps are executed by corresponding step keyword decorator
@@ -32,6 +33,7 @@ Background:
            |failed |
 
 - Given File "pytest.ini" with content:
+
   .. code:: ini
 
      [pytest]
@@ -41,6 +43,7 @@ Background:
        both
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd.compatibility.pytest import fail
@@ -172,6 +175,7 @@ Background:
            
 
 - Given File "steps.feature" with content:
+
   .. code:: gherkin
 
      @feature_tag
@@ -189,6 +193,7 @@ Background:
            |failed |
 
 - Given File "pytest.ini" with content:
+
   .. code:: ini
 
      [pytest]
@@ -197,6 +202,7 @@ Background:
        examples_tag
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd.compatibility.pytest import fail

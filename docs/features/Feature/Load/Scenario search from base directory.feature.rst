@@ -13,6 +13,7 @@ Background:
            
 
 - Given File "Passing.feature" in the temporary path with content:
+
   .. code:: gherkin
 
      Feature: Passing feature
@@ -22,6 +23,7 @@ Background:
          Given Failing step
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd import step
@@ -36,6 +38,7 @@ Background:
        fail('Intentional')
 
 - And File "test_feature.py" with content:
+
   .. code:: python
 
      from pytest_bdd import scenarios

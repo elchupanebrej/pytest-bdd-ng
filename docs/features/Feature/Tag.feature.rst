@@ -15,6 +15,7 @@ Background:
            
 
 - Given File "Passed.feature" with content:
+
   .. code:: gherkin
 
      @passed
@@ -23,6 +24,7 @@ Background:
          Given I produce passed test
 
 - Given File "Failed.feature" with content:
+
   .. code:: gherkin
 
      @failed
@@ -31,6 +33,7 @@ Background:
          Given I produce failed test
 
 - Given File "Both.feature" with content:
+
   .. code:: gherkin
 
      @both
@@ -42,6 +45,7 @@ Background:
          Given I produce failed test
 
 - Given File "pytest.ini" with content:
+
   .. code:: ini
 
      [pytest]
@@ -51,6 +55,7 @@ Background:
        both
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd.compatibility.pytest import fail

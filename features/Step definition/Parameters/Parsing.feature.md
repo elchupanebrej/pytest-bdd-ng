@@ -9,6 +9,7 @@
 ## Rule: Step definitions parameters parsing
 ### Background:
 * Given File "Parametrized.feature" with content:
+
     ```gherkin
     Feature: StepHandler arguments
       Scenario: Every step takes a parameter with the same name
@@ -28,6 +29,7 @@
   interface will be wrapped with this parser
 
 * Given File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given, when, then
@@ -72,6 +74,7 @@
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -92,6 +95,7 @@
   Supports type conversions by using type converters passed via `extra_types`
 
 * Given File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given, when, then
@@ -129,6 +133,7 @@
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -150,6 +155,7 @@ Supports parse expressions like:
 Supports type conversions (as above).
 
 * Given File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given, when, then
@@ -187,6 +193,7 @@ Supports type conversions (as above).
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -202,6 +209,7 @@ Cucumber Expressions is an alternative to Regular Expressions
 with a more intuitive syntax.
 
 * And File "conftest.py" with content:
+
     ```python
     from functools import partial
     import pytest
@@ -254,6 +262,7 @@ with a more intuitive syntax.
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -261,13 +270,10 @@ with a more intuitive syntax.
     |--------|
     | 1      |
 
-### Example: by "cucumber-regular-expressions"
-[cucumber regular expression](https://github.com/cucumber/cucumber-regular-expressions) step parser
-
-Cucumber Expressions is an alternative
-to Regular Expressions with a more intuitive syntax.
+### Example: by [Cucumber regular expression](https://github.com/cucumber/cucumber-expressions) step parser
 
 * And File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given, when, then
@@ -323,6 +329,7 @@ to Regular Expressions with a more intuitive syntax.
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -339,6 +346,7 @@ Type conversion can only be done via "converters" step decorator
 argument (see example in according feature).
 
 * Given File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given, when, then
@@ -375,6 +383,7 @@ argument (see example in according feature).
     def i_should_have(euro, values):
         assert euro == values.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 

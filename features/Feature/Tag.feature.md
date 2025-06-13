@@ -9,20 +9,25 @@
 ## Rule:
 ### Background:
 * Given File "Passed.feature" with content:
+
     ```gherkin
     @passed
     Feature: Steps are executed by corresponding step keyword decorator
       Scenario: Passed
         Given I produce passed test
     ```
+
 * Given File "Failed.feature" with content:
+
     ```gherkin
     @failed
     Feature: Steps are executed by corresponding step keyword decorator
       Scenario: Failed
         Given I produce failed test
     ```
+
 * Given File "Both.feature" with content:
+
     ```gherkin
     @both
     Feature: Steps are executed by corresponding step keyword decorator
@@ -32,7 +37,9 @@
       Scenario: Failed
         Given I produce failed test
     ```
+
 * Given File "pytest.ini" with content:
+
     ```ini
     [pytest]
     markers =
@@ -40,7 +47,9 @@
       failed
       both
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given

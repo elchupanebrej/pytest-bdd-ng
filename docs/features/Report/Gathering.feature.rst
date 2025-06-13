@@ -5,6 +5,7 @@ Background:
 '''''''''''
 
 - Given File "Passing.feature" with content:
+
   .. code:: gherkin
 
      Feature: Passing feature
@@ -12,6 +13,7 @@ Background:
          Given Passing step
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd import step

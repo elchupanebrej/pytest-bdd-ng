@@ -3,6 +3,7 @@
   if you need to postprocess step arguments after the parser.
 ## Background:
 * Given File "Example.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
@@ -11,6 +12,7 @@
 
 ## Scenario: for non-anonymous groups
 * Given File "conftest.py" with content:
+
     ```python
     from enum import Enum
     from pytest_bdd import given
@@ -23,6 +25,7 @@
     def i_have_item(item):
         assert item == Item.CUCUMBER
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -37,6 +40,7 @@ we have to name them before conversion
 
 ### Scenario: anonymous group parameter conversion with named mapping
 * Given File "conftest.py" with content:
+
     ```python
     from enum import Enum
     from pytest_bdd import given
@@ -53,6 +57,7 @@ we have to name them before conversion
     def i_have_item(item):
         assert item == Item.CUCUMBER
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 
@@ -62,6 +67,7 @@ we have to name them before conversion
 
 ### Scenario: cucumber expressions parameter conversion
 * Given File "conftest.py" with content:
+
     ```python
     from enum import Enum
     from pytest_bdd import given
@@ -85,6 +91,7 @@ we have to name them before conversion
     def i_have_item(item):
         assert item == Item.CUCUMBER
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 

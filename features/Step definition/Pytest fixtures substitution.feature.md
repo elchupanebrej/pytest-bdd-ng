@@ -11,6 +11,7 @@
 ## Scenario:
 
 * Given File "conftest.py" with content:
+
     ```python
     from pytest import fixture
     from pytest_bdd import given, when, then
@@ -37,7 +38,9 @@
       while pocket:
         pocket.pop()
     ```
+
 * Given File "Cucumber.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
@@ -45,7 +48,9 @@
         When I check pocket I found cucumber there
         Then I lost everything
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     from pytest_bdd import scenario
 
@@ -53,6 +58,7 @@
     def test_passing_feature(pocket):
       assert not pocket
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |

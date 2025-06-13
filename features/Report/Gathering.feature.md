@@ -1,12 +1,15 @@
 # Feature:
 ## Background:
 * Given File "Passing.feature" with content:
+
     ```gherkin
     Feature: Passing feature
       Scenario: Passing scenario
         Given Passing step
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import step
 

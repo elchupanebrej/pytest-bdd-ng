@@ -6,23 +6,28 @@
 ## Rule: Feature autoload
 ### Background:
 * Given File "Passing.feature" with content:
+
     ```gherkin
     Feature: Passing feature
       Scenario: Passing scenario
         * Passing step
     ```
+
 * Given File "Another.passing.feature.md" with content:
+
     ```markdown
     # Feature: Passing feature
     ## Scenario: Passing scenario
     * Given Passing step
     ```
+
 * Given Install npm packages
 
     | packages | @cucumber/gherkin |
     |----------|-------------------|
 
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import step
 
@@ -54,10 +59,12 @@
 
 ### Scenario: Feature autoload could be disabled via pytest.ini
 * Given Set pytest.ini content to:
+
     ```ini
     [pytest]
     disable_feature_autoload=true
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 

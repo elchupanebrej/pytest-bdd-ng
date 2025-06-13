@@ -12,6 +12,7 @@
 
 ## Scenario: Step parameters are injected as fixtures by default
 * Given File "conftest.py" with content:
+
     ```python
     from re import compile as parse
     from pytest_bdd import given, then
@@ -28,14 +29,18 @@
     def i_check_salted_cucumber(freshness):
         assert freshness=='salted'
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have a salted cucumber
         Then Taste of cucumber is salt
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     from enum import Enum
     from pytest import fixture
@@ -57,6 +62,7 @@
     def test_another_passing_feature(freshness, oracle_freshness):
       assert Freshness(freshness)==oracle_freshness
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |
@@ -70,6 +76,7 @@
 
 ## Scenario: Step parameters injection as fixtures could be disabled
 * Given File "conftest.py" with content:
+
     ```python
     from re import compile as parse
     from pytest_bdd import given, then
@@ -94,14 +101,18 @@
     def i_check_salted_cucumber(cuke_taste):
         assert cuke_taste=='salted'
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have a pickle
         Then Taste of cucumber is salt
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import scenario
@@ -112,6 +123,7 @@
       with pytest.raises(FixtureLookupError):
         request.getfixturevalue('freshness')
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |
@@ -125,6 +137,7 @@
 
 ## Scenario: Step parameters renaming on injection as fixtures
 * Given File "conftest.py" with content:
+
     ```python
     from re import compile as parse
     from pytest_bdd import given, then
@@ -148,14 +161,18 @@
     def i_check_salted_cucumber(cuke_taste):
         assert cuke_taste=='salted'
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have a pickle
         Then Taste of cucumber is salt
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import scenario
@@ -167,6 +184,7 @@
       with pytest.raises(FixtureLookupError):
         request.getfixturevalue('freshness')
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |
@@ -180,6 +198,7 @@
 
 ## Scenario: Only allowed step parameters injection as fixtures
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -192,13 +211,17 @@
         assert age == 'old'
         assert freshness == 'salted'
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have an old pickle
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import scenario
@@ -210,6 +233,7 @@
       with pytest.raises(FixtureLookupError):
         request.getfixturevalue('age')
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |

@@ -14,6 +14,7 @@ Background:
            
 
 - Given File "Parametrized.feature" with content:
+
   .. code:: gherkin
 
      Feature: StepHandler arguments
@@ -290,15 +291,8 @@ more intuitive syntax.
   | 1      |
   +--------+
 
-Example: by "cucumber-regular-expressions"
-                                          
-
-`cucumber regular
-expression <https://github.com/cucumber/cucumber-regular-expressions>`__
-step parser
-
-Cucumber Expressions is an alternative to Regular Expressions with a
-more intuitive syntax.
+Example: by `Cucumber regular expression <https://github.com/cucumber/cucumber-expressions>`__ step parser
+                                                                                                          
 
 - And File "conftest.py" with content:
 

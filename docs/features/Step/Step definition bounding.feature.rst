@@ -145,6 +145,7 @@ Background:
            
 
 - Given File "steps.feature" with content:
+
   .. code:: gherkin
 
      Feature: Steps could be executed by liberal step keyword decorator

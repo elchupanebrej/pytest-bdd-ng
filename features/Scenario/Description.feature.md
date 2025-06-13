@@ -7,6 +7,7 @@
 
 ## Scenario:
 * Given File "Description.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
@@ -14,7 +15,9 @@
 
         Given I check scenario description
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -22,6 +25,7 @@
     def step(scenario):
       assert "My Scenario description" in scenario.description
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
 

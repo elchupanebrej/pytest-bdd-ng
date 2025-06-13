@@ -5,6 +5,7 @@ Background:
            
 
 - Given File "Passing.feature" in the temporary path with content:
+
   .. code:: gherkin
 
      Feature: Passing feature
@@ -12,6 +13,7 @@ Background:
          Given Passing step
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd import step
@@ -24,6 +26,7 @@ Scenario: "scenario" function is used as decorator
                                                   
 
 - And File "test_scenario_load.py" with fixture templated content:
+
   .. code:: python
 
      from pytest_bdd import scenario

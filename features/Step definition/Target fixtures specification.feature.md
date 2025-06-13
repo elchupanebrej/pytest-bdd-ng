@@ -6,6 +6,7 @@
 
 ## Scenario: Single fixture injection
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -13,13 +14,17 @@
     def i_have_cucumber(age):
         yield age
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have an old pickle
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     from pytest_bdd import scenario
 
@@ -28,6 +33,7 @@
       assert pickle_age == 'old'
       assert request.getfixturevalue('pickle_age') == pickle_age
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |
@@ -41,6 +47,7 @@
 
 ## Scenario: Multiple fixtures injection
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -48,13 +55,17 @@
     def i_have_cucumber():
         yield ['old', 'pickle']
     ```
+
 * Given File "Freshness.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given I have an old pickle
     ```
+
 * Given File "test_freshness.py" with content:
+
     ```python
     from pytest_bdd import scenario
 
@@ -65,6 +76,7 @@
       assert request.getfixturevalue('pickle_age') == pickle_age
       assert request.getfixturevalue('cucumber_kind') == cucumber_kind
     ```
+
 * When run pytest
 
     | cli_args | --disable-feature-autoload |

@@ -5,6 +5,7 @@ Background:
 '''''''''''
 
 - Given File "steps.feature" with content:
+
   .. code:: gherkin
 
      Feature: Steps are executed by corresponding step keyword decorator
@@ -25,6 +26,7 @@ Background:
            Given I produce failed test
 
 - Given File "pytest.ini" with content:
+
   .. code:: ini
 
      [pytest]
@@ -34,6 +36,7 @@ Background:
        both
 
 - And File "conftest.py" with content:
+
   .. code:: python
 
      from pytest_bdd.compatibility.pytest import fail

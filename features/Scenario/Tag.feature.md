@@ -1,6 +1,7 @@
 # Feature: Scenarios could be tagged
 ## Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps are executed by corresponding step keyword decorator
       @passed
@@ -19,7 +20,9 @@
         Scenario: Failed
           Given I produce failed test
     ```
+
 * Given File "pytest.ini" with content:
+
     ```ini
     [pytest]
     markers =
@@ -27,7 +30,9 @@
       failed
       both
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given
