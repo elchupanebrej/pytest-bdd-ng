@@ -42,8 +42,6 @@ from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.reporter import ScenarioReporterPlugin
 from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import IdGenerator, chain_map, getitemdefault, is_url_parsable, setdefaultattr
-
 from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import chain_map, setdefaultattr
@@ -251,10 +249,11 @@ def pytest_bdd_get_mimetype(config: Config, path: Path):
 
 
 def pytest_bdd_get_parser(config: Config, mimetype: str):
-    return {
-        Mimetype.gherkin_plain.value: GherkinParser,
-        Mimetype.markdown.value: MarkdownGherkinParser,
-    }.get(mimetype)
+    with suppress(KeyError, ValueError):
+        return {
+            Mimetype.gherkin_plain: GherkinParser,
+            Mimetype.markdown: MarkdownGherkinParser,
+        }.get(Mimetype(mimetype))
 
 
 def pytest_bdd_is_collectible(config: Config, path: Path):

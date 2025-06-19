@@ -22,17 +22,17 @@ class StructBDDPlugin:
     }
 
     def pytest_bdd_get_parser(self, config: Config, mimetype: str):
-        with suppress(KeyError):
+        with suppress(KeyError, ValueError):
             return partial(  # type:ignore[call-arg]
                 StructBDDParser,
                 kind={
-                    Mimetype.struct_bdd_yaml.value: StructBDDParser.KIND.YAML.value,
-                    Mimetype.struct_bdd_hocon.value: StructBDDParser.KIND.HOCON.value,
-                    Mimetype.struct_bdd_json5.value: StructBDDParser.KIND.JSON5.value,
-                    Mimetype.struct_bdd_json.value: StructBDDParser.KIND.JSON.value,
-                    Mimetype.struct_bdd_hjson.value: StructBDDParser.KIND.HJSON.value,
-                    Mimetype.struct_bdd_toml.value: StructBDDParser.KIND.TOML.value,
-                }[mimetype],
+                    Mimetype.struct_bdd_yaml: StructBDDParser.KIND.YAML,
+                    Mimetype.struct_bdd_hocon: StructBDDParser.KIND.HOCON,
+                    Mimetype.struct_bdd_json5: StructBDDParser.KIND.JSON5,
+                    Mimetype.struct_bdd_json: StructBDDParser.KIND.JSON,
+                    Mimetype.struct_bdd_hjson: StructBDDParser.KIND.HJSON,
+                    Mimetype.struct_bdd_toml: StructBDDParser.KIND.TOML,
+                }[Mimetype(mimetype)].value,
             )
 
     def pytest_bdd_get_mimetype(self, config: Config, path: Path):

@@ -82,7 +82,7 @@ requires-python = ">=3.9"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
-"pytest-bdd" = "pytest_bdd.plugin"
+"pytest-bdd" = "pytest_bdd.plugin.pytest_bdd.entrypoint"
 
 [project.optional-dependencies]
 allure = [

@@ -12,9 +12,9 @@ from typing_extensions import TypedDict
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Mark
 from pytest_bdd.const import FeatureBaseLoad
-from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
-from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
+from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
+from pytest_bdd.util.other import StringRepresentable
 from pytest_bdd.util.url import is_url_parsable
 
 
@@ -31,9 +31,9 @@ class MarkArguments(TypedDict):
     features_base_dir: Optional[Union[Path, str]]
     features_base_url: Optional[str]
     features_path_type: Optional[Union[FeaturePathType, str]]  # Enum or string
-    features_mimetype: Optional[Mimetype]
+    features_mimetype: Optional[str]
     parser_type: Optional[type[ParserProtocol]]
-    parse_args: Args
+    parse_args: Optional[Args]
     locators: Iterable[Any]  # Iterable for locators
 
 
@@ -67,7 +67,7 @@ class ScenarioLocatorBuilder:
                 locators_iterables.append([file_locator])
 
             # Add URL-based locators
-            url_locator = self._create_url_locator(mark_arguments, features_base_url, features_path_type)
+            url_locator = self._create_url_locator(mark_arguments, filter_, features_base_url, features_path_type)
             if url_locator:
                 locators_iterables.append([url_locator])
 
@@ -126,7 +126,10 @@ class ScenarioLocatorBuilder:
 
     @staticmethod
     def _create_file_locator(
-        mark_arguments: MarkArguments, filter_: Any, features_base_dir: Any, features_path_type: Any
+        mark_arguments: MarkArguments,
+        filter_: Optional[ScenarioLocatorFilterT],
+        features_base_dir: Any,
+        features_path_type: Any,
     ) -> Any:
         """
         Create a FileScenarioLocator instance if applicable.
@@ -153,7 +156,12 @@ class ScenarioLocatorBuilder:
         )
 
     @staticmethod
-    def _create_url_locator(mark_arguments: MarkArguments, features_base_url: Any, features_path_type: Any) -> Any:
+    def _create_url_locator(
+        mark_arguments: MarkArguments,
+        filter_: Optional[ScenarioLocatorFilterT],
+        features_base_url: Any,
+        features_path_type: Any,
+    ) -> Any:
         """
         Create a UrlScenarioLocator instance if applicable.
         """
@@ -171,7 +179,7 @@ class ScenarioLocatorBuilder:
 
         return UrlScenarioLocator(  # type: ignore[call-arg]
             url_paths=url_locator_feature_paths,
-            filter_=mark_arguments.get("filter_"),
+            filter_=filter_,
             encoding=mark_arguments.get("encoding"),
             features_base_url=features_base_url,
             mimetype=mark_arguments.get("features_mimetype"),
@@ -180,7 +188,9 @@ class ScenarioLocatorBuilder:
         )
 
     @staticmethod
-    def _build_scenario_filter(filter_):
+    def _build_scenario_filter(
+        filter_: Optional[Union[ScenarioLocatorFilterT, str, StringRepresentable]],
+    ) -> Optional[ScenarioLocatorFilterT]:
         """
         Build and return a scenario filter function.
         """

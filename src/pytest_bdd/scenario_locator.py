@@ -10,7 +10,7 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Protocol, Union, cast, runtime_checkable
+from typing import Callable, Optional, Protocol, TypeAlias, Union, cast, runtime_checkable
 from urllib.parse import urljoin
 
 import aiohttp
@@ -46,9 +46,12 @@ class ScenarioLocatorResolver(Protocol):
         ...
 
 
+ScenarioLocatorFilterT: TypeAlias = Callable[[Config, Feature, Pickle], bool]
+
+
 @attrs
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
-    filter_: Optional[Callable[[Config, Feature, Pickle], tuple[Feature, Pickle]]] = attrib(default=None, kw_only=True)
+    filter_: Optional[ScenarioLocatorFilterT] = attrib(default=None, kw_only=True)
 
     def filter_scenarios(self, feature, config):
         return (
@@ -146,14 +149,26 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                         os.unlink(filename)
 
 
+class FileScenarioLocatorDefaults:
+    encoding = lambda: "utf-8"
+    parse_args = lambda: Args((), {})
+
+
 @attrs
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
+    Defaults = FileScenarioLocatorDefaults
     feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
-    encoding = attrib(default="utf-8")
+    encoding = attrib(
+        default=FileScenarioLocatorDefaults.encoding,
+        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
+    )
     features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
     mimetype: Optional[str] = attrib(default=None)
     parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
-    parse_args: Args = attrib(default=Factory(lambda: Args((), {})))
+    parse_args: Args = attrib(
+        default=Factory(FileScenarioLocatorDefaults.parse_args),
+        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
+    )
 
     def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
         try:

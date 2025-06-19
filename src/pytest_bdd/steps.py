@@ -65,17 +65,7 @@ from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import format_as_python_identifier
-from pytest_bdd.util.toolz_extra import chain_map, getitemdefault, setdefaultattr
-from pytest_bdd.utils import (
-    PytestBDDIdGeneratorHandler,
-    chain_map,
-    convert_str_to_python_name,
-    flip,
-    get_caller_module_locals,
-    getitemdefault,
-    setdefaultattr,
-)
-from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
+from pytest_bdd.util.toolz_extra import chain_map, flip, getitemdefault, setdefaultattr
 
 
 class IniOptions(Enum):
