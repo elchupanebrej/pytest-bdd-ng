@@ -10,7 +10,10 @@ if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@mark.skipif(sys.version_info < (3, 12), reason="Verify only on the latest version")
+@mark.skipif(
+    not (all([sys.version_info.major == 3, sys.version_info.minor == 13, sys.platform.startswith("linux")])),
+    reason="Verify only on the latest version",
+)
 def test_doc_generation(testdir: "Testdir"):
     from pytest_bdd.script.bdd_tree_to_rst import convert
 
@@ -23,10 +26,16 @@ def test_doc_generation(testdir: "Testdir"):
         """
     )
     (features_path / "simple_markdown.gherkin.md").write_text(
-        # language=gherkin
+        dedent(
+            # language=markdown
+            """\
+            # Feature: Simple gherkin markdown
+            Some feature description
+
+            ## Scenario:
+            *  Given some step
         """
-        # Feature: Simple gherkin markdown
-        """
+        )
     )
     (features_path / "extra").mkdir()
     (features_path / "extra" / "other_simple.gherkin").write_text(
@@ -53,26 +62,54 @@ def test_doc_generation(testdir: "Testdir"):
                           use cases of **pytest-bdd-ng** by investigation of its regression
                           test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
 
+                .. toctree::
+                    :maxdepth: 2
 
-
-                simple_markdown
-                ---------------
-
-                .. include:: features/simple_markdown.gherkin.rst
-
-                simple
-                ------
-
-                .. include:: features/simple.gherkin
-                   :code: gherkin
+                    features/simple_markdown.gherkin
+                    features/simple
 
                 extra
                 -----
+                .. toctree::
+                    :maxdepth: 2
 
+                    features/extra/other_simple
+            """
+        )
+
+        assert (temp_path / "simple_markdown.gherkin.rst").read_text() == dedent(
+            # language=rst
+            """\
+                Feature: Simple gherkin markdown
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+                Some feature description
+
+                Scenario:
+                ^^^^^^^^^
+
+                -  Given some step
+            """
+        )
+
+        assert (temp_path / "simple.rst").read_text() == dedent(
+            # language=rst
+            """\
+                simple
+                ------
+
+                .. include:: ../features/simple.gherkin
+                   :code: gherkin
+            """
+        )
+
+        assert (temp_path / "extra" / "other_simple.rst").read_text() == dedent(
+            # language=rst
+            """\
                 other_simple
                 ############
 
-                .. include:: features/extra/other_simple.gherkin
+                .. include:: ../../features/extra/other_simple.gherkin
                    :code: gherkin
             """
         )

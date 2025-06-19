@@ -62,7 +62,7 @@ repos:
           run = lambda *args: run_unchecked(args, check=True, shell=True)
           try:
               run(python, '-m', 'ensurepip', '--upgrade')
-              run('pip', 'install', '.[doc-gen]')
+              run(python, '-m', 'pip', 'install', '.[doc-gen]')
               run(
                   python,
                   'src/pytest_bdd/script/bdd_tree_to_rst.py',
@@ -84,8 +84,8 @@ repos:
           run = lambda *args: run_unchecked(args, check=True, shell=True)
           try:
               run(python, '-m', 'ensurepip', '--upgrade')
-              run('pip', 'install', '.[testenv]')
-              run('tox', '-e', 'py313-pytestlatest-mypy', '--')
+              run(python, '-m', 'pip', 'install', '.[testenv]')
+              run(python, '-m', 'tox', '-e', 'py313-pytestlatest-mypy', '--')
           except CalledProcessError as e:
               exit(e.returncode)
           "

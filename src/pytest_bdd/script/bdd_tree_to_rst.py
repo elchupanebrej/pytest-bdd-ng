@@ -72,26 +72,28 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
         processable_path = processable_paths.popleft()
 
         processable_rel_path = processable_path.relative_to(features_path)
-        if processable_rel_path.name:
-            content += dedent(
-                # language=rst
-                f"""
 
-                    {processable_rel_path.name}
-                    {SECTION_SYMBOLS[len(processable_rel_path.parts) - 1] * len(processable_rel_path.name)}
-                    .. toctree::
-                        :maxdepth: 2
-                """
-            )
-
-        gherkin_file_paths = chain(processable_path.glob("*.gherkin"), processable_path.glob("*.feature"))
-        markdown_gherkin_file_paths = chain(
-            processable_path.glob("*.gherkin.md"), processable_path.glob("*.feature.md")
-        )
+        gherkin_file_paths = [*processable_path.glob("*.gherkin"), *processable_path.glob("*.feature")]
+        markdown_gherkin_file_paths = [*processable_path.glob("*.gherkin.md"), *processable_path.glob("*.feature.md")]
         # TODO rework file extension
         struct_bdd_file_paths = processable_path.glob("*.bdd.yaml")
 
         sub_processable_paths = list(filter(methodcaller("is_dir"), processable_path.iterdir()))
+
+        if gherkin_file_paths or markdown_gherkin_file_paths:
+            content += (
+                # language=rst
+                (
+                    "\n"
+                    f"{processable_rel_path.name}\n"
+                    f"{SECTION_SYMBOLS[len(processable_rel_path.parts) - 1] * len(processable_rel_path.name)}"
+                    if processable_rel_path.name
+                    else ""
+                )
+                + "\n"
+                ".. toctree::\n"
+                "    :maxdepth: 2\n\n"
+            )
 
         for path in markdown_gherkin_file_paths:
             rel_path = path.relative_to(features_path)
@@ -111,7 +113,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
             toctree_path = (Path("features") / path.relative_to(features_path)).with_suffix("").as_posix()
             # language=rst
-            content += f"\n    {toctree_path}"
+            content += f"    {toctree_path}\n"
 
         for path, codetype in chain(
             zip_longest(gherkin_file_paths, [], fillvalue="gherkin"),
@@ -119,6 +121,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
         ):
             rel_path = cast(Path, path).relative_to(features_path)
             abs_path = temp_path / rel_path
+            abs_path.parent.mkdir(exist_ok=True, parents=True)
 
             abs_path.with_suffix(".rst").write_text(
                 dedent(
@@ -129,7 +132,6 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
                     .. include:: {reduce(truediv, [".."] * len(rel_path.parts), Path()) / (output_path_rel_to_features_path / rel_path).as_posix()}
                        :code: {codetype}
-
                 """
                 ),
                 encoding="utf-8",
@@ -138,7 +140,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
             toctree_path = (Path("features") / rel_path).with_suffix("").as_posix()
             # language=rst
-            content += f"\n    {toctree_path}"
+            content += f"    {toctree_path}\n"
 
         processable_paths.extendleft(sub_processable_paths)
 

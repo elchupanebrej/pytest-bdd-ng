@@ -5,7 +5,6 @@ Features
           use cases of **pytest-bdd-ng** by investigation of its regression
           test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
 
-
 Tutorial
 --------
 .. toctree::
