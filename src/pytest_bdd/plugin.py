@@ -177,7 +177,7 @@ if PYTEST7:
 else:
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(path, parent):
+    def pytest_pycollect_makemodule(path, parent):  # type:ignore[misc]
         yield from _pytest_pycollect_makemodule()
 
 

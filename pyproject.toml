@@ -81,8 +81,8 @@ readme = {file = "README.rst", content-type = "text/x-rst"}
 requires-python = ">=3.9"
 version = "2.3.1"
 
-[project.entry-points]
-pytest11 = {"pytest-bdd" = "pytest_bdd.plugin"}
+[project.entry-points.pytest11]
+"pytest-bdd" = "pytest_bdd.plugin"
 
 [project.optional-dependencies]
 allure = [

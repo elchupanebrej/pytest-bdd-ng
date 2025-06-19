@@ -32,15 +32,6 @@ repos:
     hooks:
       - id: pyupgrade
         args: ["--py39-plus"]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.16.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - "pydantic>=2.0.3"
-          - types-docopt
-          - types-certifi
-          - types-setuptools
   - repo: https://github.com/tox-dev/tox-ini-fmt
     rev: "1.5.0"
     hooks:
@@ -63,14 +54,40 @@ repos:
     hooks:
       - id: generate-feature-doc
         name: generate-feature-doc
-        entry: >
-          python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+        # language=python
+        entry: |
+          python -c "
+          from subprocess import run as run_unchecked, CalledProcessError
+          from sys import exit, executable as python
+          run = lambda *args: run_unchecked(args, check=True, shell=True)
+          try:
+              run(python, '-m', 'ensurepip', '--upgrade')
+              run('pip', 'install', '.[doc-gen]')
+              run(
+                  python,
+                  'src/pytest_bdd/script/bdd_tree_to_rst.py',
+                  'features',
+                  'docs/features'
+              )
+          except CalledProcessError as e:
+              exit(e.returncode)
+          "
         language: python
-        types: [python]
         pass_filenames: false
-        additional_dependencies:
-          - docopt-ng
-          - pandoc
-          - panflute
-          - pathlib2
-          - pypandoc
+      - id: mypy-tox
+        name: mypy
+        # language=python
+        entry: |
+          python -c "
+          from subprocess import run as run_unchecked, CalledProcessError
+          from sys import exit, executable as python
+          run = lambda *args: run_unchecked(args, check=True, shell=True)
+          try:
+              run(python, '-m', 'ensurepip', '--upgrade')
+              run('pip', 'install', '.[testenv]')
+              run('tox', '-e', 'py313-pytestlatest-mypy', '--')
+          except CalledProcessError as e:
+              exit(e.returncode)
+          "
+        language: python
+        pass_filenames: false
