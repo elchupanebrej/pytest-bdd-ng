@@ -11,86 +11,89 @@ Rule: Feature autoload
 Background:
            
 
--  Given File "Passing.feature" with content:
+- Given File "Passing.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Passing feature
-        Scenario: Passing scenario
-          * Passing step
+     Feature: Passing feature
+       Scenario: Passing scenario
+         * Passing step
 
--  Given File "Another.passing.feature.md" with content:
+- Given File "Another.passing.feature.md" with content:
 
-   .. code:: markdown
+  .. code:: markdown
 
-      # Feature: Passing feature
-      ## Scenario: Passing scenario
-      * Given Passing step
+     # Feature: Passing feature
+     ## Scenario: Passing scenario
+     * Given Passing step
 
--  Given Install npm packages
+- Given Install npm packages
 
-   ======== =================
-   packages @cucumber/gherkin
-   ======== =================
-   ======== =================
+  ======== =================
+  packages @cucumber/gherkin
+  ======== =================
+  ======== =================
 
--  Given File "conftest.py" with content:
+- Given File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import step
+     from pytest_bdd import step
 
-      @step('Passing step')
+     @step('Passing step')
 
-      def _():
-        ...
+     def _():
+       ...
 
 Scenario: Feature is loaded by default
                                       
 
--  When run pytest
--  Then pytest outcome must contain tests with statuses:
+- When run pytest
 
-   +--------+
-   | passed |
-   +========+
-   | 2      |
-   +--------+
+- Then pytest outcome must contain tests with statuses:
+
+  +--------+
+  | passed |
+  +========+
+  | 2      |
+  +--------+
 
 Scenario: Feature autoload could be disabled via command line
                                                              
 
--  When run pytest
+- When run pytest
 
-   ======== ==========================
-   cli_args --disable-feature-autoload
-   ======== ==========================
-   ======== ==========================
+  ======== ==========================
+  cli_args --disable-feature-autoload
+  ======== ==========================
+  ======== ==========================
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | passed |
-   +========+
-   | 0      |
-   +--------+
+  +--------+
+  | passed |
+  +========+
+  | 0      |
+  +--------+
+
+.. _scenario-feature-autoload-could-be-disabled-via-pytestini:
 
 Scenario: Feature autoload could be disabled via pytest.ini
                                                            
 
--  Given Set pytest.ini content to:
+- Given Set pytest.ini content to:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      disable_feature_autoload=true
+     [pytest]
+     disable_feature_autoload=true
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | passed |
-   +========+
-   | 0      |
-   +--------+
+  +--------+
+  | passed |
+  +========+
+  | 0      |
+  +--------+

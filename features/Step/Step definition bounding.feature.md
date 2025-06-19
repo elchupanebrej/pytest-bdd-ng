@@ -1,6 +1,7 @@
 # Feature: Gherkin steps bounding to steps definitions
 ## Scenario: Steps are executed by corresponding step keyword decorator
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps are executed by corresponding step keyword decorator
 
@@ -18,7 +19,9 @@
             |step|given|when|then|
             |   1|    1|   1|   1|
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
     from pytest import fixture
@@ -29,12 +32,14 @@
     def step_counter():
       yield {'step': 0, 'given': 0,'when': 0,'then': 0,}
 
-    # Step with any kind of keyword could be bounded to step decorated with "step" definition
+    # Step with any kind of keyword could be bounded
+    # to step decorated with "step" definition
     @step('Step is executed by plain step decorator')
     def plain_step(step_counter):
       step_counter['step'] += 1
 
-    # Step with "Given" keyword could be bounded to step decorated with "given" definition
+    # Step with "Given" keyword could be bounded
+    # to step decorated with "given" definition
     @given('Step is executed by given step decorator')
     def given_step(step_counter):
       step_counter['given'] += 1
@@ -59,17 +64,22 @@
 
       assert oracle_result == step_counter
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ## Scenario: Steps could be executed by aliased step keyword decorator
-    Could be useful to declare the same fixtures or steps with
-    different names for better readability. In order to use the same step
-    function with multiple step names simply decorate it multiple times.
+
+It Could be useful to declare the same fixtures or steps with
+different names for better readability. To use the same step
+function with multiple step names, decorate it multiple times.
+
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps could be executed by aliased step keyword decorator
       Scenario:
@@ -82,7 +92,9 @@
 
           Then there are "4" passed aliased steps
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -104,17 +116,22 @@
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ## Rule: Steps could be executed by liberal step keyword decorator
-    Step definition decorator could be "liberal"
-    - so it could be bound to any kind of keyword
+
+Step definition decorator could be "liberal",
+so it could be bound to any kind of keyword.
+
 ### Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps could be executed by liberal step keyword decorator
       Scenario:
@@ -145,6 +162,7 @@
 
 ### Scenario: Same step is used with different keywords
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -166,14 +184,17 @@
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
 
 ### Scenario: Keyworded steps could be treated as liberal by pytest command line option
 * Given File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given, when, then, step
 
@@ -195,11 +216,14 @@
     def then_step(step_counter, oracle_steps):
       assert step_counter['steps_count'] == oracle_steps
     ```
+
 * When run pytest
+
     | cli_args | --liberal-steps |
     |----------|-----------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |

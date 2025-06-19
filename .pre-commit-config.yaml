@@ -5,7 +5,7 @@ default_language_version:
   python: python3.12
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.1.0
     hooks:
       - id: black
         args:
@@ -28,28 +28,23 @@ repos:
       - id: check-added-large-files
       - id: check-toml
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
+    rev: v3.20.0
     hooks:
       - id: pyupgrade
         args: ["--py39-plus"]
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - "pydantic>=2.0.3"
-          - types-docopt
-          - types-certifi
-          - types-setuptools
   - repo: https://github.com/tox-dev/tox-ini-fmt
-    rev: "1.4.1"
+    rev: "1.5.0"
     hooks:
       - id: tox-ini-fmt
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.35.1
+    rev: v1.37.1
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
@@ -59,14 +54,40 @@ repos:
     hooks:
       - id: generate-feature-doc
         name: generate-feature-doc
-        entry: >
-          python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+        # language=python
+        entry: |
+          python -c "
+          from subprocess import run as run_unchecked, CalledProcessError
+          from sys import exit, executable as python
+          run = lambda *args: run_unchecked(args, check=True, shell=True)
+          try:
+              run(python, '-m', 'ensurepip', '--upgrade')
+              run(python, '-m', 'pip', 'install', '.[doc-gen]')
+              run(
+                  python,
+                  'src/pytest_bdd/script/bdd_tree_to_rst.py',
+                  'features',
+                  'docs/features'
+              )
+          except CalledProcessError as e:
+              exit(e.returncode)
+          "
         language: python
-        types: [python]
         pass_filenames: false
-        additional_dependencies:
-          - 'docopt-ng'
-          - 'pandoc'
-          - 'panflute'
-          - 'pycmarkgfm'
-          - 'pypandoc'
+      - id: mypy-tox
+        name: mypy
+        # language=python
+        entry: |
+          python -c "
+          from subprocess import run as run_unchecked, CalledProcessError
+          from sys import exit, executable as python
+          run = lambda *args: run_unchecked(args, check=True, shell=True)
+          try:
+              run(python, '-m', 'ensurepip', '--upgrade')
+              run(python, '-m', 'pip', 'install', '.[testenv]')
+              run(python, '-m', 'tox', '-e', 'py313-pytestlatest-mypy', '--')
+          except CalledProcessError as e:
+              exit(e.returncode)
+          "
+        language: python
+        pass_filenames: false

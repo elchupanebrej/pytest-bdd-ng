@@ -1,6 +1,7 @@
 # Feature: Scenarios could be tagged
 ## Background:
 * Given File "steps.feature" with content:
+
     ```gherkin
     Feature: Steps are executed by corresponding step keyword decorator
       @passed
@@ -19,7 +20,9 @@
         Scenario: Failed
           Given I produce failed test
     ```
+
 * Given File "pytest.ini" with content:
+
     ```ini
     [pytest]
     markers =
@@ -27,7 +30,9 @@
       failed
       both
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given
@@ -41,59 +46,70 @@
       fail('Enforce fail')
     ```
 
-## Scenario:
+## Scenario: Run pytest selecting tests tagged with `passed`
 * When run pytest
+
     | cli_args | -m | passed |
     |----------|----|--------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |
 
-## Scenario:
+## Scenario: Run pytest selecting tests tagged with `failed`
 * When run pytest
+
     | cli_args | -m | failed |
     |----------|----|--------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 0      | 1      |
 
-## Scenario:
+## Scenario: Run pytest selecting tests tagged with `passed` or `failed`
 * When run pytest
+
     | cli_args | -m | passed or failed |
     |----------|----|------------------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-## Scenario:
+## Scenario: Run pytest selecting tests not tagged with `both`
 * When run pytest
+
     | cli_args | -m | not both |
     |----------|----|----------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-## Scenario:
+## Scenario: Run pytest selecting tests tagged with `both`
 * When run pytest
+
     | cli_args | -m | both |
     |----------|----|------|
 
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
-## Scenario:
+## Scenario: Run pytest without marker selection (all tests)
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 2      | 2      |

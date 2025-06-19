@@ -11,18 +11,18 @@ import sys
 from collections import deque
 from filecmp import dircmp
 from functools import reduce
-from itertools import chain
+from itertools import chain, zip_longest
 from operator import methodcaller, truediv
 from os.path import commonpath
-from pathlib import Path
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from typing import cast
 
 import panflute as pf  # type: ignore[import-not-found]
-import pycmarkgfm  # type: ignore[import-not-found]
 import pypandoc  # type: ignore[import-not-found]
 from docopt import docopt
+from pathlib2 import Path  # type: ignore[import-not-found]
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 
@@ -72,22 +72,28 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
         processable_path = processable_paths.popleft()
 
         processable_rel_path = processable_path.relative_to(features_path)
-        content += dedent(
-            # language=rst
-            f"""\
-                {processable_rel_path.name}
-                {SECTION_SYMBOLS[len(processable_rel_path.parts) - 1] * len(processable_rel_path.name)}
 
-            """
-        )
-
-        gherkin_file_paths = chain(processable_path.glob("*.gherkin"), processable_path.glob("*.feature"))
-        markdown_gherkin_file_paths = chain(
-            processable_path.glob("*.gherkin.md"), processable_path.glob("*.feature.md")
-        )
+        gherkin_file_paths = [*processable_path.glob("*.gherkin"), *processable_path.glob("*.feature")]
+        markdown_gherkin_file_paths = [*processable_path.glob("*.gherkin.md"), *processable_path.glob("*.feature.md")]
+        # TODO rework file extension
         struct_bdd_file_paths = processable_path.glob("*.bdd.yaml")
 
         sub_processable_paths = list(filter(methodcaller("is_dir"), processable_path.iterdir()))
+
+        if gherkin_file_paths or markdown_gherkin_file_paths:
+            content += (
+                # language=rst
+                (
+                    "\n"
+                    f"{processable_rel_path.name}\n"
+                    f"{SECTION_SYMBOLS[len(processable_rel_path.parts) - 1] * len(processable_rel_path.name)}"
+                    if processable_rel_path.name
+                    else ""
+                )
+                + "\n"
+                ".. toctree::\n"
+                "    :maxdepth: 2\n\n"
+            )
 
         for path in markdown_gherkin_file_paths:
             rel_path = path.relative_to(features_path)
@@ -96,58 +102,49 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
             abs_path = temp_path / rel_path
             abs_path.parent.mkdir(exist_ok=True, parents=True)
 
-            html_data = pycmarkgfm.gfm_to_html((features_path / rel_path).read_text())
-
             rst_content = pypandoc.convert_text(
-                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset+1}"]
+                (features_path / rel_path).read_text(),
+                "rst",
+                format="gfm",
+                extra_args=[f"--shift-heading-level-by={offset+1}", "--eol=lf"],
             )
 
-            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
+            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8", newline="\n")
 
-            stemmed_path = Path(rel_path.stem).stem
+            toctree_path = (Path("features") / path.relative_to(features_path)).with_suffix("").as_posix()
+            # language=rst
+            content += f"    {toctree_path}\n"
 
-            content += dedent(
-                # language=rst
-                f"""\
-                    {stemmed_path}
-                    {SECTION_SYMBOLS[offset-1]*len(stemmed_path)}
+        for path, codetype in chain(
+            zip_longest(gherkin_file_paths, [], fillvalue="gherkin"),
+            zip_longest(struct_bdd_file_paths, [], fillvalue="yaml"),
+        ):
+            rel_path = cast(Path, path).relative_to(features_path)
+            abs_path = temp_path / rel_path
+            abs_path.parent.mkdir(exist_ok=True, parents=True)
 
-                    .. include:: {(Path('features')/ path.relative_to(features_path)).with_suffix('.rst').as_posix()}
-
-                """
-            )
-
-        for path in gherkin_file_paths:
-            rel_path = path.relative_to(features_path)
-            content += dedent(
-                # language=rst
-                f"""\
+            abs_path.with_suffix(".rst").write_text(
+                dedent(
+                    # language=rst
+                    f"""\
                     {rel_path.stem}
                     {SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(rel_path.stem)}
 
-                    .. include:: {(output_path_rel_to_features_path / path.relative_to(features_path)).as_posix()}
-                       :code: gherkin
-
+                    .. include:: {reduce(truediv, [".."] * len(rel_path.parts), Path()) / (output_path_rel_to_features_path / rel_path).as_posix()}
+                       :code: {codetype}
                 """
+                ),
+                encoding="utf-8",
+                newline="\n",
             )
 
-        for path in struct_bdd_file_paths:
-            rel_path = path.relative_to(features_path)
-            content += dedent(
-                # language=rst
-                f"""\
-                    {rel_path.stem}
-                    {SECTION_SYMBOLS[len(rel_path.parts)-1]*len(rel_path.stem)}
-
-                    .. include:: {(output_path_rel_to_features_path / path.relative_to(features_path)).as_posix()}
-                       :code: yaml
-
-                """
-            )
+            toctree_path = (Path("features") / rel_path).with_suffix("").as_posix()
+            # language=rst
+            content += f"    {toctree_path}\n"
 
         processable_paths.extendleft(sub_processable_paths)
 
-    index_file.write_text(content.rstrip("\n") + "\n")
+    index_file.write_text(content.rstrip("\n") + "\n", newline="\n")
 
 
 def main():  # pragma: no cover

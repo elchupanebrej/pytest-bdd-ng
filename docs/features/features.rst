@@ -5,146 +5,79 @@ Features
           use cases of **pytest-bdd-ng** by investigation of its regression
           test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
 
-
-
 Tutorial
 --------
+.. toctree::
+    :maxdepth: 2
 
-Launch
-######
-
-.. include:: features/Tutorial/Launch.feature.rst
+    features/Tutorial/Launch.feature
 
 Step definition
 ---------------
+.. toctree::
+    :maxdepth: 2
 
-Pytest fixtures substitution
-############################
-
-.. include:: features/Step definition/Pytest fixtures substitution.feature.rst
-
-Target fixtures specification
-#############################
-
-.. include:: features/Step definition/Target fixtures specification.feature.rst
+    features/Step definition/Pytest fixtures substitution.feature
+    features/Step definition/Target fixtures specification.feature
 
 Parameters
 ##########
+.. toctree::
+    :maxdepth: 2
 
-Conversion
-!!!!!!!!!!
-
-.. include:: features/Step definition/Parameters/Conversion.feature.rst
-
-Defaults
-!!!!!!!!
-
-.. include:: features/Step definition/Parameters/Defaults.feature.rst
-
-Injection as fixtures
-!!!!!!!!!!!!!!!!!!!!!
-
-.. include:: features/Step definition/Parameters/Injection as fixtures.feature.rst
-
-Parsing by custom parser
-!!!!!!!!!!!!!!!!!!!!!!!!
-
-.. include:: features/Step definition/Parameters/Parsing by custom parser.feature.rst
-
-Parsing
-!!!!!!!
-
-.. include:: features/Step definition/Parameters/Parsing.feature.rst
+    features/Step definition/Parameters/Conversion.feature
+    features/Step definition/Parameters/Defaults.feature
+    features/Step definition/Parameters/Injection as fixtures.feature
+    features/Step definition/Parameters/Parsing by custom parser.feature
+    features/Step definition/Parameters/Parsing.feature
 
 Step
 ----
+.. toctree::
+    :maxdepth: 2
 
-Data table
-##########
-
-.. include:: features/Step/Data table.feature.rst
-
-Doc string
-##########
-
-.. include:: features/Step/Doc string.feature.rst
-
-Step definition bounding
-########################
-
-.. include:: features/Step/Step definition bounding.feature.rst
+    features/Step/Data table.feature
+    features/Step/Doc string.feature
+    features/Step/Step definition bounding.feature
 
 Scenario
 --------
+.. toctree::
+    :maxdepth: 2
 
-Description
-###########
-
-.. include:: features/Scenario/Description.feature.rst
-
-Tag
-###
-
-.. include:: features/Scenario/Tag.feature.rst
+    features/Scenario/Description.feature
+    features/Scenario/Tag.feature
 
 Outline
 #######
+.. toctree::
+    :maxdepth: 2
 
-Examples Tag
-!!!!!!!!!!!!
-
-.. include:: features/Scenario/Outline/Examples Tag.feature.rst
+    features/Scenario/Outline/Examples Tag.feature
 
 Report
 ------
+.. toctree::
+    :maxdepth: 2
 
-Gathering
-#########
-
-.. include:: features/Report/Gathering.feature.rst
+    features/Report/Gathering.feature
 
 Feature
 -------
+.. toctree::
+    :maxdepth: 2
 
-Description
-###########
-
-.. include:: features/Feature/Description.feature.rst
-
-Localization
-############
-
-.. include:: features/Feature/Localization.feature.rst
-
-Tag conversion
-##############
-
-.. include:: features/Feature/Tag conversion.feature.rst
-
-Tag
-###
-
-.. include:: features/Feature/Tag.feature.rst
+    features/Feature/Description.feature
+    features/Feature/Localization.feature
+    features/Feature/Tag conversion.feature
+    features/Feature/Tag.feature
 
 Load
 ####
+.. toctree::
+    :maxdepth: 2
 
-Autoload
-!!!!!!!!
-
-.. include:: features/Feature/Load/Autoload.feature.rst
-
-Scenario function loader
-!!!!!!!!!!!!!!!!!!!!!!!!
-
-.. include:: features/Feature/Load/Scenario function loader.feature.rst
-
-Scenario search from base directory
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-.. include:: features/Feature/Load/Scenario search from base directory.feature.rst
-
-Scenario search from base url
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-.. include:: features/Feature/Load/Scenario search from base url.feature.rst
+    features/Feature/Load/Autoload.feature
+    features/Feature/Load/Scenario function loader.feature
+    features/Feature/Load/Scenario search from base directory.feature
+    features/Feature/Load/Scenario search from base url.feature

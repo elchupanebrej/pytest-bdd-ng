@@ -7,368 +7,347 @@ Rule:
 Background:
            
 
--  Given File "steps.feature" with content:
+- Given File "steps.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Steps are executed by corresponding step keyword decorator
+     Feature: Steps are executed by corresponding step keyword decorator
 
-        Scenario Outline:
-            Given I produce <outcome> test
+       Scenario Outline:
+           Given I produce <outcome> test
 
-            @passed
-            Examples:
-            |outcome|
-            |passed |
+           @passed
+           Examples:
+           |outcome|
+           |passed |
 
-            @failed
-            Examples:
-            |outcome|
-            |failed |
+           @failed
+           Examples:
+           |outcome|
+           |failed |
 
-            @both
-            Examples:
-            |outcome|
-            |passed |
-            |failed |
+           @both
+           Examples:
+           |outcome|
+           |passed |
+           |failed |
 
--  Given File "pytest.ini" with content:
+- Given File "pytest.ini" with content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      markers =
-        passed
-        failed
-        both
+     [pytest]
+     markers =
+       passed
+       failed
+       both
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+     from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import given
 
-      @given('I produce passed test')
-      def passing_step():
-        ...
+     @given('I produce passed test')
+     def passing_step():
+       ...
 
-      @given('I produce failed test')
-      def failing_step():
-        fail('Enforce fail')
-
-Scenario:
-         
-
--  When run pytest
-
-   ======== == ======
-   cli_args -m passed
-   ======== == ======
-   ======== == ======
-
--  Then pytest outcome must contain tests with statuses:
-
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
-
-.. _scenario-1:
+     @given('I produce failed test')
+     def failing_step():
+       fail('Enforce fail')
 
 Scenario:
          
 
--  When run pytest
+- When run pytest
 
-   ======== == ======
-   cli_args -m failed
-   ======== == ======
-   ======== == ======
+  ======== == ======
+  cli_args -m passed
+  ======== == ======
+  ======== == ======
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
-.. _scenario-2:
+Scenario: Run pytest with no marker filter
+                                          
 
-Scenario:
-         
+- When run pytest
 
--  When run pytest
+  ======== == ======
+  cli_args -m failed
+  ======== == ======
+  ======== == ======
 
-   ======== == ================
-   cli_args -m passed or failed
-   ======== == ================
-   ======== == ================
+- Then pytest outcome must contain tests with statuses:
 
--  Then pytest outcome must contain tests with statuses:
+  ====== ======
+  passed failed
+  ====== ======
+  0      1
+  ====== ======
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+Scenario: Run pytest with marker 'passed or failed'
+                                                   
 
-.. _scenario-3:
+- When run pytest
 
-Scenario:
-         
+  ======== == ================
+  cli_args -m passed or failed
+  ======== == ================
+  ======== == ================
 
--  When run pytest
+- Then pytest outcome must contain tests with statuses:
 
-   ======== == ========
-   cli_args -m not both
-   ======== == ========
-   ======== == ========
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
--  Then pytest outcome must contain tests with statuses:
+Scenario: Run pytest with marker 'not both'
+                                           
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+- When run pytest
 
-.. _scenario-4:
+  ======== == ========
+  cli_args -m not both
+  ======== == ========
+  ======== == ========
 
-Scenario:
-         
+- Then pytest outcome must contain tests with statuses:
 
--  When run pytest
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-   ======== == ====
-   cli_args -m both
-   ======== == ====
-   ======== == ====
+Scenario: Run pytest with marker 'both'
+                                       
 
--  Then pytest outcome must contain tests with statuses:
+- When run pytest
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ======== == ====
+  cli_args -m both
+  ======== == ====
+  ======== == ====
 
-.. _scenario-5:
+- Then pytest outcome must contain tests with statuses:
 
-Scenario:
-         
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
--  When run pytest
--  Then pytest outcome must contain tests with statuses:
+Scenario: Run pytest with all markers
+                                     
 
-   ====== ======
-   passed failed
-   ====== ======
-   2      2
-   ====== ======
+- When run pytest
+
+- Then pytest outcome must contain tests with statuses:
+
+  ====== ======
+  passed failed
+  ====== ======
+  2      2
+  ====== ======
+
+.. _rule-mixing-tags-on-feature--examples-level:
 
 Rule: Mixing tags on feature & examples level
                                              
+
+.. raw:: html
+
+   <!-- markdownlint-disable-next-line MD024 -->
 
 .. _background-1:
 
 Background:
            
 
--  Given File "steps.feature" with content:
+- Given File "steps.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      @feature_tag
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario Outline:
-            Given I produce <outcome> test
+     @feature_tag
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario Outline:
+           Given I produce <outcome> test
 
-            Examples:
-            |outcome|
-            |passed |
+           Examples:
+           |outcome|
+           |passed |
 
-            @examples_tag
-            Examples:
-            |outcome|
-            |failed |
+           @examples_tag
+           Examples:
+           |outcome|
+           |failed |
 
--  Given File "pytest.ini" with content:
+- Given File "pytest.ini" with content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      markers =
-        feature_tag
-        examples_tag
+     [pytest]
+     markers =
+       feature_tag
+       examples_tag
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+     from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import given
 
-      @given('I produce passed test')
-      def passing_step():
-        ...
+     @given('I produce passed test')
+     def passing_step():
+       ...
 
-      @given('I produce failed test')
-      def failing_step():
-        fail('Enforce fail')
+     @given('I produce failed test')
+     def failing_step():
+       fail('Enforce fail')
 
-Example:
-        
+Example: Run pytest with feature_tag
+                                    
 
--  When run pytest
+- When run pytest
 
-   ======== == ===========
-   cli_args -m feature_tag
-   ======== == ===========
-   ======== == ===========
+  ======== == ===========
+  cli_args -m feature_tag
+  ======== == ===========
+  ======== == ===========
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
-.. _example-1:
+Example: Run pytest with examples_tag
+                                     
 
-Example:
-        
+- When run pytest
 
--  When run pytest
+  ======== == ============
+  cli_args -m examples_tag
+  ======== == ============
+  ======== == ============
 
-   ======== == ============
-   cli_args -m examples_tag
-   ======== == ============
-   ======== == ============
+- Then pytest outcome must contain tests with statuses:
 
--  Then pytest outcome must contain tests with statuses:
+  ====== ======
+  passed failed
+  ====== ======
+  0      1
+  ====== ======
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      1
-   ====== ======
+Example: Run pytest with not feature_tag
+                                        
 
-.. _example-2:
+- When run pytest
 
-Example:
-        
+  ======== == ===============
+  cli_args -m not feature_tag
+  ======== == ===============
+  ======== == ===============
 
--  When run pytest
+- Then pytest outcome must contain tests with statuses:
 
-   ======== == ===============
-   cli_args -m not feature_tag
-   ======== == ===============
-   ======== == ===============
+  ====== ======
+  passed failed
+  ====== ======
+  0      0
+  ====== ======
 
--  Then pytest outcome must contain tests with statuses:
+Example: Run pytest with not examples_tag
+                                         
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      0
-   ====== ======
+- When run pytest
 
-.. _example-3:
+  ======== == ================
+  cli_args -m not examples_tag
+  ======== == ================
+  ======== == ================
 
-Example:
-        
+- Then pytest outcome must contain tests with statuses:
 
--  When run pytest
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
-   ======== == ================
-   cli_args -m not examples_tag
-   ======== == ================
-   ======== == ================
+Example: Run pytest with feature_tag and collect only
+                                                     
 
--  Then pytest outcome must contain tests with statuses:
+- When run pytest
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ======== == =========== ==============
+  cli_args -m feature_tag --collect-only
+  ======== == =========== ==============
+  ======== == =========== ==============
 
-.. _example-4:
+- Then pytest outcome must match lines:
 
-Example:
-        
+  +-------------------+
+  | collected 2 items |
+  +===================+
 
--  When run pytest
+Example: Run pytest with examples_tag and collect only
+                                                      
 
-   ======== == =========== ==============
-   cli_args -m feature_tag --collect-only
-   ======== == =========== ==============
-   ======== == =========== ==============
+- When run pytest
 
--  Then pytest outcome must match lines:
+  ======== == ============ ==============
+  cli_args -m examples_tag --collect-only
+  ======== == ============ ==============
+  ======== == ============ ==============
 
-   +-------------------+
-   | collected 2 items |
-   +===================+
-   +-------------------+
+- Then pytest outcome must match lines:
 
-.. _example-5:
+  +-----------------------------------------------+
+  | collected 2 items / 1 deselected / 1 selected |
+  +===============================================+
 
-Example:
-        
+Example: Run pytest with not feature_tag and collect only
+                                                         
 
--  When run pytest
+- When run pytest
 
-   ======== == ============ ==============
-   cli_args -m examples_tag --collect-only
-   ======== == ============ ==============
-   ======== == ============ ==============
+  ======== == =============== ==============
+  cli_args -m not feature_tag --collect-only
+  ======== == =============== ==============
+  ======== == =============== ==============
 
--  Then pytest outcome must match lines:
+- Then pytest outcome must match lines:
 
-   +-----------------------------------------------+
-   | collected 2 items / 1 deselected / 1 selected |
-   +===============================================+
-   +-----------------------------------------------+
+  +------------------------------------+
+  | collected 2 items / 2 deselected\* |
+  +====================================+
 
-.. _example-6:
+Example: Run pytest with not examples_tag and collect only
+                                                          
 
-Example:
-        
+- When run pytest
 
--  When run pytest
+  ======== == ================ ==============
+  cli_args -m not examples_tag --collect-only
+  ======== == ================ ==============
+  ======== == ================ ==============
 
-   ======== == =============== ==============
-   cli_args -m not feature_tag --collect-only
-   ======== == =============== ==============
-   ======== == =============== ==============
+- Then pytest outcome must match lines:
 
--  Then pytest outcome must match lines:
-
-   +------------------------------------+
-   | collected 2 items / 2 deselected\* |
-   +====================================+
-   +------------------------------------+
-
-.. _example-7:
-
-Example:
-        
-
--  When run pytest
-
-   ======== == ================ ==============
-   cli_args -m not examples_tag --collect-only
-   ======== == ================ ==============
-   ======== == ================ ==============
-
--  Then pytest outcome must match lines:
-
-   +-----------------------------------------------+
-   | collected 2 items / 1 deselected / 1 selected |
-   +===============================================+
-   +-----------------------------------------------+
+  +-----------------------------------------------+
+  | collected 2 items / 1 deselected / 1 selected |
+  +===============================================+

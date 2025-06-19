@@ -1,6 +1,7 @@
 # Feature: Steps could have docstrings
 ## Scenario:
 * Given File "Steps.feature" with content:
+
     ````gherkin
     Feature:
       Scenario:
@@ -9,7 +10,9 @@
           Step docstring
           ```
     ````
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -17,8 +20,10 @@
     def _(step):
       assert step.doc_string.content == "Step docstring"
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |

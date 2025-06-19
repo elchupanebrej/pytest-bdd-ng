@@ -62,5 +62,5 @@ class StructBDDPlugin:
     else:
 
         @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, path, parent):
+        def pytest_pycollect_makemodule(self, path, parent):  # type:ignore[misc]
             yield from self._pytest_pycollect_makemodule()

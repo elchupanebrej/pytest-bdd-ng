@@ -2,6 +2,7 @@
 
 ## Scenario:
 * Given File "Passed.feature" with content:
+
     ```gherkin
     Feature:
       @todo
@@ -11,7 +12,9 @@
       Scenario: Passed
         Given I produce passed test
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     import pytest
     from pytest_bdd import given
@@ -30,8 +33,10 @@
     def failing_step():
       fail('Enforce fail')
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed | skipped |
     |--------|--------|---------|
     | 1      | 0      | 1       |

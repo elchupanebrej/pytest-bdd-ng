@@ -1,6 +1,7 @@
 # Feature: Steps could have docstrings
 ## Scenario:
 * Given File "Steps.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
@@ -9,7 +10,9 @@
           |    a|     b|
 
     ```
+
 * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
     from messages import Step
@@ -23,8 +26,10 @@
       assert get_datatable_row_values(title_row) == ["first", "second"]
       assert get_datatable_row_values(data_rows[0]) == ["a", "b"]
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed | failed |
     |--------|--------|
     | 1      | 0      |

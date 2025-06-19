@@ -1,6 +1,7 @@
 # Feature: Step definitions parameters could have default values
 ## Scenario:
 * Given File "Example.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
@@ -9,7 +10,9 @@
         Given I have a fresh cucumber
         Given I have a pickle
     ```
+
 * Given File "conftest.py" with content:
+
     ```python
     from enum import Enum
     from re import compile as parse
@@ -34,8 +37,10 @@
     def i_have_cucumber(freshness, oracle_freshness):
         assert freshness == oracle_freshness.pop(0)
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

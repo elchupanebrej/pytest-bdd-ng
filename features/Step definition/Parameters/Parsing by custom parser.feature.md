@@ -2,12 +2,15 @@
 
 ## Scenario:
 * Given File "Example.feature" with content:
+
     ```gherkin
     Feature:
       Scenario:
         Given there are 10 cucumbers
     ```
+
 * Given File "conftest.py" with content:
+
     ```python
     import re
     from pytest_bdd import given, parsers
@@ -44,8 +47,10 @@
     def start_cucumbers(start):
         assert start == 10
     ```
+
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |
