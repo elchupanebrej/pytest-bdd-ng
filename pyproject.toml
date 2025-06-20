@@ -229,7 +229,22 @@ ignore = [
   "TC006"  # https://youtrack.jetbrains.com/issue/PY-46326/Pycharm-does-not-recognize-imports-used-for-typing.cast-when-they-are-incased-in-a-string-and-removing-them-when-optimizing]
 ]
 # Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
-select = ["E", "F", "I", "N", "W", "B", "C4", "UP", "ARG", "SIM", "TCH", "TID", "Q"]
+select = [
+  "ARG",  # flake8-unused-arguments: Unused function arguments
+  "B",  # flake8-bugbear: Likely bugs and design problems
+  "C4",  # flake8-comprehensions: Comprehension optimizations
+  "E",  # pycodestyle errors: Style guide enforcement
+  "ERA",  # eradicate: Remove commented-out code
+  "F",  # Pyflakes: Logical errors, undefined names
+  "I",  # isort: Import sorting
+  "N",  # pep8-naming: Naming conventions
+  "SIM",  # flake8-simplify: Simplifiable code
+  "TCH",  # flake8-type-checking: Type-checking import optimizations
+  "TID",  # flake8-tidy-imports: Import restrictions
+  "W",  # pycodestyle warnings: Style guide warnings
+  "UP",  # pyupgrade: Modernize syntax for newer Python versions
+  "Q"  # flake8-quotes: String quote consistency
+]
 unfixable = []
 
 [tool.ruff.lint.isort]
@@ -246,6 +261,7 @@ section-order = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"docs/conf.py" = ["ERA001"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
