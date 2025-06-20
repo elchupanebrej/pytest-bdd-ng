@@ -20,8 +20,8 @@ def test_parent(testdir, tmp_path):
                 Scenario: Parenting is easy
                     Given I have a parent fixture
                     And I have an overridable fixture
-            """
-        )
+            """,
+        ),
     )
 
     testdir.makeconftest(
@@ -36,7 +36,7 @@ def test_parent(testdir, tmp_path):
         @given("I have an overridable fixture", target_fixture="overridable")
         def overridable():
             return "parent"
-        """
+        """,
     )
 
     testdir.makepyfile(
@@ -49,7 +49,7 @@ def test_parent(testdir, tmp_path):
         def test_parent(request):
             assert request.getfixturevalue("parent") == "parent"
             assert request.getfixturevalue("overridable") == "parent"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -69,7 +69,7 @@ def test_child(testdir, tmp_path):
         @given("I have an overridable fixture", target_fixture="overridable")
         def overridable():
             return "parent"
-        """
+        """,
     )
 
     subdir = testdir.mkpydir("subdir")
@@ -84,8 +84,8 @@ def test_child(testdir, tmp_path):
             def overridable():
                 return "child"
 
-            """
-        )
+            """,
+        ),
     )
 
     (tmp_path / "child.feature").write_text(
@@ -96,8 +96,8 @@ def test_child(testdir, tmp_path):
                 Scenario: Happy childhood
                     Given I have a parent fixture
                     And I have an overridable fixture
-            """
-        )
+            """,
+        ),
     )
 
     subdir.join("test_library.py").write(
@@ -111,8 +111,8 @@ def test_child(testdir, tmp_path):
             def test_override(request):
                 assert request.getfixturevalue("parent") == "parent"
                 assert request.getfixturevalue("overridable") == "child"
-            """
-        )
+            """,
+        ),
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -132,7 +132,7 @@ def test_local(testdir, tmp_path):
         @given("I have an overridable fixture", target_fixture="overridable")
         def overridable():
             return "parent"
-        """
+        """,
     )
 
     subdir = testdir.mkpydir("subdir")
@@ -146,7 +146,7 @@ def test_local(testdir, tmp_path):
                     Given I have a parent fixture
                     And I have an overridable fixture
             """,
-        )
+        ),
     )
 
     subdir.join("test_library.py").write(
@@ -168,8 +168,8 @@ def test_local(testdir, tmp_path):
             def test_local(request):
                 assert request.getfixturevalue("parent") == "local"
                 assert request.getfixturevalue("overridable") == "local"
-            """
-        )
+            """,
+        ),
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -185,7 +185,7 @@ def test_local_multiple_target_fixtures(testdir, tmp_path):
         @given("I have a parent fixtures", target_fixtures=["parent", "overridable"])
         def parent():
             return "parent1", "parent2"
-        """
+        """,
     )
 
     subdir = testdir.mkpydir("subdir")
@@ -197,8 +197,8 @@ def test_local_multiple_target_fixtures(testdir, tmp_path):
             Feature: Local
                 Scenario: Local override
                     Given I have a parent fixture
-            """
-        )
+            """,
+        ),
     )
 
     subdir.join("test_library.py").write(
@@ -216,8 +216,8 @@ def test_local_multiple_target_fixtures(testdir, tmp_path):
             def test_local(request):
                 assert request.getfixturevalue("parent") == "local1"
                 assert request.getfixturevalue("overridable") == "local2"
-            """
-        )
+            """,
+        ),
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -233,7 +233,7 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
         @given("I have a parent fixtures", target_fixture="parent", target_fixtures=["overridable"])
         def parent():
             return "parent1", "parent2"
-        """
+        """,
     )
 
     subdir = testdir.mkpydir("subdir")
@@ -246,7 +246,7 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
                 Scenario: Local override
                     Given I have a parent fixture
             """,
-        )
+        ),
     )
 
     subdir.join("test_library.py").write(
@@ -264,8 +264,8 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
             def test_local(request):
                 assert request.getfixturevalue("parent") == "local1"
                 assert request.getfixturevalue("overridable") == "local2"
-            """
-        )
+            """,
+        ),
     )
     result = testdir.runpytest_subprocess("-W", "ignore::pytest_bdd.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1)

@@ -1,6 +1,4 @@
-"""
-Compatibility module for pytest
-"""
+"""Compatibility module for pytest"""
 
 from __future__ import annotations
 
@@ -24,29 +22,29 @@ from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.util.packaging import compare_distribution_version
 
 __all__ = [
-    "assert_outcomes",
-    "Item",
+    "PYTEST6",
+    "PYTEST7",
     "CallInfo",
-    "call_fixture_func",
     "Config",
     "ExitCode",
     "FixtureDef",
     "FixtureLookupError",
     "FixtureRequest",
-    "get_config_root_path",
+    "Item",
     "Mark",
     "MarkDecorator",
     "Metafunc",
     "Module",
     "Parser",
     "PytestPluginManager",
-    "PYTEST6",
-    "PYTEST7",
     "RunResult",
     "Session",
     "TerminalReporter",
-    "Testdir",
     "TestReport",
+    "Testdir",
+    "assert_outcomes",
+    "call_fixture_func",
+    "get_config_root_path",
     "wrap_session",
 ]
 
@@ -81,8 +79,8 @@ if PYTEST6:
     from _pytest.mark.expression import Expression, ParseError
 
     __all__ += [
-        "MarkMatcher",
         "Expression",
+        "MarkMatcher",
         "ParseError",
     ]
 else:
@@ -119,7 +117,8 @@ class Module(PytestModule):
     def build(cls, parent, file_path):
         if hasattr(cls, "from_parent"):
             collector = cls.from_parent(
-                parent, **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path)))
+                parent,
+                **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path))),
             )
         else:
             collector = cls(parent=parent, fspath=py.path.local(file_path))
@@ -142,7 +141,12 @@ if PYTEST6:
     ) -> None:
         """Compatibility function for result.assert_outcomes"""
         result.assert_outcomes(
-            errors=errors, passed=passed, skipped=skipped, failed=failed, xpassed=xpassed, xfailed=xfailed
+            errors=errors,
+            passed=passed,
+            skipped=skipped,
+            failed=failed,
+            xpassed=xpassed,
+            xfailed=xfailed,
         )
 
 else:
@@ -176,8 +180,7 @@ def fail(reason, pytrace=True):
     __tracebackhide__ = True
     if PYTEST7:
         return _pytest_fail(reason, pytrace=pytrace)
-    else:
-        return _pytest_fail(msg=reason, pytrace=pytrace)
+    return _pytest_fail(msg=reason, pytrace=pytrace)
 
 
 if PYTEST6:

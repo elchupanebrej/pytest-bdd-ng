@@ -217,7 +217,10 @@ class LogBDDCucumberJSON:
         if report.passed or not step["failed"]:  # ignore setup/teardown
             result = {"status": "passed"}
         elif report.failed and step["failed"]:
-            result = {"status": "failed", "error_message": str(report.longrepr) if error_message else ""}
+            result = {
+                "status": "failed",
+                "error_message": str(report.longrepr) if error_message else "",
+            }
         elif report.skipped:
             result = {"status": "skipped"}
         result["duration"] = int(math.floor((10**9) * step["duration"]))  # nanosec
@@ -286,7 +289,7 @@ class LogBDDCucumberJSON:
                 "tags": self._serialize_tags(scenario),
                 "type": "scenario",
                 "steps": [stepmap(step) for step in scenario["steps"]],
-            }
+            },
         )
 
     def pytest_sessionstart(self) -> None:

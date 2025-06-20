@@ -40,8 +40,7 @@ class MarkArguments(TypedDict):
 
 @dataclass
 class ScenarioLocatorBuilder:
-    """
-    A dataclass to encapsulate the logic of building scenario locators based on provided
+    """A dataclass to encapsulate the logic of building scenario locators based on provided
     marks and configuration.
     """
 
@@ -49,9 +48,7 @@ class ScenarioLocatorBuilder:
     config: Any
 
     def build_locators(self) -> Iterable[Any]:
-        """
-        Build scenario locators for all provided marks.
-        """
+        """Build scenario locators for all provided marks."""
         locators_iterables = []
         for mark in self.marks:
             mark_arguments: MarkArguments = self._get_mark_arguments(mark)
@@ -76,17 +73,13 @@ class ScenarioLocatorBuilder:
 
     @staticmethod
     def _get_mark_arguments(mark: Mark) -> MarkArguments:
-        """
-        Retrieve and bind the arguments from the mark to their default values.
-        """
+        """Retrieve and bind the arguments from the mark to their default values."""
         raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
         raw_mark_arguments.apply_defaults()
         return MarkArguments(**cast(MarkArguments, raw_mark_arguments.arguments))
 
     def _resolve_features_base_dir(self, mark: Mark) -> Any:
-        """
-        Resolve the base directory for the features from the mark or config.
-        """
+        """Resolve the base directory for the features from the mark or config."""
         features_base_dir = mark.kwargs.get("features_base_dir")
         if features_base_dir is None:
             try:
@@ -99,9 +92,7 @@ class ScenarioLocatorBuilder:
         return features_base_dir
 
     def _resolve_features_base_url(self, mark: Any) -> Any:
-        """
-        Resolve the base URL for the features from the mark or config.
-        """
+        """Resolve the base URL for the features from the mark or config."""
         features_base_url = mark.kwargs.get("features_base_url")
         if features_base_url is None:
             with suppress(ValueError, KeyError):
@@ -112,18 +103,15 @@ class ScenarioLocatorBuilder:
 
     @staticmethod
     def _resolve_features_path_type(mark_arguments: MarkArguments) -> Any:
-        """
-        Resolve the type of feature paths (PATH, URL, or UNDEFINED).
-        """
+        """Resolve the type of feature paths (PATH, URL, or UNDEFINED)."""
         features_path_type = mark_arguments.get("features_path_type")
         if features_path_type is None:
             return FeaturePathType.UNDEFINED
-        elif isinstance(features_path_type, str):
+        if isinstance(features_path_type, str):
             return FeaturePathType(features_path_type)
-        elif isinstance(features_path_type, FeaturePathType):
+        if isinstance(features_path_type, FeaturePathType):
             return features_path_type
-        else:
-            raise ValueError("Unknown feature path type")
+        raise ValueError("Unknown feature path type")
 
     @staticmethod
     def _create_file_locator(
@@ -132,9 +120,7 @@ class ScenarioLocatorBuilder:
         features_base_dir: Any,
         features_path_type: Any,
     ) -> Any:
-        """
-        Create a FileScenarioLocator instance if applicable.
-        """
+        """Create a FileScenarioLocator instance if applicable."""
         feature_paths = list(mark_arguments.get("feature_paths", []) or [])
         if features_path_type is FeaturePathType.PATH:
             file_locator_feature_paths = feature_paths
@@ -163,9 +149,7 @@ class ScenarioLocatorBuilder:
         features_base_url: Any,
         features_path_type: Any,
     ) -> Any:
-        """
-        Create a UrlScenarioLocator instance if applicable.
-        """
+        """Create a UrlScenarioLocator instance if applicable."""
         feature_paths = list(mark_arguments.get("feature_paths", []) or [])
 
         if features_path_type is FeaturePathType.URL:
@@ -192,9 +176,7 @@ class ScenarioLocatorBuilder:
     def _build_scenario_filter(
         filter_: Optional[Union[ScenarioLocatorFilterT, str, StringRepresentable]],
     ) -> Optional[ScenarioLocatorFilterT]:
-        """
-        Build and return a scenario filter function.
-        """
+        """Build and return a scenario filter function."""
         if callable(filter_):
             return filter_
 

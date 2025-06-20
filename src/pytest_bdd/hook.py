@@ -64,7 +64,7 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
                             ),
                             request.getfixturevalue("scenario").tags,
                         ),
-                    }[_kind]
+                    }[_kind],
                 )
 
                 is_matching = parsed_expression.evaluate(get_marks())
@@ -75,14 +75,17 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
                     [
                         _conjunction is HookConjunction.around and not is_generator_function,
                         _conjunction in {HookConjunction.before, HookConjunction.after} and not is_function,
-                    ]
+                    ],
                 ):
                     raise ValueError(f"_{_conjunction.value}")
 
-                _args, _kwargs = args, {
-                    **kwargs,
-                    **({"request": request} if "request" in func_sig.parameters.keys() else {}),
-                }
+                _args, _kwargs = (
+                    args,
+                    {
+                        **kwargs,
+                        **({"request": request} if "request" in func_sig.parameters.keys() else {}),
+                    },
+                )
 
                 if is_matching:
                     if _conjunction is HookConjunction.before:
@@ -111,5 +114,6 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
 
 
 before_mark, before_tag, after_mark, after_tag, around_mark, around_tag = starmap(
-    decorator_builder, product(HookConjunction, HookKind)
+    decorator_builder,
+    product(HookConjunction, HookKind),
 )

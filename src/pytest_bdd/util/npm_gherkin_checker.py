@@ -10,9 +10,9 @@ try:
                 [
                     check_npm_package("@cucumber/gherkin", global_install=True),
                     check_npm_package("@cucumber/gherkin"),
-                ]
+                ],
             ),
-        ]
+        ],
     )
 except CalledProcessError:
     is_npm_gherkin_installed = False

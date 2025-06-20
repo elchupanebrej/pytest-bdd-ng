@@ -20,22 +20,26 @@ def has_test_case(name, *matchers):
         "test_cases",
         has_item(
             all_of(
-                any_of(has_entry("fullName", contains_string(name)), has_entry("name", contains_string(name))),
+                any_of(
+                    has_entry("fullName", contains_string(name)),
+                    has_entry("name", contains_string(name)),
+                ),
                 *matchers,
-            )
+            ),
         ),
     )
 
 
 def has_step(name, *matchers):
     return has_entry(
-        "steps", has_item(has_entry("steps", has_item(all_of(has_entry("name", equal_to(name)), *matchers))))
+        "steps",
+        has_item(has_entry("steps", has_item(all_of(has_entry("name", equal_to(name)), *matchers)))),
     )
 
 
 def match(matcher, *args):
     for i, arg in enumerate(args):
-        if not hasattr(arg, "__call__"):
+        if not callable(arg):
             matcher = partial(matcher, arg)
         else:
             matcher = partial(matcher, match(arg, *args[i + 1 :]))

@@ -51,7 +51,7 @@ def test_every_step_takes_param_with_the_same_name(testdir, parser_import_string
         @then(cfparse("I should have {euro:d} Euro"))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -102,7 +102,7 @@ def test_argument_in_when(testdir, parser_import_string):
         @then(cfparse("My argument should be {arg:d}"))
         def assert_that_my_argument_is_arg(arguments, arg):
             assert arguments["arg"] == arg
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

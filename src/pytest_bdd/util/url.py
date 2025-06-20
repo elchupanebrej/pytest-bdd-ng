@@ -1,6 +1,5 @@
+from operator import attrgetter
 from urllib.parse import urlparse
-
-from _operator import attrgetter
 
 
 def is_local_url(urllike):

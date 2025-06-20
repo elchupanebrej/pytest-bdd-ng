@@ -35,7 +35,7 @@ def test_multiple_features_single_file(testdir):
                 Given I have B
                 When I do something else with B
                 Then something else about A and B
-        """
+        """,
         ),
     )
     result = testdir.runpytest()

@@ -2,7 +2,6 @@
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass  # Easy way to not write redundant __init__ https://docs.python.org/3/library/dataclasses.html

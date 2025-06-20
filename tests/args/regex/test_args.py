@@ -48,7 +48,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         @then(parse_re(r"I should have (?P<euro>\d+) Euro"), converters=dict(euro=int))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -97,7 +97,7 @@ def test_argument_in_when(testdir, parser_import_string):
         @then(parse_re(r"My argument should be (?P<arg>\d+)"))
         def assert_that_my_argument_is_arg(arguments, arg):
             assert arguments["arg"] == arg
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

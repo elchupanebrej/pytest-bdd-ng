@@ -52,7 +52,7 @@ def test_heuristic_parser(
         @then(r"I should have (\\d+) Euro", anonymous_group_names=('euro',), converters=dict(euro=int))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()

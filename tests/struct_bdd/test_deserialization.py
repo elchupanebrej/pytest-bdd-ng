@@ -2,11 +2,11 @@ from functools import partial
 from operator import contains
 from textwrap import dedent
 
-from gherkin.pickles.compiler import Compiler
 from pytest import mark
 from yaml import FullLoader
 from yaml import load as load_yaml
 
+from gherkin.pickles.compiler import Compiler
 from messages import KeywordType  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.util.other import IdGenerator
@@ -26,13 +26,13 @@ def test_node_containing_data_load():
             "Name": "Node name",
             "Description": "Node description",
             "Comments": ["Comment A", "Comment B"],
-        }
+        },
     )
     assert all(
         [
             "Tag A" in node.tags,
             "Tag B" in node.tags,
-        ]
+        ],
     )
     assert node.name == "Node name"
     assert node.description == "Node description"
@@ -40,7 +40,7 @@ def test_node_containing_data_load():
         [
             "Comment A" in node.comments,
             "Comment B" in node.comments,
-        ]
+        ],
     )
 
 
@@ -62,14 +62,14 @@ def test_table_columned_containing_data_load():
             Type="Columned",
             Parameters=["Parameter A", "Parameter B"],
             Values=[["Value A1", "Value A2"], ["Value B1", "Value B2"]],
-        )
+        ),
     )
 
     assert all(
         [
             "Tag A" in table.tags,
             "Tag B" in table.tags,
-        ]
+        ],
     )
     assert table.name == "Table name"
     assert table.description == "Table description"
@@ -77,7 +77,7 @@ def test_table_columned_containing_data_load():
         [
             "Comment A" in table.comments,
             "Comment B" in table.comments,
-        ]
+        ],
     )
 
     assert table.type == "Columned"
@@ -93,7 +93,7 @@ def test_table_rowed_containing_data_load():
             Type="Rowed",
             Parameters=["Parameter A", "Parameter B"],
             Values=[["Value A1", "Value A2"], ["Value B1", "Value B2"]],
-        )
+        ),
     )
     assert table.type == "Rowed"
     assert table.parameters == ["Parameter A", "Parameter B"]
@@ -140,7 +140,12 @@ def test_join_load():
     assert join.name == "\n".join([raw_table_a["Name"], raw_table_b["Name"]])
     assert join.description == "\n".join([raw_table_a["Description"], raw_table_b["Description"]])
     assert join.comments == ["Comment A1", "Comment A2", "Comment B1", "Comment B2"]
-    assert join.parameters == ["Parameter A1", "Parameter A2", "Parameter B1", "Parameter B2"]
+    assert join.parameters == [
+        "Parameter A1",
+        "Parameter A2",
+        "Parameter B1",
+        "Parameter B2",
+    ]
     assert join.values == [
         ["Value A11", "Value A21", "Value B11", "Value B21"],
         ["Value A11", "Value A21", "Value B12", "Value B22"],
@@ -211,8 +216,8 @@ def test_load_simplest_given():
         dict(
             Steps=[
                 dict(Given="Do something"),
-            ]
-        )
+            ],
+        ),
     )
     assert step.steps[0].type == Keyword.Given
     assert step.steps[0].keyword_type == KeywordType.context
@@ -258,10 +263,10 @@ def test_load_actioned_step_with_alternative_text_steps():
                     Alternative=[
                         "Do something",
                         "Do something else",
-                    ]
-                )
+                    ],
+                ),
             ],
-        )
+        ),
     )
 
     routes = list(step.routes)
@@ -283,8 +288,8 @@ def test_load_simplest_step_with_keyworded_steps():
                 "Do something",
                 dict(Because="Because Do something"),
                 dict(Step=dict(Action="Step Do something")),
-            ]
-        )
+            ],
+        ),
     )
 
     routes = list(step.routes)
@@ -312,7 +317,7 @@ def test_node_module_load_for_step():
             Comments:
               - Very nice comment
             Steps: []
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)
@@ -339,7 +344,7 @@ def test_data_load():
                     - [ a, b, c ]
                     - [ d, e, f ]
             Steps: []
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)
@@ -364,7 +369,7 @@ def test_nested_sub_join_load():
                     - StepDataTableParametersHeader3
                     - StepDataTableParametersHeader4
                   Values: [ ]
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)
@@ -404,7 +409,7 @@ def test_nested_data_load():
                         - StepDataTableParametersHeader4
                       Values: [ ]
             Steps: []
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)
@@ -444,7 +449,7 @@ def test_nested_examples_load():
                         - StepDataTableParametersHeader4
                       Values: [ ]
             Steps: []
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)
@@ -484,7 +489,7 @@ def test_tags_steps_examples_load():
                         - [ g, h, i ]
                         - [ j, k, l ]
           - "Do last"
-        """
+        """,
     )
 
     data = load_yaml(doc, Loader=FullLoader)
@@ -493,12 +498,17 @@ def test_tags_steps_examples_load():
 
     assert len(routes) == 1
     route = routes[0]
-    assert all(map(partial(contains, route.tags), ["TopTag", "ExampleTag", "StepTag", "StepExampleTag"]))
+    assert all(
+        map(
+            partial(contains, route.tags),
+            ["TopTag", "ExampleTag", "StepTag", "StepExampleTag"],
+        )
+    )
     assert all(
         map(
             partial(contains, route.example_table.parameters),
             ["Header1", "Header2", "Header3", "Header4", "Header5", "Header6"],
-        )
+        ),
     )
     assert len(route.example_table.values) == 4
 
@@ -584,7 +594,7 @@ def test_tags_steps_examples_load_complex():
                               Values:
                                 - [ I1, J1 ]
                                 - [ I2, J2 ]
-        """
+        """,
     )
 
     data = load_yaml(doc, Loader=FullLoader)
@@ -600,42 +610,71 @@ def test_tags_steps_examples_load_complex():
     assert len(routes[3].example_table.values) == 12
 
     assert all(
-        map(partial(contains, routes[0].tags), ["TopTag", "ExampleTagA", "ExampleTagB", "StepTagA", "StepExampleTagA"])
+        map(
+            partial(contains, routes[0].tags),
+            ["TopTag", "ExampleTagA", "ExampleTagB", "StepTagA", "StepExampleTagA"],
+        ),
     )
     assert all(
         map(
             partial(contains, routes[0].example_table.parameters),
             ["HeaderC", "HeaderF", "HeaderA", "HeaderE", "HeaderB", "HeaderD"],
-        )
+        ),
     )
 
-    assert all(map(partial(contains, routes[1].tags), ["ExampleTagC", "StepExampleTagA", "StepTagA", "TopTag"]))
-    assert all(map(partial(contains, routes[1].example_table.parameters), routes[1].example_table.parameters))
+    assert all(
+        map(
+            partial(contains, routes[1].tags),
+            ["ExampleTagC", "StepExampleTagA", "StepTagA", "TopTag"],
+        )
+    )
+    assert all(
+        map(
+            partial(contains, routes[1].example_table.parameters),
+            routes[1].example_table.parameters,
+        )
+    )
 
     assert all(
         map(
             partial(contains, routes[2].tags),
-            ["TopTag", "StepExampleTagB", "StepExampleTagC", "ExampleTagB", "StepTagB", "ExampleTagA"],
-        )
+            [
+                "TopTag",
+                "StepExampleTagB",
+                "StepExampleTagC",
+                "ExampleTagB",
+                "StepTagB",
+                "ExampleTagA",
+            ],
+        ),
     )
     assert all(
         map(
             partial(contains, routes[2].example_table.parameters),
-            ["HeaderG", "HeaderC", "HeaderI", "HeaderA", "HeaderH", "HeaderB", "HeaderJ", "HeaderD"],
-        )
+            [
+                "HeaderG",
+                "HeaderC",
+                "HeaderI",
+                "HeaderA",
+                "HeaderH",
+                "HeaderB",
+                "HeaderJ",
+                "HeaderD",
+            ],
+        ),
     )
 
     assert all(
         map(
             partial(contains, routes[3].tags),
             ["TopTag", "StepExampleTagB", "StepExampleTagC", "ExampleTagC", "StepTagB"],
-        )
+        ),
     )
     assert all(
         map(
             partial(contains, routes[3].example_table.parameters),
             ["HeaderG", "HeaderK", "HeaderI", "HeaderH", "HeaderJ"],
-        )
+        ),
     )
 
 
@@ -667,7 +706,7 @@ def test_tags_steps_examples_joined_by_value_load():
                   - [ B2, C2 ]
                   - [ B3, C3 ]
         Steps: []
-        """
+        """,
     )
 
     data = load_yaml(doc, Loader=FullLoader)
@@ -699,7 +738,7 @@ def test_load_nested_steps():
               - "*": Do something
               - Step:
                   Action: Do something
-            """
+            """,
         )
 
         data = load_yaml(doc, Loader=FullLoader)

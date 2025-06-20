@@ -38,13 +38,13 @@ def test_tags_selector(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a bar')
         def i_have_bar():
             return 'bar'
-        """
+        """,
     )
     result = testdir.runpytest("-m", "scenario_tag_10 and not scenario_tag_01", "-vv")
     outcomes = result.parseoutcomes()
@@ -90,7 +90,7 @@ def test_tags_after_background_issue_160(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a bar')
@@ -100,7 +100,7 @@ def test_tags_after_background_issue_160(testdir):
         @given('I have a baz')
         def i_have_baz():
             return 'baz'
-        """
+        """,
     )
     result = testdir.runpytest("-m", "tag", "-vv").parseoutcomes()
     assert result["passed"] == 1
@@ -123,7 +123,7 @@ def test_at_in_scenario(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a foo@bar')
@@ -133,7 +133,7 @@ def test_at_in_scenario(testdir):
         @given('I have a baz')
         def i_have_baz():
             return 'baz'
-        """
+        """,
     )
 
     # Deprecate --strict after pytest 6.1

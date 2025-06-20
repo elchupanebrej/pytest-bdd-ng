@@ -36,7 +36,9 @@ class ScenarioRunner:
             self.scenario = self.request.getfixturevalue("scenario")
             self.plugin_manager = cast(PluginManager, self.request.config.hook)
             self.plugin_manager.pytest_bdd_before_scenario(  # type:ignore[attr-defined]
-                request=self.request, feature=self.feature, scenario=self.scenario
+                request=self.request,
+                feature=self.feature,
+                scenario=self.scenario,
             )
             try:
                 self.plugin_manager.pytest_bdd_run_scenario(  # type:ignore[attr-defined]
@@ -46,7 +48,9 @@ class ScenarioRunner:
                 )
             finally:
                 self.plugin_manager.pytest_bdd_after_scenario(  # type:ignore[attr-defined]
-                    request=self.request, feature=self.feature, scenario=self.scenario
+                    request=self.request,
+                    feature=self.feature,
+                    scenario=self.scenario,
                 )
 
             # Allow to test function use updated fixtures directly
@@ -65,7 +69,9 @@ class ScenarioRunner:
         steps: deque = request.getfixturevalue("steps_left")
         steps.extend(scenario.steps)
         step_dispatcher = request.config.hook.pytest_bdd_get_step_dispatcher(
-            request=request, feature=feature, scenario=scenario
+            request=request,
+            feature=feature,
+            scenario=scenario,
         )
         return step_dispatcher(steps)
 
@@ -80,7 +86,11 @@ class ScenarioRunner:
             while left_steps:
                 step = left_steps.popleft()
                 self.plugin_manager.pytest_bdd_run_step(
-                    request=request, feature=feature, scenario=scenario, step=step, previous_step=previous_step
+                    request=request,
+                    feature=feature,
+                    scenario=scenario,
+                    step=step,
+                    previous_step=previous_step,
                 )  # type: ignore[call-arg]
                 previous_step = step
 
@@ -131,7 +141,8 @@ class ScenarioRunner:
             step_params = step_definition.get_parameters(request, step)
             try:
                 self._inject_step_parameters_as_fixtures(
-                    step_params=step_params, params_fixtures_mapping=step_definition.params_fixtures_mapping
+                    step_params=step_params,
+                    params_fixtures_mapping=step_definition.params_fixtures_mapping,
                 )
 
                 step_function_kwargs = dict(self._get_step_function_kwargs(step, step_definition, step_params))
@@ -150,17 +161,34 @@ class ScenarioRunner:
                 raise
 
     @hookimpl(trylast=True)
-    def pytest_bdd_get_step_caller(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_get_step_caller(
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        step_definition,
+    ):
         # Execute the step as if it was a pytest fixture, so that we can allow "yield" statements in it
-        return partial(call_fixture_func, fixturefunc=step_definition.func, request=request, kwargs=step_func_args)
+        return partial(
+            call_fixture_func,
+            fixturefunc=step_definition.func,
+            request=request,
+            kwargs=step_func_args,
+        )
 
     def _inject_step_parameters_as_fixtures(
-        self, step_params: Optional[dict] = None, params_fixtures_mapping: Optional[dict] = None
+        self,
+        step_params: Optional[dict] = None,
+        params_fixtures_mapping: Optional[dict] = None,
     ):
         step_params = step_params or {}
         params_fixtures_mapping = (
             DefaultMapping.instantiate_from_collection_or_bool(
-                params_fixtures_mapping or {}, warm_up_keys=step_params.keys()
+                params_fixtures_mapping or {},
+                warm_up_keys=step_params.keys(),
             )
             or {}
         )
@@ -206,5 +234,5 @@ class ScenarioRunner:
                 f'Step keyword: "{step.keyword}". '
                 f"Line {step.line_number} "
                 f'in scenario "{self.scenario.name}" '
-                f'in the feature "{self.feature.uri}"'
+                f'in the feature "{self.feature.uri}"',
             ) from e

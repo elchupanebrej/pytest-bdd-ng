@@ -8,7 +8,7 @@ from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 import py
 from mako.template import Template
@@ -80,10 +80,9 @@ def cmdline_main(config: Config) -> int | None:
     """Check config option to show missing code."""
     if config.option.generate_missing:
         return generate_and_print_missing_code(config)
-    elif config.option.generate:
+    if config.option.generate:
         return generate_and_print_code(config)
-    else:
-        return None  # Make mypy happy
+    return None  # Make mypy happy
 
 
 def generate_code(
@@ -119,7 +118,9 @@ def generate_and_print_missing_code_callback(config: Config, session: Session) -
     features, seen_features_uris = collect_features_and_seen_uris(config, seen_feature_pickles_ids)
 
     non_seen_features, non_seen_feature_pickles = find_non_seen_features_and_pickles(
-        features, seen_feature_pickles_ids, seen_features_uris
+        features,
+        seen_feature_pickles_ids,
+        seen_features_uris,
     )
 
     unique_non_matched_feature_pickle_steps = find_unique_non_matched_steps(non_matched_feature_pickle_steps)
@@ -190,7 +191,11 @@ def process_pickle_steps(
     for step in pickle.steps:
         try:
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
-                request=item_request, feature=feature, scenario=pickle, step=step, previous_step=previous_step
+                request=item_request,
+                feature=feature,
+                scenario=pickle,
+                step=step,
+                previous_step=previous_step,
             )
         except StepHandler.Matcher.MatchNotFoundError:
             non_matched_feature_pickle_steps.append(((feature, pickle), step))
@@ -199,7 +204,8 @@ def process_pickle_steps(
 
 
 def collect_features_and_seen_uris(
-    config: Config, seen_feature_pickles_ids: set[tuple[str, str]]
+    config: Config,
+    seen_feature_pickles_ids: set[tuple[str, str]],
 ) -> tuple[Sequence[Feature], set[str]]:
     """Collect all features and the set of seen feature URIs."""
     features: Sequence[Feature] = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
@@ -209,7 +215,9 @@ def collect_features_and_seen_uris(
 
 
 def find_non_seen_features_and_pickles(
-    features: Sequence[Feature], seen_feature_pickles_ids: set[tuple[str, str]], seen_features_uris: set[str]
+    features: Sequence[Feature],
+    seen_feature_pickles_ids: set[tuple[str, str]],
+    seen_features_uris: set[str],
 ) -> tuple[list[Feature], list[tuple[Feature, Pickle]]]:
     """Identify features and pickles that were not seen."""
     non_seen_features: list[Feature] = list(filterfalse(lambda feature: feature.uri in seen_features_uris, features))
@@ -217,8 +225,13 @@ def find_non_seen_features_and_pickles(
     non_seen_feature_pickles: list[tuple[Feature, Pickle]] = list(
         filter(
             lambda feature_pickle: (feature_pickle[0].uri, feature_pickle[1].name) not in seen_feature_pickles_ids,
-            chain.from_iterable(map(lambda feature: zip_longest((), feature.pickles, fillvalue=feature), features)),
-        )
+            chain.from_iterable(
+                map(
+                    lambda feature: zip_longest((), feature.pickles, fillvalue=feature),
+                    features,
+                )
+            ),
+        ),
     )
 
     return non_seen_features, non_seen_feature_pickles
@@ -239,10 +252,10 @@ def find_unique_non_matched_steps(
                         feature_pickle_step[1].type == step_def_id[0] and feature_pickle_step[1].text == step_def_id[1]
                     ),
                     non_matched_feature_pickle_steps,
-                )
+                ),
             ),
             unique_step_defs_ids,
-        )
+        ),
     )
     return unique_non_matched_feature_pickle_steps
 
@@ -267,11 +280,12 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
         chain.from_iterable(
             map(
                 lambda feature: cast(
-                    Iterable[tuple[Feature, Pickle]], zip_longest((), feature.pickles, fillvalue=feature)
+                    Iterable[tuple[Feature, Pickle]],
+                    zip_longest((), feature.pickles, fillvalue=feature),
                 ),
                 features,
-            )
-        )
+            ),
+        ),
     )
 
     feature_pickles_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]] = list(
@@ -282,8 +296,8 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
                     zip_longest((), feature_pickle[1].steps, fillvalue=feature_pickle),
                 ),
                 feature_pickles,
-            )
-        )
+            ),
+        ),
     )
 
     unique_step_defs_ids = {(step.type, step.text) for (feature, pickle), step in feature_pickles_steps}
@@ -294,10 +308,10 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
                     filter(
                         lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
                         feature_pickles_steps,
-                    )
+                    ),
                 ),
                 unique_step_defs_ids,
-            )
+            ),
         ),
         key=lambda feature_pickle_step: cast(str, feature_pickle_step[1].text),
     )

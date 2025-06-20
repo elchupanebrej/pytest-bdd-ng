@@ -63,7 +63,7 @@ def test_autoload_disabled_with_conftest_on_same_level(testdir):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
     result = testdir.runpytest("--disable-feature-autoload")
     result.assert_outcomes(passed=2, failed=0)
@@ -106,7 +106,7 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
 
     Path(testdir.mkdir("features") / "steps.feature").write_text(
@@ -130,7 +130,7 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
                     | run |
                     |  1  |
                     |  2  |
-            """
+            """,
         ),
     )
 

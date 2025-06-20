@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Union, cast
 
 from pydantic import ValidationError
 
-from messages import Attachment, ContentEncoding  # type:ignore[attr-defined]
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined]
+from messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]
+    Attachment,
+    ContentEncoding,
     GherkinDocument,
     Hook,
     Meta,
@@ -18,6 +18,7 @@ from messages import (  # type:ignore[attr-defined]
     Source,
     StepDefinition,
 )
+from messages import Envelope as Message  # type:ignore[attr-defined]
 from messages import TestCase as _TestCase  # type:ignore[attr-defined]
 from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
 from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
@@ -57,8 +58,7 @@ def unfold_message(message: Message):
     for attr in unfoldable_attrs:
         if (unfold := getattr(message, attr)) is not None:
             return unfold
-    else:  # pragma: nocover
-        raise ValueError("Empty message was given")
+    raise ValueError("Empty message was given")
 
 
 def list_filter_by_type(t: Union[type, Iterable[type]], items):
@@ -103,7 +103,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
         )
         def cukes_count(cukes):
             assert cukes
-        """
+        """,
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
@@ -180,7 +180,8 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     assert isinstance(test_case_step_start_lifetime_messages[1], _TestStepStarted)
 
     test_case_step_finish_lifetime_messages = list_filter_by_type(
-        (_TestCaseFinished, _TestStepFinished), unfold_messages
+        (_TestCaseFinished, _TestStepFinished),
+        unfold_messages,
     )
     assert isinstance(test_case_step_finish_lifetime_messages[0], _TestStepFinished)
     assert isinstance(test_case_step_finish_lifetime_messages[1], _TestCaseFinished)
@@ -245,7 +246,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
             assert Coordinate(40, 50, 60) == end
             assert thick == 5
 
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -282,7 +283,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
         @given('Attach "{value}" as string')
         def attach_as_string(attach, value):
             attach(value)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -324,7 +325,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
         @given('Attach "{value}" as url')
         def attach_as_url(attach, value):
             attach(value, media_type='text/uri-list')
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -366,7 +367,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
         @given('Attach "{value}" as bytes')
         def attach_as_bytes(attach, value):
             attach(value.encode('utf-8'))
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -412,7 +413,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
         def attach_from_file(attach, file_path: Path):
             with file_path.open(mode='r') as file:
                 attach(file)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -458,7 +459,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
         def attach_bytes_from_file(attach, file_path: Path):
             with file_path.open(mode='rb') as file:
                 attach(file, file_name=file_path)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -514,7 +515,7 @@ def test_hook_type_messages(testdir, tmp_path):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, before_mark, after_tag, around_mark
@@ -560,7 +561,7 @@ def test_hook_type_messages(testdir, tmp_path):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
@@ -577,13 +578,33 @@ def test_hook_type_messages(testdir, tmp_path):
     assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
 
     # before_mark hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name is None, attachment_messages))
+    assert any(
+        map(
+            lambda message: message.tag_expression == "tag" and message.name is None,
+            attachment_messages,
+        )
+    )
 
     # before_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "before", attachment_messages))
+    assert any(
+        map(
+            lambda message: message.tag_expression == "@tag" and message.name == "before",
+            attachment_messages,
+        )
+    )
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "after", attachment_messages))
+    assert any(
+        map(
+            lambda message: message.tag_expression == "@tag" and message.name == "after",
+            attachment_messages,
+        )
+    )
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name == "around", attachment_messages))
+    assert any(
+        map(
+            lambda message: message.tag_expression == "tag" and message.name == "around",
+            attachment_messages,
+        )
+    )

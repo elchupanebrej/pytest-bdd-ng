@@ -24,9 +24,11 @@ from filelock import FileLock
 from pydantic import ValidationError
 from pytest import ExitCode, Session, hookimpl
 
-from messages import Attachment, Ci, ContentEncoding, Duration  # type:ignore[attr-defined, import-untyped]
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined, import-untyped]
+from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+    Attachment,
+    Ci,
+    ContentEncoding,
+    Duration,
     Hook,
     Location,
     Meta,
@@ -46,6 +48,7 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     TestStepStarted,
     Timestamp,
 )
+from messages import Envelope as Message  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
     Config,
@@ -77,7 +80,7 @@ class GherkinMessageReporter:
             [
                 self.config.option.messages_ndjson_path is None,
                 self.config.option.cucumber_html_path is None,
-            ]
+            ],
         )
 
         if self.is_disabled:
@@ -136,7 +139,10 @@ class GherkinMessageReporter:
                             try:
                                 Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
                             except ValidationError:
-                                logging.exception(f"Failed to parse:\n{pformat(message_json)}\n", exc_info=True)
+                                logging.exception(
+                                    f"Failed to parse:\n{pformat(message_json)}\n",
+                                    exc_info=True,
+                                )
                             else:
                                 lines.append(f"{message_json}\n")
                             finally:
@@ -215,7 +221,7 @@ class GherkinMessageReporter:
                 "scenario" in metafunc.fixturenames,
                 "feature_source" in metafunc.fixturenames,
                 metafunc._calls,
-            ]
+            ],
         ):
             config = metafunc.config
 
@@ -231,7 +237,8 @@ class GherkinMessageReporter:
                     cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(source=feature_source))
 
                     cast(Config, config).hook.pytest_bdd_message(
-                        config=config, message=Message(gherkin_document=feature.gherkin_document)
+                        config=config,
+                        message=Message(gherkin_document=feature.gherkin_document),
                     )
                 if is_set(pickle) and id(pickle) not in pickle_registry:
                     cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
@@ -269,12 +276,13 @@ class GherkinMessageReporter:
                     # TODO: Get from environment
                     protocol_version="22.0.0",
                     implementation=Product(
-                        name="pytest-bdd-ng", version=str(get_distribution_version("pytest-bdd-ng"))
+                        name="pytest-bdd-ng",
+                        version=str(get_distribution_version("pytest-bdd-ng")),
                     ),
                     runtime=Product(name="Python", version=sys.version),
                     os=Product(name=system(), version=version()),
                     cpu=Product(name=machine(), version=processor()),
-                    ci=Ci.model_validate(obj) if (obj := detect_ci_environment(os.environ)) is not None else None,
+                    ci=(Ci.model_validate(obj) if (obj := detect_ci_environment(os.environ)) is not None else None),
                 ),
             ),
         )
@@ -292,7 +300,7 @@ class GherkinMessageReporter:
                 test_run_finished=TestRunFinished(
                     timestamp=self.get_timestamp(),
                     success=is_testrun_success,
-                )
+                ),
             ),
         )
 
@@ -337,7 +345,7 @@ class GherkinMessageReporter:
                             location=Location(line=getsourcelines(func)[1]),
                         ),
                         **({"tag_expression": hook_expression} if hook_expression is not None else {}),
-                    )
+                    ),
                 ),
             )
 
@@ -367,7 +375,8 @@ class GherkinMessageReporter:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
                     config.hook.pytest_bdd_message(
-                        config=config, message=Message(step_definition=step_definition.as_message(config=config))
+                        config=config,
+                        message=Message(step_definition=step_definition.as_message(config=config)),
                     )
             step_registry = step_registry.parent
 
@@ -377,7 +386,8 @@ class GherkinMessageReporter:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     parameter_type_registry_getter: Callable[[FixtureRequest], ParameterTypeRegistry] = deepattrgetter(
-                        "_get_parameter_type_registry", default=None
+                        "_get_parameter_type_registry",
+                        default=None,
                     )(step_definition.parser)[0]
 
                     if parameter_type_registry_getter is None:
@@ -389,7 +399,7 @@ class GherkinMessageReporter:
                         map(
                             lambda parameter_type: (id(parameter_type), parameter_type),
                             parameter_type_registry.parameter_types,
-                        )
+                        ),
                     )
 
                     not_yet_registered_parameter_types = {
@@ -428,7 +438,7 @@ class GherkinMessageReporter:
                     step=step,
                     previous_step=previous_step,
                 )
-            except StepHandler.Matcher.MatchNotFoundError as e:
+            except StepHandler.Matcher.MatchNotFoundError:
                 pass
             else:
                 test_step = TestStep(
@@ -487,7 +497,7 @@ class GherkinMessageReporter:
                     timestamp=self.get_timestamp(),
                     # TODO check usage
                     will_be_retried=False,
-                )
+                ),
             ),
         )
         self.current_test_case = None
@@ -510,7 +520,7 @@ class GherkinMessageReporter:
                     test_case_started_id=self.current_test_case.id,
                     timestamp=self.current_test_case_step_start_timestamp,
                     test_step_id=step_definition.id,
-                )
+                ),
             ),
         )
 
@@ -536,7 +546,8 @@ class GherkinMessageReporter:
             current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
         )
         current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds, nanos=current_test_case_step_duration_nanos
+            seconds=current_test_case_step_duration_seconds,
+            nanos=current_test_case_step_duration_nanos,
         )
 
         hook_handler.pytest_bdd_message(
@@ -547,12 +558,20 @@ class GherkinMessageReporter:
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.passed),
-                )
+                ),
             ),
         )
 
     def pytest_bdd_step_error(
-        self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        exception,
+        step_definition,
     ):
         if self.is_disabled:
             return
@@ -575,7 +594,8 @@ class GherkinMessageReporter:
             current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
         )
         current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds, nanos=current_test_case_step_duration_nanos
+            seconds=current_test_case_step_duration_seconds,
+            nanos=current_test_case_step_duration_nanos,
         )
 
         hook_handler.pytest_bdd_message(
@@ -586,7 +606,7 @@ class GherkinMessageReporter:
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.failed),
-                )
+                ),
             ),
         )
 
@@ -636,18 +656,18 @@ class GherkinMessageReporter:
                     **(dict(file_name=str(file_name)) if file_name is not None else {}),
                     content_encoding=content_encoding,
                     body=body,
-                )
+                ),
             ),
         )
 
     def check_npm_and_cucumber_packages(self):
         if not check_npm():
-            pytest.exit(f"Npm wasn't found in the environment so unable generate html report")
+            pytest.exit("Npm wasn't found in the environment so unable generate html report")
 
         if not any(
             [
                 check_npm_package(self.npm_formatter_package, global_install=True),
                 check_npm_package(self.npm_formatter_package),
-            ]
+            ],
         ):
             pytest.exit(f"Npm package '{self.npm_formatter_package}' wasn't found so unable generate html report")

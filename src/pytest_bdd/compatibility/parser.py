@@ -20,6 +20,11 @@ class ParserProtocol(Protocol):
     glob: Callable[[Path], Sequence[Union[str, Path]]]
 
     def parse(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler], path: Path, uri: str, *args, **kwargs
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
+        path: Path,
+        uri: str,
+        *args,
+        **kwargs,
     ) -> tuple["Feature", str]:  # pragma: no cover
         ...

@@ -1,7 +1,6 @@
 """StepHandler decorators.
 
 Example:
-
 @given("I have an article", target_fixture="article")
 def given_article(author):
     return create_test_article(author=author)
@@ -52,9 +51,15 @@ from ordered_set import OrderedSet
 from pydantic import ValidationError
 from typing_extensions import Protocol, runtime_checkable
 
-from messages import ExpressionType, Location, Pickle  # type:ignore[attr-defined, import-untyped]
+from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+    ExpressionType,
+    Location,
+    Pickle,
+    SourceReference,
+    StepDefinition,
+    StepDefinitionPattern,
+)
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from messages import SourceReference, StepDefinition, StepDefinitionPattern  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, Parser, get_config_root_path
 from pytest_bdd.compatibility.typing import TypeAlias
@@ -296,8 +301,13 @@ class StepHandler:
 
             step_definitions = list(
                 self.find_step_definition_matches(
-                    self.step_registry, (self.strict_matcher, self.unspecified_matcher, self.liberal_matcher)
-                )
+                    self.step_registry,
+                    (
+                        self.strict_matcher,
+                        self.unspecified_matcher,
+                        self.liberal_matcher,
+                    ),
+                ),
             )
 
             if len(step_definitions) > 0:
@@ -335,12 +345,13 @@ class StepHandler:
                     is_step_definition_liberal,
                     step_definition.type_ != self.step_type_context,
                     step_definition.parser.is_matching(self.request, self.step.text),
-                )
+                ),
             )
 
         @staticmethod
         def find_step_definition_matches(
-            registry: Optional["StepHandler.Registry"], matchers: Sequence[Callable[["StepHandler.Definition"], bool]]
+            registry: Optional["StepHandler.Registry"],
+            matchers: Sequence[Callable[["StepHandler.Definition"], bool]],
         ) -> Iterable["StepHandler.Definition"]:
             if registry:
                 found_matches = False
@@ -363,7 +374,9 @@ class StepHandler:
         anonymous_group_names: Optional[Iterable[str]] = attrib()
         converters: dict[str, Callable] = attrib()
         params_fixtures_mapping: Union[  # type: ignore[valid-type]
-            Collection[str], Mapping[Union[str, Any], Union[str, Any, None]], Any
+            Collection[str],
+            Mapping[Union[str, Any], Union[str, Any, None]],
+            Any,
         ] = attrib()
         param_defaults: dict = attrib()
         target_fixtures: Sequence[str] = attrib()
@@ -382,12 +395,17 @@ class StepHandler:
             fixture_names = {*self.target_fixtures}
 
             if isinstance(self.params_fixtures_mapping, Mapping):
-                converted_params = {*filter(lambda param: param is not ..., self.params_fixtures_mapping.keys())}
+                converted_params = {
+                    *filter(
+                        lambda param: param is not ...,
+                        self.params_fixtures_mapping.keys(),
+                    )
+                }
                 fixture_names.update(
                     filter(
                         lambda fixture_name: fixture_name is not None and fixture_name is not ...,
                         self.params_fixtures_mapping.values(),
-                    )
+                    ),
                 )
                 wildcard_params_strategy = getitemdefault(self.params_fixtures_mapping, ..., default=...)
             elif isinstance(self.params_fixtures_mapping, Collection):
@@ -467,7 +485,10 @@ class StepHandler:
         def inject_registry_fixture_and_register_steps(cls, namespace: "StepHandler.NamespaceStepRegistryProtocol"):
             # Go around namespace and search for step definition containers
             step_containers: list[StepHandler.StepProtocol] = list(
-                filter(partial(flip(isinstance), StepHandler.StepProtocol), namespace.__dict__.values())
+                filter(
+                    partial(flip(isinstance), StepHandler.StepProtocol),
+                    namespace.__dict__.values(),
+                ),
             )
 
             if not step_containers:
@@ -475,16 +496,22 @@ class StepHandler:
 
             # Add step registry for a namespace if step containers were found
             step_definition_registry: StepHandler.Registry = setdefaultattr(
-                namespace, "_step_registry", value_factory=StepHandler.Registry
+                namespace,
+                "_step_registry",
+                value_factory=StepHandler.Registry,
             )
             setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
             step_definitions: list[StepHandler.Definition] = list(
-                chain_map(lambda step_container: step_container.__pytest_bdd_step_definitions__, step_containers)
+                chain_map(
+                    lambda step_container: step_container.__pytest_bdd_step_definitions__,
+                    step_containers,
+                ),
             )
             step_definition_registry.registry.update(step_definitions)
 
             for fixture_name in chain_map(
-                lambda step_definition: step_definition.fixtures_mapped_from_step_definition, step_definitions
+                lambda step_definition: step_definition.fixtures_mapped_from_step_definition,
+                step_definitions,
             ):
 
                 @pytest.fixture
@@ -537,7 +564,6 @@ class StepHandler:
 
         :return: Decorator function for the step.
         """
-
         converters = converters or {}
         param_defaults = param_defaults or {}
         if target_fixture is not None and target_fixtures is not None:
@@ -547,17 +573,15 @@ class StepHandler:
                 [
                     *([target_fixture] if target_fixture is not None else []),
                     *(target_fixtures if target_fixtures is not None else []),
-                ]
-            )
+                ],
+            ),
         )
 
         def decorator(step_func: Callable) -> Callable:
-            """
-            StepHandler decorator
+            """StepHandler decorator
 
             :param function step_func: StepHandler definition function
             """
-
             step_definition = StepHandler.Definition(  # type: ignore[call-arg]
                 func=step_func,
                 type_=step_type,
@@ -573,7 +597,7 @@ class StepHandler:
             setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set).add(step_definition)
 
             # Allow step function to have same names, so injecting same steps with generated names into module scope
-            converted_name = format_as_python_identifier(f'step_{step_type or ""}_{step_parserlike}_{uuid4()}')
+            converted_name = format_as_python_identifier(f"step_{step_type or ''}_{step_parserlike}_{uuid4()}")
             get_caller_module_locals(stacklevel=stacklevel)[converted_name] = step_func
 
             return step_func

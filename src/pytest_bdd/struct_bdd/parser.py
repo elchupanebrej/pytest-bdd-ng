@@ -39,7 +39,14 @@ class StructBDDParser(ParserProtocol):
     def loader_default(self):
         return self.build_loader()
 
-    def parse(self, config: Union[Config, PytestBDDIdGeneratorHandler], path: Path, uri: str, *args, **kwargs):
+    def parse(
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
+        path: Path,
+        uri: str,
+        *args,
+        **kwargs,
+    ):
         encoding = kwargs.pop("encoding", "utf-8")
         mode = kwargs.pop("mode", "r")
         with path.open(mode=mode, encoding=encoding) as feature_file:
@@ -55,23 +62,23 @@ class StructBDDParser(ParserProtocol):
             from yaml import load as load_yaml
 
             return partial(load_yaml, Loader=FullLoader)
-        elif self.kind == self.KIND.TOML.value:
+        if self.kind == self.KIND.TOML.value:
             from pytest_bdd.compatibility.tomllib import loads as load_toml
 
             return load_toml
-        elif self.kind == self.KIND.JSON.value:
+        if self.kind == self.KIND.JSON.value:
             from json import loads as load_json
 
             return load_json
-        elif self.kind == self.KIND.JSON5.value:
+        if self.kind == self.KIND.JSON5.value:
             from json5 import loads as load_json5
 
             return load_json5
-        elif self.kind == self.KIND.HJSON.value:
+        if self.kind == self.KIND.HJSON.value:
             from hjson import loads as load_hjson
 
             return load_hjson
-        elif self.kind == self.KIND.HOCON.value:
+        if self.kind == self.KIND.HOCON.value:
             from json import loads
 
             from pyhocon import ConfigFactory, HOCONConverter

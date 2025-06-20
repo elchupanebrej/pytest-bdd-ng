@@ -23,17 +23,22 @@ class Module(PytestModule):
 class FeatureFileModule(Module):
     def _getobj(self):
         path: Path = self.get_path()
-        if ".url" == path.suffixes[-1]:
+        if path.suffixes[-1] == ".url":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_url_file(path)
-        elif ".desktop" == path.suffixes[-1]:
+        elif path.suffixes[-1] == ".desktop":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_desktop_file(path)
-        elif ".webloc" == path.suffixes[-1]:
+        elif path.suffixes[-1] == ".webloc":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_weblock_file(path)
         else:
             feature_pathlike, features_path_type, base_dir = path, PathType.PATH, None
         return self._build_test_module(feature_pathlike, features_path_type, base_dir)
 
-    def _build_test_module(self, path: Optional[Path], features_path_type: PathType, base_dir: Optional[Path]):
+    def _build_test_module(
+        self,
+        path: Optional[Path],
+        features_path_type: PathType,
+        base_dir: Optional[Path],
+    ):
         module_name = format_as_python_identifier(f"{path}_{uuid4()}")
 
         module_spec = ModuleSpec(module_name, None)

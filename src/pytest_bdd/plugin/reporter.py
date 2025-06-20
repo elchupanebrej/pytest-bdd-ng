@@ -163,7 +163,12 @@ class ScenarioReporterPlugin:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_step(
-        self, request: FixtureRequest, feature: Feature, scenario: Pickle, step: PickleStep, step_func: Callable
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Pickle,
+        step: PickleStep,
+        step_func: Callable,
     ) -> None:
         """Store step start time."""
         self.current_report.add_step_report(StepReport(step=step))

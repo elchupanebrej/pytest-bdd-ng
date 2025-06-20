@@ -50,7 +50,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         @then(parse("I should have {euro:d} Euro"))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()
@@ -101,7 +101,7 @@ def test_argument_in_when_step_1(testdir, parser_import_string):
         def assert_that_my_argument_is_arg(arguments, arg):
             assert arguments["arg"] == arg
 
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

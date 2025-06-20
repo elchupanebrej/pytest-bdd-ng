@@ -57,7 +57,7 @@ def test_steps(testdir):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -68,7 +68,7 @@ def test_step_function_can_be_decorated_multiple_times(testdir, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -83,7 +83,7 @@ def test_step_function_can_be_decorated_multiple_times(testdir, tmp_path):
                     Then I make no mistakes
                     And I make no mistakes again
             """,
-        )
+        ),
     )
     testdir.makepyfile(
         # language=python
@@ -124,7 +124,7 @@ def test_step_function_can_be_decorated_multiple_times(testdir, tmp_path):
             # Updated fixture values could be get from request fixture
             assert request.getfixturevalue('first_foo') == '42'
             assert request.getfixturevalue('second_foo') == '43'
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -169,7 +169,7 @@ def test_all_steps_can_provide_fixtures(testdir):
         @then(parsers.parse('foo should be "{value}"'))
         def foo_is_foo(foo, value):
             assert foo == value
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=3, failed=0)
@@ -201,7 +201,7 @@ def test_when_first(testdir):
         @then("I make no mistakes")
         def no_errors():
             assert True
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -234,7 +234,7 @@ def test_then_after_given(testdir):
         @then('foo should have value "foo"')
         def foo_is_foo(foo):
             assert foo == "foo"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -275,7 +275,7 @@ def test_unknown_first(testdir, keyword):
         @then('foo should have value "foo"')
         def foo_is_foo(foo):
             assert foo == "foo"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -308,7 +308,7 @@ def test_conftest(testdir):
         @then('bar should have value "bar"')
         def bar_is_bar(bar):
             assert bar == "bar"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -340,7 +340,7 @@ def test_multiple_given(testdir):
         @then(parsers.parse("foo should be {value}"))
         def foo_should_be(foo, value):
             assert foo == value
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -410,7 +410,7 @@ def test_step_hooks(testdir):
         @scenario('test.feature', 'When step validation error happens')
         def test_when_step_validation_error():
             pass
-    """
+    """,
     )
     reprec = testdir.inline_run("-k test_when_fails")
     reprec.assertoutcome(failed=1)
@@ -461,7 +461,7 @@ def test_step_trace(testdir):
         """
         [pytest]
         console_output_style=classic
-        """
+        """,
     )
 
     testdir.makefile(
@@ -515,7 +515,7 @@ def test_step_trace(testdir):
         @scenario('test.feature', 'When step validation error happens')
         def test_when_step_validation_error():
             pass
-    """
+    """,
     )
     result = testdir.runpytest("-k test_when_fails_inline", "-vv")
     result.assert_outcomes(failed=1)
@@ -566,7 +566,7 @@ def test_steps_parameter_mapping(testdir):
         def foo_is_foo(request):
             with raises(FixtureLookupError):
                 request.getfixturevalue('foo')
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -601,7 +601,7 @@ def test_steps_parameter_mapping_could_redirect_to_fixture(testdir):
             with raises(FixtureLookupError):
                 request.getfixturevalue('foo')
             assert bar == "foo"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -648,7 +648,7 @@ def test_steps_parameter_mapping_rejection_for_all_parameters(testdir, mapping_s
                 request.getfixturevalue('fizz')
             with raises(FixtureLookupError):
                 request.getfixturevalue('buzz')
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -689,13 +689,15 @@ def test_steps_parameter_mapping_acceptance_for_all_parameters(testdir, mapping_
             assert bar == "bar"
             assert fizz == "fizz"
             assert buzz == "buzz"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
 
 
-def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcard(testdir):
+def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcard(
+    testdir,
+):
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -733,7 +735,7 @@ def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcar
         def foo_is_foo(cool_foo, nice_bar):
             assert cool_foo == "foo"
             assert nice_bar == "bar"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -741,8 +743,8 @@ def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcar
 
 def test_steps_with_yield(testdir):
     """Test that steps definition containing a yield statement work the same way as
-    pytest fixture do, that is the code after the yield is executed during teardown."""
-
+    pytest fixture do, that is the code after the yield is executed during teardown.
+    """
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -770,7 +772,7 @@ def test_steps_with_yield(testdir):
         def check_stuff(stuff):
             assert stuff == 42
             print("Asserted stuff is 42")
-        """
+        """,
     )
     result = testdir.runpytest("-s")
     result.assert_outcomes(passed=1)
@@ -779,7 +781,7 @@ def test_steps_with_yield(testdir):
             "*Setting up...*",
             "*Asserted stuff is 42*",
             "*Tearing down...*",
-        ]
+        ],
     )
 
 
@@ -788,7 +790,7 @@ def test_liberal_step_decorator(testdir, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -806,8 +808,8 @@ def test_liberal_step_decorator(testdir, tmp_path):
                     But I execute buzz step
                     Then I execute nice step
                     * I execute good step
-            """
-        )
+            """,
+        ),
     )
 
     testdir.makepyfile(
@@ -832,7 +834,7 @@ def test_liberal_step_decorator(testdir, tmp_path):
         @step('I execute {value} step', liberal=True)
         def foo(step_values, value):
             step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -843,7 +845,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -862,7 +864,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
                     Then I execute nice step
                     * I execute good step
             """,
-        )
+        ),
     )
 
     testdir.makepyfile(
@@ -887,7 +889,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
         @given('I execute {value} step', liberal=True)
         def foo(step_values, value):
             step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -898,7 +900,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -917,7 +919,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
                 Then I execute nice step
                 * I execute good step
         """,
-        )
+        ),
     )
 
     testdir.makepyfile(
@@ -942,7 +944,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
         @given('I execute {value} step')
         def foo(step_values, value):
             step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest("--liberal-steps")
     result.assert_outcomes(passed=1, failed=0)
@@ -954,7 +956,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
         [pytest]
         liberal_steps = True
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
 
     (tmp_path / "steps.feature").write_text(
@@ -974,7 +976,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
                 Then I execute nice step
                 * I execute good step
         """,
-        )
+        ),
     )
 
     testdir.makepyfile(
@@ -999,7 +1001,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
         @given('I execute {value} step')
         def foo(step_values, value):
             step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -1010,7 +1012,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -1029,7 +1031,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
                     Then I execute nice step
                     * I execute good step
             """,
-        )
+        ),
     )
 
     testdir.makepyfile(
@@ -1070,7 +1072,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
         @when('I execute {value} step', liberal=True)
         def foo(when_step_values, value):
             when_step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -1081,7 +1083,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     (tmp_path / "steps.feature").write_text(
         textwrap.dedent(
@@ -1100,7 +1102,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
                 Then I execute nice step
                 * I execute good step
         """,
-        )
+        ),
     )
 
     testdir.makepyfile(
@@ -1133,7 +1135,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
         @then('I execute {value} step', liberal=True)
         def foo(then_step_values, value):
             then_step_values.append(value)
-        """
+        """,
     )
     result = testdir.runpytest("-W", "ignore::pytest_bdd.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1, failed=0)
@@ -1175,7 +1177,7 @@ def test_extend_steps_from_step(testdir):
         @then("I have {fixture_value}")
         def check_fixture(fixture_value, foo_fixture):
             assert fixture_value == foo_fixture
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -1205,15 +1207,14 @@ def test_default_params(testdir):
         @then("I have {fixture_value}")
         def check_fixture(fixture_value, foo_fixture):
             assert fixture_value == foo_fixture
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
 
 
 def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
-    """
-    Test regression found in issue #524, where we couldn't find the correct step implementation in the
+    """Test regression found in issue #524, where we couldn't find the correct step implementation in the
     hierarchy of files/folder as expected.
     This test uses many files and folders that act as decoy, while the real step implementation is defined
     in the last file (test_b/test_b.py).
@@ -1226,8 +1227,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
                 Scenario: Overlapping steps
                     Given I have a specific thing
                     Then pass
-            """
-        )
+            """,
+        ),
     )
 
     testdir.makeconftest(
@@ -1252,8 +1253,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             @then("pass")
             def _():
                 pass
-        """
-        )
+        """,
+        ),
     )
 
     # Adding deceiving @when steps around the real test, so that we can check if the right one is used
@@ -1277,7 +1278,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             @given(parsers.parse("I have a {thing} thing"))
             def in_root_test_a(thing):
                 dump_obj(thing + " root_test_a")
-        """
+        """,
     )
     testdir.makepyfile(
         # language=python
@@ -1296,7 +1297,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             @given(parsers.parse("I have a {thing} thing"))
             def in_root_test_c(thing):
                 dump_obj(thing + " root_test_b")
-        """
+        """,
     )
 
     test_b_folder = testdir.mkpydir("test_b")
@@ -1320,8 +1321,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
                 @given(parsers.parse("I have a {thing} thing"))
                 def in_test_b_test_a(thing):
                     dump_obj(thing + " test_b_test_a")
-            """
-        )
+            """,
+        ),
     )
     test_b_folder.join("test_c.py").write(
         textwrap.dedent(
@@ -1341,8 +1342,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
                 @given(parsers.parse("I have a {thing} thing"))
                 def in_test_b_test_c(thing):
                     dump_obj(thing + " test_c_test_a")
-            """
-        )
+            """,
+        ),
     )
 
     # Finally, the file with the actual step definition that should be used
@@ -1359,8 +1360,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
                 @given(parsers.parse("I have a {{thing}} thing"))
                 def in_test_b_test_b(thing):
                     dump_obj(f"{{thing}} test_b_test_b")
-            """
-        )
+            """,
+        ),
     )
 
     test_b_folder.join("test_b_alternative.py").write(
@@ -1378,8 +1379,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
             @given(parsers.parse("I have a {{t}} thing"))
             def in_test_b_test_b(t):
                 dump_obj(f"{{t}} test_b_test_b")
-            """
-        )
+            """,
+        ),
     )
 
     result = testdir.runpytest("-s")
@@ -1389,7 +1390,9 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
     assert thing1 == thing2 == "specific test_b_test_b"
 
 
-def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(testdir):
+def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(
+    testdir,
+):
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -1415,7 +1418,7 @@ def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(
         @then('Fixture "foo" value is unavailable from another case')
         def foo_is_foo(request):
             assert request.getfixturevalue('foo') is None
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)

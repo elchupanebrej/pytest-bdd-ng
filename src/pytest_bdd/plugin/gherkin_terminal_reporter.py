@@ -22,10 +22,8 @@ def configure(config: Config) -> None:
             raise Exception(
                 "gherkin-terminal-reporter is not compatible with any other terminal reporter."
                 "You can use only one terminal reporter."
-                "Currently '{0}' is used."
-                "Please decide to use one by deactivating {0} or gherkin-terminal-reporter.".format(
-                    current_reporter.__class__
-                )
+                f"Currently '{current_reporter.__class__}' is used."
+                f"Please decide to use one by deactivating {current_reporter.__class__} or gherkin-terminal-reporter.",
             )
         gherkin_reporter = GherkinTerminalReporter(config)
         config.pluginmanager.unregister(current_reporter)
@@ -45,17 +43,16 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore
 
         if not letter and not word:
             # probably passed setup/teardown
-            return
+            return None
 
         if isinstance(word, tuple):
             word, word_markup = word
-        else:
-            if rep.passed:
-                word_markup = {"green": True}
-            elif rep.failed:
-                word_markup = {"red": True}
-            elif rep.skipped:
-                word_markup = {"yellow": True}
+        elif rep.passed:
+            word_markup = {"green": True}
+        elif rep.failed:
+            word_markup = {"red": True}
+        elif rep.skipped:
+            word_markup = {"yellow": True}
         scenario_markup = word_markup
 
         if self.verbosity <= 0 or not hasattr(report, "scenario"):
@@ -75,6 +72,9 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore
                     step_markup["bold"] = True
                     has_already_failed = True
                 step_status_text = "(FAILED)" if step["failed"] else "(PASSED)"
-                self._tw.write(f"        {step['keyword']} {step['name']} {step_status_text}\n", **step_markup)
+                self._tw.write(
+                    f"        {step['keyword']} {step['name']} {step_status_text}\n",
+                    **step_markup,
+                )
         self._tw.write(f"    {word}\n", **word_markup)
         self.stats.setdefault(cat, []).append(rep)

@@ -34,7 +34,8 @@ from pytest_bdd.util.url import is_local_url
 @runtime_checkable
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
     ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
         ...
 
@@ -42,7 +43,8 @@ class ScenarioLocatorFeatureResolver(Protocol):
 @runtime_checkable
 class ScenarioLocatorResolver(Protocol):
     def resolve(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
     ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
         ...
 
@@ -88,7 +90,12 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
         urls = [*filterfalse(is_local_url, self.url_paths)]
         if self.features_base_url is not None:
-            urls.extend(map(partial(urljoin, f"{self.features_base_url}/"), filter(is_local_url, self.url_paths)))
+            urls.extend(
+                map(
+                    partial(urljoin, f"{self.features_base_url}/"),
+                    filter(is_local_url, self.url_paths),
+                )
+            )
         if not urls:
             return
         loop = asyncio.new_event_loop()
@@ -141,7 +148,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 )
                 try:
                     yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
-                except ValidationError as e:
+                except ValidationError:
                     # Workaround because of https://github.com/cucumber/messages/issues/161
                     yield feature, None
             finally:
@@ -161,14 +168,14 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
     encoding = attrib(
         default=FileScenarioLocatorDefaults.encoding,
-        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
+        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.encoding()),
     )
     features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
     mimetype: Optional[Union[str, Enum]] = attrib(default=None)
     parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
     parse_args: Args = attrib(
         default=Factory(FileScenarioLocatorDefaults.parse_args),
-        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
+        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.parse_args()),
     )
 
     def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
@@ -198,7 +205,10 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     yield feature_path
             else:
                 try:
-                    yield from filter(methodcaller("is_file"), features_base_dir.glob(os.fspath(feature_pathlike)))
+                    yield from filter(
+                        methodcaller("is_file"),
+                        features_base_dir.glob(os.fspath(feature_pathlike)),
+                    )
                 except IndexError if sys.version_info < (3, 13) else ValueError:
                     yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
 
@@ -261,6 +271,6 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             )
             try:
                 yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2
-            except ValidationError as e:
+            except ValidationError:
                 # Workaround because of https://github.com/cucumber/messages/issues/161
                 yield feature, None

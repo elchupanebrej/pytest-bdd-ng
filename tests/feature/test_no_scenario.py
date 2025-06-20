@@ -15,11 +15,11 @@ def test_no_scenarios(testdir):
     )
     testdir.makepyfile(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import scenarios
 
         test_cukes = scenarios('features')
-        """
+        """,
     )
     result = testdir.runpytest()
     result.stdout.fnmatch_lines(["*FeatureConcreteParseError*"])

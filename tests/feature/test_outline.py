@@ -35,8 +35,8 @@ def steps_conftest(testdir):
                 assert start - eat == int(left)
                 assert start_cucumbers["start"] == start
                 assert start_cucumbers["eat"] == eat
-        """
-        )
+        """,
+        ),
     )
 
 
@@ -71,7 +71,7 @@ def test_outlined_with_other_fixtures(testdir, tmp_path, steps_conftest):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
 
     (tmp_path / "outline.feature").write_text(
@@ -88,13 +88,13 @@ def test_outlined_with_other_fixtures(testdir, tmp_path, steps_conftest):
                     | start | eat | left |
                     |  12   |  5  |  7   |
                     |  5    |  4  |  1   |
-            """
-        )
+            """,
+        ),
     )
 
     testdir.makepyfile(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import scenario
 
@@ -109,7 +109,7 @@ def test_outlined_with_other_fixtures(testdir, tmp_path, steps_conftest):
         )
         def test_outline(other_fixture):
             pass
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=6)

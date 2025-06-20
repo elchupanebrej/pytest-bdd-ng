@@ -39,7 +39,10 @@ class AllurePytestBDD:
             allure_plugin_manager.get_plugins()
 
             listener = next(
-                filter(lambda plugin: isinstance(plugin, AllureListener), allure_plugin_manager.get_plugins())
+                filter(
+                    lambda plugin: isinstance(plugin, AllureListener),
+                    allure_plugin_manager.get_plugins(),
+                ),
             )
 
             bdd_listener = cls(listener.allure_logger, listener._cache)
@@ -54,18 +57,21 @@ class AllurePytestBDD:
                 if isinstance(value, PydanticBaseModel):
                     # Maybe possible to speedup; Some values are not serialized when used value.dict()
                     return json.loads(value.model_dump_json())
-                elif value_serializer is not patched_value_serializer:
+                if value_serializer is not patched_value_serializer:
                     return value_serializer(instance, field, value)
-                else:
-                    if recurse:
-                        try:
-                            return patched_asdict(
-                                value, *args[1:], recurse=True, value_serializer=patched_value_serializer, **kwargs
-                            )
-                        except NotAnAttrsClassError:
-                            return value
-                    else:
+                if recurse:
+                    try:
+                        return patched_asdict(
+                            value,
+                            *args[1:],
+                            recurse=True,
+                            value_serializer=patched_value_serializer,
+                            **kwargs,
+                        )
+                    except NotAnAttrsClassError:
                         return value
+                else:
+                    return value
 
             if value_serializer is None:
                 value_serializer = patched_value_serializer
@@ -83,7 +89,16 @@ class AllurePytestBDD:
             pluginmanager.unregister(name=self.pytest_plugin_name)
 
     @pytest.hookimpl
-    def pytest_bdd_before_step_call(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_before_step_call(
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        step_definition,
+    ):
         """Called before step function is set up."""
         step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 

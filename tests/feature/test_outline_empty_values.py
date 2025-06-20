@@ -38,7 +38,7 @@ def test_scenario_with_empty_example_values(testdir):
         @then(parsers.re("I should have (?P<left>.*?) cucumbers"))
         def should_have_left_cucumbers(left):
             dump_obj(left)
-        """
+        """,
     )
 
     result = testdir.runpytest("-s")

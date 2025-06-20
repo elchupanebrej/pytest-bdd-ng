@@ -7,4 +7,4 @@ from pytest_bdd.util.packaging import get_distribution_version
 
 __version__ = str(get_distribution_version("pytest-bdd-ng"))
 
-__all__ = ["given", "when", "then", "step", "scenario", "scenarios"]
+__all__ = ["given", "scenario", "scenarios", "step", "then", "when"]

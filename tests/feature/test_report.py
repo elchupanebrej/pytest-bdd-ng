@@ -23,7 +23,7 @@ def matchreport(
     names="pytest_runtest_logreport pytest_collectreport",
     when=None,
 ):
-    """return a testreport whose dotted import path matches"""
+    """Return a testreport whose dotted import path matches"""
     values = []
     for rep in result.getreports(names=names):
         if not when and rep.when != "call" and rep.passed:
@@ -32,11 +32,11 @@ def matchreport(
         if when and rep.when != when:
             continue
         iname_parts = rep.nodeid.split("::")
-        if not inamepart_match:
-            values.append(rep)
-        elif inamepart_match in iname_parts:
-            values.append(rep)
-        elif isinstance(inamepart_match, re.Pattern) and any(map(inamepart_match.match, iname_parts)):
+        if (
+            not inamepart_match
+            or inamepart_match in iname_parts
+            or (isinstance(inamepart_match, re.Pattern) and any(map(inamepart_match.match, iname_parts)))
+        ):
             values.append(rep)
     if not values:
         raise ValueError(f"could not find test report matching {inamepart_match}: no test reports at all!")
@@ -118,7 +118,7 @@ def test_step_trace(testdir):
             assert start - eat == int(left)
             assert start_cucumbers['start'] == start
             assert start_cucumbers['eat'] == eat
-        """
+        """,
     )
     result = testdir.inline_run("-vvl")
     assert result.ret
@@ -203,7 +203,7 @@ def test_step_trace(testdir):
     report = matchreport(
         result,
         re.compile(
-            r"test.*\[file:test\.feature-One passing scenario, one failing scenario-Outlined\[table_rows:\[line: 21]]]"
+            r"test.*\[file:test\.feature-One passing scenario, one failing scenario-Outlined\[table_rows:\[line: 21]]]",
         ),
         when="call",
     ).scenario
@@ -251,7 +251,7 @@ def test_step_trace(testdir):
     report = matchreport(
         result,
         re.compile(
-            r"test.*\[file:test\.feature-One passing scenario, one failing scenario-Outlined\[table_rows:\[line: 22]]]"
+            r"test.*\[file:test\.feature-One passing scenario, one failing scenario-Outlined\[table_rows:\[line: 22]]]",
         ),
         when="call",
     ).scenario
@@ -299,7 +299,6 @@ def test_step_trace(testdir):
 
 def test_complex_types(testdir, pytestconfig):
     """Test serialization of the complex types."""
-
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -346,7 +345,7 @@ def test_complex_types(testdir, pytestconfig):
         @scenario('test.feature', 'Complex')
         def test_complex(alien):
             pass
-        """
+        """,
     )
     result = testdir.inline_run("-vvl")
     report = matchreport(
@@ -355,7 +354,7 @@ def test_complex_types(testdir, pytestconfig):
             r"test_complex.*\["
             r"file:test\.feature-Report serialization containing parameters of complex types-"
             r"Complex\[table_rows:\[line: 8]]-alien0"
-            r"]"
+            r"]",
         ),
         when="call",
     )

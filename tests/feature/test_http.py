@@ -25,18 +25,18 @@ MINIMAL_FEATURE = dedent(
 
       Scenario: Passing cukes
         Given I have 42 cukes in my belly
-    """
+    """,
 )
 
 MINIMAL_CONFTEST = dedent(
     # language=python
-    f"""\
+    """\
     from pytest_bdd import given
 
-    @given("I have {{cukes_count}} cukes in my belly")
+    @given("I have {cukes_count} cukes in my belly")
     def results(cukes_count):
         assert cukes_count == '42'
-    """
+    """,
 )
 
 
@@ -60,7 +60,7 @@ def test_feature_load_by_http(testdir: "Testdir", httpserver: HTTPServer):
                 features_mimetype=Mimetype.gherkin_plain,
                 features_path_type=FeaturePathType.URL
             )
-        """
+        """,
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)
@@ -109,17 +109,20 @@ def test_feature_load_by_http_from_webloc_file(testdir: "Testdir", httpserver: H
         MINIMAL_FEATURE,
         content_type=Mimetype.gherkin_plain.value,
     )
-    webloc_write(Path(testdir.tmpdir) / "test_http.webloc", f"http://localhost:{httpserver.port}/feature")
+    webloc_write(
+        Path(testdir.tmpdir) / "test_http.webloc",
+        f"http://localhost:{httpserver.port}/feature",
+    )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
-        @given("I have {{cukes_count}} cukes in my belly")
+        @given("I have {cukes_count} cukes in my belly")
         def results(cukes_count):
             assert cukes_count == '42'
 
-        """
+        """,
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)
@@ -143,7 +146,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
                     Name: Passing cukes
                     Steps:
                         - Given: I have 42 cukes in my belly
-            """
+            """,
         ),
         content_type=Mimetype.struct_bdd_yaml.value,
     )
@@ -160,7 +163,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
                 f"http://localhost:{httpserver.port}/feature",
                 features_path_type=FeaturePathType.URL
             )
-        """
+        """,
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)
@@ -186,7 +189,7 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
                 features_mimetype=Mimetype.gherkin_plain,
                 features_base_url="http://localhost:{httpserver.port}",
             )
-        """
+        """,
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)
@@ -203,15 +206,15 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
         [pytest]
         console_output_style=classic
         bdd_features_base_url=http://localhost:{httpserver.port}
-        """
+        """,
     )
 
     testdir.makepyfile(
         # language=python
-        test_http=f"""\
+        test_http="""\
             from pytest_bdd import given, scenarios, FeaturePathType
 
-            @given("I have {{cukes_count}} cukes in my belly")
+            @given("I have {cukes_count} cukes in my belly")
             def results(cukes_count):
                 assert cukes_count == '42'
 
@@ -219,7 +222,7 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
                 f"/feature",
                 features_path_type=FeaturePathType.URL
             )
-        """
+        """,
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)

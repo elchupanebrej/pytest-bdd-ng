@@ -243,12 +243,12 @@ def test_steps(testdir, kind, file_content, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
 
     testdir.makepyfile(
         # language=python
-        """\
+        f"""\
         from textwrap import dedent
         from pytest_bdd import given, when, then, scenario, step
 
@@ -287,9 +287,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -330,7 +328,7 @@ def test_default_loader(testdir, kind, file_content):
 
     testdir.makepyfile(
         # language=python
-        """\
+        f"""\
         from textwrap import dedent
         from pytest_bdd import given, when, then, scenario
 
@@ -375,9 +373,7 @@ def test_default_loader(testdir, kind, file_content):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """,
     )
     result = testdir.runpytest("--disable-feature-autoload")
     result.assert_outcomes(passed=1, failed=0)
@@ -448,7 +444,7 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -497,7 +493,7 @@ def test_examples(testdir, file_content):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -540,7 +536,7 @@ def test_dsl(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -589,7 +585,7 @@ def test_dsl_decorator(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -635,7 +631,7 @@ def test_dsl_as_dict(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -677,7 +673,7 @@ def test_dsl_keyworded_steps(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -734,7 +730,7 @@ def test_dsl_alternative_steps(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=8, failed=0)
@@ -801,7 +797,7 @@ def test_dsl_joined_tables(testdir):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=6, failed=0)

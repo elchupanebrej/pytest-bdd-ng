@@ -70,7 +70,7 @@ def test_cucumber_expression(
         @then(cucumber_expression("I should have {int} Euro"), anonymous_group_names=('euro',), converters=dict(euro=int))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()
@@ -133,7 +133,7 @@ def test_cucumber_expression_complex_type(testdir: "Testdir", tmp_path):
             assert Coordinate(40, 50, 60) == end
             assert thick == 5
 
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -206,7 +206,7 @@ def test_cucumber_regular_expression(
         @then(cucumber_expression(r"I should have (\\d+) Euro"), anonymous_group_names=('euro',), converters=dict(euro=int))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()

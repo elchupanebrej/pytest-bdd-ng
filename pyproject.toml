@@ -118,7 +118,8 @@ test = [
   "PyHamcrest",
   "pytest-httpserver",
   "python-coveralls",
-  "pytest-bdd-ng[doc-gen];python_version>='3.12.0'"
+  "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
+  "ruff"
 ]
 testenv = [
   "tox~=4.0",
@@ -137,16 +138,6 @@ bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
 [project.urls]
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
-
-[tool.black]
-line-length = 120
-target-version = ["py39", "py310", "py311", "py312", "py313"]
-verbose = true
-
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-profile = "black"
 
 [tool.mypy]
 files = "src/pytest_bdd/**/*.py"
@@ -184,3 +175,66 @@ module = [
   "pytest.*",
   "yaml.*"
 ]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "build",
+  "dist",
+  "venv"
+]
+# Same as Black.
+line-length = 120
+# Assume Python 3.9+
+target-version = "py39"
+
+[tool.ruff.format]
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+ignore = [
+  "E501",  # line too long, handled by formatter
+  # https://youtrack.jetbrains.com/issue/PY-46326/Pycharm-does-not-recognize-imports-used-for-typing.cast-when-they-are-incased-in-a-string-and-removing-them-when-optimizing
+  "TC006"
+]
+# Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
+select = ["E", "F", "I", "N", "W", "B", "C4", "UP", "ARG", "SIM", "TCH", "TID", "Q"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Like isort, sort imports using a single line after the import block.
+force-single-line = false
+# Like isort, separate sections with a blank line.
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true

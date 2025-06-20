@@ -123,7 +123,10 @@ def test_skip_missing_attributes():
 
     item = Foo(foo="bar", boo="baz")
 
-    assert deepattrgetter("foo", "boo", "missing", skip_missing=True)(item) == ("bar", "baz")
+    assert deepattrgetter("foo", "boo", "missing", skip_missing=True)(item) == (
+        "bar",
+        "baz",
+    )
 
 
 def test_skip_missing_attributes_nested():
@@ -296,7 +299,8 @@ def test_flip_two_args_as_named_by_pos_only():
         return arg1, arg2
 
     with raises(
-        TypeError, match=re.compile(r".*got (some|a) positional-only arguments? passed as keyword arguments?\.|:.*")
+        TypeError,
+        match=re.compile(r".*got (some|a) positional-only arguments? passed as keyword arguments?\.|:.*"),
     ):
         flip(func)("item1", arg2="item2") == ("item1", "item2")
 

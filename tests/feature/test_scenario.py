@@ -15,7 +15,7 @@ def test_simple(testdir, pytest_params, tmp_path):
                 Scenario: Simple scenario
                     Given I have a bar
             """,
-        )
+        ),
     )
     testdir.makepyfile(
         # language=python
@@ -37,7 +37,7 @@ def test_simple(testdir, pytest_params, tmp_path):
         @then("pass")
         def bar():
             pass
-        """
+        """,
     )
     result = testdir.runpytest_subprocess(*pytest_params)
     result.assert_outcomes(passed=1)

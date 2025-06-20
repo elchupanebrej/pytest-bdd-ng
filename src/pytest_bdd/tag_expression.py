@@ -1,10 +1,11 @@
 from itertools import cycle
 from operator import attrgetter
-from typing import AbstractSet, List, Optional, Protocol, Type, TypeVar, Union, runtime_checkable
+from typing import Optional, Protocol, TypeVar, Union, runtime_checkable
 
 from _pytest.mark import Mark
 from attr import attrib, attrs
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
+from typing_extensions import Self
 
 from pytest_bdd.compatibility.pytest import PYTEST6, PYTEST83
 
@@ -17,7 +18,7 @@ TagExpressionType = TypeVar("TagExpressionType", bound="TagExpression")
 @runtime_checkable
 class TagExpression(Protocol):
     @classmethod
-    def parse(cls: type[TagExpressionType], expression: str) -> TagExpressionType:
+    def parse(cls, expression: str) -> Self:
         raise NotImplementedError  # pragma: no cover
 
     def evaluate(self, marks: list[Mark]) -> bool:
@@ -75,7 +76,11 @@ class _FallbackMarksTagExpression(TagExpression):
 
     def evaluate(self, marks):
         return (
-            eval(self.expression, {}, dict(zip(map(attrgetter("name"), marks), cycle([True]))))
+            eval(
+                self.expression,
+                {},
+                dict(zip(map(attrgetter("name"), marks), cycle([True]))),
+            )
             if self.expression is not None
             else True
         )

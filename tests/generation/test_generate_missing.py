@@ -18,7 +18,6 @@ def test_python_name_generator():
 
 def test_generate_missing(testdir, tmp_path):
     """Test generate missing command."""
-
     (tmp_path / "generation.feature").write_text(
         textwrap.dedent(
             # language=gherkin
@@ -36,8 +35,8 @@ def test_generate_missing(testdir, tmp_path):
 
                 Scenario: Code is generated for scenario steps which are not yet defined(implemented)
                     Given I have a custom bar
-            """
-        )
+            """,
+        ),
     )
 
     testdir.makepyfile(
@@ -61,7 +60,7 @@ def test_generate_missing(testdir, tmp_path):
         @scenario("Code is generated for scenario steps which are not yet defined(implemented)")
         def test_missing_steps():
             pass
-        """
+        """,
     )
 
     result = testdir.runpytest("--generate-missing", "--feature", str(tmp_path / "generation.feature"))
@@ -70,14 +69,14 @@ def test_generate_missing(testdir, tmp_path):
     assert result.ret == 0
 
     result.stdout.fnmatch_lines(
-        ['Scenario "Code is generated for scenarios which are not bound to any tests" is not bound to any test *']
+        ['Scenario "Code is generated for scenarios which are not bound to any tests" is not bound to any test *'],
     )
 
     result.stdout.fnmatch_lines(
         [
             'StepHandler Given "I have a custom bar" is not defined in the scenario '
-            '"Code is generated for scenario steps which are not yet defined(implemented)" *'
-        ]
+            '"Code is generated for scenario steps which are not yet defined(implemented)" *',
+        ],
     )
 
     result.stdout.fnmatch_lines(["Please place the code above to the test file(s):"])
@@ -119,7 +118,7 @@ def test_generate_missing_with_step_parsers(testdir):
         @given(parsers.cfparse("I use parsers.cfparse with parameter {param:d}"))
         def i_have_n_baz(param):
             return param
-        """
+        """,
     )
 
     result = testdir.runpytest("--generate-missing", "--feature", "generation.feature")

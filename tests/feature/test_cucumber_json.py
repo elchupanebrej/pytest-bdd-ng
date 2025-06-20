@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
@@ -70,7 +70,7 @@ def test_step_trace(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""
+        """
         from pytest_bdd import given, parsers
 
         @given('a passing step')
@@ -85,10 +85,10 @@ def test_step_trace(testdir):
         def a_failing_step():
             raise Exception('Error')
 
-        @given(parsers.parse('type {{type}} and value {{value}}'))
+        @given(parsers.parse('type {type} and value {value}'))
         def type_type_and_value_value():
             return 'pass'
-        """
+        """,
     )
     result, jsonobject = runandparse(testdir)
     result.assert_outcomes(passed=4, failed=1)
@@ -142,7 +142,11 @@ def test_step_trace(testdir):
                             "line": 12,
                             "match": {"location": ""},
                             "name": "a failing step",
-                            "result": {"error_message": OfType(str), "status": "failed", "duration": OfType(int)},
+                            "result": {
+                                "error_message": OfType(str),
+                                "status": "failed",
+                                "duration": OfType(int),
+                            },
                         },
                     ],
                     "tags": [{"name": "scenario-failing-tag", "line": 9}],
@@ -159,7 +163,7 @@ def test_step_trace(testdir):
                             "result": {"status": "passed", "duration": OfType(int)},
                             "keyword": "Given",
                             "name": "type str and value hello",
-                        }
+                        },
                     ],
                     "line": 15,
                     "type": "scenario",
@@ -182,7 +186,7 @@ def test_step_trace(testdir):
                             "result": {"status": "passed", "duration": OfType(int)},
                             "keyword": "Given",
                             "name": "type int and value 42",
-                        }
+                        },
                     ],
                     "line": 15,
                     "type": "scenario",
@@ -205,7 +209,7 @@ def test_step_trace(testdir):
                             "result": {"status": "passed", "duration": OfType(int)},
                             "keyword": "Given",
                             "name": "type float and value 1.0",
-                        }
+                        },
                     ],
                     "line": 15,
                     "type": "scenario",
@@ -224,7 +228,7 @@ def test_step_trace(testdir):
             "name": "One passing scenario, one failing scenario",
             "tags": [{"name": "feature-tag", "line": 1}],
             "uri": "test.feature",
-        }
+        },
     ]
 
     assert jsonobject == expected

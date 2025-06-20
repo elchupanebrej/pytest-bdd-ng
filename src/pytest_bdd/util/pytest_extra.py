@@ -16,7 +16,6 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
     :param arg: argument name
     :param value: argument value
     """
-
     fd = FixtureDef(
         **(
             {"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}  # type:ignore
@@ -57,14 +56,11 @@ def doesnt_raise(
     match: Optional[Union[str, Pattern[str]]] = None,
     suppress_not_matched=True,
 ):
-    """
-
-    :param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
+    """:param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
     :param match: Message which will be count as failing test. If message is not matched - function passes
     :param suppress_not_matched: If specified - all non-matched exceptions will be suppressed
     :return:
     """
-
     try:
         yield
     except expected_exception:  # type:ignore[misc]

@@ -21,7 +21,7 @@ def test_step_alias(testdir):
 
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given, when, then
 
         @given("I have an empty list", target_fixture="results")
@@ -41,7 +41,7 @@ def test_step_alias(testdir):
         @then("my list should be [1, 1, 2, 2]")
         def check_results(results):
             assert results == [1, 1, 2, 2]
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

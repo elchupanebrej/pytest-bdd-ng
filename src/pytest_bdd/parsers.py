@@ -33,7 +33,10 @@ class StepParserProtocol(Protocol):
     type: Union[ExpressionType, ExpressionTypeExtension, str] = ExpressionTypeExtension.pytest_bdd_other_expression
 
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Optional[dict[str, Any]]: ...  # pragma: no cover
 
     @property
@@ -56,29 +59,32 @@ class StepParser(StepParserProtocol, metaclass=ABCMeta):
 
     @abstractmethod
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Optional[dict[str, Any]]:
         """Get step arguments from the given step name.
 
         :return: `dict` of step arguments
         """
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @property
     @abstractmethod
     def arguments(self) -> Collection[str]:
         """Get step argument names from the given step name."""
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         """Match given name with the step name."""
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @abstractmethod
     def __str__(self) -> str:
         """Match given name with the step name."""
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @classmethod
     def build(cls, parserlike: Union[str, bytes, "StepParser", StepParserProtocol]) -> "StepParser":
@@ -89,7 +95,6 @@ class StepParser(StepParserProtocol, metaclass=ABCMeta):
         :return: step parser object
         :rtype: StepParser
         """
-
         if isinstance(parserlike, StepParserProtocol):
             parser = cast(StepParser, parserlike)
         elif isinstance(parserlike, _RePattern):
@@ -114,7 +119,7 @@ class re(StepParser):
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @__init__.register
     def _(self, pattern: str, *args: Any, **kwargs: Any) -> None:
@@ -147,7 +152,7 @@ class re(StepParser):
                             map(match.span, range(1, len(match.groups()) + 1)),
                         ),
                     ),
-                )
+                ),
             )
 
         return {k: v for k, v in group_dict.items() if v is not None}
@@ -177,7 +182,11 @@ class parse(StepParser):
             raise ParserBuildValueError(f"Unable build parser for format {format}")  # pragma: no cover
 
     def __init_stringable__(
-        self, format: Union[StringRepresentable, str, bytes], *args: Any, builder=base_parse.compile, **kwargs: Any
+        self,
+        format: Union[StringRepresentable, str, bytes],
+        *args: Any,
+        builder=base_parse.compile,
+        **kwargs: Any,
     ) -> None:
         self.format = normalize_to_string(format)
         self.parser = builder(self.format, *args, **kwargs)
@@ -193,7 +202,10 @@ class parse(StepParser):
         return cls(*args, **kwargs)
 
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Union[dict[str, Any]]:
         match = self.parser.parse(name)
         group_dict = cast(dict, match.named)
@@ -234,7 +246,10 @@ class string(StepParser):
         self.name = normalize_to_string(name)
 
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> dict[str, Any]:
         """No parameters are available for simple string step.
 
@@ -273,13 +288,19 @@ class _CucumberExpression(StepParser):
             return False
 
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Optional[dict[str, Any]]:
         return dict(
             zip(
                 anonymous_group_names or [],
-                map(attrgetter("value"), self.rebuild_expression_in_test_context(request).match(name) or []),
-            )
+                map(
+                    attrgetter("value"),
+                    self.rebuild_expression_in_test_context(request).match(name) or [],
+                ),
+            ),
         )
 
     def __str__(self):
@@ -313,7 +334,7 @@ class cucumber_expression(_CucumberExpression):
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @__init__.register
     def _(
@@ -344,7 +365,7 @@ class cucumber_regular_expression(_CucumberExpression):
 
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args, **kwargs):
-        raise NotImplementedError()  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover
 
     @__init__.register
     def _(
@@ -397,7 +418,8 @@ class heuristic(StepParser):
             self.string_parser = None
         try:
             self.cucumber_expression_parser = cucumber_expression(
-                self.format, parameter_type_registry=self.parameter_type_registry
+                self.format,
+                parameter_type_registry=self.parameter_type_registry,
             )
         except Exception as e:
             e.__cause__, e_cause = e_cause, e
@@ -418,18 +440,31 @@ class heuristic(StepParser):
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
             raise ParserBuildValueError(
-                f"Unable build parser for format {self.format}"
+                f"Unable build parser for format {self.format}",
             ) from e_cause  # pragma: no cover
 
     @property
     def parser_by_priorities(self) -> Sequence[Optional[StepParser]]:
-        return [self.string_parser, self.cucumber_expression_parser, self.cfparse_parser, self.re_parser]
+        return [
+            self.string_parser,
+            self.cucumber_expression_parser,
+            self.cfparse_parser,
+            self.re_parser,
+        ]
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
-        return any(map(methodcaller("is_matching", request, name), filter(bool, self.parser_by_priorities)))
+        return any(
+            map(
+                methodcaller("is_matching", request, name),
+                filter(bool, self.parser_by_priorities),
+            )
+        )
 
     def parse_arguments(
-        self, request: FixtureRequest, name: str, anonymous_group_names: Optional[Iterable[str]] = None
+        self,
+        request: FixtureRequest,
+        name: str,
+        anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Optional[dict[str, Any]]:
         for parser in self.parser_by_priorities:
             if parser is not None and parser.is_matching(request, name):
@@ -446,12 +481,12 @@ class heuristic(StepParser):
                 map(
                     lambda parser: (
                         []  # type:ignore[no-any-return]
-                        if (args := getattr(parser, "arguments")) is None
+                        if (args := getattr(parser, "arguments", None)) is None
                         else args
                     ),
                     self.parser_by_priorities,
-                )
-            )
+                ),
+            ),
         ]
 
     def __str__(self):

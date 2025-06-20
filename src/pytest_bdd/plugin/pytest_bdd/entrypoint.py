@@ -12,11 +12,9 @@ from unittest.mock import patch
 import pytest
 from _pytest.nodes import Collector
 
-import pytest_bdd.feature_locator as feature_locator
-import pytest_bdd.util.code_generation as code_generation
 from messages import Pickle  # type:ignore[attr-defined, import-untyped]
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from pytest_bdd import given, steps, then, when
+from pytest_bdd import feature_locator, given, steps, then, when
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
@@ -42,6 +40,7 @@ from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.reporter import ScenarioReporterPlugin
 from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
+from pytest_bdd.util import code_generation
 from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import chain_map, setdefaultattr
@@ -104,7 +103,10 @@ def attach(request: FixtureRequest):
 
     def add_attachment(attachment, media_type: Optional[str] = None, file_name=None):
         request.config.hook.pytest_bdd_attach(
-            request=request, attachment=attachment, media_type=media_type, file_name=file_name
+            request=request,
+            attachment=attachment,
+            media_type=media_type,
+            file_name=file_name,
         )
 
     return add_attachment
@@ -197,7 +199,10 @@ def pytest_generate_tests(metafunc: Metafunc):
 
         metafunc.parametrize(
             "feature, scenario, feature_source",
-            starmap(partial(_build_scenario_param, config=config), feature_scenario_feature_source),
+            starmap(
+                partial(_build_scenario_param, config=config),
+                feature_scenario_feature_source,
+            ),
         )
 
 
@@ -207,7 +212,7 @@ def pytest_cmdline_main(config: Config) -> Optional[int]:
 
 def _pytest_collect_file(parent: Collector, file_path=None):
     if not feature_autoload.is_enabled(parent.session.config):
-        return
+        return None
 
     file_path = Path(file_path)
     config = parent.config
@@ -244,7 +249,7 @@ def pytest_bdd_get_mimetype(config: Config, path: Path):
     # TODO use mimetypes module
     if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
         return Mimetype.gherkin_plain.value
-    elif (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
+    if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
         return Mimetype.markdown.value
 
 
@@ -258,5 +263,10 @@ def pytest_bdd_get_parser(config: Config, mimetype: str):
 
 def pytest_bdd_is_collectible(config: Config, path: Path):
     # TODO add more extensions
-    if any(map(partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}), path.suffixes)):
+    if any(
+        map(
+            partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}),
+            path.suffixes,
+        )
+    ):
         return True

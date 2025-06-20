@@ -43,8 +43,8 @@ def test_arg_fixture_mix(testdir, tmp_path):
             @then('foo should be fine')
             def foo_should_be_fine(foo):
                 assert foo == "fine"
-            """
-        )
+            """,
+        ),
     )
 
     subdir.join("test_b.py").write(
@@ -75,8 +75,8 @@ def test_arg_fixture_mix(testdir, tmp_path):
 
             def test_bar(foo):
                 assert foo == 'fine'
-            """
-        )
+            """,
+        ),
     )
 
     with (tmp_path / "arg_and_fixture_mix.feature").open(mode="w+") as f:
@@ -93,8 +93,8 @@ def test_arg_fixture_mix(testdir, tmp_path):
                     Scenario: Everything is fine
                         Given it is all fine
                         Then foo should be fine
-                """
-            )
+                """,
+            ),
         )
         f.flush()
 

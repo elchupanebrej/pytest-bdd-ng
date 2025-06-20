@@ -6,9 +6,8 @@ from contextlib import nullcontext, suppress
 from enum import Enum
 from functools import reduce
 from itertools import chain, tee
-from typing import Any, Callable, Literal, Optional, Union, cast
-
-from _operator import attrgetter, getitem, itemgetter
+from operator import attrgetter, getitem, itemgetter
+from typing import Any, Callable, Literal, cast
 
 
 class DefaultMapping(defaultdict):
@@ -23,7 +22,7 @@ class DefaultMapping(defaultdict):
             intercessor = self[...]
             if intercessor is self.Skip:
                 raise KeyError(key)
-            elif isinstance(intercessor, Callable):
+            if isinstance(intercessor, Callable):
                 value = intercessor(key)
             elif intercessor is ...:
                 value = key
@@ -31,8 +30,7 @@ class DefaultMapping(defaultdict):
                 value = intercessor
             self[key] = value
             return value
-        else:
-            return super().__missing__(key)
+        return super().__missing__(key)
 
     def warm_up(self, *items):
         for item in items:
@@ -41,7 +39,10 @@ class DefaultMapping(defaultdict):
 
     @classmethod
     def instantiate_from_collection_or_bool(
-        cls, bool_or_items: Collection[str] | dict[str, Any] | Any = True, *, warm_up_keys=()
+        cls,
+        bool_or_items: Collection[str] | dict[str, Any] | Any = True,
+        *,
+        warm_up_keys=(),
     ):
         if isinstance(bool_or_items, Collection):
             if not isinstance(bool_or_items, Mapping):
@@ -55,10 +56,9 @@ def itemgetter_(*items):
     def func(obj):
         if len(items) == 0:
             return []
-        elif len(items) == 1:
+        if len(items) == 1:
             return [obj[items[0]]]
-        else:
-            return itemgetter(*items)(obj)
+        return itemgetter(*items)(obj)
 
     return func
 
@@ -68,24 +68,25 @@ class Empty(Enum):
 
 
 def getitemdefault(
-    obj, index, default=Empty.empty, default_factory: Callable | None = None, treat_as_empty=Empty.empty
+    obj,
+    index,
+    default=Empty.empty,
+    default_factory: Callable | None = None,
+    treat_as_empty=Empty.empty,
 ):
     if default is not Empty.empty:
         if default_factory is not None:
             raise ValueError("Both 'default' and 'default_factory' were specified")
-        else:
-            default_factory = lambda: default
+        default_factory = lambda: default
     try:
         item = getitem(obj, index)
     except KeyError:
         if default_factory is None:
             raise
-        else:
-            item = default_factory()
+        item = default_factory()
     if item is not treat_as_empty:
         return item
-    else:
-        raise KeyError(f"{index}")
+    raise KeyError(f"{index}")
 
 
 def deepattrgetter(*attrs, **kwargs):
@@ -111,7 +112,12 @@ def deepattrgetter(*attrs, **kwargs):
     return fn
 
 
-def setdefaultattr(obj, key, value: Literal[Empty.empty] | Any = Empty.empty, value_factory: Callable | None = None):
+def setdefaultattr(
+    obj,
+    key,
+    value: Literal[Empty.empty] | Any = Empty.empty,
+    value_factory: Callable | None = None,
+):
     if value is not Empty.empty and value_factory is not None:
         raise ValueError("Both 'value' and 'value_factory' were specified")
     with suppress(AttributeError):
@@ -131,8 +137,7 @@ def flip(func):
         if len(args) > 1:
             first, *other, last = args
             return func(last, *other, first, **kwargs)
-        else:
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return wrapped
 

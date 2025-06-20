@@ -34,7 +34,13 @@ def write_file_with_extras(name, extension, testdir, step, request, extra_opts, 
         template_fields = [field_name for _, field_name, _, _ in string.Formatter().parse(content) if field_name]
 
         format_options = dict(
-            map(lambda fixture_name: (fixture_name, str(request.getfixturevalue(fixture_name))), template_fields)
+            map(
+                lambda fixture_name: (
+                    fixture_name,
+                    str(request.getfixturevalue(fixture_name)),
+                ),
+                template_fields,
+            ),
         )
     file_data = str(content).format_map(format_options) if is_fixture_templated else content
     (Path(testdir.tmpdir.strpath) / f"{name}{extension}").write_text(file_data, encoding="utf-8")
@@ -94,7 +100,12 @@ def check_pytest_test_statuses(pytest_result, step):
 
 @step("pytest outcome must match lines:")
 def check_pytest_stdout_lines(pytest_result, step):
-    lines = list(map(compose(attrgetter("value"), itemgetter(0)), map(attrgetter("cells"), step.data_table.rows)))
+    lines = list(
+        map(
+            compose(attrgetter("value"), itemgetter(0)),
+            map(attrgetter("cells"), step.data_table.rows),
+        )
+    )
 
     pytest_result.stdout.fnmatch_lines(lines)
 
@@ -128,7 +139,10 @@ def _(file_path: Path, testdir):
     assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
 
 
-@then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters=dict(file_path=Path))
+@then(
+    re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"),
+    converters=dict(file_path=Path),
+)
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:

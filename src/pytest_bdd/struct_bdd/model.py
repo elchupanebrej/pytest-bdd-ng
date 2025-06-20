@@ -98,7 +98,8 @@ class Join(BaseModel):
     )
 
     tables: list[Annotated[Union[Table, "Join", SubTable], convert_sub_tables_to_tables]] = Field(
-        default_factory=list, alias="Join"
+        default_factory=list,
+        alias="Join",
     )
 
     __hash__ = id
@@ -117,7 +118,7 @@ class Join(BaseModel):
             filter(
                 partial(is_not, None),
                 chain.from_iterable(map(deepattrgetter("description", skip_missing=True), self.tables)),
-            )
+            ),
         )
 
     @property
@@ -150,15 +151,18 @@ class Join(BaseModel):
                                     product(
                                         [
                                             value
-                                            for _parameter, value in zip(filled_tables_parameters, filled_tables_values)
+                                            for _parameter, value in zip(
+                                                filled_tables_parameters,
+                                                filled_tables_values,
+                                            )
                                             if parameter == _parameter
                                         ],
                                         repeat=2,
                                     ),
-                                )
+                                ),
                             )
                             for parameter in self.parameters
-                        ]
+                        ],
                     ):
 
                         def values_gen():
@@ -192,10 +196,9 @@ class Join(BaseModel):
 def before_convert_to_step(value):
     if isinstance(value, str):
         return Step(action=value)
-    elif isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
+    if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
         return Step(type=next(iter(value.keys())), action=next(iter(value.values())))
-    else:
-        return value
+    return value
 
 
 @AfterValidator
@@ -224,10 +227,12 @@ class StepPrototype(Node):
 
     type: Optional[StepKeywordType] = Field(default=Keyword.Star, alias="Type")
     data: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
-        default_factory=list, alias="Data"
+        default_factory=list,
+        alias="Data",
     )
     examples: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
-        default_factory=list, alias="Examples"
+        default_factory=list,
+        alias="Examples",
     )
     keyword_type: Optional[KeywordType] = Field(KeywordType.unknown)
 
@@ -252,9 +257,18 @@ class StepPrototype(Node):
 
             if self.examples:
                 for _example_table in self.examples:
-                    example_table = Join(tables=[*map(attrgetter("example_table"), routes), _example_table])
+                    example_table = Join(
+                        tables=[
+                            *map(attrgetter("example_table"), routes),
+                            _example_table,
+                        ]
+                    )
                     tags = list(
-                        {*chain.from_iterable(map(attrgetter("tags"), routes)), *example_table.tags, *self.tags}
+                        {
+                            *chain.from_iterable(map(attrgetter("tags"), routes)),
+                            *example_table.tags,
+                            *self.tags,
+                        },
                     )
 
                     yield self.Route(
@@ -264,7 +278,13 @@ class StepPrototype(Node):
                     )
             else:
                 example_table = Join(tables=[*map(attrgetter("example_table"), routes)])
-                tags = list({*chain.from_iterable(map(attrgetter("tags"), routes)), *example_table.tags, *self.tags})
+                tags = list(
+                    {
+                        *chain.from_iterable(map(attrgetter("tags"), routes)),
+                        *example_table.tags,
+                        *self.tags,
+                    }
+                )
 
                 yield self.Route(
                     tags,
@@ -287,7 +307,9 @@ class StepPrototype(Node):
             from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
             feature = GherkinDocumentBuilder(self.step).build_feature(
-                filename=self.filename, uri=self.uri, id_generator=config.pytest_bdd_id_generator
+                filename=self.filename,
+                uri=self.uri,
+                id_generator=config.pytest_bdd_id_generator,
             )
 
             if isinstance(self.mimetype, MediaType):
@@ -297,7 +319,11 @@ class StepPrototype(Node):
             else:
                 media_type = str(self.mimetype)
             try:
-                feature_source = Source(uri=self.uri, data=Path(self.filename).read_text(), media_type=media_type)
+                feature_source = Source(
+                    uri=self.uri,
+                    data=Path(self.filename).read_text(),
+                    media_type=media_type,
+                )
                 yield feature, feature_source
             except ValidationError:
                 # Workaround because of https://github.com/cucumber/messages/issues/161
@@ -313,7 +339,7 @@ class StepPrototype(Node):
                     str(Path(filename).as_posix()),
                     str(Path(filename).relative_to(Path.cwd())),
                     mimetype=Mimetype.python,
-                )
+                ),
             ],
             return_test_decorator=False,
         )
@@ -328,7 +354,7 @@ class StepPrototype(Node):
                     str(Path(filename).as_posix()),
                     str(Path(filename).relative_to(Path.cwd())),
                     mimetype=Mimetype.python,
-                )
+                ),
             ],
             return_test_decorator=True,
         )

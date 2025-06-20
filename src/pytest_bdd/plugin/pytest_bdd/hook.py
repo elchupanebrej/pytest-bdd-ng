@@ -29,14 +29,40 @@ class PytestBDDHookSpec:
     def pytest_bdd_before_step(self, request, feature, scenario, step, step_func):
         """Called before step function is set up."""
 
-    def pytest_bdd_before_step_call(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_before_step_call(
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        step_definition,
+    ):
         """Called before step function is executed."""
 
-    def pytest_bdd_after_step(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_after_step(
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        step_definition,
+    ):
         """Called after step function is successfully executed."""
 
     def pytest_bdd_step_error(
-        self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        exception,
+        step_definition,
     ):
         """Called when step function failed to execute."""
 
@@ -57,7 +83,16 @@ class PytestBDDHookSpec:
         """Find match between scenario step and user defined step function"""
 
     @hookspec(firstresult=True)
-    def pytest_bdd_get_step_caller(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_get_step_caller(
+        self,
+        request,
+        feature,
+        scenario,
+        step,
+        step_func,
+        step_func_args,
+        step_definition,
+    ):
         """Provide alternative approach to execute step"""
 
     @hookspec(firstresult=True)

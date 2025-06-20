@@ -11,11 +11,11 @@ from subprocess import CalledProcessError, check_output
 from typing import Callable, Union
 
 from attr import attrib, attrs
+
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
-
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.path import relpath
@@ -51,11 +51,17 @@ class BaseParser(ParserProtocol):
 @attrs
 class GherkinParser(BaseParser):
     glob: Callable[..., Sequence[Union[str, Path]]] = attrib(
-        default=lambda path: path.glob("*.feature") + path.glob("*.gherkin"), kw_only=True
+        default=lambda path: path.glob("*.feature") + path.glob("*.gherkin"),
+        kw_only=True,
     )
 
     def parse(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler], path: Path, uri: str, *args, **kwargs
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
+        path: Path,
+        uri: str,
+        *args,
+        **kwargs,
     ) -> tuple[Feature, str]:
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         encoding = kwargs.pop("encoding", "utf-8")
@@ -97,10 +103,13 @@ class GherkinParser(BaseParser):
             features_content.extend(
                 map(
                     lambda path: self.parse(
-                        config, path, "file:" + relpath(str(path), str(features_base_dir)), **kwargs
+                        config,
+                        path,
+                        "file:" + relpath(str(path), str(features_base_dir)),
+                        **kwargs,
                     ),
                     filterfalse(partial(contains, seen_names), file_paths),
-                )
+                ),
             )
 
             for file_path in file_paths:
@@ -115,11 +124,17 @@ class GherkinParser(BaseParser):
 @attrs
 class MarkdownGherkinParser(BaseParser):
     glob: Callable[..., Sequence[Union[str, Path]]] = attrib(
-        default=lambda path: path.glob("*.feature.md") + path.glob("*.gherkin.md"), kw_only=True
+        default=lambda path: path.glob("*.feature.md") + path.glob("*.gherkin.md"),
+        kw_only=True,
     )
 
     def parse(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler], path: Path, uri: str, *args, **kwargs
+        self,
+        config: Union[Config, PytestBDDIdGeneratorHandler],
+        path: Path,
+        uri: str,
+        *args,
+        **kwargs,
     ) -> tuple[Feature, str]:
         with ExitStack() as stack:
             feature_file, script_path = [
@@ -128,7 +143,7 @@ class MarkdownGherkinParser(BaseParser):
             ]
             try:
                 gherkin_document_raw_dict = json.loads(
-                    check_output([which("node") or "", script_path], stdin=feature_file)
+                    check_output([which("node") or "", script_path], stdin=feature_file),
                 )
             except CalledProcessError as e:
                 raise FeatureParseError(f"Unable to parse {path}") from e

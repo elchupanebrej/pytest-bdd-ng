@@ -51,8 +51,7 @@ def scenario(
     parse_args=Args((), {}),
     locators=(),
 ):
-    """
-    Scenario decorator.
+    """Scenario decorator.
 
     :param feature_name: Feature file name. Absolute or relative to the configured feature base path.
     :param scenario_name: Scenario name.
@@ -94,8 +93,7 @@ def scenarios(
     parse_args=Args((), {}),
     locators=(),
 ):
-    """
-    Function to bind feature files to pytest runtime
+    """Function to bind feature files to pytest runtime
 
     :param feature_paths: Features file names. Absolute or relative to the configured feature base path.
     :param filter_: Callable to filter scenarios
@@ -136,11 +134,10 @@ def scenarios(
 
     if return_test_decorator:
         return decorator
-    else:
 
-        @decorator
-        def test(): ...
+    @decorator
+    def test(): ...
 
-        test.__name__ = next(iter(test_names))
+    test.__name__ = next(iter(test_names))
 
-        return test
+    return test
