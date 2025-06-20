@@ -108,7 +108,6 @@ def scenarios(
     :param return_test_decorator; Return test decorator or generated test
     :param locators: Feature locators to load Features; Could be custom
     """
-
     if parse_args is None:
         parse_args = Args((), {})
 

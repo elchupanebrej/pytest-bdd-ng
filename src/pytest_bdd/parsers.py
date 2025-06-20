@@ -254,7 +254,7 @@ class string(StepParser):  # noqa: N801 intentional API
         self.name = normalize_to_string(name)
 
     def parse_arguments(
-        self,  # noqa: ARG002 overload
+        self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,  # noqa: ARG002 overload
         anonymous_group_names: Optional[Iterable[str]] = None,  # noqa: ARG002 overload

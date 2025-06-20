@@ -144,7 +144,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                     Path(filename),
                     url,
                     *self.parse_args.args,
-                    **{**{"encoding": encoding}, **self.parse_args.kwargs},
+                    **{"encoding": encoding, **self.parse_args.kwargs},
                 )
                 try:
                     yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
@@ -272,7 +272,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 feature_path,
                 uri,
                 *self.parse_args.args,
-                **{**{"encoding": encoding}, **self.parse_args.kwargs},
+                **{"encoding": encoding, **self.parse_args.kwargs},
             )
             try:
                 yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2

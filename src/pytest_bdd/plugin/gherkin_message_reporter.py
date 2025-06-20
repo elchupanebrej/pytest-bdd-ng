@@ -597,7 +597,7 @@ class GherkinMessageReporter:
         step_func,  # noqa: ARG002 hookspec
         step_func_args,  # noqa: ARG002 hookspec
         exception,  # noqa: ARG002 hookspec
-        step_definition,  # noqa: ARG002 hookspec
+        step_definition,
     ):
         if self.is_disabled:
             return

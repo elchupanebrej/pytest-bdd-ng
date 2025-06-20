@@ -5,4 +5,4 @@ if sys.version_info < (3, 11):
 else:
     from tomllib import TOMLDecodeError, load, loads
 
-__all__ = ("loads", "load", "TOMLDecodeError")
+__all__ = ("TOMLDecodeError", "load", "loads")
