@@ -77,7 +77,10 @@ def getitemdefault(
     if default is not Empty.empty:
         if default_factory is not None:
             raise ValueError("Both 'default' and 'default_factory' were specified")
-        default_factory = lambda: default
+
+        def default_factory():
+            return default
+
     try:
         item = getitem(obj, index)
     except KeyError:

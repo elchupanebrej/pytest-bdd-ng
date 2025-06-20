@@ -6,7 +6,7 @@ from itertools import starmap
 from operator import contains, methodcaller
 from pathlib import Path
 from types import ModuleType
-from typing import Deque, Optional, Union
+from typing import Optional, Union
 from unittest.mock import patch
 
 import pytest
@@ -86,7 +86,7 @@ def step_matcher(pytestconfig) -> StepHandler.Matcher:
 
 
 @pytest.fixture
-def steps_left() -> Deque[Step]:
+def steps_left() -> deque[Step]:
     """Fixture containing steps which are left to be executed"""
     return deque()
 

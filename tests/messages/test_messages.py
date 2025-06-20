@@ -578,33 +578,13 @@ def test_hook_type_messages(testdir, tmp_path):
     assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
 
     # before_mark hook
-    assert any(
-        map(
-            lambda message: message.tag_expression == "tag" and message.name is None,
-            attachment_messages,
-        )
-    )
+    assert any(message.tag_expression == "tag" and message.name is None for message in attachment_messages)
 
     # before_tag hook
-    assert any(
-        map(
-            lambda message: message.tag_expression == "@tag" and message.name == "before",
-            attachment_messages,
-        )
-    )
+    assert any(message.tag_expression == "@tag" and message.name == "before" for message in attachment_messages)
 
     # after_tag hook
-    assert any(
-        map(
-            lambda message: message.tag_expression == "@tag" and message.name == "after",
-            attachment_messages,
-        )
-    )
+    assert any(message.tag_expression == "@tag" and message.name == "after" for message in attachment_messages)
 
     # after_tag hook
-    assert any(
-        map(
-            lambda message: message.tag_expression == "tag" and message.name == "around",
-            attachment_messages,
-        )
-    )
+    assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)

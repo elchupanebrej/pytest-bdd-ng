@@ -10,10 +10,7 @@ test_data = Path(__file__).parent.parent.parent / "gherkin" / "testdata"
 
 @mark.parametrize(
     "pickle_path",
-    map(
-        lambda file: param(file, id=file.name),  # type: ignore[no-any-return]
-        (test_data / "good").glob("*.pickles.ndjson"),
-    ),
+    (param(file, id=file.name) for file in (test_data / "good").glob("*.pickles.ndjson")),
 )
 def test_simple_load_pickle(pickle_path: Path):
     with pickle_path.open(mode="r") as pickle_file:

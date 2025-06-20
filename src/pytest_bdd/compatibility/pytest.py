@@ -6,11 +6,13 @@ from operator import ge
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+import py
 from _pytest.config import Config, PytestPluginManager
 from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
 from _pytest.mark import Mark, MarkDecorator
+from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
@@ -18,8 +20,10 @@ from _pytest.terminal import TerminalReporter
 from pytest import Module as PytestModule
 from pytest import fail as _pytest_fail
 
-from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.util.packaging import compare_distribution_version
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.typing import TypeAlias
 
 __all__ = [
     "PYTEST6",
@@ -87,13 +91,9 @@ else:
     ExitCode: TypeAlias = int  # type:ignore[no-redef]
 
 if PYTEST7:
-    if TYPE_CHECKING:
-        from pytest import Testdir
+    from pytest import Testdir
 else:
-    import py
-
-    if TYPE_CHECKING:
-        from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
+    from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
 
 if PYTEST62:
     from pytest import FixtureRequest
@@ -103,7 +103,6 @@ else:
 
 if TYPE_CHECKING:  # pragma: no cover
     from _pytest.nodes import Item as BaseItem
-    from _pytest.pytester import RunResult
 
     class Item(BaseItem):
         _request: FixtureRequest
@@ -118,7 +117,7 @@ class Module(PytestModule):
         if hasattr(cls, "from_parent"):
             collector = cls.from_parent(
                 parent,
-                **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path))),
+                **({"path": Path(file_path)} if PYTEST7 else {"fspath": py.path.local(file_path)}),
             )
         else:
             collector = cls(parent=parent, fspath=py.path.local(file_path))

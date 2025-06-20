@@ -1,8 +1,7 @@
-from collections import deque
 from contextlib import contextmanager
 from functools import partial
 from itertools import zip_longest
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 from pluggy import PluginManager
 from pytest import hookimpl
@@ -17,6 +16,9 @@ from pytest_bdd.steps import StepHandler
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
+
+if TYPE_CHECKING:
+    from collections import deque
 
 
 class ScenarioRunner:
@@ -117,13 +119,13 @@ class ScenarioRunner:
     def pytest_bdd_run_step(self, request, feature: Feature, scenario, step, previous_step):
         __tracebackhide__ = True
         with self.extended_step_context(feature, scenario, step):
-            hook_kwargs = dict(
-                request=request,
-                feature=feature,
-                scenario=scenario,
-                step=step,
-                previous_step=previous_step,
-            )
+            hook_kwargs = {
+                "request": request,
+                "feature": feature,
+                "scenario": scenario,
+                "step": step,
+                "previous_step": previous_step,
+            }
 
             try:
                 step_definition = self._match_to_step(step, previous_step)
@@ -204,7 +206,7 @@ class ScenarioRunner:
                 yield param, step_params[param]
             except KeyError:
                 try:
-                    yield param, dict(step=step)[param]
+                    yield param, {"step": step}[param]
                 except KeyError:
                     yield param, self.request.getfixturevalue(param)
 

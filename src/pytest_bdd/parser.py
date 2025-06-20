@@ -101,14 +101,14 @@ class GherkinParser(BaseParser):
             file_paths = list(map(Path, self.glob(path))) if path.is_dir() else [Path(path)]
 
             features_content.extend(
-                map(
-                    lambda path: self.parse(
+                (
+                    self.parse(
                         config,
                         path,
                         "file:" + relpath(str(path), str(features_base_dir)),
                         **kwargs,
-                    ),
-                    filterfalse(partial(contains, seen_names), file_paths),
+                    )
+                    for path in filterfalse(partial(contains, seen_names), file_paths)
                 ),
             )
 

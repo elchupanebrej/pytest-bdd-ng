@@ -73,10 +73,7 @@ class Feature:
                     chain(
                         obj.tags,
                         chain.from_iterable(
-                            map(
-                                lambda child: filter(None, [child.rule, child.background, child.scenario]),
-                                obj.children,
-                            ),
+                            (filter(None, [child.rule, child.background, child.scenario]) for child in obj.children),
                         ),
                     ),
                 ),
@@ -91,8 +88,8 @@ class Feature:
                     chain(
                         obj.tags,
                         chain.from_iterable(
-                            map(
-                                lambda child: filter(
+                            (
+                                filter(
                                     None,
                                     [
                                         # TODO Check why we don't support nested Rules;
@@ -101,8 +98,8 @@ class Feature:
                                         child.background,
                                         child.scenario,
                                     ],
-                                ),
-                                obj.children,
+                                )
+                                for child in obj.children
                             ),
                         ),
                     ),
@@ -131,7 +128,7 @@ class Feature:
                     chain(obj.tags, [obj.table_header], obj.table_body),
                 ),
             )
-        elif isinstance(obj, TableRow) or isinstance(obj, Step):
+        elif isinstance(obj, (TableRow, Step)):
             yield obj.id, obj
 
     load_gherkin_document = staticmethod(GherkinDocument.model_validate)  # type: ignore[attr-defined] # migration to pydantic2
@@ -159,18 +156,13 @@ class Feature:
 
     @property
     def tag_names(self):
-        return sorted(
-            map(
-                lambda tag: tag.name.lstrip(TAG_PREFIX),
-                self.gherkin_document.feature.tags,
-            )
-        )
+        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in self.gherkin_document.feature.tags)
 
     def build_pickle_table_rows_breadcrumb(self, pickle):
         table_rows_lines = ",".join(
-            map(
-                lambda row: f"line: {deepattrgetter('location.line', default=-1)(row)[0]}",
-                self._get_pickle_ast_table_rows(pickle),
+            (
+                f"line: {deepattrgetter('location.line', default=-1)(row)[0]}"
+                for row in self._get_pickle_ast_table_rows(pickle)
             ),
         )
         return f"[table_rows:[{table_rows_lines}]]" if table_rows_lines else ""
@@ -189,7 +181,7 @@ class Feature:
         return itemgetter_(*items)(self.registry)
 
     def _get_pickle_tag_names(self, pickle: Pickle):
-        return sorted(map(lambda tag: tag.name.lstrip(TAG_PREFIX), pickle.tags))  # type: ignore[no-any-return]
+        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in pickle.tags)  # type: ignore[no-any-return]
 
     def _get_pickle_ast_scenario(self, pickle: Pickle) -> Scenario:
         return cast(

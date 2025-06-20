@@ -1,6 +1,7 @@
-from typing import Any, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, Union, runtime_checkable
 
-from pytest_bdd.util.other import IdGenerator
+if TYPE_CHECKING:
+    from pytest_bdd.util.other import IdGenerator
 
 
 @runtime_checkable

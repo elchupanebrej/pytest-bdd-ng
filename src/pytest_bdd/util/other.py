@@ -14,10 +14,7 @@ def format_as_python_identifier(s: Any) -> str:
     s2 = re.sub(r"[^.a-zA-Z0-9]", "_", s1)
     s3 = re.sub(r"_+", "_", s2)
     s4 = s3.strip("_")
-    if re.match(r"\d.*", s4):
-        result_s = f"_{s4}"
-    else:
-        result_s = s4
+    result_s = f"_{s4}" if re.match(r"\d.*", s4) else s4
     return result_s
 
 

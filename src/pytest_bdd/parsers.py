@@ -145,12 +145,12 @@ class re(StepParser):
             group_dict.update(
                 zip(
                     anonymous_group_names,
-                    map(
-                        lambda span: name[slice(*span)],  # type: ignore[no-any-return] # https://github.com/python/mypy/issues/9590
-                        filterfalse(
+                    (
+                        name[slice(*span)]
+                        for span in filterfalse(
                             partial(contains, [*map(match.span, group_dict.keys())]),
                             map(match.span, range(1, len(match.groups()) + 1)),
-                        ),
+                        )
                     ),
                 ),
             )
@@ -478,13 +478,13 @@ class heuristic(StepParser):
     def arguments(self) -> Collection[str]:
         return [
             *chain.from_iterable(
-                map(
-                    lambda parser: (
+                (
+                    (
                         []  # type:ignore[no-any-return]
                         if (args := getattr(parser, "arguments", None)) is None
                         else args
-                    ),
-                    self.parser_by_priorities,
+                    )
+                    for parser in self.parser_by_priorities
                 ),
             ),
         ]

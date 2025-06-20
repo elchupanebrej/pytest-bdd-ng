@@ -312,7 +312,10 @@ class StepHandler:
 
             if len(step_definitions) > 0:
                 if len(step_definitions) > 1:
-                    warn(PytestBDDStepDefinitionWarning(f"Alternative step definitions are found: {step_definitions}"))
+                    warn(
+                        PytestBDDStepDefinitionWarning(f"Alternative step definitions are found: {step_definitions}"),
+                        stacklevel=2,
+                    )
                 return step_definitions[0]
             raise self.MatchNotFoundError(self.step.text)
 
@@ -567,7 +570,9 @@ class StepHandler:
         converters = converters or {}
         param_defaults = param_defaults or {}
         if target_fixture is not None and target_fixtures is not None:
-            warnings.warn(PytestBDDStepDefinitionWarning("Both target_fixture and target_fixtures are specified"))
+            warnings.warn(
+                PytestBDDStepDefinitionWarning("Both target_fixture and target_fixtures are specified"), stacklevel=2
+            )
         target_fixtures = list(
             OrderedSet(
                 [

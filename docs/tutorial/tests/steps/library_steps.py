@@ -1,10 +1,9 @@
 import re
 from typing import Literal
 
+from docs.tutorial.src.catalog import Book, Catalog
 from messages import DataTable, Step  # type:ignore[attr-defined]
 from pytest_bdd import given, then, when
-
-from ...src.catalog import Book, Catalog
 
 
 def get_books_from_data_table(data_table: DataTable):
@@ -63,7 +62,7 @@ def a_search_type_is_performed_for_search_term(
     elif search_type == "name":
         search = catalog.search_by_author
     else:
-        assert False, "Unknown"
+        raise AssertionError("Unknown")
 
     found_books = search(search_term)
     search_results.extend(found_books)
@@ -82,4 +81,4 @@ def only_these_books_will_be_returned(
 
     for book in search_results:
         if book not in expected_books:
-            assert False, f"Book ${book} is not expected"
+            raise AssertionError(f"Book ${book} is not expected")

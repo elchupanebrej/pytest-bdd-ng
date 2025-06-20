@@ -225,12 +225,7 @@ def find_non_seen_features_and_pickles(
     non_seen_feature_pickles: list[tuple[Feature, Pickle]] = list(
         filter(
             lambda feature_pickle: (feature_pickle[0].uri, feature_pickle[1].name) not in seen_feature_pickles_ids,
-            chain.from_iterable(
-                map(
-                    lambda feature: zip_longest((), feature.pickles, fillvalue=feature),
-                    features,
-                )
-            ),
+            chain.from_iterable(zip_longest((), feature.pickles, fillvalue=feature) for feature in features),
         ),
     )
 
@@ -278,40 +273,38 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
 
     feature_pickles: Sequence[tuple[Feature, Pickle]] = list(
         chain.from_iterable(
-            map(
-                lambda feature: cast(
+            (
+                cast(
                     Iterable[tuple[Feature, Pickle]],
                     zip_longest((), feature.pickles, fillvalue=feature),
-                ),
-                features,
+                )
+                for feature in features
             ),
         ),
     )
 
     feature_pickles_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]] = list(
         chain.from_iterable(
-            map(
-                lambda feature_pickle: cast(
+            (
+                cast(
                     Iterable[tuple[tuple[Feature, Pickle], PickleStep]],
                     zip_longest((), feature_pickle[1].steps, fillvalue=feature_pickle),
-                ),
-                feature_pickles,
+                )
+                for feature_pickle in feature_pickles
             ),
         ),
     )
 
     unique_step_defs_ids = {(step.type, step.text) for (feature, pickle), step in feature_pickles_steps}
     unique_feature_pickle_steps = sorted(
-        list(
-            map(
-                lambda step_def_id: next(  # type: ignore[no-any-return]
-                    filter(
-                        lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
-                        feature_pickles_steps,
-                    ),
+        map(
+            lambda step_def_id: next(  # type: ignore[no-any-return]
+                filter(
+                    lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
+                    feature_pickles_steps,
                 ),
-                unique_step_defs_ids,
             ),
+            unique_step_defs_ids,
         ),
         key=lambda feature_pickle_step: cast(str, feature_pickle_step[1].text),
     )

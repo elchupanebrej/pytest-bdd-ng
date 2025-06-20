@@ -206,9 +206,8 @@ def test_setdefaultattr_for_both_factory_and_value():
 
 
 def test_doesnt_raise_fails_test():
-    with raises(Failed):
-        with doesnt_raise(RuntimeError):
-            raise RuntimeError
+    with raises(Failed), doesnt_raise(RuntimeError):
+        raise RuntimeError
 
 
 def test_doesnt_raise_suppress_if_not_match():
@@ -220,15 +219,13 @@ def test_doesnt_raise_suppress_if_not_match():
 
 
 def test_doesnt_raise_not_suppress_if_not_match_explicitly():
-    with raises(RuntimeError, match="nice"):
-        with doesnt_raise(RuntimeError, match="cool", suppress_not_matched=False):
-            raise RuntimeError("nice")
+    with raises(RuntimeError, match="nice"), doesnt_raise(RuntimeError, match="cool", suppress_not_matched=False):
+        raise RuntimeError("nice")
 
 
 def test_doesnt_raise_passes_original_exception_if_not_suppressed():
-    with raises(ValueError):
-        with doesnt_raise(RuntimeError, suppress_not_matched=False):
-            raise ValueError("nice")
+    with raises(ValueError), doesnt_raise(RuntimeError, suppress_not_matched=False):
+        raise ValueError("nice")
 
 
 def test_flip_no_args():

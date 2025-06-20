@@ -13,13 +13,12 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import Callable, Union, cast
+from typing import TYPE_CHECKING, Callable, Union, cast
 
 import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
-from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 from filelock import FileLock
 from pydantic import ValidationError
 from pytest import ExitCode, Session, hookimpl
@@ -64,6 +63,9 @@ from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.util.packaging import get_distribution_version
 from pytest_bdd.util.toolz_extra import deepattrgetter
+
+if TYPE_CHECKING:
+    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
 
 @attrs(eq=False)
@@ -395,12 +397,9 @@ class GherkinMessageReporter:
 
                     parameter_type_registry = parameter_type_registry_getter(request)
 
-                    parameter_types = dict(
-                        map(
-                            lambda parameter_type: (id(parameter_type), parameter_type),
-                            parameter_type_registry.parameter_types,
-                        ),
-                    )
+                    parameter_types = {
+                        id(parameter_type): parameter_type for parameter_type in parameter_type_registry.parameter_types
+                    }
 
                     not_yet_registered_parameter_types = {
                         key: parameter_type
@@ -653,7 +652,7 @@ class GherkinMessageReporter:
                     # TODO find a specification when it useful
                     # source=,
                     media_type=_media_type,
-                    **(dict(file_name=str(file_name)) if file_name is not None else {}),
+                    **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,
                     body=body,
                 ),

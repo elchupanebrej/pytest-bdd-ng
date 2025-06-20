@@ -33,15 +33,7 @@ def write_file_with_extras(name, extension, testdir, step, request, extra_opts, 
     if is_fixture_templated:
         template_fields = [field_name for _, field_name, _, _ in string.Formatter().parse(content) if field_name]
 
-        format_options = dict(
-            map(
-                lambda fixture_name: (
-                    fixture_name,
-                    str(request.getfixturevalue(fixture_name)),
-                ),
-                template_fields,
-            ),
-        )
+        format_options = {fixture_name: str(request.getfixturevalue(fixture_name)) for fixture_name in template_fields}
     file_data = str(content).format_map(format_options) if is_fixture_templated else content
     (Path(testdir.tmpdir.strpath) / f"{name}{extension}").write_text(file_data, encoding="utf-8")
 
@@ -123,7 +115,7 @@ def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has \"(?P<line_count>(\w|\\|.)+)\" lines"),
-    converters=dict(line_count=int, file_path=Path),
+    converters={"line_count": int, "file_path": Path},
 )
 def _(file_path: Path, line_count: int):
     with file_path.open("r") as fp:
@@ -133,7 +125,7 @@ def _(file_path: Path, line_count: int):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
-    converters=dict(file_path=Path),
+    converters={"file_path": Path},
 )
 def _(file_path: Path, testdir):
     assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
@@ -141,7 +133,7 @@ def _(file_path: Path, testdir):
 
 @then(
     re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"),
-    converters=dict(file_path=Path),
+    converters={"file_path": Path},
 )
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:

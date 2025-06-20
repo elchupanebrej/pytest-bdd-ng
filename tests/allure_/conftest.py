@@ -111,7 +111,7 @@ def allured_testdir(testdir, request):
 
 @pytest.fixture
 def context():
-    return dict()
+    return {}
 
 
 @pytest.fixture
@@ -122,7 +122,7 @@ def allure_report(allured_testdir, context):
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
 def feature_definition(name, extension, testdir, step):
     content = step.doc_string.content
-    testdir.makefile(extension, **dict([(name, content)]))
+    testdir.makefile(extension, **{name: content})
 
 
 @when("run pytest-bdd with allure")

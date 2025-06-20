@@ -139,30 +139,28 @@ class Join(BaseModel):
             filled_tables = list(filter(attrgetter("parameters"), self.tables))
             if filled_tables:
                 filled_tables_parameters = list(chain.from_iterable(map(attrgetter("parameters"), self.tables)))
-                for filled_tables_values in map(
-                    lambda tables_values: list(chain.from_iterable(tables_values)),
-                    product(*map(attrgetter("rowed_values"), filled_tables)),
+                for filled_tables_values in (
+                    list(chain.from_iterable(tables_values))
+                    for tables_values in product(*map(attrgetter("rowed_values"), filled_tables))
                 ):
                     if all(
-                        [
-                            all(
-                                starmap(
-                                    eq,
-                                    product(
-                                        [
-                                            value
-                                            for _parameter, value in zip(
-                                                filled_tables_parameters,
-                                                filled_tables_values,
-                                            )
-                                            if parameter == _parameter
-                                        ],
-                                        repeat=2,
-                                    ),
+                        all(
+                            starmap(
+                                eq,
+                                product(
+                                    [
+                                        value
+                                        for _parameter, value in zip(
+                                            filled_tables_parameters,
+                                            filled_tables_values,
+                                        )
+                                        if parameter == _parameter
+                                    ],
+                                    repeat=2,
                                 ),
-                            )
-                            for parameter in self.parameters
-                        ],
+                            ),
+                        )
+                        for parameter in self.parameters
                     ):
 
                         def values_gen():
@@ -175,9 +173,9 @@ class Join(BaseModel):
                         values = list(values_gen())
                         yield values
             else:
-                yield from map(
-                    lambda values_combination: list(chain.from_iterable(values_combination)),
-                    product(*map(attrgetter("rowed_values"), self.tables)),
+                yield from (
+                    list(chain.from_iterable(values_combination))
+                    for values_combination in product(*map(attrgetter("rowed_values"), self.tables))
                 )
 
         _values = list(_())

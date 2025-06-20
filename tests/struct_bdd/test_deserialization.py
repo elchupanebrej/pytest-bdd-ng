@@ -54,15 +54,15 @@ def test_node_non_containing_data_load():
 
 def test_table_columned_containing_data_load():
     table = Table.model_validate(
-        dict(
-            Tags=["Tag A", "Tag B"],
-            Name="Table name",
-            Description="Table description",
-            Comments=["Comment A", "Comment B"],
-            Type="Columned",
-            Parameters=["Parameter A", "Parameter B"],
-            Values=[["Value A1", "Value A2"], ["Value B1", "Value B2"]],
-        ),
+        {
+            "Tags": ["Tag A", "Tag B"],
+            "Name": "Table name",
+            "Description": "Table description",
+            "Comments": ["Comment A", "Comment B"],
+            "Type": "Columned",
+            "Parameters": ["Parameter A", "Parameter B"],
+            "Values": [["Value A1", "Value A2"], ["Value B1", "Value B2"]],
+        },
     )
 
     assert all(
@@ -89,11 +89,11 @@ def test_table_columned_containing_data_load():
 
 def test_table_rowed_containing_data_load():
     table = Table.model_validate(
-        dict(
-            Type="Rowed",
-            Parameters=["Parameter A", "Parameter B"],
-            Values=[["Value A1", "Value A2"], ["Value B1", "Value B2"]],
-        ),
+        {
+            "Type": "Rowed",
+            "Parameters": ["Parameter A", "Parameter B"],
+            "Values": [["Value A1", "Value A2"], ["Value B1", "Value B2"]],
+        },
     )
     assert table.type == "Rowed"
     assert table.parameters == ["Parameter A", "Parameter B"]
@@ -116,26 +116,26 @@ def test_table_non_containing_data_load():
 
 
 def test_join_load():
-    raw_table_a = dict(
-        Tags=["Tag A1", "Tag A2"],
-        Name="Table A name",
-        Description="Table A description",
-        Comments=["Comment A1", "Comment A2"],
-        Type="Columned",
-        Parameters=["Parameter A1", "Parameter A2"],
-        Values=[["Value A11", "Value A12"], ["Value A21", "Value A22"]],
-    )
-    raw_table_b = dict(
-        Tags=["Tag B1", "Tag B2"],
-        Name="Table B name",
-        Description="Table B description",
-        Comments=["Comment B1", "Comment B2"],
-        Type="Columned",
-        Parameters=["Parameter B1", "Parameter B2"],
-        Values=[["Value B11", "Value B12"], ["Value B21", "Value B22"]],
-    )
+    raw_table_a = {
+        "Tags": ["Tag A1", "Tag A2"],
+        "Name": "Table A name",
+        "Description": "Table A description",
+        "Comments": ["Comment A1", "Comment A2"],
+        "Type": "Columned",
+        "Parameters": ["Parameter A1", "Parameter A2"],
+        "Values": [["Value A11", "Value A12"], ["Value A21", "Value A22"]],
+    }
+    raw_table_b = {
+        "Tags": ["Tag B1", "Tag B2"],
+        "Name": "Table B name",
+        "Description": "Table B description",
+        "Comments": ["Comment B1", "Comment B2"],
+        "Type": "Columned",
+        "Parameters": ["Parameter B1", "Parameter B2"],
+        "Values": [["Value B11", "Value B12"], ["Value B21", "Value B22"]],
+    }
 
-    join = Join.model_validate(dict(Join=[raw_table_a, raw_table_b]))
+    join = Join.model_validate({"Join": [raw_table_a, raw_table_b]})
     assert join.tags == ["Tag A1", "Tag A2", "Tag B1", "Tag B2"]
     assert join.name == "\n".join([raw_table_a["Name"], raw_table_b["Name"]])
     assert join.description == "\n".join([raw_table_a["Description"], raw_table_b["Description"]])
@@ -198,7 +198,7 @@ def test_step_non_containing_data_load():
 
 
 def test_load_simplest_step_with_text_steps():
-    step: Step = Step().model_validate(dict(Steps=["Do something"]))
+    step: Step = Step().model_validate({"Steps": ["Do something"]})
     assert step.steps[0].type == Keyword.Star
     assert step.steps[0].keyword_type == KeywordType.unknown
     assert step.steps[0].action == "Do something"
@@ -213,11 +213,11 @@ def test_load_simplest_step_with_text_steps():
 
 def test_load_simplest_given():
     step = Step.model_validate(
-        dict(
-            Steps=[
-                dict(Given="Do something"),
+        {
+            "Steps": [
+                {"Given": "Do something"},
             ],
-        ),
+        },
     )
     assert step.steps[0].type == Keyword.Given
     assert step.steps[0].keyword_type == KeywordType.context
@@ -232,7 +232,7 @@ def test_load_simplest_given():
 
 
 def test_load_actioned_step_with_text_steps():
-    step: Step = Step.model_validate(dict(Action="First do", Steps=["Do something"]))
+    step: Step = Step.model_validate({"Action": "First do", "Steps": ["Do something"]})
     assert step.steps[0].type == Keyword.Star
     assert step.steps[0].keyword_type == KeywordType.unknown
     assert step.steps[0].action == "Do something"
@@ -245,7 +245,7 @@ def test_load_actioned_step_with_text_steps():
 
 
 def test_load_alternative_step_with_text_steps():
-    alternative_step: Alternative = Alternative.model_validate(dict(Alternative=["Do something"]))
+    alternative_step: Alternative = Alternative.model_validate({"Alternative": ["Do something"]})
 
     routes = list(alternative_step.routes)
     assert len(routes) == 1
@@ -256,17 +256,17 @@ def test_load_alternative_step_with_text_steps():
 
 def test_load_actioned_step_with_alternative_text_steps():
     step: Step = Step.model_validate(
-        dict(
-            Action="First do",
-            Steps=[
-                dict(
-                    Alternative=[
+        {
+            "Action": "First do",
+            "Steps": [
+                {
+                    "Alternative": [
                         "Do something",
                         "Do something else",
                     ],
-                ),
+                },
             ],
-        ),
+        },
     )
 
     routes = list(step.routes)
@@ -277,19 +277,19 @@ def test_load_actioned_step_with_alternative_text_steps():
 
 def test_load_simplest_step_with_keyworded_steps():
     step: Step = Step.model_validate(
-        dict(
-            Steps=[
-                dict(Given="Given Do something"),
-                dict(When="When Do something"),
-                dict(Then="Then Do something"),
-                dict(And="And Do something"),
-                dict(But="But Do something"),
+        {
+            "Steps": [
+                {"Given": "Given Do something"},
+                {"When": "When Do something"},
+                {"Then": "Then Do something"},
+                {"And": "And Do something"},
+                {"But": "But Do something"},
                 {"*": "* Do something"},
                 "Do something",
-                dict(Because="Because Do something"),
-                dict(Step=dict(Action="Step Do something")),
+                {"Because": "Because Do something"},
+                {"Step": {"Action": "Step Do something"}},
             ],
-        ),
+        },
     )
 
     routes = list(step.routes)
@@ -298,7 +298,7 @@ def test_load_simplest_step_with_keyworded_steps():
 
 def test_load_step_with_single_simplest_steps():
     with doesnt_raise(Exception):
-        Step.model_validate(dict(Steps=[dict(Step=dict())]))
+        Step.model_validate({"Steps": [{"Step": {}}]})
 
 
 def test_node_module_load_for_step():

@@ -12,7 +12,7 @@ def read(path):
 
 def write(path, url):
     """Write url to webloc file"""
-    data = dict(URL=str(url))
+    data = {"URL": str(url)}
     dir = os.path.dirname(path)
     if not os.path.exists(dir):
         os.makedirs(dir)

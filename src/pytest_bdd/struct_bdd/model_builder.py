@@ -105,12 +105,12 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 **(
                                     (
                                         lambda rows: (
-                                            dict(
-                                                data_table=DataTable(
+                                            {
+                                                "data_table": DataTable(
                                                     rows=rows,
                                                     location=Location(column=0, line=0),  # type: ignore[call-arg]
                                                 ),  # type: ignore[call-arg]
-                                            )
+                                            }
                                             if rows
                                             else {}
                                         )
@@ -118,8 +118,8 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                         [
                                             *filterfalse(
                                                 lambda row: row is None,
-                                                map(
-                                                    lambda row_values: (
+                                                (
+                                                    (
                                                         (
                                                             lambda cells: (
                                                                 TableRow(
@@ -132,35 +132,35 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                                             )
                                                         )(
                                                             [
-                                                                *map(
-                                                                    lambda parameter: TableCell(
+                                                                *(
+                                                                    TableCell(
                                                                         location=Location(
                                                                             column=0,
                                                                             line=0,
                                                                         ),
                                                                         value=parameter,
-                                                                    ),
-                                                                    row_values,
+                                                                    )
+                                                                    for parameter in row_values
                                                                 ),
                                                             ],
                                                         )
-                                                    ),
-                                                    StructJoin(tables=step.data).rowed_values,
+                                                    )
+                                                    for row_values in StructJoin(tables=step.data).rowed_values
                                                 ),
                                             ),
                                         ],
                                     )
                                 ),
                                 **(
-                                    dict(
-                                        doc_string=DocString(
+                                    {
+                                        "doc_string": DocString(
                                             content=step.description,
                                             delimiter="\n",
                                             location=Location(column=0, line=0),
                                         ),
-                                    )
+                                    }
                                     if step.description
-                                    else dict()
+                                    else {}
                                 ),
                             )
                             previous_step_keyword_type = step_keyword_type
@@ -183,13 +183,13 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 "",
                             ),
                             tags=[
-                                *map(
-                                    lambda tag_name: Tag(
+                                *(
+                                    Tag(
                                         id=next(id_generator),
                                         location=Location(column=0, line=0),
                                         name=tag_name,
-                                    ),
-                                    route.tags,
+                                    )
+                                    for tag_name in route.tags
                                 ),
                             ],
                             steps=steps,
@@ -211,43 +211,43 @@ class ExampleASTBuilder(_ASTBuilder):
             location=Location(column=0, line=0),
             name=self.model.name,
             table_body=[
-                *map(
-                    lambda row_values: TableRow(
+                *(
+                    TableRow(
                         id=next(id_generator),
                         location=Location(column=0, line=0),
                         cells=[
-                            *map(
-                                lambda parameter: TableCell(
+                            *(
+                                TableCell(
                                     location=Location(column=0, line=0),
                                     value=str(parameter),
-                                ),
-                                row_values,
+                                )
+                                for parameter in row_values
                             ),
                         ],
-                    ),
-                    self.model.rowed_values,
+                    )
+                    for row_values in self.model.rowed_values
                 ),
             ],
             tags=[
-                *map(
-                    lambda tag_name: Tag(
+                *(
+                    Tag(
                         id=next(id_generator),
                         location=Location(column=0, line=0),
                         name=tag_name,
-                    ),
-                    self.model.tags,
+                    )
+                    for tag_name in self.model.tags
                 ),
             ],
             table_header=TableRow(
                 id=next(id_generator),
                 location=Location(column=0, line=0),
                 cells=[
-                    *map(
-                        lambda parameter: TableCell(
+                    *(
+                        TableCell(
                             location=Location(column=0, line=0),
                             value=parameter,
-                        ),
-                        self.model.parameters,
+                        )
+                        for parameter in self.model.parameters
                     ),
                 ],
             ),
