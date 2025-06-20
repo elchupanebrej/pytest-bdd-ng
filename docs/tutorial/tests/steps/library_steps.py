@@ -75,7 +75,6 @@ def only_these_books_will_be_returned(
     # so if you define fixture dependencies debugging becomes much easier.
     search_results: list[Book],
     step: Step,
-    catalog: Catalog,
 ):
     expected_books = get_books_from_data_table(step.data_table)
 

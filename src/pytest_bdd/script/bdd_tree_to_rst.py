@@ -19,7 +19,6 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import cast
 
-import panflute as pf  # type: ignore[import-not-found]
 import pypandoc  # type: ignore[import-not-found]
 from docopt import docopt
 from pathlib2 import Path  # type: ignore[import-not-found]
@@ -33,13 +32,6 @@ def diff_folders(dcmp):
         return diff
     if any(diff := list(map(diff_folders, dcmp.subdirs.values()))):
         return diff
-
-
-def adjust_heading_level(elem, doc, *, level):
-    if isinstance(elem, pf.Header):
-        new_level = elem.level + level
-        return pf.Header(*elem.content, level=new_level)
-    return elem
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path):

@@ -128,30 +128,29 @@ class GherkinMessageReporter:
                     last_enter = True
 
                 lock_file = os.path.join(tmpdirname, f"{messages_file_path}.lock")
-                with FileLock(lock_file):
-                    with Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f:
-                        lines = []
-                        while not queue.empty():
-                            try:
-                                message_json = queue.get(timeout=1)
-                            except Empty:
-                                sleep(0)
-                                continue
-
-                            try:
-                                Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
-                            except ValidationError:
-                                logging.exception(
-                                    f"Failed to parse:\n{pformat(message_json)}\n",
-                                    exc_info=True,
-                                )
-                            else:
-                                lines.append(f"{message_json}\n")
-                            finally:
-                                queue.task_done()
+                with FileLock(lock_file), Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f:
+                    lines = []
+                    while not queue.empty():
+                        try:
+                            message_json = queue.get(timeout=1)
+                        except Empty:
                             sleep(0)
-                        f.writelines(lines)
-                        f.flush()
+                            continue
+
+                        try:
+                            Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
+                        except ValidationError:
+                            logging.exception(
+                                f"Failed to parse:\n{pformat(message_json)}\n",
+                                exc_info=True,
+                            )
+                        else:
+                            lines.append(f"{message_json}\n")
+                        finally:
+                            queue.task_done()
+                        sleep(0)
+                    f.writelines(lines)
+                    f.flush()
 
     @staticmethod
     def get_timestamp():
@@ -245,7 +244,11 @@ class GherkinMessageReporter:
                 if is_set(pickle) and id(pickle) not in pickle_registry:
                     cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
 
-    def pytest_bdd_message(self, config: Config, message: Message):
+    def pytest_bdd_message(
+        self,
+        config: Config,  # noqa: ARG002 hookspec
+        message: Message,
+    ):
         if self.is_disabled:
             return
         message_json = message.model_dump_json(exclude_none=True, by_alias=True)  # type: ignore[attr-defined] # migration to pydantic2
@@ -462,7 +465,12 @@ class GherkinMessageReporter:
             message=Message(test_case=self.current_test_case),
         )
 
-    def pytest_bdd_before_scenario(self, request, feature, scenario):
+    def pytest_bdd_before_scenario(
+        self,
+        request,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
+    ):
         if self.is_disabled:
             return
         config = request.config
@@ -481,7 +489,12 @@ class GherkinMessageReporter:
             message=Message(test_case_started=self.current_test_case_start),
         )
 
-    def pytest_bdd_after_scenario(self, request, feature, scenario):
+    def pytest_bdd_after_scenario(
+        self,
+        request,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
+    ):
         if self.is_disabled:
             return
         config = request.config
@@ -501,7 +514,14 @@ class GherkinMessageReporter:
         )
         self.current_test_case = None
 
-    def pytest_bdd_before_step(self, request, feature, scenario, step, step_func):
+    def pytest_bdd_before_step(
+        self,
+        request,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
+        step,
+        step_func,  # noqa: ARG002 hookspec
+    ):
         if self.is_disabled:
             return
         config = request.config
@@ -523,7 +543,14 @@ class GherkinMessageReporter:
             ),
         )
 
-    def pytest_bdd_after_step(self, request, feature, scenario, step, step_func):
+    def pytest_bdd_after_step(
+        self,
+        request,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
+        step,
+        step_func,  # noqa: ARG002 hookspec
+    ):
         if self.is_disabled:
             return
         config = request.config
@@ -564,13 +591,13 @@ class GherkinMessageReporter:
     def pytest_bdd_step_error(
         self,
         request,
-        feature,
-        scenario,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
         step,
-        step_func,
-        step_func_args,
-        exception,
-        step_definition,
+        step_func,  # noqa: ARG002 hookspec
+        step_func_args,  # noqa: ARG002 hookspec
+        exception,  # noqa: ARG002 hookspec
+        step_definition,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return

@@ -1,7 +1,6 @@
 import asyncio
 import os
 import ssl
-import sys
 from collections.abc import Iterable
 from contextlib import suppress
 from enum import Enum
@@ -22,6 +21,7 @@ from pydantic import ValidationError
 
 from messages import Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.parser import ParserProtocol
+from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import get_config_root_path
 from pytest_bdd.const import FeatureBaseLoad
 from pytest_bdd.mimetype import Mimetype
@@ -158,8 +158,13 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
 
 class FileScenarioLocatorDefaults:
-    encoding = lambda: "utf-8"
-    parse_args = lambda: Args((), {})
+    @staticmethod
+    def encoding():
+        return "utf-8"
+
+    @staticmethod
+    def parse_args():
+        return Args((), {})
 
 
 @attrs
@@ -209,7 +214,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                         methodcaller("is_file"),
                         features_base_dir.glob(os.fspath(feature_pathlike)),
                     )
-                except IndexError if sys.version_info < (3, 13) else ValueError:
+                except GlobError:
                     yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
 
     @staticmethod

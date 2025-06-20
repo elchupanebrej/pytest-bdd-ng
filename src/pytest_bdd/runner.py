@@ -166,10 +166,10 @@ class ScenarioRunner:
     def pytest_bdd_get_step_caller(
         self,
         request,
-        feature,
-        scenario,
-        step,
-        step_func,
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
+        step,  # noqa: ARG002 hookspec
+        step_func,  # noqa: ARG002 hookspec
         step_func_args,
         step_definition,
     ):

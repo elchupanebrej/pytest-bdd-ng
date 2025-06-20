@@ -54,8 +54,8 @@ def fake_logger(path, logger):
         allure_commons.plugin_manager.unregister(plugin=plugin, name=name)
         blocked_plugins.append(plugin)
 
-    with mock.patch(path) as ReporterMock:
-        ReporterMock.return_value = logger
+    with mock.patch(path) as reporter_mock:
+        reporter_mock.return_value = logger
         yield
 
     for plugin in blocked_plugins:
@@ -115,7 +115,10 @@ def context():
 
 
 @pytest.fixture
-def allure_report(allured_testdir, context):
+def allure_report(
+    allured_testdir,
+    context,  # noqa: ARG001 fixture
+):
     return allured_testdir.allure_report
 
 

@@ -95,7 +95,7 @@ def getitemdefault(
 def deepattrgetter(*attrs, **kwargs):
     empty = object()
     default = kwargs.pop("default", empty)
-    default_exception_type = AttributeError if default is not empty else _NoneException
+    default_exception_type = AttributeError if default is not empty else _NoneExceptionError
     skip_missing = kwargs.pop("skip_missing", False)
     skip_missing_context = suppress(AttributeError) if skip_missing else nullcontext()
     if default is not empty and skip_missing:
@@ -145,7 +145,7 @@ def flip(func):
     return wrapped
 
 
-class _NoneException(Exception): ...
+class _NoneExceptionError(Exception): ...
 
 
 chain_map = compose(chain.from_iterable, map)

@@ -1,8 +1,8 @@
 import sys
 
 if sys.version_info < (3, 11):
-    # noinspection PyUnresolvedReferences
-    from tomli import *
+    from tomli import TOMLDecodeError, load, loads
 else:
-    # noinspection PyUnresolvedReferences
-    from tomllib import *
+    from tomllib import TOMLDecodeError, load, loads
+
+__all__ = ("loads", "load", "TOMLDecodeError")

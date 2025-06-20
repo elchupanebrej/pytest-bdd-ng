@@ -57,7 +57,7 @@ class GherkinParser(BaseParser):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 overload
         path: Path,
         uri: str,
         *args,
@@ -69,7 +69,7 @@ class GherkinParser(BaseParser):
             feature_file_data = feature_file.read()
 
         try:
-            gherkin_document_raw_dict = gherkin_parser.parse(token_scanner_or_str=feature_file_data, *args, **kwargs)
+            gherkin_document_raw_dict = gherkin_parser.parse(feature_file_data, *args, **kwargs)
         except CompositeParserException as e:
             raise FeatureConcreteParseError(
                 e.args[0],
@@ -130,11 +130,11 @@ class MarkdownGherkinParser(BaseParser):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 overload
         path: Path,
         uri: str,
-        *args,
-        **kwargs,
+        *args,  # noqa: ARG002 overload
+        **kwargs,  # noqa: ARG002 overload
     ) -> tuple[Feature, str]:
         with ExitStack() as stack:
             feature_file, script_path = [

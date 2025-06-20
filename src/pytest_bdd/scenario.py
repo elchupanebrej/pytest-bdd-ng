@@ -48,7 +48,7 @@ def scenario(
     features_mimetype: Optional[Mimetype] = None,
     return_test_decorator=True,
     parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args=Args((), {}),
+    parse_args: Optional[Args] = None,
     locators=(),
 ):
     """Scenario decorator.
@@ -90,7 +90,7 @@ def scenarios(
     features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
     features_mimetype: Optional[Mimetype] = None,
     parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args=Args((), {}),
+    parse_args: Optional[Args] = None,
     locators=(),
 ):
     """Function to bind feature files to pytest runtime
@@ -108,6 +108,10 @@ def scenarios(
     :param return_test_decorator; Return test decorator or generated test
     :param locators: Feature locators to load Features; Could be custom
     """
+
+    if parse_args is None:
+        parse_args = Args((), {})
+
     if features_base_dir and features_base_url:
         raise ValueError('Both "features_base_dir" and "features_base_url" were specified')
     if features_base_dir:

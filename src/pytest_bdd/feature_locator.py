@@ -12,7 +12,7 @@ from typing_extensions import TypedDict
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark
 from pytest_bdd.const import FeatureBaseLoad
-from pytest_bdd.model import Feature
+from pytest_bdd.model import Feature, Pickle
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
 from pytest_bdd.util.other import StringRepresentable
@@ -186,7 +186,11 @@ class ScenarioLocatorBuilder:
         if not isinstance(filter_, str):
             filter_ = str(filter_)
 
-        def updated_filter(config, feature, scenario):
-            return scenario.name == filter_
+        def updated_filter(
+            config: Config,  # noqa: ARG001 typecheck
+            feature: Feature,  # noqa: ARG001 typecheck
+            scenario: Pickle,
+        ) -> bool:
+            return bool(filter_ == scenario.name)
 
         return updated_filter

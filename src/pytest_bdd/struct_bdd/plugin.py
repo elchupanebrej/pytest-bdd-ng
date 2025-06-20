@@ -21,7 +21,11 @@ class StructBDDPlugin:
         StructBDDParser.KIND.TOML: Mimetype.struct_bdd_toml,
     }
 
-    def pytest_bdd_get_parser(self, config: Config, mimetype: str):
+    def pytest_bdd_get_parser(
+        self,
+        config: Config,  # noqa: ARG002 hookspec
+        mimetype: str,
+    ):
         with suppress(KeyError, ValueError):
             return partial(  # type:ignore[call-arg]
                 StructBDDParser,
@@ -35,12 +39,20 @@ class StructBDDPlugin:
                 }[Mimetype(mimetype)].value,
             )
 
-    def pytest_bdd_get_mimetype(self, config: Config, path: Path):
+    def pytest_bdd_get_mimetype(
+        self,
+        config: Config,  # noqa: ARG002 hookspec
+        path: Path,
+    ):
         for extension_suffix, mimetype in self.extension_to_mimetype.items():
             if str(path).endswith(f".bdd.{extension_suffix.value}"):
                 return mimetype.value
 
-    def pytest_bdd_is_collectible(self, config: Config, path: Path):
+    def pytest_bdd_is_collectible(
+        self,
+        config: Config,  # noqa: ARG002 hookspec
+        path: Path,
+    ):
         for extension_suffix, _mimetype in self.extension_to_mimetype.items():
             if str(path).endswith(f".bdd.{extension_suffix.value}"):
                 return True
@@ -56,11 +68,19 @@ class StructBDDPlugin:
     if PYTEST7:
 
         @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, parent, module_path):
+        def pytest_pycollect_makemodule(
+            self,
+            parent,  # noqa: ARG002 hookspec
+            module_path,  # noqa: ARG002 hookspec
+        ):
             yield from self._pytest_pycollect_makemodule()
 
     else:
 
         @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, path, parent):  # type:ignore[misc]
+        def pytest_pycollect_makemodule(  # type:ignore[misc]
+            self,
+            path,  # noqa: ARG002 hookspec
+            parent,  # noqa: ARG002 hookspec
+        ):
             yield from self._pytest_pycollect_makemodule()

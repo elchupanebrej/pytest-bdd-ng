@@ -111,7 +111,7 @@ class StepParser(StepParserProtocol, metaclass=ABCMeta):
         return parser
 
 
-class re(StepParser):
+class re(StepParser):  # noqa:N801 intentional API
     """Regex step parser."""
 
     type = ExpressionTypeExtension.pytest_bdd_regular_expression
@@ -135,7 +135,7 @@ class re(StepParser):
 
     def parse_arguments(
         self,
-        request: FixtureRequest,
+        request: FixtureRequest,  # noqa: ARG002 overload
         name,
         anonymous_group_names: Optional[Iterable[str]] = None,
     ):
@@ -161,14 +161,18 @@ class re(StepParser):
     def arguments(self):
         return [*self.regex.groupindex.keys()]
 
-    def is_matching(self, request: FixtureRequest, name):
+    def is_matching(
+        self,
+        request: FixtureRequest,  # noqa: ARG002 overload
+        name,
+    ):
         return bool(self.regex.fullmatch(name))
 
     def __str__(self):
         return normalize_to_string(self.pattern)
 
 
-class parse(StepParser):
+class parse(StepParser):  # noqa:N801 intentional API
     """parse step parser."""
 
     type = ExpressionTypeExtension.pytest_bdd_parse_expression
@@ -203,7 +207,7 @@ class parse(StepParser):
 
     def parse_arguments(
         self,
-        request: FixtureRequest,
+        request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
         anonymous_group_names: Optional[Iterable[str]] = None,
     ) -> Union[dict[str, Any]]:
@@ -217,7 +221,11 @@ class parse(StepParser):
     def arguments(self) -> Collection[str]:
         return [*self.parser._match_re.groupindex.keys()]
 
-    def is_matching(self, request: FixtureRequest, name):
+    def is_matching(
+        self,
+        request: FixtureRequest,  # noqa: ARG002 overload
+        name,
+    ):
         try:
             return bool(self.parser.parse(name))
         except ValueError:
@@ -227,7 +235,7 @@ class parse(StepParser):
         return str(self.format)
 
 
-class cfparse(parse):
+class cfparse(parse):  # noqa:N801 intentional API
     """cfparse step parser."""
 
     type = ExpressionTypeExtension.pytest_bdd_cfparse_expression
@@ -237,7 +245,7 @@ class cfparse(parse):
         super().__init__(*args, **kwargs)
 
 
-class string(StepParser):
+class string(StepParser):  # noqa: N801 intentional API
     """Exact string step parser."""
 
     type = ExpressionTypeExtension.pytest_bdd_string_expression
@@ -246,10 +254,10 @@ class string(StepParser):
         self.name = normalize_to_string(name)
 
     def parse_arguments(
-        self,
-        request: FixtureRequest,
-        name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
+        self,  # noqa: ARG002 overload
+        request: FixtureRequest,  # noqa: ARG002 overload
+        name: str,  # noqa: ARG002 overload
+        anonymous_group_names: Optional[Iterable[str]] = None,  # noqa: ARG002 overload
     ) -> dict[str, Any]:
         """No parameters are available for simple string step.
 
@@ -261,7 +269,11 @@ class string(StepParser):
     def arguments(self):
         return []
 
-    def is_matching(self, request: FixtureRequest, name: str) -> bool:
+    def is_matching(
+        self,
+        request: FixtureRequest,  # noqa: ARG002 overload
+        name: str,
+    ) -> bool:
         """Match given name with the step name."""
         return bool(self.name == name)
 
@@ -327,7 +339,7 @@ class _CucumberExpression(StepParser):
         return parameter_type_registry
 
 
-class cucumber_expression(_CucumberExpression):
+class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
     type = ExpressionType.cucumber_expression
     expression_type = CucumberExpression
 
@@ -358,7 +370,7 @@ class cucumber_expression(_CucumberExpression):
         return []
 
 
-class cucumber_regular_expression(_CucumberExpression):
+class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentional API
     type = ExpressionType.regular_expression
     expression_type = CucumberRegularExpression
     # https://bugs.python.org/issue45684
@@ -389,7 +401,7 @@ class cucumber_regular_expression(_CucumberExpression):
         return [*re_compile(self.pattern).groupindex.keys()]
 
 
-class heuristic(StepParser):
+class heuristic(StepParser):  # noqa: N801 intentional API
     type = ExpressionTypeExtension.pytest_bdd_heuristic_expression
 
     def __init__(

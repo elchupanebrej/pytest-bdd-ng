@@ -51,7 +51,10 @@ class AllurePytestBDD:
             return bdd_listener
 
     @hookimpl(hookwrapper=True)
-    def report_result(self, result):
+    def report_result(
+        self,
+        result,  # noqa: ARG002 hookspec
+    ):
         def patched_asdict(*args, recurse=True, value_serializer=None, **kwargs):
             def patched_value_serializer(instance, field, value):
                 if isinstance(value, PydanticBaseModel):
@@ -91,9 +94,9 @@ class AllurePytestBDD:
     @pytest.hookimpl
     def pytest_bdd_before_step_call(
         self,
-        request,
-        feature,
-        scenario,
+        request,  # noqa: ARG002 hookspec
+        feature,  # noqa: ARG002 hookspec
+        scenario,  # noqa: ARG002 hookspec
         step,
         step_func,
         step_func_args,
@@ -127,14 +130,26 @@ class AllurePytestBDD:
         scenario_result.parameters = self.get_params(request.node)
 
     @pytest.hookimpl
-    def pytest_bdd_after_scenario(self, request, feature, scenario):
+    def pytest_bdd_after_scenario(
+        self,
+        request,  # noqa: ARG002 hookspec
+        feature,  # noqa: ARG002 hookspec
+        scenario,
+    ):
         scenario_result_uuid = self._cache.get(scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.stop = now()
         self.allure_logger.stop_step(scenario_result_uuid)
 
     @pytest.hookimpl
-    def pytest_bdd_step_func_lookup_error(self, request, feature, scenario, step, exception):
+    def pytest_bdd_step_func_lookup_error(
+        self,
+        request,  # noqa: ARG002 hookspec
+        feature,  # noqa: ARG002 hookspec
+        scenario,
+        step,  # noqa: ARG002 hookspec
+        exception,
+    ):
         scenario_result_uuid = self._cache.get(scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.status = Status.BROKEN

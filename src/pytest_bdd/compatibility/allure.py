@@ -1,7 +1,5 @@
-try:
-    import allure_commons
-    import allure_pytest
-except ImportError:
-    ALLURE_INSTALLED = False
-else:
-    ALLURE_INSTALLED = True
+import importlib.util
+
+ALLURE_INSTALLED = all(
+    (importlib.util.find_spec("allure_commons") is not None, importlib.util.find_spec("allure_pytest") is not None)
+)

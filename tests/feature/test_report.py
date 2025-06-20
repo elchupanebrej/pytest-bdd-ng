@@ -297,7 +297,7 @@ def test_step_trace(testdir):
     assert report == expected
 
 
-def test_complex_types(testdir, pytestconfig):
+def test_complex_types(testdir):
     """Test serialization of the complex types."""
     testdir.makefile(
         ".feature",

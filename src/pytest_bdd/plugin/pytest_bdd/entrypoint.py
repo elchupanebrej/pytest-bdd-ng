@@ -155,18 +155,27 @@ def _pytest_pycollect_makemodule():
 if PYTEST7:
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(parent, module_path):
+    def pytest_pycollect_makemodule(
+        parent,  # noqa: ARG001 hookspec
+        module_path,  # noqa: ARG001 hookspec
+    ):
         yield from _pytest_pycollect_makemodule()
 
 else:
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(path, parent):  # type:ignore[misc]
+    def pytest_pycollect_makemodule(  # type:ignore[misc]
+        path,  # noqa: ARG001 hookspec
+        parent,  # noqa: ARG001 hookspec
+    ):
         yield from _pytest_pycollect_makemodule()
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_plugin_registered(plugin, manager):
+def pytest_plugin_registered(
+    plugin,
+    manager,  # noqa: ARG001 hookspec
+):
     if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
         StepHandler.Registry.inject_registry_fixture_and_register_steps(plugin)
 
@@ -234,7 +243,11 @@ else:
 
 
 @pytest.mark.trylast
-def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Optional[Collection[Union[Mark, MarkDecorator]]]:
+def pytest_bdd_convert_tag_to_marks(
+    feature,  # noqa: ARG001 hookspec
+    scenario,  # noqa: ARG001 hookspec
+    tag,
+) -> Optional[Collection[Union[Mark, MarkDecorator]]]:
     return [getattr(pytest.mark, tag)]
 
 
@@ -245,7 +258,10 @@ def pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, p
     return step_matcher(request, feature, scenario, step, previous_step, step_registry)
 
 
-def pytest_bdd_get_mimetype(config: Config, path: Path):
+def pytest_bdd_get_mimetype(
+    config: Config,  # noqa: ARG001 hookspec
+    path: Path,
+):
     # TODO use mimetypes module
     if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
         return Mimetype.gherkin_plain.value
@@ -253,7 +269,10 @@ def pytest_bdd_get_mimetype(config: Config, path: Path):
         return Mimetype.markdown.value
 
 
-def pytest_bdd_get_parser(config: Config, mimetype: str):
+def pytest_bdd_get_parser(
+    config: Config,  # noqa: ARG001 hookspec
+    mimetype: str,
+):
     with suppress(KeyError, ValueError):
         return {
             Mimetype.gherkin_plain: GherkinParser,
@@ -261,7 +280,10 @@ def pytest_bdd_get_parser(config: Config, mimetype: str):
         }.get(Mimetype(mimetype))
 
 
-def pytest_bdd_is_collectible(config: Config, path: Path):
+def pytest_bdd_is_collectible(
+    config: Config,  # noqa: ARG001 hookspec
+    path: Path,
+):
     # TODO add more extensions
     if any(
         map(

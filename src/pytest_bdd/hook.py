@@ -44,7 +44,7 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
 
             @wraps(func, prepend_args="request", remove_args="request")
             def hook(request: FixtureRequest, *args, **kwargs):
-                _ExpressionType = {
+                _ExpressionType = {  # noqa:N806 Type
                     HookKind.mark: MarksTagExpression,
                     HookKind.tag: GherkinTagExpression,
                 }[_kind]

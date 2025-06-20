@@ -299,7 +299,7 @@ def test_flip_two_args_as_named_by_pos_only():
         TypeError,
         match=re.compile(r".*got (some|a) positional-only arguments? passed as keyword arguments?\.|:.*"),
     ):
-        flip(func)("item1", arg2="item2") == ("item1", "item2")
+        flip(func)("item1", arg2="item2") == ("item1", "item2")  # noqa: B015 TypeError: positional argument follows keyword argument must be raised
 
 
 def test_flip_two_args_using_others():

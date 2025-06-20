@@ -27,7 +27,7 @@ def httpserver_port(httpserver):
 
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))
-def write_file_with_extras(name, extension, testdir, step, request, extra_opts, tmp_path):
+def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
     content = step.doc_string.content
     is_fixture_templated = "fixture templated" in extra_opts
     if is_fixture_templated:
@@ -49,7 +49,7 @@ def write_file(name, extension, tmp_path: Path, step):
 @given(
     re.compile(r'Localserver endpoint "(?P<endpoint>.+)" responding content:'),
 )
-def test_feature_load_by_http_with_base_url(testdir, endpoint, httpserver: HTTPServer, step):
+def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, step):
     httpserver.expect_request(endpoint).respond_with_data(
         step.doc_string.content,
         content_type=Mimetype.gherkin_plain.value,
@@ -103,7 +103,7 @@ def check_pytest_stdout_lines(pytest_result, step):
 
 
 @given(re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""))
-def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
+def copy_path(request, testdir: "Testdir", initial_path, final_path):
     full_initial_path = (Path(request.config.rootdir) / Path(initial_path).as_posix()).resolve(strict=True)
     full_final_path = Path(testdir.tmpdir) / Path(final_path).as_posix()
     if full_initial_path.is_file():

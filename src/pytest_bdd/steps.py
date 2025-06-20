@@ -517,14 +517,17 @@ class StepHandler:
                 step_definitions,
             ):
 
-                @pytest.fixture
-                def fixtures_mapped_from_step_definition(request):
-                    try:
-                        return request.getfixturevalue(fixture_name)
-                    except FixtureLookupError:
-                        ...
+                def build_fixtures_mapped_from_step_definition(fixture_name=fixture_name):
+                    @pytest.fixture
+                    def fixtures_mapped_from_step_definition(request):
+                        try:
+                            return request.getfixturevalue(fixture_name)
+                        except FixtureLookupError:
+                            ...
 
-                setdefaultattr(namespace, fixture_name, fixtures_mapped_from_step_definition)
+                    return fixtures_mapped_from_step_definition
+
+                setdefaultattr(namespace, fixture_name, build_fixtures_mapped_from_step_definition())
 
         @property
         def fixture(self):

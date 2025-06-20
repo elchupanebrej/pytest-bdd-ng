@@ -40,7 +40,10 @@ def steps_conftest(testdir):
     )
 
 
-def test_invalid_feature_parsing(testdir, steps_conftest):
+def test_invalid_feature_parsing(
+    testdir,
+    steps_conftest,  # noqa: ARG001 fixture
+):
     """Test invalid feature file parsing produces proper error message."""
     testdir.makefile(
         ".feature",
@@ -64,7 +67,11 @@ def test_invalid_feature_parsing(testdir, steps_conftest):
     result.stdout.fnmatch_lines("*FeatureConcreteParseError*")
 
 
-def test_outlined_with_other_fixtures(testdir, tmp_path, steps_conftest):
+def test_outlined_with_other_fixtures(
+    testdir,
+    tmp_path,
+    steps_conftest,  # noqa: ARG001 fixture
+):
     """Test outlined scenario also using other parametrized fixture."""
     testdir.makeini(
         # language=toml

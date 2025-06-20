@@ -163,8 +163,12 @@ class Join(BaseModel):
                         for parameter in self.parameters
                     ):
 
-                        def values_gen():
-                            for parameter in self.parameters:
+                        def values_gen(
+                            parameters=self.parameters,
+                            filled_tables_parameters=filled_tables_parameters,
+                            filled_tables_values=filled_tables_values,
+                        ):
+                            for parameter in parameters:
                                 for _parameter, value in zip(filled_tables_parameters, filled_tables_values):
                                     if parameter == _parameter:
                                         yield value

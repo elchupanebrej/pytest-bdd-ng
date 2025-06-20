@@ -1,7 +1,7 @@
 """pytest-bdd Exceptions."""
 
 
-class ScenarioIsDecoratorOnly(Exception):
+class ScenarioIsDecoratorOnlyError(Exception):
     """Scenario can be only used as decorator."""
 
 
@@ -9,7 +9,7 @@ class ScenarioValidationError(Exception):
     """Base class for scenario validation."""
 
 
-class ScenarioNotFound(ScenarioValidationError):
+class ScenarioNotFoundError(ScenarioValidationError):
     """Scenario Not Found."""
 
 
@@ -29,7 +29,7 @@ class StepDefinitionNotFoundError(Exception):
     """StepHandler definition not found."""
 
 
-class NoScenariosFound(Exception):
+class NoScenariosFoundError(Exception):
     """No scenarios found."""
 
 

@@ -77,7 +77,7 @@ def test_cucumber_expression(
     result.assert_outcomes(passed=1)
 
 
-def test_cucumber_expression_complex_type(testdir: "Testdir", tmp_path):
+def test_cucumber_expression_complex_type(testdir: "Testdir"):
     """Test comments inside scenario."""
     testdir.makeconftest(
         # language=python

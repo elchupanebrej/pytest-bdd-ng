@@ -166,7 +166,7 @@ def test_generate_with_quotes(testdir):
     )
 
 
-def test_unicode_characters(testdir, monkeypatch):
+def test_unicode_characters(testdir):
     """Test generating code with unicode characters.
 
     Primary purpose is to ensure compatibility with Python2.

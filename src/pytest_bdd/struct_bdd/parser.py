@@ -41,7 +41,7 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 hookspec
         path: Path,
         uri: str,
         *args,
@@ -97,7 +97,7 @@ class StructBDDParser(ParserProtocol):
                 json_kwargs = json_kwargs or {}
                 return loads(
                     HOCONConverter.to_json(
-                        config=ConfigFactory.parse_string(s, *hocon_parse_args, **hocon_parse_kwargs),
+                        ConfigFactory.parse_string(s, *hocon_parse_args, **hocon_parse_kwargs),
                         *hocon_to_json_args,
                         **hocon_to_json_kwargs,
                     ),

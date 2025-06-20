@@ -143,20 +143,25 @@ class ScenarioReporterPlugin:
                 rep.item = {"name": item.name}
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_bdd_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Pickle) -> None:
+    def pytest_bdd_before_scenario(
+        self,
+        request: FixtureRequest,  # noqa: ARG002 hookspec
+        feature: Feature,
+        scenario: Pickle,
+    ) -> None:
         """Create scenario report for the item."""
         self.current_report = ScenarioReport(feature=feature, scenario=scenario)  # type: ignore[call-arg]
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_step_error(
         self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Pickle,
-        step: PickleStep,
-        step_func: Callable,
-        step_func_args: dict,
-        exception: Exception,
+        request: FixtureRequest,  # noqa: ARG002 hookspec
+        feature: Feature,  # noqa: ARG002 hookspec
+        scenario: Pickle,  # noqa: ARG002 hookspec
+        step: PickleStep,  # noqa: ARG002 hookspec
+        step_func: Callable,  # noqa: ARG002 hookspec
+        step_func_args: dict,  # noqa: ARG002 hookspec
+        exception: Exception,  # noqa: ARG002 hookspec
     ) -> None:
         """Finalize the step report as failed."""
         self.current_report.fail()
@@ -164,11 +169,11 @@ class ScenarioReporterPlugin:
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_step(
         self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Pickle,
+        request: FixtureRequest,  # noqa: ARG002 hookspec
+        feature: Feature,  # noqa: ARG002 hookspec
+        scenario: Pickle,  # noqa: ARG002 hookspec
         step: PickleStep,
-        step_func: Callable,
+        step_func: Callable,  # noqa: ARG002 hookspec
     ) -> None:
         """Store step start time."""
         self.current_report.add_step_report(StepReport(step=step))
@@ -176,12 +181,12 @@ class ScenarioReporterPlugin:
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_after_step(
         self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Pickle,
-        step: PickleStep,
-        step_func: Callable,
-        step_func_args: dict,
+        request: FixtureRequest,  # noqa: ARG002 hookspec
+        feature: Feature,  # noqa: ARG002 hookspec
+        scenario: Pickle,  # noqa: ARG002 hookspec
+        step: PickleStep,  # noqa: ARG002 hookspec
+        step_func: Callable,  # noqa: ARG002 hookspec
+        step_func_args: dict,  # noqa: ARG002 hookspec
     ) -> None:
         """Finalize the step report as successful."""
         self.current_report.current_step_report.finalize(failed=False)

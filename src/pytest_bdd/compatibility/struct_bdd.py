@@ -1,6 +1,3 @@
-try:
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
-except ImportError:
-    STRUCT_BDD_INSTALLED = False
-else:
-    STRUCT_BDD_INSTALLED = True
+import importlib.util
+
+STRUCT_BDD_INSTALLED = importlib.util.find_spec("pytest_bdd.struct_bdd.parser.StructBDDParser") is not None
