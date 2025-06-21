@@ -4,13 +4,13 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from pytest import mark
+import pytest
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@mark.skipif(
+@pytest.mark.skipif(
     not (
         all(
             [

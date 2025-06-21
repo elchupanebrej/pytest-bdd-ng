@@ -3,7 +3,6 @@ import re
 import pytest
 from _pytest.outcomes import Failed
 from attr import attrib, attrs
-from pytest import raises
 
 from pytest_bdd.util.pytest_extra import doesnt_raise
 from pytest_bdd.util.toolz_extra import deepattrgetter, flip, setdefaultattr
@@ -51,7 +50,7 @@ def test_raise_on_missing_attribute():
 
     item = Foo()
 
-    with raises(AttributeError):
+    with pytest.raises(AttributeError):
         deepattrgetter("foo")(item)
 
 
@@ -60,7 +59,7 @@ def test_raise_on_missing_multi_attribute():
 
     item = Foo()
 
-    with raises(AttributeError):
+    with pytest.raises(AttributeError):
         deepattrgetter("foo", "boo")(item)
 
 
@@ -69,7 +68,7 @@ def test_raise_on_missing_nested_attribute():
 
     item = Foo()
 
-    with raises(AttributeError):
+    with pytest.raises(AttributeError):
         deepattrgetter("foo.bar")(item)
 
 
@@ -78,7 +77,7 @@ def test_raise_on_missing_multi_nested_attribute():
 
     item = Foo()
 
-    with raises(AttributeError):
+    with pytest.raises(AttributeError):
         deepattrgetter("foo.bar", "boo.car")(item)
 
 
@@ -156,7 +155,7 @@ def test_skip_missing_and_default_attributes():
 
     item = Foo(foo="bar", boo="baz")
 
-    with raises(ValueError):
+    with pytest.raises(ValueError, match='Both "default" and "skip_missing" are specified'):
         deepattrgetter("foo", "boo", "missing", skip_missing=True, default=object())(item)
 
 
@@ -201,12 +200,12 @@ def test_setdefaultattr_not_set_existing_attr_value_factory():
 def test_setdefaultattr_for_both_factory_and_value():
     class Dumb: ...
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Both 'value' and 'value_factory' were specified"):
         setdefaultattr(Dumb(), "a", value=10, value_factory=lambda: 20)
 
 
 def test_doesnt_raise_fails_test():
-    with raises(Failed), doesnt_raise(RuntimeError):
+    with pytest.raises(Failed), doesnt_raise(RuntimeError):
         raise RuntimeError
 
 
@@ -219,12 +218,15 @@ def test_doesnt_raise_suppress_if_not_match():
 
 
 def test_doesnt_raise_not_suppress_if_not_match_explicitly():
-    with raises(RuntimeError, match="nice"), doesnt_raise(RuntimeError, match="cool", suppress_not_matched=False):
+    with (
+        pytest.raises(RuntimeError, match="nice"),
+        doesnt_raise(RuntimeError, match="cool", suppress_not_matched=False),
+    ):
         raise RuntimeError("nice")
 
 
 def test_doesnt_raise_passes_original_exception_if_not_suppressed():
-    with raises(ValueError), doesnt_raise(RuntimeError, suppress_not_matched=False):
+    with pytest.raises(ValueError, match="nice"), doesnt_raise(RuntimeError, suppress_not_matched=False):
         raise ValueError("nice")
 
 
@@ -295,7 +297,7 @@ def test_flip_two_args_as_named_by_pos_only():
     def func(arg1, arg2, /):  # pragma: nocover
         return arg1, arg2
 
-    with raises(
+    with pytest.raises(
         TypeError,
         match=re.compile(r".*got (some|a) positional-only arguments? passed as keyword arguments?\.|:.*"),
     ):

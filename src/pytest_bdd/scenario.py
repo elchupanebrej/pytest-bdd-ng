@@ -3,7 +3,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, NamedTuple, Optional, Union
 
-from pytest import mark
+import pytest
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.mimetype import Mimetype
@@ -122,9 +122,9 @@ def scenarios(
         features_path_type = FeaturePathType.URL
 
     decorator = compose(
-        mark.pytest_bdd_scenario,
-        mark.usefixtures("feature", "scenario", "feature_source"),
-        mark.scenarios(
+        pytest.mark.pytest_bdd_scenario,
+        pytest.mark.usefixtures("feature", "scenario", "feature_source"),
+        pytest.mark.scenarios(
             *feature_paths,
             filter_=filter_,
             encoding=encoding,

@@ -6,7 +6,7 @@ https://docs.pytest.org/en/latest/how-to/writing_plugins.html#conftest-py-local-
 https://docs.pytest.org/en/latest/explanation/goodpractices.html#test-discovery
 """
 
-from pytest import fixture
+import pytest
 
 from .steps.library_steps import (  # noqa: F401 Steps import
     a_search_type_is_performed_for_search_term,
@@ -15,6 +15,6 @@ from .steps.library_steps import (  # noqa: F401 Steps import
 )
 
 
-@fixture
+@pytest.fixture
 def search_results() -> list:
     return []

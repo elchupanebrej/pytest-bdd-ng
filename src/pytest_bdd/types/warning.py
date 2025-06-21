@@ -1,5 +1,5 @@
-from pytest import PytestWarning
+import pytest
 
 
-class PytestBDDStepDefinitionWarning(PytestWarning):
+class PytestBDDStepDefinitionWarning(pytest.PytestWarning):
     __module__ = "pytest_bdd"

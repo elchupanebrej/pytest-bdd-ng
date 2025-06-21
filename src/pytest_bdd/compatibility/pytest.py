@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import py
+import pytest
 from _pytest.config import Config, PytestPluginManager
 from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
@@ -17,8 +18,6 @@ from _pytest.python import Metafunc
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
 from _pytest.terminal import TerminalReporter
-from pytest import Module as PytestModule
-from pytest import fail as _pytest_fail
 
 from pytest_bdd.util.packaging import compare_distribution_version
 
@@ -91,12 +90,12 @@ else:
     ExitCode: TypeAlias = int  # type:ignore[no-redef]
 
 if PYTEST7:
-    from pytest import Testdir
+    from pytest import Testdir  # noqa: PT013
 else:
     from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
 
 if PYTEST62:
-    from pytest import FixtureRequest
+    from pytest import FixtureRequest  # noqa: PT013
 else:
     from _pytest.fixtures import FixtureRequest
 # endregion
@@ -111,7 +110,7 @@ else:
     from _pytest.nodes import Item
 
 
-class Module(PytestModule):
+class Module(pytest.Module):
     @classmethod
     def build(cls, parent, file_path):
         if hasattr(cls, "from_parent"):
@@ -178,8 +177,8 @@ def get_config_root_path(config: Config) -> Path:
 def fail(reason, *, pytrace=True):
     __tracebackhide__ = True
     if PYTEST7:
-        return _pytest_fail(reason, pytrace=pytrace)
-    return _pytest_fail(msg=reason, pytrace=pytrace)
+        return pytest.fail(reason, pytrace=pytrace)
+    return pytest.fail(msg=reason, pytrace=pytrace)
 
 
 if PYTEST6:

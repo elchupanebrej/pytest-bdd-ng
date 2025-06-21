@@ -1,7 +1,7 @@
 from functools import partial
 from textwrap import dedent
 
-from pytest import mark, param
+import pytest
 
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 
@@ -12,13 +12,13 @@ else:  # pragma: no cover
 
     StructBDDParser = Mock()  # type: ignore[misc] # just a stub
 
-pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -40,7 +40,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                         - But: the list should be [1, 2, 3]
             """,
         ),
-        partial(param, id="plain-hocon")(
+        partial(pytest.param, id="plain-hocon")(
             StructBDDParser.KIND.HOCON.value,
             # language=hocon
             r"""
@@ -65,7 +65,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
               ]
             """,
         ),
-        partial(param, id="plain-json")(
+        partial(pytest.param, id="plain-json")(
             StructBDDParser.KIND.JSON.value,
             # language=json
             r"""{
@@ -91,7 +91,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-hjson")(
+        partial(pytest.param, id="plain-hjson")(
             StructBDDParser.KIND.HJSON.value,
             # language=hjson
             r"""{
@@ -124,7 +124,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-json5")(
+        partial(pytest.param, id="plain-json5")(
             StructBDDParser.KIND.JSON5.value,
             # language=json5
             r"""{
@@ -150,7 +150,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-toml")(
+        partial(pytest.param, id="plain-toml")(
             StructBDDParser.KIND.TOML.value,
             # language=toml
             """\
@@ -174,7 +174,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                 ]
             """,
         ),
-        partial(param, id="complex-yaml")(
+        partial(pytest.param, id="complex-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -201,7 +201,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                                     - But: the list should be [1, 2, 3]
             """,
         ),
-        partial(param, id="complex-toml")(
+        partial(pytest.param, id="complex-toml")(
             StructBDDParser.KIND.TOML.value,
             # language=toml
             """\
@@ -293,10 +293,10 @@ def test_steps(testdir, kind, file_content, tmp_path):
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -379,10 +379,10 @@ def test_default_loader(testdir, kind, file_content):
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -450,10 +450,10 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "file_content",
     [
-        partial(param, id="simple")(
+        partial(pytest.param, id="simple")(
             # language=yaml
             """\
             Name: Examples are substituted

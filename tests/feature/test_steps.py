@@ -242,11 +242,11 @@ def test_then_after_given(testdir):
 
 @pytest.mark.parametrize(
     "keyword",
-    (
+    [
         "*",
         "And",
         "But",
-    ),
+    ],
 )
 def test_unknown_first(testdir, keyword):
     testdir.makefile(

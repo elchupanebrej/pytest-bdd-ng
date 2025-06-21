@@ -6,10 +6,10 @@ from inspect import signature
 from itertools import count, product, starmap
 from typing import TYPE_CHECKING, Optional, Union
 
+import pytest
 from _pytest.mark import Mark
 from decopatch import function_decorator
 from makefun import wraps
-from pytest import fixture
 
 from pytest_bdd.compatibility.pytest import PYTEST7, FixtureRequest
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
@@ -85,7 +85,7 @@ def decorator_builder(
         def decorator(func):
             func_sig = signature(func)
 
-            fixture_decorator = fixture(
+            fixture_decorator = pytest.fixture(
                 name=f"{_conjunction.value}_{_kind.value}_expression_{_expression}_{next(expression_count_gen)}",
                 autouse=True,
             )

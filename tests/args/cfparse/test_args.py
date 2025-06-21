@@ -1,9 +1,9 @@
 """StepHandler arguments tests."""
 
-from pytest import mark
+import pytest
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         "from pytest_bdd.parsers import cfparse",  # Deprecated
@@ -57,7 +57,7 @@ def test_every_step_takes_param_with_the_same_name(testdir, parser_import_string
     result.assert_outcomes(passed=1)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         "from pytest_bdd.parsers import cfparse",  # Deprecated

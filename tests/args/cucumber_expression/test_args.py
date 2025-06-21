@@ -2,13 +2,13 @@
 
 from typing import TYPE_CHECKING
 
-from pytest import mark
+import pytest
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         # language=python
@@ -150,7 +150,7 @@ def test_cucumber_expression_complex_type(testdir: "Testdir"):
     result.assert_outcomes(passed=1)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         # language=python

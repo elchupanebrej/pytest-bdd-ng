@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from pytest import mark
+import pytest
 
 # language=gherkin
 FEATURE = """\
@@ -88,7 +88,7 @@ def test_double_verbose_mode_should_display_full_scenario_description(
     result.stdout.fnmatch_lines("*PASSED")
 
 
-@mark.parametrize("verbosity", ["", "-v", "-vv"])
+@pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_for_missing_steps(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
     result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
@@ -99,7 +99,7 @@ def test_error_message_for_missing_steps(testdir, verbosity):
     )
 
 
-@mark.parametrize("verbosity", ["", "-v", "-vv"])
+@pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_should_be_displayed(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(

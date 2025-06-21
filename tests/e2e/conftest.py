@@ -7,7 +7,7 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pytest import fixture
+import pytest
 from pytest_httpserver import HTTPServer
 
 from messages import Envelope  # type:ignore[attr-defined]
@@ -21,7 +21,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@fixture
+@pytest.fixture
 def httpserver_port(httpserver):
     return httpserver.port
 

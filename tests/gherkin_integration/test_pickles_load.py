@@ -1,16 +1,16 @@
 import json
 from pathlib import Path
 
-from pytest import mark, param
+import pytest
 
 from messages import Pickle  # type:ignore[attr-defined]
 
 test_data = Path(__file__).parent.parent.parent / "gherkin" / "testdata"
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "pickle_path",
-    (param(file, id=file.name) for file in (test_data / "good").glob("*.pickles.ndjson")),
+    (pytest.param(file, id=file.name) for file in (test_data / "good").glob("*.pickles.ndjson")),
 )
 def test_simple_load_pickle(pickle_path: Path):
     with pickle_path.open(mode="r") as pickle_file:

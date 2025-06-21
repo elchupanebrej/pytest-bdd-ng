@@ -2,7 +2,7 @@ from functools import partial
 from operator import contains
 from textwrap import dedent
 
-from pytest import mark
+import pytest
 from yaml import FullLoader
 from yaml import load as load_yaml
 
@@ -16,7 +16,7 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
     from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
-pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
 def test_node_containing_data_load():

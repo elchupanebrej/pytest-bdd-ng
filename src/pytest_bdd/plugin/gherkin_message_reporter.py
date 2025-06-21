@@ -21,7 +21,6 @@ from attr import attrib, attrs
 from ci_environment import detect_ci_environment
 from filelock import FileLock
 from pydantic import ValidationError
-from pytest import ExitCode, Session, hookimpl
 
 from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
     Attachment,
@@ -207,7 +206,7 @@ class GherkinMessageReporter:
             encoding="utf-8",
         )
 
-    @hookimpl(hookwrapper=True)
+    @pytest.hookimpl(hookwrapper=True)
     def pytest_generate_tests(self, metafunc):
         yield
         if self.is_disabled:
@@ -251,7 +250,7 @@ class GherkinMessageReporter:
         message_json = message.model_dump_json(exclude_none=True, by_alias=True)  # type: ignore[attr-defined] # migration to pydantic2
         self.process_messages_io_queue.put_nowait(message_json)
 
-    def pytest_runtestloop(self, session: Session):
+    def pytest_runtestloop(self, session: pytest.Session):
         if self.is_disabled:
             return
         config = session.config
@@ -295,7 +294,7 @@ class GherkinMessageReporter:
         config = session.config
         hook_handler = config.hook
 
-        is_testrun_success = (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
+        is_testrun_success = (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
         hook_handler.pytest_bdd_message(
             config=config,
             message=Message(
@@ -312,7 +311,7 @@ class GherkinMessageReporter:
         if self.is_messages_file_temp:
             Path(self.messages_file_path).unlink()
 
-    @hookimpl(hookwrapper=True)
+    @pytest.hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
         if self.is_disabled:
             yield
@@ -353,7 +352,7 @@ class GherkinMessageReporter:
 
         yield
 
-    @hookimpl(hookwrapper=True)
+    @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_setup(self, item):
         yield
         if self.is_disabled:

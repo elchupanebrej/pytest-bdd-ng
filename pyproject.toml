@@ -232,7 +232,7 @@ select = [
   "A",  # flake8-builtins: Built-in names shadowed
   # TODO "ANN",  # flake8-annotations: Annotations
   "ARG",  # flake8-unused-arguments: Unused function arguments
-  # TODO "ASYNC",  # flake8-async: Asyncio
+  "ASYNC",  # flake8-async: Asyncio
   "B",  # flake8-bugbear: Likely bugs and design problems
   "BLE",  # blind-except: Blind excepts
   "C4",  # flake8-comprehensions: Comprehension optimizations
@@ -243,7 +243,7 @@ select = [
   "DTZ",  # flake8-datetimez: Datetime issues
   # TODO "DOC",  # pydoclint: Docstring linting
   "E",  # pycodestyle errors: Style guide enforcement
-  # TODO "EXE",  # flake8-executable: Executable scripts
+  "EXE",  # flake8-executable: Executable scripts
   # TODO "EM",  # flake8-errmsg: Error message consistency
   "ERA",  # eradicate: Remove commented-out code
   "F",  # Pyflakes: Logical errors, undefined names
@@ -254,7 +254,7 @@ select = [
   "FURB",  # refurb: Code modernization
   "G",  # flake8-logging-format: Logging format issues
   "I",  # isort: Import sorting
-  # TODO "ICN",  # flake8-import-conventions: Import conventions
+  "ICN",  # flake8-import-conventions: Import conventions
   "INT",  # flake8-gettext: Gettext usage
   "INP",  # flake8-no-pep420: PEP 420 namespace packages
   # TODO "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
@@ -264,7 +264,7 @@ select = [
   # TODO "PGH",  # pygrep-hooks: Pre-commit hooks
   "PIE",  # flake8-pie: Miscellaneous checks
   # TODO "PL",  # pylint: Linting
-  # TODO "PT",  # flake8-pytest-style: Pytest style
+  "PT",  # flake8-pytest-style: Pytest style
   "PTH",  # flake8-use-pathlib: Use pathlib
   "PYI",  # flake8-pyi: Pyi file checks
   "RET",  # flake8-return: Return statement checks

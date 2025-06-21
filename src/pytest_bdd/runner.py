@@ -3,8 +3,8 @@ from functools import partial
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Optional, cast
 
+import pytest
 from pluggy import PluginManager
-from pytest import hookimpl
 
 import pytest_bdd.types.exception as exceptions
 from messages import PickleStep  # type:ignore[attr-defined, import-untyped]
@@ -28,7 +28,7 @@ class ScenarioRunner:
         self.scenario = None
         self.plugin_manager: Optional[PluginManager] = None
 
-    @hookimpl(tryfirst=True)
+    @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item):
         __tracebackhide__ = True
         mark_names = [mark.name for mark in item.iter_markers()]
@@ -77,7 +77,7 @@ class ScenarioRunner:
         )
         return step_dispatcher(steps)
 
-    @hookimpl(trylast=True)
+    @pytest.hookimpl(trylast=True)
     def pytest_bdd_get_step_dispatcher(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
         """Provide alternative approach to execute steps"""
         __tracebackhide__ = True
@@ -162,7 +162,7 @@ class ScenarioRunner:
                 request.config.hook.pytest_bdd_step_error(**hook_kwargs)
                 raise
 
-    @hookimpl(trylast=True)
+    @pytest.hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(
         self,
         request,

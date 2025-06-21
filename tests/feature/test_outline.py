@@ -2,12 +2,12 @@
 
 from textwrap import dedent
 
-from pytest import fixture
+import pytest
 
 from pytest_bdd.compatibility.pytest import assert_outcomes
 
 
-@fixture
+@pytest.fixture
 def steps_conftest(testdir):
     testdir.makeconftest(
         dedent(

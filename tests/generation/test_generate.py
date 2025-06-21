@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-from pytest import mark
+import pytest
 
-pytestmark = mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")
+pytestmark = pytest.mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")
 
 
 def test_generate(testdir):
