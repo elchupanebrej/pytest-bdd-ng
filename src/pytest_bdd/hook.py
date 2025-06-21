@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from enum import Enum
-from inspect import isfunction, isgeneratorfunction, signature
+from inspect import signature
 from itertools import count, product, starmap
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from _pytest.mark import Mark
 from decopatch import function_decorator
@@ -10,7 +12,10 @@ from makefun import wraps
 from pytest import fixture
 
 from pytest_bdd.compatibility.pytest import PYTEST7, FixtureRequest
-from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression
+from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
+
+if TYPE_CHECKING:
+    from decopatch.main import _Decorator
 
 expression_count_gen = count()
 
@@ -26,9 +31,52 @@ class HookConjunction(Enum):
     around = "around"
 
 
-def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]):
+def _get_conjunction_and_kind(
+    *, conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
+) -> tuple[HookConjunction, HookKind]:
     _conjunction = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     _kind = HookKind(kind) if isinstance(kind, str) else kind
+    return _conjunction, _kind
+
+
+def _get_expression_type(*, _kind: HookKind) -> type[TagExpressionType]:
+    return {
+        HookKind.mark: MarksTagExpression,
+        HookKind.tag: GherkinTagExpression,
+    }[_kind]
+
+
+def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
+    return list(
+        {
+            HookKind.mark: request.node.iter_markers(),
+            HookKind.tag: (
+                Mark(  # type: ignore[no-any-return]
+                    tag.name,
+                    args=(),
+                    kwargs={},
+                    **({"_ispytest": True} if PYTEST7 else {}),  # type:ignore[arg-type]
+                )
+                for tag in request.getfixturevalue("scenario").tags
+            ),
+        }[_kind],
+    )
+
+
+def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureRequest) -> tuple[tuple, dict]:
+    return (
+        args,
+        {
+            **kwargs,
+            **({"request": request} if "request" in func_sig.parameters else {}),
+        },
+    )
+
+
+def decorator_builder(
+    conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
+) -> _Decorator[[str | None, str | None]]:
+    _conjunction, _kind = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator
     def decorator_wrapper(expression: Optional[str] = None, name: Optional[str] = None):
@@ -44,49 +92,11 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
 
             @wraps(func, prepend_args="request", remove_args="request")
             def hook(request: FixtureRequest, *args, **kwargs):
-                _ExpressionType = {  # noqa:N806 Type
-                    HookKind.mark: MarksTagExpression,
-                    HookKind.tag: GherkinTagExpression,
-                }[_kind]
+                _ExpressionType: type[TagExpressionType] = _get_expression_type(_kind=_kind)  # noqa:N806
+                parsed_expression: TagExpression = _ExpressionType.parse(_expression)
 
-                # mypy@Python 3.8 complains "ABCMeta" has no attribute "parse"  [attr-defined] what is wrong
-                parsed_expression: TagExpression = _ExpressionType.parse(_expression)  # type: ignore[attr-defined]
-
-                def get_marks():
-                    return list(
-                        {
-                            HookKind.mark: request.node.iter_markers(),
-                            HookKind.tag: (
-                                Mark(  # type: ignore[no-any-return]
-                                    tag.name,
-                                    args=(),
-                                    kwargs={},
-                                    **({"_ispytest": True} if PYTEST7 else {}),  # type:ignore[arg-type]
-                                )
-                                for tag in request.getfixturevalue("scenario").tags
-                            ),
-                        }[_kind],
-                    )
-
-                is_matching = parsed_expression.evaluate(get_marks())
-
-                is_function = isfunction(func)
-                is_generator_function = isgeneratorfunction(func)
-                if any(
-                    [
-                        _conjunction is HookConjunction.around and not is_generator_function,
-                        _conjunction in {HookConjunction.before, HookConjunction.after} and not is_function,
-                    ],
-                ):
-                    raise ValueError(f"_{_conjunction.value}")
-
-                _args, _kwargs = (
-                    args,
-                    {
-                        **kwargs,
-                        **({"request": request} if "request" in func_sig.parameters else {}),
-                    },
-                )
+                is_matching = parsed_expression.evaluate(_get_marks(_kind=_kind, request=request))
+                _args, _kwargs = _get_args_kwargs(args=args, kwargs=kwargs, func_sig=func_sig, request=request)
 
                 if is_matching:
                     if _conjunction is HookConjunction.before:

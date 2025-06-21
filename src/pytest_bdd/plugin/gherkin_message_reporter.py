@@ -370,58 +370,8 @@ class GherkinMessageReporter:
         scenario = request.getfixturevalue("scenario")
         feature = request.getfixturevalue("feature")
 
-        step_registry = request.getfixturevalue("step_registry")
-        seen_steps = set()
-        while step_registry is not None:
-            for step_definition in step_registry:
-                if id(step_definition) not in seen_steps:
-                    seen_steps.add(id(step_definition))
-                    config.hook.pytest_bdd_message(
-                        config=config,
-                        message=Message(step_definition=step_definition.as_message(config=config)),
-                    )
-            step_registry = step_registry.parent
-
-        step_registry = request.getfixturevalue("step_registry")
-        seen_steps = set()
-        while step_registry is not None:
-            for step_definition in step_registry:
-                if id(step_definition) not in seen_steps:
-                    parameter_type_registry_getter: Callable[[FixtureRequest], ParameterTypeRegistry] = deepattrgetter(
-                        "_get_parameter_type_registry",
-                        default=None,
-                    )(step_definition.parser)[0]
-
-                    if parameter_type_registry_getter is None:
-                        break
-
-                    parameter_type_registry = parameter_type_registry_getter(request)
-
-                    parameter_types = {
-                        id(parameter_type): parameter_type for parameter_type in parameter_type_registry.parameter_types
-                    }
-
-                    not_yet_registered_parameter_types = {
-                        key: parameter_type
-                        for key, parameter_type in parameter_types.items()
-                        if key not in self.parameter_type_registry
-                    }
-
-                    for parameter_type in not_yet_registered_parameter_types.values():
-                        hook_handler.pytest_bdd_message(
-                            config=config,
-                            message=Message(
-                                parameter_type=ParameterType(
-                                    name=parameter_type.name,
-                                    regular_expressions=parameter_type.regexps,
-                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
-                                    use_for_snippets=parameter_type._use_for_snippets,
-                                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
-                                ),
-                            ),
-                        )
-                    self.parameter_type_registry |= not_yet_registered_parameter_types.keys()
-            step_registry = step_registry.parent
+        self._report_step_definitions(config, request)
+        self._register_parameter_types(config, request)
 
         test_steps = []
         previous_step = None
@@ -461,6 +411,61 @@ class GherkinMessageReporter:
             config=config,
             message=Message(test_case=self.current_test_case),
         )
+
+    def _report_step_definitions(self, config, request):
+        step_registry = request.getfixturevalue("step_registry")
+        seen_steps = set()
+        while step_registry is not None:
+            for step_definition in step_registry:
+                if id(step_definition) not in seen_steps:
+                    seen_steps.add(id(step_definition))
+                    config.hook.pytest_bdd_message(
+                        config=config,
+                        message=Message(step_definition=step_definition.as_message(config=config)),
+                    )
+            step_registry = step_registry.parent
+
+    def _register_parameter_types(self, config, request):
+        step_registry = request.getfixturevalue("step_registry")
+        seen_steps = set()
+        while step_registry is not None:
+            for step_definition in step_registry:
+                if id(step_definition) not in seen_steps:
+                    parameter_type_registry_getter: Callable[[FixtureRequest], ParameterTypeRegistry] = deepattrgetter(
+                        "_get_parameter_type_registry",
+                        default=None,
+                    )(step_definition.parser)[0]
+
+                    if parameter_type_registry_getter is None:
+                        break
+
+                    parameter_type_registry = parameter_type_registry_getter(request)
+
+                    parameter_types = {
+                        id(parameter_type): parameter_type for parameter_type in parameter_type_registry.parameter_types
+                    }
+
+                    not_yet_registered_parameter_types = {
+                        key: parameter_type
+                        for key, parameter_type in parameter_types.items()
+                        if key not in self.parameter_type_registry
+                    }
+
+                    for parameter_type in not_yet_registered_parameter_types.values():
+                        config.hook.pytest_bdd_message(
+                            config=config,
+                            message=Message(
+                                parameter_type=ParameterType(
+                                    name=parameter_type.name,
+                                    regular_expressions=parameter_type.regexps,
+                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
+                                    use_for_snippets=parameter_type._use_for_snippets,
+                                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                                ),
+                            ),
+                        )
+                    self.parameter_type_registry |= not_yet_registered_parameter_types.keys()
+            step_registry = step_registry.parent
 
     def pytest_bdd_before_scenario(
         self,

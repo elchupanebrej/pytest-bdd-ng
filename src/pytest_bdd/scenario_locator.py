@@ -88,6 +88,30 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
     def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+        urls = self._build_urls()
+        if not urls:
+            return
+        responses = self._fetch_feature_responses(urls)
+        hook_handler = cast(Config, config).hook
+        encoding = self.encoding
+
+        for url, response in zip(urls, responses):
+            if isinstance(response, Exception):
+                continue
+
+            mimetype, feature_content = self._resolve_mimetype(response)
+            if self.mimetype is not None:
+                mimetype = self._normalize_mimetype(mimetype)
+
+            parser_type = self._get_parser_type(hook_handler, config, mimetype)
+            if parser_type is None:
+                break
+
+            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
+
+            yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
+
+    def _build_urls(self):
         urls = [*filterfalse(is_local_url, self.url_paths)]
         if self.features_base_url is not None:
             urls.extend(
@@ -96,65 +120,57 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                     filter(is_local_url, self.url_paths),
                 )
             )
-        if not urls:
-            return
+        return urls
+
+    def _fetch_feature_responses(self, urls):
         loop = asyncio.new_event_loop()
         responses = loop.run_until_complete(self.fetch_all(urls))
-
         # Wait 250 ms for the underlying SSL connections to close
         loop.run_until_complete(asyncio.sleep(0.250))
         loop.close()
+        return responses
 
-        hook_handler = cast(Config, config).hook
-        encoding = self.encoding
+    def _resolve_mimetype(self, response):
+        mimetype, feature_content = response
+        return mimetype, feature_content
 
-        for url, response in zip(urls, responses):
-            if isinstance(response, Exception):
-                continue
+    def _normalize_mimetype(self, mimetype):
+        mimetype = self.mimetype
+        if isinstance(mimetype, Mimetype):
+            mimetype = mimetype.value
+        return mimetype
 
-            mimetype, feature_content = response
+    def _get_parser_type(self, hook_handler, config, mimetype):
+        if self.parser_type is None:
+            return hook_handler.pytest_bdd_get_parser(
+                config=config,
+                mimetype=mimetype,
+            )
+        return self.parser_type
 
-            if self.mimetype is not None:
-                mimetype = self.mimetype
+    def _parse_and_yield_feature(self, parser, config, url, feature_content, mimetype, encoding):
+        filename = None
+        try:
+            with NamedTemporaryFile(mode="w", delete=False) as f:
+                filename = f.name
+                f.write(feature_content)
 
-                if isinstance(mimetype, Mimetype):
-                    mimetype = mimetype.value
-
-            if self.parser_type is None:
-                parser_type = hook_handler.pytest_bdd_get_parser(
-                    config=config,
-                    mimetype=mimetype,
-                )
-            else:
-                parser_type = self.parser_type
-
-            if parser_type is None:
-                break
-
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
-
+            feature, feature_data = parser.parse(
+                config,
+                Path(filename),
+                url,
+                *self.parse_args.args,
+                **{"encoding": encoding, **self.parse_args.kwargs},
+            )
             try:
-                filename = None
-                with NamedTemporaryFile(mode="w", delete=False) as f:
-                    filename = f.name
-                    f.write(feature_content)
-
-                feature, feature_data = parser.parse(
-                    config,
-                    Path(filename),
-                    url,
-                    *self.parse_args.args,
-                    **{"encoding": encoding, **self.parse_args.kwargs},
-                )
-                try:
-                    yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
-                except ValidationError:
-                    # Workaround because of https://github.com/cucumber/messages/issues/161
-                    yield feature, None
-            finally:
-                if filename is not None:
-                    with suppress(Exception):
-                        Path(filename).unlink()
+                yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
+            except ValidationError:
+                # Workaround because of https://github.com/cucumber/messages/issues/161
+                yield feature, None
+        finally:
+            if filename is not None:
+                with suppress(Exception):
+                    Path(filename).unlink()
 
 
 class FileScenarioLocatorDefaults:

@@ -1,6 +1,6 @@
 from itertools import cycle
 from operator import attrgetter
-from typing import Optional, Protocol, TypeVar, Union, runtime_checkable
+from typing import Optional, Protocol, Union, runtime_checkable
 
 from _pytest.mark import Mark
 from attr import attrib, attrs
@@ -11,8 +11,6 @@ from pytest_bdd.compatibility.pytest import PYTEST6, PYTEST83
 
 if PYTEST6:
     from pytest_bdd.compatibility.pytest import Expression, MarkMatcher, ParseError
-
-TagExpressionType = TypeVar("TagExpressionType", bound="TagExpression")
 
 
 @runtime_checkable
@@ -106,3 +104,8 @@ class GherkinTagExpression(TagExpression):
 
     def evaluate(self, marks):
         return self.expression.evaluate(map(attrgetter("name"), marks))
+
+
+TagExpressionType = Union[
+    _EnhancedMarksTagExpression, _MarksTagExpression, _FallbackMarksTagExpression, GherkinTagExpression
+]
