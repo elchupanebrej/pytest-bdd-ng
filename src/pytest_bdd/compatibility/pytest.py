@@ -117,10 +117,10 @@ class Module(PytestModule):
         if hasattr(cls, "from_parent"):
             collector = cls.from_parent(
                 parent,
-                **({"path": Path(file_path)} if PYTEST7 else {"fspath": py.path.local(file_path)}),
+                **({"path": Path(file_path)} if PYTEST7 else {"fspath": py.path.local(file_path)}),  # noqa: PTH124
             )
         else:
-            collector = cls(parent=parent, fspath=py.path.local(file_path))
+            collector = cls(parent=parent, fspath=py.path.local(file_path))  # noqa: PTH124
         return collector
 
     def get_path(self):

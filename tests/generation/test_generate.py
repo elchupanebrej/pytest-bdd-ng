@@ -2,6 +2,7 @@
 
 import os
 import sys
+from pathlib import Path
 from textwrap import dedent
 
 from pytest import mark
@@ -30,7 +31,7 @@ def test_generate(testdir):
         ensure=True,
     )
 
-    result = testdir.runpytest("--generate", "--feature", os.path.join("scripts", "generate.feature"))
+    result = testdir.runpytest("--generate", "--feature", str(Path("scripts", "generate.feature")))
     assert (
         result.stdout.str().strip()
         == dedent(

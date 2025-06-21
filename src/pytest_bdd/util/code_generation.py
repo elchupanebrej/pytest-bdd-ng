@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import os.path
 from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
@@ -41,7 +40,7 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 
 def check_existence(file_name):
     """Check file or directory name for existence."""
-    if not os.path.exists(file_name):
+    if not Path(file_name).exists():
         raise argparse.ArgumentTypeError(f"{file_name} is an invalid file or directory name")
     return Path(file_name)
 

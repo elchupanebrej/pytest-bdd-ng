@@ -154,7 +154,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             finally:
                 if filename is not None:
                     with suppress(Exception):
-                        os.unlink(filename)
+                        Path(filename).unlink()
 
 
 class FileScenarioLocatorDefaults:

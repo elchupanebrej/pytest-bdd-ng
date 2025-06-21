@@ -262,10 +262,10 @@ select = [
   "N",  # pep8-naming: Naming conventions
   "PERF",  # perflint: Performance issues
   # TODO "PGH",  # pygrep-hooks: Pre-commit hooks
-  # TODO "PIE",  # flake8-pie: Miscellaneous checks
+  "PIE",  # flake8-pie: Miscellaneous checks
   # TODO "PL",  # pylint: Linting
   # TODO "PT",  # flake8-pytest-style: Pytest style
-  # TODO "PTH",  # flake8-use-pathlib: Use pathlib
+  "PTH",  # flake8-use-pathlib: Use pathlib
   "PYI",  # flake8-pyi: Pyi file checks
   # TODO "RET",  # flake8-return: Return statement checks
   "RSE",  # flake8-raise: Raise statement checks

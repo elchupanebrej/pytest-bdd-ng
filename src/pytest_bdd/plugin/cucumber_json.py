@@ -6,6 +6,7 @@ import os
 import time
 from collections.abc import Sequence
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Protocol, Union, cast, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
@@ -202,8 +203,7 @@ class LogBDDCucumberJSON:
     """Logging plugin for cucumber like json output."""
 
     def __init__(self, logfile: str) -> None:
-        logfile = os.path.expanduser(os.path.expandvars(logfile))
-        self.logfile = os.path.normpath(os.path.abspath(logfile))
+        self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
         self.features: dict[str, dict] = {}
 
     def _get_result(self, step: dict[str, Any], report: TestReport, error_message: bool = False) -> dict[str, Any]:
@@ -296,7 +296,7 @@ class LogBDDCucumberJSON:
         self.suite_start_time = time.time()
 
     def pytest_sessionfinish(self) -> None:
-        with open(self.logfile, "w", encoding="utf-8") as logfile:
+        with Path(self.logfile).open("w", encoding="utf-8") as logfile:
             for feature in self.features.values():
                 Feature.model_validate(feature)
             logfile.write(json.dumps(list(self.features.values())))

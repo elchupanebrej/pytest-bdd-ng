@@ -127,7 +127,7 @@ class GherkinMessageReporter:
                 if stop_event.is_set():
                     last_enter = True
 
-                lock_file = os.path.join(tmpdirname, f"{messages_file_path}.lock")
+                lock_file = str(Path(tmpdirname, f"{messages_file_path}.lock"))
                 with FileLock(lock_file), Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f:
                     lines = []
                     while not queue.empty():
@@ -313,7 +313,7 @@ class GherkinMessageReporter:
         if self.config.option.cucumber_html_path is not None:
             self.generate_html_report()
         if self.is_messages_file_temp:
-            os.unlink(self.messages_file_path)
+            Path(self.messages_file_path).unlink()
 
     @hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
