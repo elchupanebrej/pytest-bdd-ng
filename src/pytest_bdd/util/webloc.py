@@ -13,9 +13,9 @@ def read(path):
 def write(path, url):
     """Write url to webloc file"""
     data = {"URL": str(url)}
-    dir = os.path.dirname(path)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
     if hasattr(plistlib, "dump"):
         with open(path, "wb") as f:
             plistlib.dump(data, f)

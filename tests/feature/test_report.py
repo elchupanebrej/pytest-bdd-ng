@@ -10,8 +10,8 @@ import execnet.gateway_base
 class OfType:
     """Helper object comparison to which is always 'equal'."""
 
-    def __init__(self, type: Optional[type] = None) -> None:
-        self.type = type
+    def __init__(self, type_: Optional[type] = None) -> None:
+        self.type = type_
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, self.type) if self.type else True

@@ -26,9 +26,7 @@ from pytest_bdd.types.exception import FeatureConcreteParseError, FeatureParseEr
 from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
-
-    assert StructBDDParser  # type: ignore[truthy-function]
+    from pytest_bdd.struct_bdd.parser import StructBDDParser  # noqa: F401
 
 
 class BaseParser(ParserProtocol):
@@ -143,7 +141,7 @@ class MarkdownGherkinParser(BaseParser):
             ]
             try:
                 gherkin_document_raw_dict = json.loads(
-                    check_output([which("node") or "", script_path], stdin=feature_file),
+                    check_output([which("node") or "", script_path], stdin=feature_file),  # noqa:S603 intentional
                 )
             except CalledProcessError as e:
                 raise FeatureParseError(f"Unable to parse {path}") from e

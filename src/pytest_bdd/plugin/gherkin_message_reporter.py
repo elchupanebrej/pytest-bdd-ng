@@ -13,7 +13,7 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import TYPE_CHECKING, Callable, Union, cast
+from typing import TYPE_CHECKING, Callable, ClassVar, Union, cast
 
 import chevron
 import pytest
@@ -73,8 +73,8 @@ class GherkinMessageReporter:
     config: Config = attrib()
     current_test_case = attrib(default=None)
     current_test_case_step_to_definition_mapping = attrib(default=None)
-    parameter_type_registry: set[int] = set()
-    hook_registry: set[int] = set()
+    parameter_type_registry: ClassVar[set[int]] = set()
+    hook_registry: ClassVar[set[int]] = set()
     npm_formatter_package = "@cucumber/html-formatter"
 
     def __attrs_post_init__(self):

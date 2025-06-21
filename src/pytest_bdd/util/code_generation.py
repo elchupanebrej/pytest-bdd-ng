@@ -92,7 +92,7 @@ def generate_code(
 ) -> str:
     """Generate test code for the given filenames."""
     with as_file(files("pytest_bdd.template").joinpath("test.py.mak")) as path:
-        template = Template(filename=str(path))
+        template = Template(filename=str(path))  # noqa: S702 used for local use only
     code = template.render(
         features=features,
         feature_pickles=feature_pickles,

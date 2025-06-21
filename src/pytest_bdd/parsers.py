@@ -13,7 +13,6 @@ from typing import Any, Optional, Protocol, Union, cast, runtime_checkable
 
 import parse as base_parse
 import parse_type.cfparse as base_cfparse
-from cucumber_expressions.argument import Argument as CucumberExpressionArgument
 from cucumber_expressions.errors import CantEscape, UndefinedParameterTypeError
 from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
@@ -179,26 +178,26 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
-    def __init__(self, format, *args, **kwargs):
-        if isinstance(format, (StringRepresentable, str, bytes)):
-            self.__init_stringable__(format, *args, **kwargs)
+    def __init__(self, format_, *args, **kwargs):
+        if isinstance(format_, (StringRepresentable, str, bytes)):
+            self.__init_stringable__(format_, *args, **kwargs)
         else:
-            raise ParserBuildValueError(f"Unable build parser for format {format}")  # pragma: no cover
+            raise ParserBuildValueError(f"Unable build parser for format {format_}")  # pragma: no cover
 
     def __init_stringable__(
         self,
-        format: Union[StringRepresentable, str, bytes],
+        format_: Union[StringRepresentable, str, bytes],
         *args: Any,
         builder=base_parse.compile,
         **kwargs: Any,
     ) -> None:
-        self.format = normalize_to_string(format)
+        self.format = normalize_to_string(format_)
         self.parser = builder(self.format, *args, **kwargs)
 
     @__init__.register
-    def _(self, format: base_parse.Parser):
-        self.format = format._format
-        self.parser = format
+    def _(self, format_: base_parse.Parser):
+        self.format = format_._format
+        self.parser = format_
 
     @classmethod
     def cfparse(cls, *args, **kwargs):
@@ -279,11 +278,6 @@ class string(StepParser):  # noqa: N801 intentional API
 
     def __str__(self):
         return self.name
-
-
-@runtime_checkable
-class _CucumberExpressionProtocol(Protocol):
-    def match(self, text: str) -> Optional[Sequence[CucumberExpressionArgument]]: ...  # pragma: no cover
 
 
 class _CucumberExpression(StepParser):
@@ -406,13 +400,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     def __init__(
         self,
-        format,
+        format_,
         parameter_type_registry: Optional[Union[ParameterTypeRegistry, RegistryMode, Any]] = RegistryMode.FIXTURE,
     ):
-        if isinstance(format, (StringRepresentable, str, bytes)):
-            self.format = normalize_to_string(format)
+        if isinstance(format_, (StringRepresentable, str, bytes)):
+            self.format = normalize_to_string(format_)
         else:
-            self.format = format
+            self.format = format_
         self.parameter_type_registry = parameter_type_registry
         self.parsers_are_built = False
         self.build_parsers()
@@ -425,7 +419,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         e_cause = None
         try:
             self.string_parser: Optional[string] = string(self.format)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 intentional
             e_cause = e
             self.string_parser = None
         try:
@@ -433,19 +427,19 @@ class heuristic(StepParser):  # noqa: N801 intentional API
                 self.format,
                 parameter_type_registry=self.parameter_type_registry,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 intentional
             e.__cause__, e_cause = e_cause, e
             self.cucumber_expression_parser = None
 
         try:
             self.cfparse_parser: Optional[cfparse] = cfparse(self.format)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 intentional
             e.__cause__, e_cause = e_cause, e
             self.cfparse_parser = None
 
         try:
             self.re_parser = re(self.format)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 intentional
             e.__cause__, e_cause = e_cause, e
             self.re_parser = None
 

@@ -228,19 +228,60 @@ ignore = [
   "E501",  # line too long, handled by formatter
   "TC006"  # https://youtrack.jetbrains.com/issue/PY-46326/Pycharm-does-not-recognize-imports-used-for-typing.cast-when-they-are-incased-in-a-string-and-removing-them-when-optimizing]
 ]
-# Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
 select = [
+  "A",  # flake8-builtins: Built-in names shadowed
+  # TODO "ANN",  # flake8-annotations: Annotations
   "ARG",  # flake8-unused-arguments: Unused function arguments
+  # TODO "ASYNC",  # flake8-async: Asyncio
   "B",  # flake8-bugbear: Likely bugs and design problems
+  "BLE",  # blind-except: Blind excepts
   "C4",  # flake8-comprehensions: Comprehension optimizations
+  # TODO "C90",  # flake8-c90: C90 style issues
+  # TODO "COM",  # flake8-commas: Comma issues
+  # TODO "CPY",  # flake8-copyright: Copyright headers
+  # TODO "D",  # pydocstyle: Docstring conventions
+  # TODO "DTZ",  # flake8-datetimez: Datetime issues
+  # TODO "DOC",  # pydoclint: Docstring linting
   "E",  # pycodestyle errors: Style guide enforcement
+  # TODO "EXE",  # flake8-executable: Executable scripts
+  # TODO "EM",  # flake8-errmsg: Error message consistency
   "ERA",  # eradicate: Remove commented-out code
   "F",  # Pyflakes: Logical errors, undefined names
+  "FA",  # flake8-future-annotations: Future annotations
+  # TODO "FBT",  # flake8-boolean-trap: Boolean trap
+  # TODO "FIX",  # flake8-fixme: Fixme comments
+  "FLY",  # flynt: String formatting modernization
+  "FURB",  # refurb: Code modernization
+  # TODO "G",  # flake8-logging-format: Logging format issues
   "I",  # isort: Import sorting
+  # TODO "ICN",  # flake8-import-conventions: Import conventions
+  # TODO "INT",  # flake8-gettext: Gettext usage
+  "INP",  # flake8-no-pep420: PEP 420 namespace packages
+  # TODO "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
+  # TODO "LOG",  # flake8-logging: Logging issues
   "N",  # pep8-naming: Naming conventions
+  # TODO "PERF",  # perflint: Performance issues
+  # TODO "PGH",  # pygrep-hooks: Pre-commit hooks
+  # TODO "PIE",  # flake8-pie: Miscellaneous checks
+  # TODO "PL",  # pylint: Linting
+  # TODO "PT",  # flake8-pytest-style: Pytest style
+  # TODO "PTH",  # flake8-use-pathlib: Use pathlib
+  "PYI",  # flake8-pyi: Pyi file checks
+  # TODO "RET",  # flake8-return: Return statement checks
+  "RSE",  # flake8-raise: Raise statement checks
+  "RUF",  # ruff: Ruff-specific checks
+  "S",  # bandit: Security issues
   "SIM",  # flake8-simplify: Simplifiable code
+  # TODO "SLF",  # flake8-self: Private member access
+  "SLOT",  # flake8-slots: Slots usage
+  "T10",  # flake8-debugger: Debugger usage
+  "T20",  # flake8-print: Print statement usage
+  # TODO "TC",  # flake8-type-checking: Type checking
   "TCH",  # flake8-type-checking: Type-checking import optimizations
+  # TODO "TD",  # flake8-todos: TODO comments
   "TID",  # flake8-tidy-imports: Import restrictions
+  # TODO "TRY",  # tryceratops: Try/except issues
+  "YTT",  # flake8-2020: Outdated sys.version checks
   "W",  # pycodestyle warnings: Style guide warnings
   "UP",  # pyupgrade: Modernize syntax for newer Python versions
   "Q"  # flake8-quotes: String quote consistency
@@ -262,6 +303,9 @@ section-order = [
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "docs/conf.py" = ["ERA001"]
+"docs/tutorial/tests/*" = ["S101", "S506"]
+"src/pytest_bdd/util/toolz_test.py" = ["S301"]
+"tests/*" = ["S101", "S506"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

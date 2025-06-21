@@ -181,7 +181,7 @@ def test_unicode_characters(testdir):
                     Given We have a circle
                     When We want to know its circumference
                     Then We calculate 2 * ℼ * 𝑟
-            """,
+            """,  # noqa:RUF001
     )
 
     result = testdir.runpytest("--generate", "--feature", "unicode_characters.feature")
@@ -222,6 +222,6 @@ def test_unicode_characters(testdir):
         def we_want_to_know_its_circumference():
             """We want to know its circumference."""
             raise NotImplementedError
-        ''',
+        ''',  # noqa:RUF001
     ).strip()
     assert result.stdout.str().strip() == expected_output

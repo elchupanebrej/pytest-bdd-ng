@@ -84,19 +84,19 @@ class CliOptions(Enum):
 def add_options(parser: Parser):
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Steps")
-    help = "Allow use different keywords with same step definition"
+    help_ = "Allow use different keywords with same step definition"
     group.addoption(
         "--liberal-steps",
         action="store_true",
         dest=CliOptions.LIBERAL_STEPS.value,
         default=None,
-        help=help,
+        help=help_,
     )
     parser.addini(
         IniOptions.LIBERAL_STEPS.value,
         default=False,
         type="bool",
-        help=help,
+        help=help_,
     )
 
 

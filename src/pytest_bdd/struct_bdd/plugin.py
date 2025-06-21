@@ -2,6 +2,7 @@ from contextlib import suppress
 from functools import partial
 from inspect import getmembers
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -12,7 +13,7 @@ from pytest_bdd.struct_bdd.parser import StructBDDParser
 
 
 class StructBDDPlugin:
-    extension_to_mimetype = {
+    extension_to_mimetype: ClassVar = {
         StructBDDParser.KIND.YAML: Mimetype.struct_bdd_yaml,
         StructBDDParser.KIND.HOCON: Mimetype.struct_bdd_hocon,
         StructBDDParser.KIND.JSON5: Mimetype.struct_bdd_json5,

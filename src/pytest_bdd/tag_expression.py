@@ -67,7 +67,7 @@ class _FallbackMarksTagExpression(TagExpression):
     def parse(cls, expression):
         try:
             if expression != "":
-                eval(expression, {})
+                eval(expression, {})  # noqa:S307 intentional
         except SyntaxError as e:
             raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
         except NameError:
@@ -75,14 +75,12 @@ class _FallbackMarksTagExpression(TagExpression):
         return cls(expression=expression if expression != "" else None)
 
     def evaluate(self, marks):
-        return (
-            eval(
-                self.expression,
-                {},
-                dict(zip(map(attrgetter("name"), marks), cycle([True]))),
-            )
-            if self.expression is not None
-            else True
+        if self.expression is None:
+            return True
+        return eval(  # noqa:S307 intentional
+            self.expression,
+            {},
+            dict(zip(map(attrgetter("name"), marks), cycle([True]))),
         )
 
 

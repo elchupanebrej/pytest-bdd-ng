@@ -59,7 +59,7 @@ class FeatureFileModule(Module):
     def detect_uri_pathtype(path) -> tuple[str, PathType]:
         try:
             parsed_url = urlparse(path)
-        except Exception:
+        except Exception:  # noqa: BLE001 intentional
             features_path_type = PathType.UNDEFINED
         else:
             if parsed_url.scheme == "file":

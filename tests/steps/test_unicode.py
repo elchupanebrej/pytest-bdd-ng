@@ -11,7 +11,7 @@ def test_steps_in_feature_file_have_unicode(testdir):
                 Scenario: Кроки в .feature файлі містять юнікод
                     Given у мене є рядок який містить 'якийсь контент'
                     Then I should see that the string equals to content 'якийсь контент'
-            """,
+            """,  # noqa:RUF001
     )
 
     testdir.makeconftest(
@@ -32,7 +32,7 @@ def test_steps_in_feature_file_have_unicode(testdir):
         @then(parsers.parse("I should see that the string equals to content '{content}'"))
         def assert_that_the_string_equals_to_content(content, string):
             assert string["content"] == content
-        """,
+        """,  # noqa:RUF001
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -70,7 +70,7 @@ def test_steps_in_py_file_have_unicode(testdir):
         def assert_that_the_other_string_equals_to_content(string):
             assert string["content"] == u"с каким-то контентом"
 
-        """,
+        """,  # noqa:RUF001
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

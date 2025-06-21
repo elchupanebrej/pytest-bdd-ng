@@ -30,7 +30,7 @@ else:
 def add_options(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Cucumber JSON")
-    help = "create cucumber json style report file at given path."
+    help_ = "create cucumber json style report file at given path."
     group.addoption(
         "--cucumberjson",
         "--cucumber-json",
@@ -38,13 +38,13 @@ def add_options(parser: Parser) -> None:
         dest=FeatureAutoLoad.Cli.CUCUMBER_JSON_PATH_OPTION.value,
         metavar="path",
         default=None,
-        help=help,
+        help=help_,
     )
     parser.addini(
         FeatureAutoLoad.Ini.CUCUMBER_JSON_PATH_OPTION.value,
         default=False,
         type="bool",
-        help=help,
+        help=help_,
     )
 
 
@@ -223,7 +223,7 @@ class LogBDDCucumberJSON:
             }
         elif report.skipped:
             result = {"status": "skipped"}
-        result["duration"] = int(math.floor((10**9) * step["duration"]))  # nanosec
+        result["duration"] = math.floor((10**9) * step["duration"])  # nanosec
         return result
 
     def _serialize_tags(self, item: dict[str, Any]) -> Sequence[dict[str, Any]]:

@@ -20,19 +20,19 @@ def _check_subprocess(func):
 
 def get_npm_root(global_install=False):
     command = "npm root -g" if global_install else "npm root"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+    return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
 
 
 @_check_subprocess
 def check_npm():
     command = "npm --version"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+    return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
 
 
 @_check_subprocess
 def check_npm_package(package_name, global_install=False):
     command = f'npm list -g "{package_name}"' if global_install else f"npm list {package_name}"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+    return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
 
 
 def find_resource(package_name, resource_path):

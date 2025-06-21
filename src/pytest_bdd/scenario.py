@@ -1,8 +1,7 @@
-import collections
 from collections.abc import Iterable
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Any, Callable, NamedTuple, Optional, Union
 
 from pytest import mark
 
@@ -11,7 +10,10 @@ from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import compose
 
-Args = collections.namedtuple("Args", ["args", "kwargs"])
+
+class Args(NamedTuple):
+    args: tuple[Any, ...]
+    kwargs: dict[str, Any]
 
 
 def get_python_name_generator(name: str) -> Iterable[str]:
