@@ -261,8 +261,8 @@ select = [
   "ICN",  # flake8-import-conventions: Import conventions
   "INT",  # flake8-gettext: Gettext usage
   "INP",  # flake8-no-pep420: PEP 420 namespace packages
-  # TODO "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
-  # TODO "LOG",  # flake8-logging: Logging issues
+  "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
+  "LOG",  # flake8-logging: Logging issues
   "N",  # pep8-naming: Naming conventions
   "PERF",  # perflint: Performance issues
   "PGH",  # pygrep-hooks: Pre-commit hooks
@@ -280,8 +280,7 @@ select = [
   "SLOT",  # flake8-slots: Slots usage
   "T10",  # flake8-debugger: Debugger usage
   "T20",  # flake8-print: Print statement usage
-  # TODO "TC",  # flake8-type-checking: Type checking
-  "TCH",  # flake8-type-checking: Type-checking import optimizations
+  "TC",  # flake8-type-checking: Type checking
   # TODO "TD",  # flake8-todos: TODO comments
   "TID",  # flake8-tidy-imports: Import restrictions
   "TRY",  # tryceratops: Try/except issues

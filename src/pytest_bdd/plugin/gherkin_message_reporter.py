@@ -67,6 +67,9 @@ if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
 
+logger = logging.getLogger(__name__)
+
+
 @attrs(eq=False)
 class GherkinMessageReporter:
     config: Config = attrib()
@@ -139,7 +142,7 @@ class GherkinMessageReporter:
                         try:
                             Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
                         except ValidationError:
-                            logging.exception("Failed to parse:\n%s\n", pformat(message_json))
+                            logger.exception("Failed to parse:\n%s\n", pformat(message_json))
                         else:
                             lines.append(f"{message_json}\n")
                         finally:
