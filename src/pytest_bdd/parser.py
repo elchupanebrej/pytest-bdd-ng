@@ -144,7 +144,7 @@ class MarkdownGherkinParser(BaseParser):
                     check_output([which("node") or "", script_path], stdin=feature_file),  # noqa:S603 intentional
                 )
             except CalledProcessError as e:
-                raise FeatureParseError(f"Unable to parse {path}") from e
+                raise FeatureParseError(path) from e
         gherkin_document_raw_dict["uri"] = uri
 
         feature = self.build_feature(

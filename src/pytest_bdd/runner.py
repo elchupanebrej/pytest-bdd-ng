@@ -231,10 +231,4 @@ class ScenarioRunner:
                 previous_step=previous_step,
             )
         except StepHandler.Matcher.MatchNotFoundError as e:
-            raise exceptions.StepDefinitionNotFoundError(
-                f'Step definition is not found: "{step.text}". '
-                f'Step keyword: "{step.keyword}". '
-                f"Line {step.line_number} "
-                f'in scenario "{self.scenario.name}" '
-                f'in the feature "{self.feature.uri}"',
-            ) from e
+            raise exceptions.StepDefinitionNotFoundError(self.feature, self.scenario, step) from e

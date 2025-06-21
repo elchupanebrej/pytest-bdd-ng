@@ -73,7 +73,5 @@ def only_these_books_will_be_returned(
     step: Step,
 ):
     expected_books = get_books_from_data_table(step.data_table)
-
-    for book in search_results:
-        if book not in expected_books:
-            raise AssertionError(f"Book ${book} is not expected")
+    non_expected_books = [book for book in search_results if book not in expected_books]
+    assert not non_expected_books, f"Books {non_expected_books} are not expected"

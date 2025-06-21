@@ -24,7 +24,9 @@ from pytest_bdd.model.messages_extension import ExpressionType as ExpressionType
 from pytest_bdd.util.other import StringRepresentable, normalize_to_string
 
 
-class ParserBuildValueError(ValueError): ...
+class ParserBuildValueError(ValueError):
+    def __init__(self, format_):
+        super().__init__(f"Unable build parser for format {format_}")
 
 
 @runtime_checkable
@@ -182,7 +184,7 @@ class parse(StepParser):  # noqa:N801 intentional API
         if isinstance(format_, (StringRepresentable, str, bytes)):
             self.__init_stringable__(format_, *args, **kwargs)
         else:
-            raise ParserBuildValueError(f"Unable build parser for format {format_}")  # pragma: no cover
+            raise ParserBuildValueError(format_)  # pragma: no cover
 
     def __init_stringable__(
         self,
@@ -445,9 +447,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
-            raise ParserBuildValueError(
-                f"Unable build parser for format {self.format}",
-            ) from e_cause  # pragma: no cover
+            raise ParserBuildValueError(self.format) from e_cause  # pragma: no cover
 
     @property
     def parser_by_priorities(self) -> Sequence[Optional[StepParser]]:

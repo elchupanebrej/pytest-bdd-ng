@@ -280,7 +280,7 @@ select = [
   "TCH",  # flake8-type-checking: Type-checking import optimizations
   # TODO "TD",  # flake8-todos: TODO comments
   "TID",  # flake8-tidy-imports: Import restrictions
-  # TODO "TRY",  # tryceratops: Try/except issues
+  "TRY",  # tryceratops: Try/except issues
   "YTT",  # flake8-2020: Outdated sys.version checks
   "W",  # pycodestyle warnings: Style guide warnings
   "UP",  # pyupgrade: Modernize syntax for newer Python versions

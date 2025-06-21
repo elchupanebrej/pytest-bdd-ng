@@ -111,7 +111,7 @@ class ScenarioLocatorBuilder:
             return FeaturePathType(features_path_type)
         if isinstance(features_path_type, FeaturePathType):
             return features_path_type
-        raise ValueError("Unknown feature path type")
+        raise ValueError("Unknown feature path type")  # noqa:TRY003
 
     @staticmethod
     def _create_file_locator(

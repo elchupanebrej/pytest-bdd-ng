@@ -213,7 +213,7 @@ def test_doesnt_raise_fails_test():
 def test_doesnt_raise_suppress_if_not_match():
     try:
         with doesnt_raise(RuntimeError, match="cool"):
-            raise RuntimeError("nice")
+            raise RuntimeError("nice")  # noqa:TRY301 test must fail on suppressed exception
     except Exception as e:  # pragma: no cover
         raise AssertionError from e
 

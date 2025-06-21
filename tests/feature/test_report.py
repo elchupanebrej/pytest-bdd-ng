@@ -38,10 +38,11 @@ def matchreport(
             or (isinstance(inamepart_match, re.Pattern) and any(map(inamepart_match.match, iname_parts)))
         ):
             values.append(rep)
+    # TODO use extracted exceptions
     if not values:
-        raise ValueError(f"could not find test report matching {inamepart_match}: no test reports at all!")
+        raise ValueError(f"Could not find test report matching {inamepart_match}: no test reports at all!")  # noqa:TRY003
     if len(values) > 1:
-        raise ValueError(f"found 2 or more testreports matching {inamepart_match!r}: {values}")
+        raise ValueError(f"Found 2 or more testreports matching {inamepart_match!r}: {values}")  # noqa:TRY003
     return values[0]
 
 

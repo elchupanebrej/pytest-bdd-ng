@@ -34,7 +34,7 @@ class _ModernTagExpression(TagExpression):
         try:
             return cls(expression=Expression.compile(expression) if expression != "" else None)
         except ParseError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
+            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e  # noqa:TRY003
 
 
 @attrs
@@ -69,7 +69,7 @@ class _FallbackMarksTagExpression(TagExpression):
             if expression != "":
                 eval(expression, {})  # noqa:S307 intentional
         except SyntaxError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
+            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e  # noqa:TRY003
         except NameError:
             pass
         return cls(expression=expression if expression != "" else None)
@@ -102,7 +102,7 @@ class GherkinTagExpression(TagExpression):
         try:
             return cls(expression=TagExpressionParser.parse(expression))
         except TagExpressionError as e:
-            raise ValueError(f"Unable parse tag expression: {expression}: {e}") from e
+            raise ValueError(f"Unable parse tag expression: {expression}: {e}") from e  # noqa:TRY003
 
     def evaluate(self, marks):
         return self.expression.evaluate(map(attrgetter("name"), marks))

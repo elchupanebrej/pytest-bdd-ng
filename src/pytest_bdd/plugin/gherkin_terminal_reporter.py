@@ -3,6 +3,21 @@ from typing import Any
 from pytest_bdd.compatibility.pytest import Config, Parser, TerminalReporter, TestReport
 
 
+class IncompatiblePluginError(Exception):
+    def __init__(self, reporter):
+        super().__init__(
+            "gherkin-terminal-reporter is not compatible with any other terminal reporter."
+            "You can use only one terminal reporter."
+            f"Currently '{reporter.__class__}' is used."
+            f"Please decide to use one by deactivating {reporter.__class__} or gherkin-terminal-reporter.",
+        )
+
+
+class IncompatiblePluginConfigurationError(Exception):
+    def __init__(self, plugin):
+        super().__init__(f"gherkin-terminal-reporter is not compatible with '{plugin}' plugin.")
+
+
 def add_options(parser: Parser) -> None:
     group = parser.getgroup("terminal reporting", "reporting", after="general")
     group._addoption(
@@ -19,17 +34,12 @@ def configure(config: Config) -> None:
         # Get the standard terminal reporter plugin and replace it with our
         current_reporter = config.pluginmanager.getplugin("terminalreporter")
         if current_reporter.__class__ != TerminalReporter:
-            raise Exception(
-                "gherkin-terminal-reporter is not compatible with any other terminal reporter."
-                "You can use only one terminal reporter."
-                f"Currently '{current_reporter.__class__}' is used."
-                f"Please decide to use one by deactivating {current_reporter.__class__} or gherkin-terminal-reporter.",
-            )
+            raise IncompatiblePluginError(current_reporter)
         gherkin_reporter = GherkinTerminalReporter(config)
         config.pluginmanager.unregister(current_reporter)
         config.pluginmanager.register(gherkin_reporter, "terminalreporter")
         if config.pluginmanager.getplugin("dsession"):
-            raise Exception("gherkin-terminal-reporter is not compatible with 'xdist' plugin.")
+            raise IncompatiblePluginConfigurationError("xdist")
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore

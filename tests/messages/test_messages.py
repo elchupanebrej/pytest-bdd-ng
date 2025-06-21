@@ -58,17 +58,19 @@ def unfold_message(message: Message):
     for attr in unfoldable_attrs:
         if (unfold := getattr(message, attr)) is not None:
             return unfold
-    raise ValueError("Empty message was given")
+    raise ValueError("Empty message was given")  # noqa:TRY003
 
 
 def list_filter_by_type(t: Union[type, Iterable[type]], items):
     return list(filter(partial(flip(isinstance), tuple(t) if isinstance(t, Iterable) else t), items))
 
 
-class ParseError(RuntimeError): ...
+class ParseError(RuntimeError):
+    def __init__(self, errors):
+        super().__init__(f"Could not parse messages: {errors}")
 
 
-def parse_and_unflold_messages(lines):
+def parse_and_unfold_messages(lines):
     errors = []
     parsed_messages = []
     for line in lines:
@@ -77,7 +79,7 @@ def parse_and_unflold_messages(lines):
         except ValidationError as e:  # pragma: nocover
             errors.append(e)
         if errors:  # pragma: nocover
-            raise ParseError(f"Could not parse messages: {errors}")
+            raise ParseError(errors)
 
     return list(map(unfold_message, parsed_messages))
 
@@ -114,7 +116,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     meta_messages = messages = list_filter_by_type(Meta, unfold_messages)
     assert len(meta_messages) == 1, f"Messages: {pformat(messages)}"
@@ -268,7 +270,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     parameter_type_messages = messages = list_filter_by_type(ParameterType, unfold_messages)
     assert len(parameter_type_messages) == 12, f"Messages: {pformat(messages)}"
@@ -305,7 +307,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -347,7 +349,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -389,7 +391,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -435,7 +437,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -481,7 +483,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -572,7 +574,7 @@ def test_hook_type_messages(testdir, tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Hook, unfold_messages)
     assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"

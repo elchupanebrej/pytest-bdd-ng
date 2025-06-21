@@ -12,6 +12,7 @@ def is_local_url(urllike):
 def is_url_parsable(urllike):
     try:
         urlparse(str(urllike))
-        return True
     except ValueError:
         return False
+    else:
+        return True
