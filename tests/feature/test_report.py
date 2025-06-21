@@ -40,9 +40,11 @@ def matchreport(
             values.append(rep)
     # TODO use extracted exceptions
     if not values:
-        raise ValueError(f"Could not find test report matching {inamepart_match}: no test reports at all!")  # noqa:TRY003
+        msg = f"Could not find test report matching {inamepart_match}: no test reports at all!"
+        raise ValueError(msg)
     if len(values) > 1:
-        raise ValueError(f"Found 2 or more testreports matching {inamepart_match!r}: {values}")  # noqa:TRY003
+        msg = f"Found 2 or more testreports matching {inamepart_match!r}: {values}"
+        raise ValueError(msg)
     return values[0]
 
 

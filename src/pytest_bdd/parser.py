@@ -7,15 +7,15 @@ from itertools import filterfalse
 from operator import contains, itemgetter
 from pathlib import Path
 from shutil import which
-from subprocess import CalledProcessError, check_output
+from subprocess import CalledProcessError, check_output  # noqa:S404
 from typing import Callable, Union
 
 from attr import attrib, attrs
-
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
+
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.path import relpath

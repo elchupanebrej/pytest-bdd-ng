@@ -1,4 +1,4 @@
-import subprocess
+import subprocess  # noqa: S404
 from functools import wraps
 from itertools import chain
 from pathlib import Path

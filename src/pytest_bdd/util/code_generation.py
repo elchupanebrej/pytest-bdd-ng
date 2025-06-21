@@ -41,7 +41,8 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 def check_existence(file_name):
     """Check file or directory name for existence."""
     if not Path(file_name).exists():
-        raise argparse.ArgumentTypeError(f"{file_name} is an invalid file or directory name")  # noqa:TRY003
+        msg = f"{file_name} is an invalid file or directory name"
+        raise argparse.ArgumentTypeError(msg)
     return Path(file_name)
 
 

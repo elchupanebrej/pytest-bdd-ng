@@ -76,7 +76,8 @@ def getitemdefault(
 ):
     if default is not Empty.empty:
         if default_factory is not None:
-            raise ValueError("Both 'default' and 'default_factory' were specified")  # noqa:TRY003
+            msg = "Both 'default' and 'default_factory' were specified"
+            raise ValueError(msg)
 
         def default_factory():
             return default
@@ -89,7 +90,8 @@ def getitemdefault(
         item = default_factory()
     if item is not treat_as_empty:
         return item
-    raise KeyError(f"{index}")
+    msg = f"{index}"
+    raise KeyError(msg)
 
 
 def deepattrgetter(*attrs, **kwargs):
@@ -98,7 +100,8 @@ def deepattrgetter(*attrs, **kwargs):
     skip_missing = kwargs.pop("skip_missing", False)
 
     if default is not empty and skip_missing:
-        raise ValueError('Both "default" and "skip_missing" are specified')  # noqa:TRY003
+        msg = 'Both "default" and "skip_missing" are specified'
+        raise ValueError(msg)
 
     default_exception_type = AttributeError if default is not empty else _NoneExceptionError
     skip_missing_context = suppress(AttributeError) if skip_missing else nullcontext()
@@ -124,7 +127,8 @@ def setdefaultattr(
     value_factory: Callable | None = None,
 ):
     if value is not Empty.empty and value_factory is not None:
-        raise ValueError("Both 'value' and 'value_factory' were specified")  # noqa:TRY003
+        msg = "Both 'value' and 'value_factory' were specified"
+        raise ValueError(msg)
     with suppress(AttributeError):
         return getattr(obj, key)
     if value_factory is not None:

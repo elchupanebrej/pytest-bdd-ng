@@ -3,10 +3,10 @@ from operator import contains
 from textwrap import dedent
 
 import pytest
+from gherkin.pickles.compiler import Compiler
 from yaml import FullLoader
 from yaml import load as load_yaml
 
-from gherkin.pickles.compiler import Compiler
 from messages import KeywordType  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.util.other import IdGenerator

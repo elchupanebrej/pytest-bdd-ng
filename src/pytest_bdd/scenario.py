@@ -115,7 +115,8 @@ def scenarios(
         parse_args = Args((), {})
 
     if features_base_dir and features_base_url:
-        raise ValueError('Both "features_base_dir" and "features_base_url" were specified')  # noqa:TRY003
+        msg = 'Both "features_base_dir" and "features_base_url" were specified'
+        raise ValueError(msg)
     if features_base_dir:
         features_path_type = FeaturePathType.PATH
     elif features_base_url:

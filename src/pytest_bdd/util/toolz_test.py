@@ -1,5 +1,5 @@
 import base64
-import pickle
+import pickle  # noqa:S403
 import re
 from typing import TYPE_CHECKING, Any
 

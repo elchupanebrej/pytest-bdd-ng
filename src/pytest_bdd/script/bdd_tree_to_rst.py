@@ -149,7 +149,8 @@ def main():  # pragma: no cover
     arguments = docopt(__doc__)
     features_dir = Path(arguments["<features_dir>"]).resolve()
     if not features_dir.exists() or not features_dir.is_dir():
-        raise ValueError(f"Wrong input features directory {features_dir} is provided")  # noqa:TRY003
+        msg = f"Wrong input features directory {features_dir} is provided"
+        raise ValueError(msg)
     output_dir = Path(arguments["<output_dir>"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     snapshot_dir = Path(p) if (p := arguments.get("--snapshot")) else None

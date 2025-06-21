@@ -39,7 +39,7 @@ def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
 
 
 @given(
-    re.compile('File "(?P<name>\\w+)(?P<extension>\\.\\w+)" in the temporary path with content:'),
+    re.compile(r'File "(?P<name>\w+)(?P<extension>\.\w+)" in the temporary path with content:'),
 )
 def write_file(name, extension, tmp_path: Path, step):
     content = step.doc_string.content
@@ -57,7 +57,7 @@ def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, st
     yield
 
 
-@given(re.compile("Set pytest.ini content to:"))
+@given(re.compile(r"Set pytest.ini content to:"))
 def _(testdir, step):
     content = step.doc_string.content
     testdir.makeini(content)

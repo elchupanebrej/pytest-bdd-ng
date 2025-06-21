@@ -1,4 +1,4 @@
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError  # noqa: S404
 
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package
 

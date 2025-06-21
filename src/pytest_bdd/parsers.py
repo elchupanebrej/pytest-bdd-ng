@@ -1,6 +1,6 @@
 """StepHandler parsers."""
 
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Sequence
 from enum import Enum
 from functools import partial, singledispatchmethod
@@ -55,7 +55,7 @@ class RegistryMode(Enum):
     NOT_DEFINED = None
 
 
-class StepParser(StepParserProtocol, metaclass=ABCMeta):
+class StepParser(StepParserProtocol, ABC):
     """Parser of the individual step."""
 
     @abstractmethod

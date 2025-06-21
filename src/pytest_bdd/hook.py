@@ -34,9 +34,9 @@ class HookConjunction(Enum):
 def _get_conjunction_and_kind(
     *, conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
 ) -> tuple[HookConjunction, HookKind]:
-    _conjunction = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
-    _kind = HookKind(kind) if isinstance(kind, str) else kind
-    return _conjunction, _kind
+    conjunction_ = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
+    kind_ = HookKind(kind) if isinstance(kind, str) else kind
+    return conjunction_, kind_
 
 
 def _get_expression_type(*, _kind: HookKind) -> type[TagExpressionType]:
@@ -76,36 +76,36 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
 def decorator_builder(
     conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
 ) -> _Decorator[[str | None, str | None]]:
-    _conjunction, _kind = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
+    conjunction_, kind_ = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator
     def decorator_wrapper(expression: Optional[str] = None, name: Optional[str] = None):
-        _expression: str = expression if expression is not None else ""
+        expression_: str = expression if expression is not None else ""
 
         def decorator(func):
             func_sig = signature(func)
 
             fixture_decorator = pytest.fixture(
-                name=f"{_conjunction.value}_{_kind.value}_expression_{_expression}_{next(expression_count_gen)}",
+                name=f"{conjunction_.value}_{kind_.value}_expression_{expression_}_{next(expression_count_gen)}",
                 autouse=True,
             )
 
             @wraps(func, prepend_args="request", remove_args="request")
             def hook(request: FixtureRequest, *args, **kwargs):
-                _ExpressionType: type[TagExpressionType] = _get_expression_type(_kind=_kind)  # noqa:N806
-                parsed_expression: TagExpression = _ExpressionType.parse(_expression)
+                ExpressionType: type[TagExpressionType] = _get_expression_type(_kind=kind_)  # noqa:N806
+                parsed_expression: TagExpression = ExpressionType.parse(expression_)
 
-                is_matching = parsed_expression.evaluate(_get_marks(_kind=_kind, request=request))
-                _args, _kwargs = _get_args_kwargs(args=args, kwargs=kwargs, func_sig=func_sig, request=request)
+                is_matching = parsed_expression.evaluate(_get_marks(_kind=kind_, request=request))
+                args_, kwargs_ = _get_args_kwargs(args=args, kwargs=kwargs, func_sig=func_sig, request=request)
 
                 if is_matching:
-                    if _conjunction is HookConjunction.before:
-                        yield func(*_args, **_kwargs)
-                    elif _conjunction is HookConjunction.after:
+                    if conjunction_ is HookConjunction.before:
+                        yield func(*args_, **kwargs_)
+                    elif conjunction_ is HookConjunction.after:
                         yield
-                        func(*_args, **_kwargs)
-                    elif _conjunction is HookConjunction.around:
-                        with contextmanager(func)(*_args, **_kwargs):
+                        func(*args_, **kwargs_)
+                    elif conjunction_ is HookConjunction.around:
+                        with contextmanager(func)(*args_, **kwargs_):
                             yield
                     else:  # pragma: no cover
                         yield
@@ -115,7 +115,7 @@ def decorator_builder(
             hook.__pytest_bdd_is_hook__ = True
             if name is not None:
                 hook.__pytest_bdd_hook_name__ = name
-            hook.__pytest_bdd_hook_expression__ = _expression
+            hook.__pytest_bdd_hook_expression__ = expression_
 
             return fixture_decorator(hook)
 

@@ -64,7 +64,7 @@ def doesnt_raise(
     try:
         yield
     except expected_exception:  # type:ignore[misc]
-        ex_type, ex_value, ex_traceback = sys.exc_info()
+        _ex_type, ex_value, _ex_traceback = sys.exc_info()
         is_matched = True
         if match is not None:
             is_matched = bool(re.search(match, f"{ex_value}"))

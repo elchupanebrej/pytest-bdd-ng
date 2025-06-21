@@ -645,13 +645,13 @@ class GherkinMessageReporter:
 
         if isinstance(attachment, (str, TextIOBase)):
             content_encoding = ContentEncoding.identity
-            _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
+            media_type_ = "text/plain;charset=UTF-8" if media_type is None else media_type
         elif isinstance(attachment, (bytes, bytearray, BufferedIOBase)):
             content_encoding = ContentEncoding.base64
-            _media_type = "application/octet-stream" if media_type is None else media_type
+            media_type_ = "application/octet-stream" if media_type is None else media_type
         else:
             content_encoding = ContentEncoding.identity
-            _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
+            media_type_ = "text/plain;charset=UTF-8" if media_type is None else media_type
 
         if isinstance(attachment, str):
             body = attachment
@@ -679,7 +679,7 @@ class GherkinMessageReporter:
                     test_case_started_id=self.current_test_case.id,
                     # TODO find a specification when it useful
                     # source=,
-                    media_type=_media_type,
+                    media_type=media_type_,
                     **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,
                     body=body,

@@ -60,8 +60,8 @@ def configure(config: Union[Config, "BaseConfig"]) -> None:
 def unconfigure(config: Union[Config, "BaseConfig"]) -> None:
     xml = getattr(config, "_bddcucumberjson", None)
     if xml is not None:
-        _config = cast(Config, config)
-        del _config._bddcucumberjson
+        config_ = cast(Config, config)
+        del config_._bddcucumberjson
         config.pluginmanager.unregister(xml)
 
 

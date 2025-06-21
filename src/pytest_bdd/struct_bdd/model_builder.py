@@ -4,8 +4,8 @@ from operator import attrgetter
 from typing import Any, Union, cast
 
 from attr import attrib, attrs
-
 from gherkin.pickles.compiler import Compiler
+
 from messages import (  # type:ignore[attr-defined, import-untyped]
     DataTable,
     DocString,

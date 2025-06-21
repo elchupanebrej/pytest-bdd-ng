@@ -38,7 +38,7 @@ def these_books_in_the_catalog(
 
 @when(
     # Step definitions could have parameters. Here could be raw stings, cucumber expressions or regular expressions
-    re.compile("a (?P<search_type>name|title) search is performed for (?P<search_term>.+)"),
+    re.compile(r"a (?P<search_type>name|title) search is performed for (?P<search_term>.+)"),
     target_fixture="search_results",
 )
 def a_search_type_is_performed_for_search_term(
@@ -56,7 +56,8 @@ def a_search_type_is_performed_for_search_term(
     elif search_type == "name":
         search = catalog.search_by_author
     else:
-        raise AssertionError("Unknown")
+        msg = "Unknown"
+        raise AssertionError(msg)
 
     found_books = search(search_term)
     search_results.extend(found_books)

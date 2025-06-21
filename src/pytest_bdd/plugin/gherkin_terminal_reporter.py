@@ -39,7 +39,8 @@ def configure(config: Config) -> None:
         config.pluginmanager.unregister(current_reporter)
         config.pluginmanager.register(gherkin_reporter, "terminalreporter")
         if config.pluginmanager.getplugin("dsession"):
-            raise IncompatiblePluginConfigurationError("xdist")
+            msg = "xdist"
+            raise IncompatiblePluginConfigurationError(msg)
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore
