@@ -204,7 +204,7 @@ class ScenarioRunner:
         for param in get_args(step_definition.func):
             try:
                 yield param, step_params[param]
-            except KeyError:
+            except KeyError:  # noqa:PERF203
                 try:
                     yield param, {"step": step}[param]
                 except KeyError:

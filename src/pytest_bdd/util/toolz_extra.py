@@ -95,11 +95,13 @@ def getitemdefault(
 def deepattrgetter(*attrs, **kwargs):
     empty = object()
     default = kwargs.pop("default", empty)
-    default_exception_type = AttributeError if default is not empty else _NoneExceptionError
     skip_missing = kwargs.pop("skip_missing", False)
-    skip_missing_context = suppress(AttributeError) if skip_missing else nullcontext()
+
     if default is not empty and skip_missing:
         raise ValueError('Both "default" and "skip_missing" are specified')
+
+    default_exception_type = AttributeError if default is not empty else _NoneExceptionError
+    skip_missing_context = suppress(AttributeError) if skip_missing else nullcontext()
 
     def fn(obj):
         def _():
@@ -107,7 +109,7 @@ def deepattrgetter(*attrs, **kwargs):
                 try:
                     with skip_missing_context:
                         yield attrgetter(attr)(obj)
-                except default_exception_type:
+                except default_exception_type:  # noqa:PERF203
                     yield default
 
         return tuple(_())

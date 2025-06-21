@@ -10,15 +10,11 @@ def get_books_from_data_table(data_table: DataTable):
     # Gherkin data-tables have no title row by default, but we could define them if we want.
     title_row, *book_rows = data_table.rows
 
-    step_data_table_titles = []
-    for cell in title_row.cells:
-        step_data_table_titles.append(cell.value)
+    step_data_table_titles = [cell.value for cell in title_row.cells]
 
     assert step_data_table_titles == ["Author", "Title"]
 
-    books = []
-    for row in book_rows:
-        books.append(Book(row.cells[0].value, row.cells[1].value))
+    books = [Book(row.cells[0].value, row.cells[1].value) for row in book_rows]
 
     return books
 

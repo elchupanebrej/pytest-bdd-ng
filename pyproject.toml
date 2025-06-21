@@ -260,7 +260,7 @@ select = [
   # TODO "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
   # TODO "LOG",  # flake8-logging: Logging issues
   "N",  # pep8-naming: Naming conventions
-  # TODO "PERF",  # perflint: Performance issues
+  "PERF",  # perflint: Performance issues
   # TODO "PGH",  # pygrep-hooks: Pre-commit hooks
   # TODO "PIE",  # flake8-pie: Miscellaneous checks
   # TODO "PL",  # pylint: Linting

@@ -440,7 +440,7 @@ class GherkinMessageReporter:
                     step=step,
                     previous_step=previous_step,
                 )
-            except StepHandler.Matcher.MatchNotFoundError:
+            except StepHandler.Matcher.MatchNotFoundError:  # noqa:PERF203
                 pass
             else:
                 test_step = TestStep(

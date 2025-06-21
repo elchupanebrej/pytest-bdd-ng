@@ -197,7 +197,7 @@ def process_pickle_steps(
                 step=step,
                 previous_step=previous_step,
             )
-        except StepHandler.Matcher.MatchNotFoundError:
+        except StepHandler.Matcher.MatchNotFoundError:  # noqa:PERF203
             non_matched_feature_pickle_steps.append(((feature, pickle), step))
         finally:
             previous_step = step

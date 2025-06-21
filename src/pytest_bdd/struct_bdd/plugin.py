@@ -54,7 +54,7 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookspec
         path: Path,
     ):
-        for extension_suffix, _mimetype in self.extension_to_mimetype.items():
+        for extension_suffix in self.extension_to_mimetype:
             if str(path).endswith(f".bdd.{extension_suffix.value}"):
                 return True
 
