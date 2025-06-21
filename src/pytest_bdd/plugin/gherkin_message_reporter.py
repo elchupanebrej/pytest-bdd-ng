@@ -140,10 +140,7 @@ class GherkinMessageReporter:
                         try:
                             Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
                         except ValidationError:
-                            logging.exception(
-                                f"Failed to parse:\n{pformat(message_json)}\n",
-                                exc_info=True,
-                            )
+                            logging.exception("Failed to parse:\n%s\n", pformat(message_json))
                         else:
                             lines.append(f"{message_json}\n")
                         finally:

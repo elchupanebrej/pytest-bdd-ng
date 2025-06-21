@@ -40,7 +40,7 @@ class DefaultMapping(defaultdict):
     @classmethod
     def instantiate_from_collection_or_bool(
         cls,
-        bool_or_items: Collection[str] | dict[str, Any] | Any = True,
+        bool_or_items: Collection[str] | dict[str, Any] | Any = True,  # noqa:FBT002
         *,
         warm_up_keys=(),
     ):

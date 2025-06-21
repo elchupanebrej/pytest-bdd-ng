@@ -106,8 +106,9 @@ def given(
     converters: Optional[dict[str, Callable]] = None,
     target_fixture: Optional[str] = None,
     target_fixtures: Optional[Sequence[str]] = None,
-    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,
+    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,  # noqa: FBT002
     param_defaults: Optional[dict] = None,
+    *,
     liberal: Optional[bool] = None,
     stacklevel=1,
 ) -> Callable:
@@ -147,8 +148,9 @@ def when(
     converters: Optional[dict[str, Callable]] = None,
     target_fixture: Optional[str] = None,
     target_fixtures: Optional[Sequence[str]] = None,
-    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,
+    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,  # noqa: FBT002
     param_defaults: Optional[dict] = None,
+    *,
     liberal: Optional[bool] = None,
     stacklevel=1,
 ) -> Callable:
@@ -187,8 +189,9 @@ def then(
     converters: Optional[dict[str, Callable]] = None,
     target_fixture: Optional[str] = None,
     target_fixtures: Optional[Sequence[str]] = None,
-    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,
+    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,  # noqa: FBT002
     param_defaults: Optional[dict] = None,
+    *,
     liberal: Optional[bool] = None,
     stacklevel=1,
 ) -> Callable:
@@ -227,8 +230,9 @@ def step(
     converters: Optional[dict[str, Callable]] = None,
     target_fixture: Optional[str] = None,
     target_fixtures: Optional[Sequence[str]] = None,
-    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,
+    params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,  # noqa: FBT002
     param_defaults: Optional[dict] = None,
+    *,
     liberal: Optional[bool] = None,
     stacklevel=1,
 ):
@@ -550,7 +554,7 @@ class StepHandler:
         converters: Optional[dict[str, Callable]] = None,
         target_fixture: Optional[str] = None,
         target_fixtures: Optional[Sequence[str]] = None,
-        params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,
+        params_fixtures_mapping: Union[set[str], dict[str, str], Any] = True,  # noqa:FBT002
         param_defaults: Optional[dict] = None,
         liberal: Optional[Any] = None,
         stacklevel=2,

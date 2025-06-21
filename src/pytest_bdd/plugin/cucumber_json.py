@@ -206,7 +206,7 @@ class LogBDDCucumberJSON:
         self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
         self.features: dict[str, dict] = {}
 
-    def _get_result(self, step: dict[str, Any], report: TestReport, error_message: bool = False) -> dict[str, Any]:
+    def _get_result(self, step: dict[str, Any], report: TestReport, *, error_message: bool = False) -> dict[str, Any]:
         """Get scenario test run result.
 
         :param step: `StepHandler` step we get result for
@@ -264,7 +264,7 @@ class LogBDDCucumberJSON:
                 "name": step_name,
                 "line": step["line_number"],
                 "match": {"location": ""},
-                "result": self._get_result(step, report, error_message),
+                "result": self._get_result(step, report, error_message=error_message),
             }
 
         if scenario["feature"]["filename"] not in self.features:

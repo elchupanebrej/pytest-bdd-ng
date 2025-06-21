@@ -44,7 +44,7 @@ class StepReport:
             "duration": self.duration,
         }
 
-    def finalize(self, failed: bool) -> None:
+    def finalize(self, *, failed: bool = False) -> None:
         """Stop collecting information and finalize the report.
 
         :param bool failed: Whether the step execution is failed.
@@ -189,4 +189,4 @@ class ScenarioReporterPlugin:
         step_func_args: dict,  # noqa: ARG002 hookspec
     ) -> None:
         """Finalize the step report as successful."""
-        self.current_report.current_step_report.finalize(failed=False)
+        self.current_report.current_step_report.finalize()

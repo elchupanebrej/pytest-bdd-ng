@@ -48,10 +48,11 @@ def scenario(
     features_base_url=None,
     features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
     features_mimetype: Optional[Mimetype] = None,
-    return_test_decorator=True,
     parser_type: Optional[type[ParserProtocol]] = None,
     parse_args: Optional[Args] = None,
     locators=(),
+    *,
+    return_test_decorator=True,
 ):
     """Scenario decorator.
 
@@ -62,10 +63,10 @@ def scenario(
     :param features_base_url: Feature base url from where features will be loaded
     :param features_path_type: If feature path is not absolute helps to select if filepath or url will be used
     :param features_mimetype: Helps to select appropriate parser if non-standard file extension is used
-    :param return_test_decorator; Return test decorator or generated test
     :param parser_type: Parser used to parse feature-like file
     :param parse_args: args consumed by parser during parsing
     :param locators: Feature locators to load Features; Could be custom
+    :param return_test_decorator; Return test decorator or generated test
     """
     return scenarios(
         *([feature_name] if feature_name is not None else []),

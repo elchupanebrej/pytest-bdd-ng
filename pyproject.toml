@@ -248,14 +248,14 @@ select = [
   "ERA",  # eradicate: Remove commented-out code
   "F",  # Pyflakes: Logical errors, undefined names
   "FA",  # flake8-future-annotations: Future annotations
-  # TODO "FBT",  # flake8-boolean-trap: Boolean trap
+  "FBT",  # flake8-boolean-trap: Boolean trap
   # TODO "FIX",  # flake8-fixme: Fixme comments
   "FLY",  # flynt: String formatting modernization
   "FURB",  # refurb: Code modernization
-  # TODO "G",  # flake8-logging-format: Logging format issues
+  "G",  # flake8-logging-format: Logging format issues
   "I",  # isort: Import sorting
   # TODO "ICN",  # flake8-import-conventions: Import conventions
-  # TODO "INT",  # flake8-gettext: Gettext usage
+  "INT",  # flake8-gettext: Gettext usage
   "INP",  # flake8-no-pep420: PEP 420 namespace packages
   # TODO "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
   # TODO "LOG",  # flake8-logging: Logging issues

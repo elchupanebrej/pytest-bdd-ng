@@ -175,7 +175,7 @@ def get_config_root_path(config: Config) -> Path:
     return Path(getattr(cast(Config, config), "rootpath" if PYTEST61 else "rootdir"))
 
 
-def fail(reason, pytrace=True):
+def fail(reason, *, pytrace=True):
     __tracebackhide__ = True
     if PYTEST7:
         return _pytest_fail(reason, pytrace=pytrace)

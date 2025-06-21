@@ -17,7 +17,7 @@ def _check_subprocess(func):
     return wrapper
 
 
-def get_npm_root(global_install=False):
+def get_npm_root(*, global_install=False):
     command = "npm root -g" if global_install else "npm root"
     return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
 
@@ -29,7 +29,7 @@ def check_npm():
 
 
 @_check_subprocess
-def check_npm_package(package_name, global_install=False):
+def check_npm_package(package_name, *, global_install=False):
     command = f'npm list -g "{package_name}"' if global_install else f"npm list {package_name}"
     return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
 
