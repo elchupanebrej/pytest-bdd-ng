@@ -49,6 +49,7 @@ class AllurePytestBDD:
             bdd_listener.allure_plugin_name = allure_plugin_manager.register(bdd_listener)
             bdd_listener.pytest_plugin_name = pluginmanager.register(bdd_listener)
             return bdd_listener
+        return None
 
     @hookimpl(hookwrapper=True)
     def report_result(
@@ -161,6 +162,7 @@ class AllurePytestBDD:
         if hasattr(node, "callspec"):
             params = node.callspec.params
             return [Parameter(name=name, value=value) for name, value in params.items()]
+        return None
 
     @staticmethod
     def get_name(node, scenario):

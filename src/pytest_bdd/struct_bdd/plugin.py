@@ -48,6 +48,7 @@ class StructBDDPlugin:
         for extension_suffix, mimetype in self.extension_to_mimetype.items():
             if str(path).endswith(f".bdd.{extension_suffix.value}"):
                 return mimetype.value
+        return None
 
     def pytest_bdd_is_collectible(
         self,
@@ -57,6 +58,7 @@ class StructBDDPlugin:
         for extension_suffix in self.extension_to_mimetype:
             if str(path).endswith(f".bdd.{extension_suffix.value}"):
                 return True
+        return None
 
     def _pytest_pycollect_makemodule(self):
         outcome = yield

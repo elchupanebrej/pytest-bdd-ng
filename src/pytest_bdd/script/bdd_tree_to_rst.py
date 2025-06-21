@@ -32,6 +32,7 @@ def diff_folders(dcmp):
         return diff
     if any(diff := list(map(diff_folders, dcmp.subdirs.values()))):
         return diff
+    return None
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path):

@@ -36,14 +36,12 @@ class BaseParser(ParserProtocol):
         pickles_data = PicklesCompiler(id_generator=self.id_generator).compile(gherkin_document_raw_dict)
         pickles = Feature.load_pickles(pickles_data)
 
-        feature = Feature(  # type: ignore[call-arg]
+        return Feature(  # type: ignore[call-arg]
             gherkin_document=gherkin_document,
             uri=gherkin_document.uri,
             pickles=pickles,
             filename=filename,
         )
-
-        return feature
 
 
 @attrs

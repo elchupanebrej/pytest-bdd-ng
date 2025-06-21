@@ -182,8 +182,7 @@ class Join(BaseModel):
                     for values_combination in product(*map(attrgetter("rowed_values"), self.tables))
                 )
 
-        _values = list(_())
-        return _values
+        return list(_())
 
     @property
     def columned_values(self):

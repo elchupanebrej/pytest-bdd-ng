@@ -14,9 +14,7 @@ def get_books_from_data_table(data_table: DataTable):
 
     assert step_data_table_titles == ["Author", "Title"]
 
-    books = [Book(row.cells[0].value, row.cells[1].value) for row in book_rows]
-
-    return books
+    return [Book(row.cells[0].value, row.cells[1].value) for row in book_rows]
 
 
 # Steps to be used in scenarios are defined with special decorators

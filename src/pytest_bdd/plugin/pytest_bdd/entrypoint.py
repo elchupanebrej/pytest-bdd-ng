@@ -229,6 +229,7 @@ def _pytest_collect_file(parent: Collector, file_path=None):
 
     if hook.pytest_bdd_is_collectible(config=config, path=Path(file_path)):
         return FeatureFileCollector.build(parent=parent, file_path=file_path)
+    return None
 
 
 if PYTEST7:  # Done intentionally because of API change
@@ -267,6 +268,7 @@ def pytest_bdd_get_mimetype(
         return Mimetype.gherkin_plain.value
     if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
         return Mimetype.markdown.value
+    return None
 
 
 def pytest_bdd_get_parser(
@@ -292,3 +294,4 @@ def pytest_bdd_is_collectible(
         )
     ):
         return True
+    return None

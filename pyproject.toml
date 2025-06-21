@@ -267,7 +267,7 @@ select = [
   # TODO "PT",  # flake8-pytest-style: Pytest style
   "PTH",  # flake8-use-pathlib: Use pathlib
   "PYI",  # flake8-pyi: Pyi file checks
-  # TODO "RET",  # flake8-return: Return statement checks
+  "RET",  # flake8-return: Return statement checks
   "RSE",  # flake8-raise: Raise statement checks
   "RUF",  # ruff: Ruff-specific checks
   "S",  # bandit: Security issues

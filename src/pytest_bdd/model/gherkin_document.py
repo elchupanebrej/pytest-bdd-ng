@@ -217,16 +217,19 @@ class Feature:
         model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return model_step.keyword.strip()
+        return None
 
     def _get_step_prefix(self, step: PickleStep):
         step_keyword = self._get_step_keyword(step)
         if step_keyword is not None:
             return step_keyword.lower()
+        return None
 
     def _get_step_line_number(self, step: PickleStep):
         model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return location.line if (location := model_step.location) is not None else -1
+        return None
 
     def _get_step_doc_string(self, step: PickleStep):
         return getattr(self._get_pickle_step_model_step(step), "doc_string", None)

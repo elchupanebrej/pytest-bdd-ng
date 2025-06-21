@@ -106,3 +106,4 @@ class StructBDDParser(ParserProtocol):
                 )
 
             return load_hocon
+        return None

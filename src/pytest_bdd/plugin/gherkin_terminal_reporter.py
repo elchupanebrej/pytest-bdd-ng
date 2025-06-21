@@ -88,3 +88,4 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore
                 )
         self._tw.write(f"    {word}\n", **word_markup)
         self.stats.setdefault(cat, []).append(rep)
+        return None
