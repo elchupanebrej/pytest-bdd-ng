@@ -43,7 +43,7 @@ def configure(config: Config) -> None:
             raise IncompatiblePluginConfigurationError(msg)
 
 
-class GherkinTerminalReporter(TerminalReporter):  # type: ignore
+class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
     def __init__(self, config: Config) -> None:
         super().__init__(config)
 

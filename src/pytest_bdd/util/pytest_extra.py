@@ -18,7 +18,7 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
     """
     fd = FixtureDef(
         **(
-            {"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}  # type:ignore
+            {"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}  # type:ignore[arg-type, dict-item]
         ),
         baseid=None,
         argname=arg,

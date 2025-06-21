@@ -265,7 +265,7 @@ select = [
   # TODO "LOG",  # flake8-logging: Logging issues
   "N",  # pep8-naming: Naming conventions
   "PERF",  # perflint: Performance issues
-  # TODO "PGH",  # pygrep-hooks: Pre-commit hooks
+  "PGH",  # pygrep-hooks: Pre-commit hooks
   "PIE",  # flake8-pie: Miscellaneous checks
   # TODO "PL",  # pylint: Linting
   "PT",  # flake8-pytest-style: Pytest style

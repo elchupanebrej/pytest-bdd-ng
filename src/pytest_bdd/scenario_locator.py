@@ -61,7 +61,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
             (feature, pickle)
             for pickle in feature.pickles
             if self.filter_ is None or self.filter_(config, feature, pickle)
-        )  # type: ignore
+        )
 
     def resolve(self, config):
         for feature, feature_data in self.resolve_features(config):
