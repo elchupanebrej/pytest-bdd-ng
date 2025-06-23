@@ -305,7 +305,9 @@ class StepPrototype(Node):
         mimetype = attrib()
 
         def resolve_features(self, config):
-            from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
+            from pytest_bdd.struct_bdd.model_builder import (
+                GherkinDocumentBuilder,
+            )
 
             feature = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename,
@@ -322,7 +324,7 @@ class StepPrototype(Node):
             try:
                 feature_source = Source(
                     uri=self.uri,
-                    data=Path(self.filename).read_text(),
+                    data=Path(self.filename).read_text(encoding="utf-8"),
                     media_type=media_type,
                 )
                 yield feature, feature_source

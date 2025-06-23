@@ -132,6 +132,7 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
                     |  2  |
             """,
         ),
+        encoding="utf-8",
     )
 
     result = testdir.runpytest("--disable-feature-autoload")

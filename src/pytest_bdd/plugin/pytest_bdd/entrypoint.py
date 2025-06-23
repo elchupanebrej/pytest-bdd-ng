@@ -20,6 +20,7 @@ from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
     PYTEST7,
     Config,
+    ExitCode,
     FixtureRequest,
     Mark,
     MarkDecorator,
@@ -215,7 +216,7 @@ def pytest_generate_tests(metafunc: Metafunc):
         )
 
 
-def pytest_cmdline_main(config: Config) -> Optional[int]:
+def pytest_cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
     return code_generation.cmdline_main(config)
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Union, cast
 
 import py
 import pytest
@@ -194,3 +194,16 @@ else:
 
 def get_metafunc_call_arg(call, arg):
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
+
+
+def is_testrun_success(exitstatus: Union[int, pytest.ExitCode]) -> bool:
+    return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
+
+
+def build_fixture_def(request, *args, **kwargs):
+    return FixtureDef(
+        *args,
+        **kwargs,
+        **({"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}),
+        **({"_ispytest": True} if PYTEST8 else {}),
+    )

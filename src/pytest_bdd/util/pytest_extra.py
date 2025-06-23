@@ -5,9 +5,7 @@ from contextlib import contextmanager
 from re import Pattern
 from typing import Any, Optional, Union
 
-from _pytest.fixtures import FixtureDef, FixtureRequest
-
-from pytest_bdd.compatibility.pytest import PYTEST8, PYTEST81, fail
+from pytest_bdd.compatibility.pytest import FixtureRequest, build_fixture_def, fail
 
 
 def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
@@ -16,16 +14,13 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
     :param arg: argument name
     :param value: argument value
     """
-    fd = FixtureDef(
-        **(
-            {"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}  # type:ignore[arg-type, dict-item]
-        ),
+    fd = build_fixture_def(
+        request,
         baseid=None,
         argname=arg,
         func=lambda: value,
         scope="function",
         params=None,
-        **({"_ispytest": True} if PYTEST8 else {}),  # type:ignore[arg-type]
     )
     fd.cached_result = (value, 0, None)
 

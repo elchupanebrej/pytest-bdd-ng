@@ -1,13 +1,11 @@
 """pytest-bdd missing test code generation."""
 
-from __future__ import annotations
-
 import argparse
 from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, Union, cast
 
 import py
 from mako.template import Template
@@ -76,13 +74,13 @@ def add_options(parser: Parser) -> None:
     )
 
 
-def cmdline_main(config: Config) -> int | None:
-    """Check config option to show missing code."""
+def cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
+    """Check a config option to show missing code."""
     if config.option.generate_missing:
         return generate_and_print_missing_code(config)
     if config.option.generate:
         return generate_and_print_code(config)
-    return None  # Make mypy happy
+    return None
 
 
 def generate_code(
@@ -159,7 +157,7 @@ def process_session_items(
 
 
 def process_single_item(
-    item: Item | Any,
+    item: Union[Item, Any],
     seen_feature_pickles_ids: set[tuple[str, str]],
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
@@ -255,7 +253,7 @@ def find_unique_non_matched_steps(
     return unique_non_matched_feature_pickle_steps
 
 
-def generate_and_print_missing_code(config: Config) -> int | ExitCode:
+def generate_and_print_missing_code(config: Config) -> Union[int, ExitCode]:
     """Wrap pytest session to show missing code."""
     return wrap_session(config=config, doit=generate_and_print_missing_code_callback)
 
@@ -313,7 +311,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
     tw.write(code)
 
 
-def generate_and_print_code(config: Config) -> int | ExitCode:
+def generate_and_print_code(config: Config) -> Union[int, ExitCode]:
     """Wrap pytest session to show missing code."""
     verbosity = config.option.verbose
     try:

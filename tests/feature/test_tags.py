@@ -56,10 +56,12 @@ def test_tags_selector(testdir):
     assert result["deselected"] == 1
 
     result = testdir.runpytest("-m", "feature_tag_1", "-vv").parseoutcomes()
-    assert result["passed"] == 2
+    oracle_passed_tests_count = 2
+    assert result["passed"] == oracle_passed_tests_count
 
     result = testdir.runpytest("-m", "feature_tag_10", "-vv").parseoutcomes()
-    assert result["deselected"] == 2
+    oracle_deselected_tests_count = 2
+    assert result["deselected"] == oracle_deselected_tests_count
 
 
 def test_tags_after_background_issue_160(testdir):

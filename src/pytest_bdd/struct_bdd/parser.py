@@ -10,7 +10,7 @@ from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.struct_bdd.model import Step
 from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
 
 @attrs
@@ -41,7 +41,7 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 hookspec
+        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 hookspec
         path: Path,
         uri: str,
         *args,
@@ -56,6 +56,7 @@ class StructBDDParser(ParserProtocol):
         step = Step.model_validate(raw_step)
         return GherkinDocumentBuilder(model=step).build_feature(filename, uri, self.id_generator), content  # type: ignore[call-arg]
 
+    # TODO make loaders part of public API
     def build_loader(self):
         if self.kind == self.KIND.YAML.value:
             from yaml import FullLoader

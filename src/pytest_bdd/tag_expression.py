@@ -28,9 +28,9 @@ class _ModernTagExpression(TagExpression):
     expression: Optional["Expression"] = attrib()
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str):
         try:
-            return cls(expression=Expression.compile(expression) if expression != "" else None)
+            return cls(expression=Expression.compile(expression) if expression else None)
         except ParseError as e:
             msg = f"Unable parse mark expression: {expression}: {e}"
             raise ValueError(msg) from e
@@ -63,16 +63,16 @@ class _FallbackMarksTagExpression(TagExpression):
     expression: Optional[str] = attrib()
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str):
         try:
-            if expression != "":
+            if expression:
                 eval(expression, {})  # noqa:S307 intentional
         except SyntaxError as e:
             msg = f"Unable parse mark expression: {expression}: {e}"
             raise ValueError(msg) from e
         except NameError:
             pass
-        return cls(expression=expression if expression != "" else None)
+        return cls(expression=expression or None)
 
     def evaluate(self, marks):
         if self.expression is None:

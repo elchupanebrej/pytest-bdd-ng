@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
             ]
         )
     ),
-    reason="Verify only on the latest version",
+    reason="Verify only on the latest python version and linux environment",
 )
 def test_doc_generation(testdir: "Testdir"):
     from pytest_bdd.script.bdd_tree_to_rst import convert

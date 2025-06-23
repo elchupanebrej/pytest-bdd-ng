@@ -270,7 +270,8 @@ def test_load_actioned_step_with_alternative_text_steps():
     )
 
     routes = list(step.routes)
-    assert len(routes) == 2
+    oracle_routes_count = 2
+    assert len(routes) == oracle_routes_count
     assert routes[0].steps == [step, step.steps[0].steps[0]]
     assert routes[1].steps == [step, step.steps[0].steps[1]]
 
@@ -510,13 +511,15 @@ def test_tags_steps_examples_load():
             ["Header1", "Header2", "Header3", "Header4", "Header5", "Header6"],
         ),
     )
-    assert len(route.example_table.values) == 4
+    oracle_route_example_table_length = 4
+    assert len(route.example_table.values) == oracle_route_example_table_length
 
     document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
     document_ast.uri = "uri"
 
     pickles = Compiler().compile(document_ast.dict(by_alias=True, exclude_none=True))
-    assert len(pickles) == 4
+    oracle_pickles_count = 4
+    assert len(pickles) == oracle_pickles_count
 
 
 def test_tags_steps_examples_load_complex():
@@ -602,12 +605,14 @@ def test_tags_steps_examples_load_complex():
 
     routes = list(step.routes)
 
-    assert len(routes) == 4
+    oracle_routes_count = 4
+    assert len(routes) == oracle_routes_count
 
-    assert len(routes[0].example_table.values) == 12
-    assert len(routes[1].example_table.values) == 6
-    assert len(routes[2].example_table.values) == 24
-    assert len(routes[3].example_table.values) == 12
+    oracle_route_example_table_lengths = (12, 6, 24, 12)
+    assert all(
+        len(route.example_table.values) == oracle_length
+        for route, oracle_length in zip(routes, oracle_route_example_table_lengths)
+    )
 
     assert all(
         map(
@@ -716,7 +721,8 @@ def test_tags_steps_examples_joined_by_value_load():
 
     assert len(routes) == 1
 
-    assert len(routes[0].example_table.values) == 2
+    oracle_routes_example_table_length = 2
+    assert len(routes[0].example_table.values) == oracle_routes_example_table_length
 
 
 def test_load_nested_steps():

@@ -273,7 +273,8 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     parameter_type_messages = messages = list_filter_by_type(ParameterType, unfold_messages)
-    assert len(parameter_type_messages) == 12, f"Messages: {pformat(messages)}"
+    oracle_parameter_type_messages_count = 12
+    assert len(parameter_type_messages) == oracle_parameter_type_messages_count, f"Messages: {pformat(messages)}"
 
 
 def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
@@ -577,7 +578,8 @@ def test_hook_type_messages(testdir, tmp_path):
     unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Hook, unfold_messages)
-    assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
+    oracle_attachment_messages_count = 4
+    assert len(attachment_messages) == oracle_attachment_messages_count, f"Messages: {pformat(messages)}"
 
     # before_mark hook
     assert any(message.tag_expression == "tag" and message.name is None for message in attachment_messages)

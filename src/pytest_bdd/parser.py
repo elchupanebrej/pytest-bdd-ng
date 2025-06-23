@@ -23,7 +23,7 @@ from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model import Feature
 from pytest_bdd.types.exception import FeatureConcreteParseError, FeatureParseError
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.struct_bdd.parser import StructBDDParser  # noqa: F401
@@ -53,7 +53,7 @@ class GherkinParser(BaseParser):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 overload
+        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
         path: Path,
         uri: str,
         *args,
@@ -126,7 +126,7 @@ class MarkdownGherkinParser(BaseParser):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],  # noqa: ARG002 overload
+        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
         path: Path,
         uri: str,
         *args,  # noqa: ARG002 overload

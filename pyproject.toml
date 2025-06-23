@@ -312,7 +312,7 @@ max-complexity = 10  # TODO target is 6
 "docs/conf.py" = ["ERA001"]
 "docs/tutorial/tests/*" = ["S101", "S506"]
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]
-"tests/*" = ["D103", "EM101", "S101", "S506"]
+"tests/*" = ["D103", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "S101", "S506"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

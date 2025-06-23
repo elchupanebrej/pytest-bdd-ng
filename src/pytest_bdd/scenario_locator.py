@@ -27,7 +27,7 @@ from pytest_bdd.const import FeatureBaseLoad
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature, Pickle
 from pytest_bdd.scenario import Args
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.url import is_local_url
 
 
@@ -35,7 +35,7 @@ from pytest_bdd.util.url import is_local_url
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, HasPytestBDDIdGenerator],
     ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
         ...
 
@@ -44,7 +44,7 @@ class ScenarioLocatorFeatureResolver(Protocol):
 class ScenarioLocatorResolver(Protocol):
     def resolve(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, HasPytestBDDIdGenerator],
     ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
         ...
 
@@ -87,7 +87,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
         urls = self._build_urls()
         if not urls:
             return
@@ -107,7 +107,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
             yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
 
@@ -151,7 +151,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     def _parse_and_yield_feature(self, parser, config, url, feature_content, mimetype, encoding):
         filename = None
         try:
-            with NamedTemporaryFile(mode="w", delete=False) as f:
+            with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
                 filename = f.name
                 f.write(feature_content)
 
@@ -199,7 +199,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.parse_args()),
     )
 
-    def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+    def _resolve_features_base_dir(self, config: Union[Config, HasPytestBDDIdGenerator]):
         try:
             if self.features_base_dir is None:
                 # TODO: refactor, move out from class usage to initialization or higher
@@ -249,7 +249,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths = set()
 
@@ -281,7 +281,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
             feature, feature_data = parser.parse(
                 config,

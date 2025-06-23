@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, runtime_c
 from attr import attrib, attrs
 
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -21,7 +21,7 @@ class ParserProtocol(Protocol):
 
     def parse(
         self,
-        config: Union[Config, PytestBDDIdGeneratorHandler],
+        config: Union[Config, HasPytestBDDIdGenerator],
         path: Path,
         uri: str,
         *args,

@@ -61,12 +61,13 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
 )
 from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.path import relpath
-from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, Parser, get_config_root_path
+from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
+from pytest_bdd.compatibility.pytest import Parser as ArgParser
 from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
 from pytest_bdd.parsers import StepParser
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import format_as_python_identifier
@@ -81,7 +82,7 @@ class CliOptions(Enum):
     LIBERAL_STEPS = "liberal_steps"
 
 
-def add_options(parser: Parser):
+def add_options(parser: ArgParser):
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Steps")
     help_ = "Allow use different keywords with same step definition"
@@ -331,7 +332,7 @@ class StepHandler:
 
         def unspecified_matcher(self, step_definition):
             return (
-                self.step_type_context == StepType.unknown or step_definition.type_ == StepType.unknown
+                StepType.unknown in {self.step_type_context, step_definition.type_}
             ) and step_definition.parser.is_matching(
                 self.request,
                 self.step.text,
@@ -431,8 +432,8 @@ class StepHandler:
                 fixture_names.update(bypassed_params)
             return fixture_names
 
-        def as_message(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
-            id_generator = cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator
+        def as_message(self, config: Union[Config, HasPytestBDDIdGenerator]):
+            id_generator = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator
             try:
                 message = self.__cache[id(id_generator)]
             except KeyError:

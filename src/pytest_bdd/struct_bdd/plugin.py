@@ -60,7 +60,8 @@ class StructBDDPlugin:
                 return True
         return None
 
-    def _pytest_pycollect_makemodule(self):
+    @staticmethod
+    def _pytest_pycollect_makemodule():
         outcome = yield
         res = outcome.get_result()
         if isinstance(res, Module):

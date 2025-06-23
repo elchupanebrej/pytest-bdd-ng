@@ -1,9 +1,9 @@
 import re
 
 import pytest
-from _pytest.outcomes import Failed
 from attr import attrib, attrs
 
+from pytest_bdd.compatibility.pytest.outcomes import Failed
 from pytest_bdd.util.pytest_extra import doesnt_raise
 from pytest_bdd.util.toolz_extra import deepattrgetter, flip, setdefaultattr
 
@@ -163,38 +163,40 @@ def test_setdefaultattr_set_nonexisting_attr_value():
     class Dumb: ...
 
     dumb = Dumb()
-    setdefaultattr(dumb, "foo", value=10)
+    oracle_foo = 10
+    setdefaultattr(dumb, "foo", value=oracle_foo)
 
-    assert dumb.foo == 10
+    assert dumb.foo == oracle_foo
 
 
 def test_setdefaultattr_set_nonexisting_attr_value_factory():
     class Dumb: ...
 
     dumb = Dumb()
-    setdefaultattr(dumb, "foo", value_factory=lambda: 10)
+    oracle_foo = 10
+    setdefaultattr(dumb, "foo", value_factory=lambda: oracle_foo)
 
-    assert dumb.foo == 10
+    assert dumb.foo == oracle_foo
 
 
 def test_setdefaultattr_not_set_existing_attr_value():
     class Dumb: ...
 
     dumb = Dumb()
-    dumb.foo = 20
+    dumb.foo = oracle_foo = 20
     setdefaultattr(dumb, "foo", value=10)
 
-    assert dumb.foo == 20
+    assert dumb.foo == oracle_foo
 
 
 def test_setdefaultattr_not_set_existing_attr_value_factory():
     class Dumb: ...
 
     dumb = Dumb()
-    dumb.foo = 20
+    dumb.foo = oracle_foo = 20
     setdefaultattr(dumb, "foo", value_factory=lambda: 10)
 
-    assert dumb.foo == 20
+    assert dumb.foo == oracle_foo
 
 
 def test_setdefaultattr_for_both_factory_and_value():

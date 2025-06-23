@@ -56,9 +56,10 @@ from pytest_bdd.compatibility.pytest import (
     get_config_root_path,
     get_metafunc_call_arg,
     is_set,
+    is_testrun_success,
 )
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.types.protocol import PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.util.packaging import get_distribution_version
 from pytest_bdd.util.toolz_extra import deepattrgetter
@@ -297,13 +298,12 @@ class GherkinMessageReporter:
         config = session.config
         hook_handler = config.hook
 
-        is_testrun_success = (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
         hook_handler.pytest_bdd_message(
             config=config,
             message=Message(
                 test_run_finished=TestRunFinished(
                     timestamp=self.get_timestamp(),
-                    success=is_testrun_success,
+                    success=is_testrun_success(exitstatus),
                 ),
             ),
         )
@@ -339,7 +339,7 @@ class GherkinMessageReporter:
                 config=config,
                 message=Message(
                     hook=Hook(
-                        id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                        id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                         **({"name": hook_name} if hook_name is not None else {}),
                         source_reference=SourceReference(
                             uri=relpath(
@@ -362,9 +362,7 @@ class GherkinMessageReporter:
             return
 
         session = item.session
-        config: Union[Config, PytestBDDIdGeneratorHandler] = (
-            session.config
-        )  # https://github.com/python/typing/issues/213
+        config: Union[Config, HasPytestBDDIdGenerator] = session.config  # https://github.com/python/typing/issues/213
 
         hook_handler = cast(Config, config).hook
 
@@ -393,7 +391,7 @@ class GherkinMessageReporter:
                 pass
             else:
                 test_step = TestStep(
-                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
                     # TODO Check step_match_arguments_lists
@@ -404,7 +402,7 @@ class GherkinMessageReporter:
                 previous_step = step
 
         self.current_test_case = TestCase(
-            id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+            id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
             pickle_id=scenario.id,
             test_steps=test_steps,
         )
@@ -462,7 +460,7 @@ class GherkinMessageReporter:
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
-                                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                                 ),
                             ),
                         )
@@ -482,7 +480,7 @@ class GherkinMessageReporter:
 
         self.current_test_case_start = TestCaseStarted(
             attempt=getattr(request.node, "execution_count", 0),
-            id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+            id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
             test_case_id=self.current_test_case.id,
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),

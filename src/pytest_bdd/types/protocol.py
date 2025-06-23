@@ -5,5 +5,5 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class PytestBDDIdGeneratorHandler(Protocol):
+class HasPytestBDDIdGenerator(Protocol):
     pytest_bdd_id_generator: Union["IdGenerator", Any]

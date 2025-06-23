@@ -446,7 +446,8 @@ def test_step_hooks(testdir):
     reprec.assertoutcome(failed=1)
 
     calls = reprec.getcalls("pytest_bdd_before_step")
-    assert len(calls) == 2
+    oracle_pytest_bdd_before_step_hook_count = 2
+    assert len(calls) == oracle_pytest_bdd_before_step_hook_count
 
     calls = reprec.getcalls("pytest_bdd_before_step_call")
     assert len(calls) == 1

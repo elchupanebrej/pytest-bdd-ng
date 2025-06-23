@@ -2,19 +2,11 @@
 
 import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import execnet.gateway_base
 
-
-class OfType:
-    """Helper object comparison to which is always 'equal'."""
-
-    def __init__(self, type_: Optional[type] = None) -> None:
-        self.type = type_
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.type) if self.type else True
+from pytest_bdd.util.toolz_test import InstanceOfType
 
 
 def matchreport(
@@ -144,7 +136,7 @@ def test_step_trace(testdir):
         "name": "Passing",
         "steps": [
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Given",
                 "line_number": 6,
@@ -152,7 +144,7 @@ def test_step_trace(testdir):
                 "type": "given",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "And",
                 "line_number": 7,
@@ -183,7 +175,7 @@ def test_step_trace(testdir):
         "name": "Failing",
         "steps": [
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Given",
                 "line_number": 11,
@@ -191,7 +183,7 @@ def test_step_trace(testdir):
                 "type": "given",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": True,
                 "keyword": "And",
                 "line_number": 12,
@@ -223,7 +215,7 @@ def test_step_trace(testdir):
         "name": "Outlined",
         "steps": [
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Given",
                 "line_number": 15,
@@ -231,7 +223,7 @@ def test_step_trace(testdir):
                 "type": "given",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "When",
                 "line_number": 16,
@@ -239,7 +231,7 @@ def test_step_trace(testdir):
                 "type": "when",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Then",
                 "line_number": 17,
@@ -271,7 +263,7 @@ def test_step_trace(testdir):
         "name": "Outlined",
         "steps": [
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Given",
                 "line_number": 15,
@@ -279,7 +271,7 @@ def test_step_trace(testdir):
                 "type": "given",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "When",
                 "line_number": 16,
@@ -287,7 +279,7 @@ def test_step_trace(testdir):
                 "type": "when",
             },
             {
-                "duration": OfType(float),
+                "duration": InstanceOfType(float),
                 "failed": False,
                 "keyword": "Then",
                 "line_number": 17,

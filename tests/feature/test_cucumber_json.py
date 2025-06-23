@@ -2,7 +2,9 @@
 
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
+
+from pytest_bdd.util.toolz_test import InstanceOfType
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
@@ -15,16 +17,6 @@ def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, An
     with resultpath.open() as f:
         jsonobject = json.load(f)
     return result, jsonobject
-
-
-class OfType:
-    """Helper object to help compare object type to initialization type"""
-
-    def __init__(self, type_: Optional[type] = None) -> None:
-        self.type = type_
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, self.type) if self.type else True
 
 
 def test_step_trace(testdir):
@@ -110,14 +102,14 @@ def test_step_trace(testdir):
                             "line": 6,
                             "match": {"location": ""},
                             "name": "a passing step",
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                         },
                         {
                             "keyword": "And",
                             "line": 7,
                             "match": {"location": ""},
                             "name": "some other passing step",
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                         },
                     ],
                     "tags": [{"name": "scenario-passing-tag", "line": 4}],
@@ -135,7 +127,7 @@ def test_step_trace(testdir):
                             "line": 11,
                             "match": {"location": ""},
                             "name": "a passing step",
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                         },
                         {
                             "keyword": "And",
@@ -143,9 +135,9 @@ def test_step_trace(testdir):
                             "match": {"location": ""},
                             "name": "a failing step",
                             "result": {
-                                "error_message": OfType(str),
+                                "error_message": InstanceOfType(str),
                                 "status": "failed",
-                                "duration": OfType(int),
+                                "duration": InstanceOfType(int),
                             },
                         },
                     ],
@@ -160,7 +152,7 @@ def test_step_trace(testdir):
                         {
                             "line": 16,
                             "match": {"location": ""},
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                             "keyword": "Given",
                             "name": "type str and value hello",
                         },
@@ -183,7 +175,7 @@ def test_step_trace(testdir):
                         {
                             "line": 16,
                             "match": {"location": ""},
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                             "keyword": "Given",
                             "name": "type int and value 42",
                         },
@@ -206,7 +198,7 @@ def test_step_trace(testdir):
                         {
                             "line": 16,
                             "match": {"location": ""},
-                            "result": {"status": "passed", "duration": OfType(int)},
+                            "result": {"status": "passed", "duration": InstanceOfType(int)},
                             "keyword": "Given",
                             "name": "type float and value 1.0",
                         },
