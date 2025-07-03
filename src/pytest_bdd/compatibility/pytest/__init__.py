@@ -13,6 +13,7 @@ from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
 from _pytest.mark import Mark, MarkDecorator
+from _pytest.nodes import Collector
 from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
 from _pytest.reports import TestReport
@@ -28,6 +29,7 @@ __all__ = [
     "PYTEST6",
     "PYTEST7",
     "CallInfo",
+    "Collector",
     "Config",
     "ExitCode",
     "FixtureDef",
