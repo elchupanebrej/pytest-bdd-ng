@@ -7,10 +7,14 @@ Changelog
 Planned
 -------
 - Add official gherkin parser support >30
-- Refactor internal parser API: split loader and parser APIs
+- Refactor
+  - Internal parser API: split loader and parser APIs
+  - Split plugins
+  - Simplify complex code chunks
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
 - Add struct_bdd autoload
+  - Use mimetypes for features collection
 - Move tox.ini, pytest.ini into pyproject.toml
 - Review report generation to be conform with official tools
 - Add tests about linked files and features autoload (feature autoload must not be disabled on linked files)
@@ -50,6 +54,10 @@ Planned
   - Parametrize step execution by different step realizations using https://smarie.github.io/python-pytest-cases/
 - Switch testdir to pytester after pytest<6.2 get EOL (python 3.8 and 3.9 get EOL)
 - Use uv/ruff
+  - Use mypy on ci, pyright on-commit
+- Check newest allure-reporting plugin for reporting
+  - pytest
+  - messages
 - Contribute to messages repository with python model
 - Add support of native legacy cucumber-json
 

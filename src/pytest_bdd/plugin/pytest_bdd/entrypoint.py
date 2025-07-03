@@ -34,7 +34,7 @@ from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.plugin import cucumber_json, gherkin_terminal_reporter
+from pytest_bdd.plugin import gherkin_terminal_reporter
 from pytest_bdd.plugin.allure_logger import AllurePytestBDD
 from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
 from pytest_bdd.plugin.pytest_bdd import feature_autoload
@@ -57,6 +57,38 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     from pytest_bdd.plugin.pytest_bdd.hook import PytestBDDHookSpec
 
     pluginmanager.add_hookspecs(PytestBDDHookSpec)
+
+
+def pytest_addoption(parser: Parser) -> None:
+    """Add pytest-bdd options."""
+    feature_locator.add_options(parser)
+    steps.add_options(parser)
+    feature_autoload.add_options(parser)
+    code_generation.add_options(parser)
+    gherkin_terminal_reporter.add_options(parser)
+    GherkinMessageReporter.add_options(parser)
+
+
+@pytest.mark.trylast
+def pytest_configure(config: Config) -> None:
+    """Configure all subplugins."""
+    config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
+    config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
+    gherkin_terminal_reporter.configure(config)
+    config.pluginmanager.register(ScenarioReporterPlugin())
+    config.pluginmanager.register(ScenarioRunner())
+    config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
+    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
+    setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
+    if STRUCT_BDD_INSTALLED:
+        config.pluginmanager.register(StructBDDPlugin())
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_unconfigure(config: Config) -> None:
+    config.pluginmanager.unregister(name="pytest_bdd_messages")
+    with suppress(AttributeError):
+        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]
 
 
 @given("trace")
@@ -111,41 +143,6 @@ def attach(request: FixtureRequest):
         )
 
     return add_attachment
-
-
-def pytest_addoption(parser: Parser) -> None:
-    """Add pytest-bdd options."""
-    feature_locator.add_options(parser)
-    steps.add_options(parser)
-    feature_autoload.add_options(parser)
-    cucumber_json.add_options(parser)
-    code_generation.add_options(parser)
-    gherkin_terminal_reporter.add_options(parser)
-    GherkinMessageReporter.add_options(parser)
-
-
-@pytest.mark.trylast
-def pytest_configure(config: Config) -> None:
-    """Configure all subplugins."""
-    config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
-    config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
-    cucumber_json.configure(config)
-    gherkin_terminal_reporter.configure(config)
-    config.pluginmanager.register(ScenarioReporterPlugin())
-    config.pluginmanager.register(ScenarioRunner())
-    config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
-    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
-    setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
-    if STRUCT_BDD_INSTALLED:
-        config.pluginmanager.register(StructBDDPlugin())
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_unconfigure(config: Config) -> None:
-    config.pluginmanager.unregister(name="pytest_bdd_messages")
-    with suppress(AttributeError):
-        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]
-    cucumber_json.unconfigure(config)
 
 
 def _pytest_pycollect_makemodule():

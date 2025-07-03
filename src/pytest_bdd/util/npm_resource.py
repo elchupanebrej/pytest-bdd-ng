@@ -37,10 +37,10 @@ def check_npm_package(package_name, *, global_install=False):
 def find_resource(package_name, resource_path):
     # Check local node_modules
     local_npm_root = get_npm_root(global_install=False)
-    local_files = Path(local_npm_root, package_name).glob(resource_path)
+    local_files = Path(local_npm_root, package_name).glob(str(resource_path))
 
     # Check global node_modules
     global_npm_root = get_npm_root(global_install=True)
-    global_files = Path(global_npm_root, package_name).glob(resource_path)
+    global_files = Path(global_npm_root, package_name).glob(str(resource_path))
 
     return chain(local_files, global_files)
