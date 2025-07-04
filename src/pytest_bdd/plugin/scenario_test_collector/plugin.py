@@ -21,19 +21,18 @@ from pytest_bdd.compatibility.pytest import (
     MarkDecorator,
     Metafunc,
 )
-from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
-from pytest_bdd.plugin.pytest_bdd import feature_autoload
+from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
 from pytest_bdd.util.toolz_extra import chain_map
 
 
 def _pytest_collect_file(parent: Collector, file_path=None):
-    if not feature_autoload.is_enabled(parent.session.config):
+    if not ScenarioTestCollector.is_enabled(parent.session.config):
         return None
 
     file_path = Path(file_path)
@@ -96,7 +95,7 @@ class _LegacyTestCollector:
 BaseCollector: type = _ModernTestCollector if PYTEST7 else _LegacyTestCollector
 
 
-class TestCollector(BaseCollector):
+class ScenarioTestCollector(BaseCollector):
     @pytest.hookimpl(tryfirst=True)
     def pytest_plugin_registered(
         self,
@@ -184,3 +183,10 @@ class TestCollector(BaseCollector):
         ):
             return True
         return None
+
+    @staticmethod
+    def is_enabled(config: Config):
+        is_enabled = config.getoption(str(FeatureAutoLoad.Cli.DISABLE_OPTION))
+        if is_enabled is None:
+            is_enabled = not config.getini(str(FeatureAutoLoad.Ini.DISABLE_OPTION))
+        return is_enabled

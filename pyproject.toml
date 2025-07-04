@@ -89,6 +89,7 @@ version = "2.3.1"
 "pytest-bdd-gherkin-message-reporter" = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
 "pytest-bdd-gherkin-sceanrio-reporter" = "pytest_bdd.plugin.scenario_reporter.entrypoint"
 "pytest-bdd-gherkin-terminal-reporter" = "pytest_bdd.plugin.gherkin_terminal_reporter.entrypoint"
+"pytest-bdd-scenario-test-collector" = "pytest_bdd.plugin.scenario_test_collector.entrypoint"
 "pytest-bdd-struct-bdd" = "pytest_bdd.plugin.struct_bdd.entrypoint"
 
 [project.optional-dependencies]

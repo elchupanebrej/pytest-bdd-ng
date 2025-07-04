@@ -4,17 +4,14 @@ from typing import Optional
 import pytest
 
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from pytest_bdd import feature_locator, given, steps, then, when
+from pytest_bdd import given, steps, then, when
 from pytest_bdd.compatibility.pytest import (
     Config,
     FixtureRequest,
     Parser,
     PytestPluginManager,
 )
-from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.plugin.pytest_bdd import feature_autoload
-from pytest_bdd.plugin.pytest_bdd.plugin import TestCollector
 from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.util.other import IdGenerator
@@ -30,18 +27,12 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 
 def pytest_addoption(parser: Parser) -> None:
-    """Add pytest-bdd options."""
-    feature_locator.add_options(parser)
-    steps.add_options(parser)
-    feature_autoload.add_options(parser)
+    steps.add_options(parser)  # TestRunner
 
 
 @pytest.mark.trylast
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
-    config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
-    config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
-    config.pluginmanager.register(TestCollector())
     config.pluginmanager.register(ScenarioRunner())
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)

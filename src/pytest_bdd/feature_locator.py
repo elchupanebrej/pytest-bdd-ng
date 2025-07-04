@@ -11,17 +11,12 @@ from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark
-from pytest_bdd.const import FeatureBaseLoad
 from pytest_bdd.model import Feature, Pickle
+from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
 from pytest_bdd.util.other import StringRepresentable
 from pytest_bdd.util.url import is_url_parsable
-
-
-def add_options(parser):
-    parser.addini(FeatureBaseLoad.Ini.DIR_OPTION.value, "Base features directory.")
-    parser.addini(FeatureBaseLoad.Ini.URL_OPTION.value, "Base features url.")
 
 
 class MarkArguments(TypedDict):
@@ -84,7 +79,7 @@ class ScenarioLocatorBuilder:
         if features_base_dir is None:
             try:
                 # TODO: check if possible to move usage higher
-                features_base_dir = self.config.getini(FeatureBaseLoad.Ini.DIR_OPTION.value) or None
+                features_base_dir = self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION)) or None
             except (ValueError, KeyError):
                 features_base_dir = self.config.rootpath
         if callable(features_base_dir):
@@ -96,7 +91,7 @@ class ScenarioLocatorBuilder:
         features_base_url = mark.kwargs.get("features_base_url")
         if features_base_url is None:
             with suppress(ValueError, KeyError):
-                features_base_url = self.config.getini(FeatureBaseLoad.Ini.URL_OPTION.value) or None
+                features_base_url = self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION)) or None
         if callable(features_base_url):
             features_base_url = features_base_url(self.config)
         return features_base_url

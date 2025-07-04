@@ -3,8 +3,9 @@
 from typing import TYPE_CHECKING, Protocol, Union, cast, runtime_checkable
 
 from pytest_bdd.compatibility.pytest import Parser
-from pytest_bdd.const import FeatureAutoLoad
-from pytest_bdd.plugin.cucumber_json.plugin import LogBDDCucumberJSON
+
+from .const import CucumberJson
+from .plugin import LogBDDCucumberJSON
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Config as BaseConfig
@@ -28,15 +29,15 @@ def pytest_addoption(parser: Parser) -> None:
         "--cucumberjson",
         "--cucumber-json",
         action="store",
-        dest=FeatureAutoLoad.Cli.CUCUMBER_JSON_PATH_OPTION.value,
+        dest=str(CucumberJson.Cli.PATH_OPTION),
         metavar="path",
         default=None,
         help=help_,
     )
     parser.addini(
-        FeatureAutoLoad.Ini.CUCUMBER_JSON_PATH_OPTION.value,
+        str(CucumberJson.Ini.PATH_OPTION),
         default=False,
-        type="bool",
+        type="string",
         help=help_,
     )
 

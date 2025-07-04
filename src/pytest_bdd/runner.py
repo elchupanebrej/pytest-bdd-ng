@@ -9,9 +9,9 @@ from pluggy import PluginManager
 import pytest_bdd.types.exception as exceptions
 from messages import PickleStep  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.model import Feature
 from pytest_bdd.model import Pickle as Scenario
+from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture

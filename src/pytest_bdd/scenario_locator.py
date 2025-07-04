@@ -23,9 +23,9 @@ from messages import Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import get_config_root_path
-from pytest_bdd.const import FeatureBaseLoad
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature, Pickle
+from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.url import is_local_url
@@ -203,7 +203,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         try:
             if self.features_base_dir is None:
                 # TODO: refactor, move out from class usage to initialization or higher
-                features_base_dir = cast(Config, config).getini(FeatureBaseLoad.Ini.DIR_OPTION.value)
+                # TODO: add base dir command line option
+                features_base_dir = cast(Config, config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
             else:
                 features_base_dir = self.features_base_dir
         except (ValueError, KeyError):
