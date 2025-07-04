@@ -1,5 +1,4 @@
 from collections import deque
-from contextlib import suppress
 from typing import Optional, Union
 
 import pytest
@@ -15,7 +14,6 @@ from pytest_bdd.compatibility.pytest import (
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.plugin.allure_logger import AllurePytestBDD
 from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
 from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.pytest_bdd.plugin import TestCollector
@@ -55,7 +53,6 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(TestCollector())
     config.pluginmanager.register(ScenarioRunner())
     config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
-    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
@@ -65,8 +62,6 @@ def pytest_configure(config: Config) -> None:
 @pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config: Config) -> None:
     config.pluginmanager.unregister(name="pytest_bdd_messages")
-    with suppress(AttributeError):
-        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]
 
 
 # TODO Move to the separate plugin

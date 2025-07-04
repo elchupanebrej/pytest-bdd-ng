@@ -23,7 +23,9 @@ else:
     hookimpl = HookimplMarker("allure")
 
 
-class AllurePytestBDD:
+class AllureLogger:
+    plugin_name = "pytest-bdd-internal-allure-logger"
+
     def __init__(self, allure_logger, allure_cache):
         self.allure_logger = allure_logger
         self._cache = allure_cache
