@@ -56,6 +56,7 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(ScenarioRunner())
     config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
+    # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
