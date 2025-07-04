@@ -4,7 +4,7 @@ from typing import Optional
 import pytest
 
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from pytest_bdd import given, steps, then, when
+from pytest_bdd import given, then, when
 from pytest_bdd.compatibility.pytest import (
     Config,
     FixtureRequest,
@@ -12,22 +12,38 @@ from pytest_bdd.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
+
+from .const import Steps
+from .plugin import ScenarioRunner
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
     # TODO split hookspec per plugin
-    from pytest_bdd.plugin.pytest_bdd.hook import PytestBDDHookSpec
+    from pytest_bdd.plugin.scenario_runner.hook import PytestBDDHookSpec
 
     pluginmanager.add_hookspecs(PytestBDDHookSpec)
 
 
 def pytest_addoption(parser: Parser) -> None:
-    steps.add_options(parser)  # TestRunner
+    group = parser.getgroup("bdd", "Steps")
+    help_ = "Allow use different keywords with same step definition"
+    group.addoption(
+        "--liberal-steps",
+        action="store_true",
+        dest=str(Steps.Cli.LIBERAL_OPTION),
+        default=None,
+        help=help_,
+    )
+    parser.addini(
+        str(Steps.Ini.LIBERAL_OPTION),
+        default=False,
+        type="bool",
+        help=help_,
+    )
 
 
 @pytest.mark.trylast

@@ -37,7 +37,6 @@ def given_beautiful_article(article):
 import warnings
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
-from enum import Enum
 from functools import partial
 from inspect import getfile, getsourcelines
 from typing import Any, Callable, Optional, Union, cast
@@ -62,43 +61,16 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
 from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
-from pytest_bdd.compatibility.pytest import Parser as ArgParser
 from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
 from pytest_bdd.parsers import StepParser
+from pytest_bdd.plugin.scenario_runner.const import Steps
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import format_as_python_identifier
 from pytest_bdd.util.toolz_extra import chain_map, flip, getitemdefault, setdefaultattr
-
-
-class IniOptions(Enum):
-    LIBERAL_STEPS = "liberal_steps"
-
-
-class CliOptions(Enum):
-    LIBERAL_STEPS = "liberal_steps"
-
-
-def add_options(parser: ArgParser):
-    """Add pytest-bdd options."""
-    group = parser.getgroup("bdd", "Steps")
-    help_ = "Allow use different keywords with same step definition"
-    group.addoption(
-        "--liberal-steps",
-        action="store_true",
-        dest=CliOptions.LIBERAL_STEPS.value,
-        default=None,
-        help=help_,
-    )
-    parser.addini(
-        IniOptions.LIBERAL_STEPS.value,
-        default=False,
-        type="bool",
-        help=help_,
-    )
 
 
 def given(
@@ -340,10 +312,10 @@ class StepHandler:
 
         def liberal_matcher(self, step_definition):
             if step_definition.liberal is None:
-                if self.config.option.liberal_steps is not None:
-                    is_step_definition_liberal = self.config.option.liberal_steps
+                if self.config.option.liberal_steps is None:
+                    is_step_definition_liberal = self.config.getini(str(Steps.Ini.LIBERAL_OPTION))
                 else:
-                    is_step_definition_liberal = self.config.getini("liberal_steps")
+                    is_step_definition_liberal = getattr(self.config.option, str(Steps.Cli.LIBERAL_OPTION), False)
             else:
                 is_step_definition_liberal = step_definition.liberal
 
