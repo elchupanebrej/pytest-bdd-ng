@@ -9,20 +9,18 @@ from pluggy import HookimplMarker
 from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-from pytest_bdd.compatibility.pytest import PYTEST81
 
 if ALLURE_INSTALLED:
     from allure_commons import hookimpl
-    from allure_commons import plugin_manager as allure_plugin_manager
     from allure_commons._allure import StepContext
     from allure_commons.model2 import Label, Parameter, Status, TestStepResult
     from allure_commons.types import LabelType
     from allure_commons.utils import md5, now, platform_label
-    from allure_pytest.listener import AllureListener
 else:
     hookimpl = HookimplMarker("allure")
 
 
+# TODO decouple into allure and pytest separate plugins
 class AllureLogger:
     plugin_name = "pytest-bdd-internal-allure-logger"
 
@@ -32,26 +30,6 @@ class AllureLogger:
 
         self.allure_plugin_name = None
         self.pytest_plugin_name = None
-
-    @classmethod
-    def register_if_allure_accessible(cls, config):
-        pluginmanager = config.pluginmanager
-        allure_accessible = pluginmanager.hasplugin("allure_pytest") and config.option.allure_report_dir
-        if allure_accessible and not PYTEST81:
-            allure_plugin_manager.get_plugins()
-
-            listener = next(
-                filter(
-                    lambda plugin: isinstance(plugin, AllureListener),
-                    allure_plugin_manager.get_plugins(),
-                ),
-            )
-
-            bdd_listener = cls(listener.allure_logger, listener._cache)
-            bdd_listener.allure_plugin_name = allure_plugin_manager.register(bdd_listener)
-            bdd_listener.pytest_plugin_name = pluginmanager.register(bdd_listener)
-            return bdd_listener
-        return None
 
     @hookimpl(hookwrapper=True)
     def report_result(
