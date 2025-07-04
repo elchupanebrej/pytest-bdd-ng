@@ -5,7 +5,7 @@ from pluggy import HookimplMarker
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 from pytest_bdd.compatibility.pytest import PYTEST81, Config
-from pytest_bdd.plugin.allure_logger.plugin import AllureLogger
+from pytest_bdd.plugin.allure_logger.plugin import AllureLogger, PatchedAllureListener
 from pytest_bdd.util.toolz_extra import flip
 
 if ALLURE_INSTALLED:
@@ -28,6 +28,8 @@ def pytest_configure(config: Config) -> None:
         ),
     )
 
-    allure_logger = AllureLogger(listener.allure_logger, listener._cache)
-    allure_logger.allure_plugin_name = allure_plugin_manager.register(allure_logger)
-    allure_logger.pytest_plugin_name = config.pluginmanager.register(allure_logger, name=AllureLogger.plugin_name)
+    allure_listener = PatchedAllureListener(listener)
+    allure_plugin_manager.register(allure_listener)
+
+    allure_logger = AllureLogger(allure_listener)
+    config.pluginmanager.register(allure_logger, name=AllureLogger.plugin_name)

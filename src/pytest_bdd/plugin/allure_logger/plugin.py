@@ -11,59 +11,61 @@ from pydantic import BaseModel as PydanticBaseModel
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 
 if ALLURE_INSTALLED:
-    from allure_commons import hookimpl
+    from allure_commons import hookimpl as allure_hookimpl
     from allure_commons._allure import StepContext
     from allure_commons.model2 import Label, Parameter, Status, TestStepResult
     from allure_commons.types import LabelType
     from allure_commons.utils import md5, now, platform_label
 else:
-    hookimpl = HookimplMarker("allure")
+    allure_hookimpl = HookimplMarker("allure")
 
 
-# TODO decouple into allure and pytest separate plugins
-class AllureLogger:
-    plugin_name = "pytest-bdd-internal-allure-logger"
+def _patched_asdict(*args, recurse=True, value_serializer=None, **kwargs):
+    def patched_value_serializer(instance, field, value):
+        if isinstance(value, PydanticBaseModel):
+            # Maybe possible to speedup; Some values are not serialized when used value.dict()
+            return json.loads(value.model_dump_json())
+        if value_serializer is not patched_value_serializer:
+            return value_serializer(instance, field, value)
+        if recurse:
+            try:
+                return _patched_asdict(
+                    value,
+                    *args[1:],
+                    recurse=True,
+                    value_serializer=patched_value_serializer,
+                    **kwargs,
+                )
+            except NotAnAttrsClassError:
+                return value
+        else:
+            return value
 
-    def __init__(self, allure_logger, allure_cache):
-        self.allure_logger = allure_logger
-        self._cache = allure_cache
+    if value_serializer is None:
+        value_serializer = patched_value_serializer
 
-        self.allure_plugin_name = None
-        self.pytest_plugin_name = None
+    return asdict(*args, value_serializer=patched_value_serializer, **kwargs)
 
-    @hookimpl(hookwrapper=True)
+
+class PatchedAllureListener:
+    def __init__(self, allure_listener):
+        self.allure_listener = allure_listener
+        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
+
+    @allure_hookimpl(hookwrapper=True)
     def report_result(
         self,
         result,  # noqa: ARG002 hookspec
     ):
-        def patched_asdict(*args, recurse=True, value_serializer=None, **kwargs):
-            def patched_value_serializer(instance, field, value):
-                if isinstance(value, PydanticBaseModel):
-                    # Maybe possible to speedup; Some values are not serialized when used value.dict()
-                    return json.loads(value.model_dump_json())
-                if value_serializer is not patched_value_serializer:
-                    return value_serializer(instance, field, value)
-                if recurse:
-                    try:
-                        return patched_asdict(
-                            value,
-                            *args[1:],
-                            recurse=True,
-                            value_serializer=patched_value_serializer,
-                            **kwargs,
-                        )
-                    except NotAnAttrsClassError:
-                        return value
-                else:
-                    return value
-
-            if value_serializer is None:
-                value_serializer = patched_value_serializer
-
-            return asdict(*args, value_serializer=patched_value_serializer, **kwargs)
-
-        with patch("allure_commons.logger.asdict", new=patched_asdict):
+        with patch("allure_commons.logger.asdict", new=_patched_asdict):
             yield
+
+
+class AllureLogger:
+    plugin_name = "pytest-bdd-internal-allure-logger"
+
+    def __init__(self, allure_listener):
+        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
     @pytest.hookimpl
     def pytest_bdd_before_step_call(
