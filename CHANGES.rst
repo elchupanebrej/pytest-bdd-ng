@@ -10,6 +10,7 @@ Planned
 - Refactor
   - Internal parser API: split loader and parser APIs
   - Split plugins
+    - Add poset plugin/hooks ordering into pluggy library
   - Simplify complex code chunks
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
