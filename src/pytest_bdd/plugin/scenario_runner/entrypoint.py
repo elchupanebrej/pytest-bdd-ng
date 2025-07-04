@@ -22,10 +22,9 @@ from .plugin import ScenarioRunner
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    # TODO split hookspec per plugin
-    from pytest_bdd.plugin.scenario_runner.hook import PytestBDDHookSpec
+    from .hook import ScenarioRunnerHookSpec
 
-    pluginmanager.add_hookspecs(PytestBDDHookSpec)
+    pluginmanager.add_hookspecs(ScenarioRunnerHookSpec)
 
 
 def pytest_addoption(parser: Parser) -> None:

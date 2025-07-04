@@ -1,19 +1,14 @@
-from collections.abc import Iterable
 from io import BufferedIOBase, TextIOBase
-from pathlib import Path
 from typing import Any, Optional, Union
 
 import pytest
 
-from messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from messages import Pickle  # type:ignore[attr-defined]
-from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Mark
+from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model import Feature
 
-"""Pytest-bdd pytest hooks."""
 
-
-class PytestBDDHookSpec:
+class ScenarioRunnerHookSpec:
     def pytest_bdd_before_scenario(self, request, feature, scenario):
         """Called before scenario is executed."""
 
@@ -70,15 +65,6 @@ class PytestBDDHookSpec:
         """Called when step lookup failed."""
 
     @pytest.hookspec(firstresult=True)
-    def pytest_bdd_convert_tag_to_marks(self, feature, scenario, tag) -> Optional[Iterable[Mark]]:
-        """Apply a tag (from a ``.feature`` file) to the given test item.
-
-        The default implementation does the equivalent of
-        ``getattr(pytest.mark, tag)(function)``, but you can override this hook and
-        return ``True`` to do more sophisticated handling of tags.
-        """
-
-    @pytest.hookspec(firstresult=True)
     def pytest_bdd_match_step_definition_to_step(self, request, feature, scenario, step, previous_step):
         """Find match between scenario step and user defined step function"""
 
@@ -98,21 +84,6 @@ class PytestBDDHookSpec:
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_get_step_dispatcher(self, request: FixtureRequest, feature: Feature, scenario: Pickle):
         """Provide alternative approach to execute scenario steps"""
-
-    def pytest_bdd_message(self, config: Config, message: Message):
-        """Implement cucumber message protocol https://github.com/cucumber/messages"""
-
-    @pytest.hookspec(firstresult=True)
-    def pytest_bdd_is_collectible(self, config: Config, path: Path):
-        """Verifies if path could be collected by pytest_bdd"""
-
-    @pytest.hookspec(firstresult=True)
-    def pytest_bdd_get_parser(self, config: Config, mimetype: str):
-        """Get parser for specific file path"""
-
-    @pytest.hookspec(firstresult=True)
-    def pytest_bdd_get_mimetype(self, config: Config, path: Path):
-        """Get parser for specific file path"""
 
     def pytest_bdd_attach(
         self,

@@ -1,10 +1,15 @@
 import pytest
 
-from pytest_bdd.compatibility.pytest import (
-    Config,
-    Parser,
-)
-from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
+
+from .plugin import GherkinMessageReporter
+
+
+def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
+    """Register plugin hooks."""
+    from .hook import GherkinMessageReporterHookSpec
+
+    pluginmanager.add_hookspecs(GherkinMessageReporterHookSpec)
 
 
 def pytest_addoption(parser: Parser) -> None:
