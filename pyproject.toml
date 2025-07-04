@@ -84,6 +84,7 @@ version = "2.3.1"
 [project.entry-points.pytest11]
 "pytest-bdd" = "pytest_bdd.plugin.pytest_bdd.entrypoint"
 "pytest-bdd-cucumber-json" = "pytest_bdd.plugin.cucumber_json.entrypoint"
+"pytest-bdd-gherkin-sceanrio-reporter" = "pytest_bdd.plugin.scenario_reporter.entrypoint"
 "pytest-bdd-gherkin-terminal-reporter" = "pytest_bdd.plugin.gherkin_terminal_reporter.entrypoint"
 
 [project.optional-dependencies]

@@ -19,7 +19,6 @@ from pytest_bdd.plugin.allure_logger import AllurePytestBDD
 from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
 from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.pytest_bdd.plugin import TestCollector
-from pytest_bdd.plugin.reporter import ScenarioReporterPlugin
 from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.util import code_generation
@@ -54,7 +53,6 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
     config.pluginmanager.register(TestCollector())
-    config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner())
     config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
