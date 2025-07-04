@@ -8,9 +8,10 @@ from attr import attrib, attrs
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.struct_bdd.model import Step
-from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+
+from .model import Step
+from .model_builder import GherkinDocumentBuilder
 
 
 @attrs

@@ -6,7 +6,7 @@ import pytest
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
+    from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser
 else:  # pragma: no cover
     from unittest.mock import Mock
 
@@ -502,9 +502,9 @@ def test_examples(testdir, file_content):
 def test_dsl(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -529,9 +529,11 @@ def test_dsl(testdir):
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
@@ -545,9 +547,9 @@ def test_dsl(testdir):
 def test_dsl_decorator(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step, Table
         from pytest_bdd.model import Feature
 
         step = Step(
@@ -570,17 +572,21 @@ def test_dsl_decorator(testdir):
             ]
         )
 
+
         @step
-        def test(feature:Feature, scenario):
+        def test(feature: Feature, scenario):
             assert feature.name == "Examples are substituted"
+
 
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
@@ -594,9 +600,9 @@ def test_dsl_decorator(testdir):
 def test_dsl_as_dict(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step
 
         test_scenarios = Step.parse_obj(
             dict(
@@ -620,13 +626,16 @@ def test_dsl_as_dict(testdir):
             )
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
@@ -640,9 +649,9 @@ def test_dsl_as_dict(testdir):
 def test_dsl_keyworded_steps(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -662,13 +671,16 @@ def test_dsl_keyworded_steps(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
@@ -682,9 +694,9 @@ def test_dsl_keyworded_steps(testdir):
 def test_dsl_alternative_steps(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
+        """ \
+            from pytest_bdd import given, then, step
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -715,17 +727,21 @@ def test_dsl_alternative_steps(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal=True)
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
@@ -739,9 +755,9 @@ def test_dsl_alternative_steps(testdir):
 def test_dsl_joined_tables(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Join
+        """ \
+            from pytest_bdd import given, then, step
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table, Join
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -782,17 +798,21 @@ def test_dsl_joined_tables(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
-        @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal = True)
+
+        @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal=True)
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):

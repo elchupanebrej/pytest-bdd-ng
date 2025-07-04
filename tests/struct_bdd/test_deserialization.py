@@ -13,8 +13,8 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import doesnt_raise
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
-    from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
+    from pytest_bdd.plugin.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
+    from pytest_bdd.plugin.struct_bdd.model_builder import GherkinDocumentBuilder
 
 pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 

@@ -9,9 +9,9 @@ from pytest_bdd.compatibility.pytest import (
     Config,
     ExitCode,
     FixtureRequest,
+    Parser,
     PytestPluginManager,
 )
-from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
@@ -22,11 +22,6 @@ from pytest_bdd.steps import StepHandler
 from pytest_bdd.util import code_generation
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
-
-if STRUCT_BDD_INSTALLED:
-    from pytest_bdd.struct_bdd.plugin import StructBDDPlugin
-
-from pytest_bdd.compatibility.pytest import Parser
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
@@ -55,8 +50,6 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
-    if STRUCT_BDD_INSTALLED:
-        config.pluginmanager.register(StructBDDPlugin())
 
 
 @pytest.hookimpl(tryfirst=True)

@@ -26,7 +26,7 @@ from pytest_bdd.types.exception import FeatureConcreteParseError, FeatureParseEr
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.parser import StructBDDParser  # noqa: F401
+    from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser  # noqa: F401
 
 
 class BaseParser(ParserProtocol):

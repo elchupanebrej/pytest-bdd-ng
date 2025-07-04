@@ -8,8 +8,9 @@ import pytest
 
 from pytest_bdd.compatibility.pytest import PYTEST7, Config, Module
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.struct_bdd.model import StepPrototype
-from pytest_bdd.struct_bdd.parser import StructBDDParser
+
+from .model import StepPrototype
+from .parser import StructBDDParser
 
 
 class StructBDDPlugin:
@@ -66,6 +67,7 @@ class StructBDDPlugin:
         res = outcome.get_result()
         if isinstance(res, Module):
             for member_name, member in getmembers(res.module):
+                # TODO check startwith test_ usage to be aligned with pytest options itself
                 if isinstance(member, StepPrototype) and member_name.startswith("test_"):
                     setattr(res.module, member_name, member.as_test(res.module.__file__))
 

@@ -23,9 +23,10 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     Type,
 )
 from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
-from pytest_bdd.struct_bdd.model import Join as StructJoin
-from pytest_bdd.struct_bdd.model import StepPrototype as StructStep
-from pytest_bdd.struct_bdd.model import Table as StructTable
+
+from .model import Join as StructJoin
+from .model import StepPrototype as StructStep
+from .model import Table as StructTable
 
 
 @attrs

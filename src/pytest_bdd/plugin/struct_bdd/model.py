@@ -305,7 +305,7 @@ class StepPrototype(Node):
         mimetype = attrib()
 
         def resolve_features(self, config):
-            from pytest_bdd.struct_bdd.model_builder import (
+            from pytest_bdd.plugin.struct_bdd.model_builder import (
                 GherkinDocumentBuilder,
             )
 
