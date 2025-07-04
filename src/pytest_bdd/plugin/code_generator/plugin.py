@@ -5,15 +5,14 @@ from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Any, Union, cast
 
 import py
 from mako.template import Template
 
 from messages import Pickle, PickleStep, Type  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.importlib.resources import as_file, files
-from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Parser, Session, wrap_session
-from pytest_bdd.const import CodeGeneration
+from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.parser import GherkinParser
 from pytest_bdd.steps import StepHandler
@@ -27,7 +26,6 @@ STEP_TYPE_TO_STEP_PREFIX = {
     StepType.action: "When",
 }
 
-
 STEP_TYPE_TO_STEP_METHOD_NAME = {
     StepType.unknown: "step",
     StepType.outcome: "then",
@@ -36,51 +34,14 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 }
 
 
+# TODO Rework into plugin class
+# TODO Use wrapping around other plugins
 def check_existence(file_name):
     """Check file or directory name for existence."""
     if not Path(file_name).exists():
         msg = f"{file_name} is an invalid file or directory name"
         raise argparse.ArgumentTypeError(msg)
     return Path(file_name)
-
-
-def add_options(parser: Parser) -> None:
-    """Add pytest-bdd options."""
-    group = parser.getgroup("bdd", "Generation")
-
-    group.addoption(
-        "--generate-missing",
-        action="store_true",
-        dest=CodeGeneration.Cli.GENERATE_MISSING_CODE.value,
-        default=False,
-        help="Generate missing bdd test code for given feature files and exit.",
-    )
-
-    group.addoption(
-        "--generate",
-        action="store_true",
-        dest=CodeGeneration.Cli.GENERATE_CODE.value,
-        default=False,
-        help="Generate bdd test code for given feature files and exit.",
-    )
-
-    group.addoption(
-        "--feature",
-        metavar="FILE_OR_DIR",
-        action="append",
-        type=check_existence,
-        dest=CodeGeneration.Cli.GENERATE_FROM_FEATURES.value,
-        help="Feature file or directory to generate code for. Multiple allowed.",
-    )
-
-
-def cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
-    """Check a config option to show missing code."""
-    if config.option.generate_missing:
-        return generate_and_print_missing_code(config)
-    if config.option.generate:
-        return generate_and_print_code(config)
-    return None
 
 
 def generate_code(

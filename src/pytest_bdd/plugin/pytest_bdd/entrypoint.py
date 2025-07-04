@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Optional, Union
+from typing import Optional
 
 import pytest
 
@@ -7,7 +7,6 @@ from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd import feature_locator, given, steps, then, when
 from pytest_bdd.compatibility.pytest import (
     Config,
-    ExitCode,
     FixtureRequest,
     Parser,
     PytestPluginManager,
@@ -18,7 +17,6 @@ from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.pytest_bdd.plugin import TestCollector
 from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import StepHandler
-from pytest_bdd.util import code_generation
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
@@ -36,7 +34,6 @@ def pytest_addoption(parser: Parser) -> None:
     feature_locator.add_options(parser)
     steps.add_options(parser)
     feature_autoload.add_options(parser)
-    code_generation.add_options(parser)
 
 
 @pytest.mark.trylast
@@ -48,12 +45,6 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(ScenarioRunner())
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
-
-
-# TODO Move to the separate plugin
-@pytest.hookimpl
-def pytest_cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
-    return code_generation.cmdline_main(config)
 
 
 @given("trace")

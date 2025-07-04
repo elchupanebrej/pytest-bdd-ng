@@ -25,10 +25,3 @@ class FeatureBaseLoad:
     class Ini(Enum):
         DIR_OPTION = "bdd_features_base_dir"
         URL_OPTION = "bdd_features_base_url"
-
-
-class CodeGeneration:
-    class Cli(Enum):
-        GENERATE_CODE = "generate"
-        GENERATE_MISSING_CODE = "generate_missing"
-        GENERATE_FROM_FEATURES = "features"
