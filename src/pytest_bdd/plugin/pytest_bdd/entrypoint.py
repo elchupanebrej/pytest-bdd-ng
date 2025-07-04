@@ -15,7 +15,6 @@ from pytest_bdd.compatibility.pytest import (
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.plugin import gherkin_terminal_reporter
 from pytest_bdd.plugin.allure_logger import AllurePytestBDD
 from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
 from pytest_bdd.plugin.pytest_bdd import feature_autoload
@@ -46,7 +45,6 @@ def pytest_addoption(parser: Parser) -> None:
     steps.add_options(parser)
     feature_autoload.add_options(parser)
     code_generation.add_options(parser)
-    gherkin_terminal_reporter.add_options(parser)
     GherkinMessageReporter.add_options(parser)
 
 
@@ -55,7 +53,6 @@ def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
     config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
-    gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(TestCollector())
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner())
