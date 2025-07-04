@@ -87,13 +87,6 @@ class AllureLogger:
         with patch("allure_commons.logger.asdict", new=patched_asdict):
             yield
 
-    def unregister(self, config):
-        pluginmanager = config.pluginmanager
-        allure_accessible = pluginmanager.hasplugin("allure_pytest") and config.option.allure_report_dir
-        if allure_accessible:
-            allure_plugin_manager.unregister(name=self.allure_plugin_name)
-            pluginmanager.unregister(name=self.pytest_plugin_name)
-
     @pytest.hookimpl
     def pytest_bdd_before_step_call(
         self,
