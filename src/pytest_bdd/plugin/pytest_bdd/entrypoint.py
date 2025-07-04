@@ -14,7 +14,6 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.const import PYTEST_BDD_MARK
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.plugin.gherkin_message_reporter import GherkinMessageReporter
 from pytest_bdd.plugin.pytest_bdd import feature_autoload
 from pytest_bdd.plugin.pytest_bdd.plugin import TestCollector
 from pytest_bdd.runner import ScenarioRunner
@@ -26,6 +25,7 @@ from pytest_bdd.util.toolz_extra import setdefaultattr
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
+    # TODO split hookspec per plugin
     from pytest_bdd.plugin.pytest_bdd.hook import PytestBDDHookSpec
 
     pluginmanager.add_hookspecs(PytestBDDHookSpec)
@@ -37,7 +37,6 @@ def pytest_addoption(parser: Parser) -> None:
     steps.add_options(parser)
     feature_autoload.add_options(parser)
     code_generation.add_options(parser)
-    GherkinMessageReporter.add_options(parser)
 
 
 @pytest.mark.trylast
@@ -47,14 +46,8 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
     config.pluginmanager.register(TestCollector())
     config.pluginmanager.register(ScenarioRunner())
-    config.pluginmanager.register(GherkinMessageReporter(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_unconfigure(config: Config) -> None:
-    config.pluginmanager.unregister(name="pytest_bdd_messages")
 
 
 # TODO Move to the separate plugin

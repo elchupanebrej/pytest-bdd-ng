@@ -52,7 +52,6 @@ from pytest_bdd.compatibility.pytest import (
     Config,
     FixtureDef,
     FixtureRequest,
-    Parser,
     get_config_root_path,
     get_metafunc_call_arg,
     is_set,
@@ -67,7 +66,6 @@ from pytest_bdd.util.toolz_extra import deepattrgetter
 if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -79,6 +77,7 @@ class GherkinMessageReporter:
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
     npm_formatter_package = "@cucumber/html-formatter"
+    plugin_name = "pytest-bdd-internal-gherkin-message-reporter"
 
     def __attrs_post_init__(self):
         self.is_disabled = all(
@@ -158,32 +157,6 @@ class GherkinMessageReporter:
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
         return Timestamp(seconds=test_run_started_seconds, nanos=test_run_started_nanos)
-
-    @staticmethod
-    def add_options(parser: Parser) -> None:
-        """Add pytest-bdd options."""
-        group = parser.getgroup("bdd", "Cucumber NDJSON")
-        group.addoption(
-            "--messagesndjson",
-            "--messages-ndjson",
-            "--messagesjsonl",
-            "--messages-jsonl",
-            action="store",
-            dest="messages_ndjson_path",
-            metavar="path",
-            default=None,
-            help="messages ndjson report file at given path.",
-        )
-        group = parser.getgroup("bdd", "Cucumber HTML")
-        group.addoption(
-            "--cucumber-html",
-            "--cucumberhtml",
-            action="store",
-            dest="cucumber_html_path",
-            metavar="path",
-            default=None,
-            help="cucumber html report at given path.",
-        )
 
     def generate_html_report(self):
         if self.is_disabled:
