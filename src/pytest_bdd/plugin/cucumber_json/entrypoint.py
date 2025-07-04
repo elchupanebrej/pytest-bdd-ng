@@ -2,8 +2,7 @@
 
 from typing import TYPE_CHECKING, Protocol, Union, cast, runtime_checkable
 
-from _pytest.config import Parser
-
+from pytest_bdd.compatibility.pytest import Parser
 from pytest_bdd.const import FeatureAutoLoad
 from pytest_bdd.plugin.cucumber_json.plugin import LogBDDCucumberJSON
 
