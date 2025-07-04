@@ -26,7 +26,7 @@ class FeatureExamplesNotValidError(ScenarioValidationError):
 
 
 class StepDefinitionNotFoundError(Exception):
-    """StepHandler definition not found."""
+    """Step definition not found."""
 
     def __init__(self, feature, scenario, step, *args):
         super().__init__(

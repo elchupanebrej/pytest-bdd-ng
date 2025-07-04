@@ -8,15 +8,15 @@ from pytest_bdd.model import Feature
 
 
 class StepReport:
-    """StepHandler execution report."""
+    """Step execution report."""
 
     failed = False
     stopped = None
 
     def __init__(self, step: PickleStep) -> None:
-        """StepHandler report constructor.
+        """Step report constructor.
 
-        :param StepHandler step: StepHandler.
+        :param Step step: Step.
         """
         self.step = step
         self.started = time.perf_counter()
@@ -46,9 +46,9 @@ class StepReport:
 
     @property
     def duration(self) -> float:
-        """StepHandler execution duration.
+        """Step execution duration.
 
-        :return: StepHandler execution duration.
+        :return: Step execution duration.
         :rtype: float
         """
         if self.stopped is None:

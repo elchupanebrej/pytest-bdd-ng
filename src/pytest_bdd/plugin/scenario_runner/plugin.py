@@ -12,7 +12,7 @@ from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_f
 from pytest_bdd.model import Feature
 from pytest_bdd.model import Pickle as Scenario
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
@@ -230,5 +230,5 @@ class ScenarioRunner:
                 step=step,
                 previous_step=previous_step,
             )
-        except StepHandler.Matcher.MatchNotFoundError as e:
+        except StepDefinitionManager.Matcher.MatchNotFoundError as e:
             raise exceptions.StepDefinitionNotFoundError(self.feature, self.scenario, step) from e

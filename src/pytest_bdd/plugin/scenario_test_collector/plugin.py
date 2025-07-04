@@ -26,7 +26,7 @@ from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
 from pytest_bdd.util.toolz_extra import chain_map
 
@@ -103,7 +103,7 @@ class ScenarioTestCollector(BaseCollector):
         manager,  # noqa: ARG002 hookimpl
     ):
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
-            StepHandler.Registry.inject_registry_fixture_and_register_steps(plugin)
+            StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(plugin)
 
     @pytest.hookimpl
     def pytest_generate_tests(self, metafunc: Metafunc):
@@ -137,9 +137,9 @@ class ScenarioTestCollector(BaseCollector):
     @pytest.hookimpl
     def pytest_bdd_match_step_definition_to_step(
         self, request, feature, scenario, step, previous_step
-    ) -> StepHandler.Definition:
-        step_registry: StepHandler.Registry = request.getfixturevalue("step_registry")
-        step_matcher: StepHandler.Matcher = request.getfixturevalue("step_matcher")
+    ) -> StepDefinitionManager.Definition:
+        step_registry: StepDefinitionManager.Registry = request.getfixturevalue("step_registry")
+        step_matcher: StepDefinitionManager.Matcher = request.getfixturevalue("step_matcher")
 
         return step_matcher(request, feature, scenario, step, previous_step, step_registry)
 

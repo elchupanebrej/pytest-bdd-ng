@@ -1,4 +1,4 @@
-"""StepHandler arguments tests."""
+"""Step arguments tests."""
 
 
 def test_heuristic_parser(
@@ -8,7 +8,7 @@ def test_heuristic_parser(
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have a wallet
                     Given I have 6 Euro

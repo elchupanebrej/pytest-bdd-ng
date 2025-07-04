@@ -1,4 +1,4 @@
-"""StepHandler arguments tests."""
+"""Step arguments tests."""
 
 import pytest
 
@@ -15,7 +15,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have 1 Euro
                     When I pay 2 Euro
@@ -69,7 +69,7 @@ def test_argument_in_when_step_1(testdir, parser_import_string):
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Argument in when
                     Given I have an argument 1
                     When I get argument 5

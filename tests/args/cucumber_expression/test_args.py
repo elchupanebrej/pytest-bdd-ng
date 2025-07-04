@@ -1,4 +1,4 @@
-"""StepHandler arguments tests."""
+"""Step arguments tests."""
 
 from typing import TYPE_CHECKING
 
@@ -33,7 +33,7 @@ def test_cucumber_expression(
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have 1 Euro
                     When I pay 2 Euro
@@ -167,7 +167,7 @@ def test_cucumber_regular_expression(
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have 1 Euro
                     When I pay 2 Euro

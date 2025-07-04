@@ -9,14 +9,14 @@ from uuid import uuid4
 from pytest_bdd.compatibility.pytest import Module as PytestModule
 from pytest_bdd.scenario import FeaturePathType as PathType
 from pytest_bdd.scenario import scenarios
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_python_identifier
 from pytest_bdd.util.webloc import read as webloc_read
 
 
 class Module(PytestModule):
     def collect(self):
-        StepHandler.Registry.inject_registry_fixture_and_register_steps(self.obj)
+        StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(self.obj)
         return super().collect()
 
 

@@ -6,7 +6,7 @@ def test_step_alias(testdir):
         ".feature",
         # language=gherkin
         alias="""\
-            Feature: StepHandler aliases
+            Feature: Step aliases
                 Scenario: Multiple step aliases
                     Given I have an empty list
                     And I have foo (which is 1) in my list

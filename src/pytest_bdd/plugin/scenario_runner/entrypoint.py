@@ -12,7 +12,7 @@ from pytest_bdd.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
@@ -62,11 +62,11 @@ def trace() -> None:
 
 
 # Defining root step registry
-_step_registry = StepHandler.Registry()
+_step_registry = StepDefinitionManager.Registry()
 
 
 @pytest.fixture
-def step_registry() -> StepHandler.Registry:
+def step_registry() -> StepDefinitionManager.Registry:
     """Fixture containing registry of all user-defined steps"""
     return _step_registry
 
@@ -75,9 +75,9 @@ step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[a
 
 
 @pytest.fixture
-def step_matcher(pytestconfig) -> StepHandler.Matcher:
+def step_matcher(pytestconfig) -> StepDefinitionManager.Matcher:
     """Fixture containing matcher to help find step definition for selected step of scenario"""
-    return StepHandler.Matcher(pytestconfig)  # type: ignore[call-arg]
+    return StepDefinitionManager.Matcher(pytestconfig)  # type: ignore[call-arg]
 
 
 @pytest.fixture

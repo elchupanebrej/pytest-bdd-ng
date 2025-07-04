@@ -1,5 +1,3 @@
-"""StepHandler parsers."""
-
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Sequence
 from enum import Enum

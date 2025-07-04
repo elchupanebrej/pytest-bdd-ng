@@ -15,7 +15,7 @@ from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.parser import GherkinParser
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.packaging import compare_distribution_version
 
@@ -156,7 +156,7 @@ def process_pickle_steps(
                 step=step,
                 previous_step=previous_step,
             )
-        except StepHandler.Matcher.MatchNotFoundError:  # noqa:PERF203
+        except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
             non_matched_feature_pickle_steps.append(((feature, pickle), step))
         finally:
             previous_step = step
@@ -309,7 +309,7 @@ def print_missing_code(
         tw.line()
         step_type = STEP_TYPE_TO_STEP_PREFIX[step.type if step.type is not None else StepType.unknown]
         tw.line(
-            f"""StepHandler {step_type} "{step.text}" is not defined in the scenario "{pickle.name}" in the feature"""
+            f"""Step {step_type} "{step.text}" is not defined in the scenario "{pickle.name}" in the feature"""
             f""" "{feature.name}" in the file"""
             f""" {feature.filename}:{feature._get_step_line_number(step)}""",
             red=True,

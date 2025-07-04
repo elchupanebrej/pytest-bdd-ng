@@ -136,7 +136,7 @@ def test_all_steps_can_provide_fixtures(testdir):
         ".feature",
         # language=gherkin
         steps="""\
-            Feature: StepHandler fixture
+            Feature: Step fixture
                 Scenario: Given steps can provide fixture
                     Given Foo is "bar"
                     Then foo should be "bar"
@@ -352,7 +352,7 @@ def test_step_hooks(testdir):
         ".feature",
         # language=gherkin
         test="""\
-            Feature: StepHandler hooks
+            Feature: Step hooks
                 Scenario: When step has hook on failure
                     Given I have a bar
                     When it fails
@@ -546,7 +546,7 @@ def test_steps_parameter_mapping(testdir):
         steps="""\
             Feature: Steps parameters don't have to be passed as fixtures
 
-                Scenario: StepHandler parameter don't have to be injected as fixture
+                Scenario: Step parameter don't have to be injected as fixture
                     Given I have a "foo" parameter which is not injected as fixture
                     Then parameter "foo" is not visible in fixtures
 

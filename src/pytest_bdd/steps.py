@@ -1,4 +1,4 @@
-"""StepHandler decorators.
+"""Step decorators.
 
 Example:
 @given("I have an article", target_fixture="article")
@@ -87,13 +87,13 @@ def given(
 ) -> Callable:
     """Given step decorator.
 
-    :param parserlike: StepHandler name or a parser object.
+    :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
     :param converters: Optional `dict` of the argument or parameter converters in form
                        {<param_name>: <converter function>}.
     :param target_fixture: Target fixture name to replace by steps definition function.
     :param target_fixtures: Target fixture names to be replaced by steps definition function.
-    :param params_fixtures_mapping: StepHandler parameters would be injected as fixtures
+    :param params_fixtures_mapping: Step parameters would be injected as fixtures
     :param param_defaults: Default parameters for step definition
     :param liberal: Could step definition be used with other keywords
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
@@ -101,7 +101,7 @@ def given(
 
     :return: Decorator function for the step.
     """
-    return StepHandler.decorator_builder(
+    return StepDefinitionManager.decorator_builder(
         StepType.context,
         parserlike,
         anonymous_group_names=anonymous_group_names,
@@ -129,20 +129,20 @@ def when(
 ) -> Callable:
     """When step decorator.
 
-    :param parserlike: StepHandler name or a parser object.
+    :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
     :param converters: Optional `dict` of the argument or parameter converters in form
                        {<param_name>: <converter function>}.
     :param target_fixture: Target fixture name to replace by steps definition function.
     :param target_fixtures: Target fixture names to be replaced by steps definition function.
-    :param params_fixtures_mapping: StepHandler parameters would be injected as fixtures
+    :param params_fixtures_mapping: Step parameters would be injected as fixtures
     :param param_defaults: Default parameters for step definition
     :param liberal: Could step definition be used with other keywords
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
     """
-    return StepHandler.decorator_builder(
+    return StepDefinitionManager.decorator_builder(
         StepType.action,
         parserlike,
         anonymous_group_names=anonymous_group_names,
@@ -170,20 +170,20 @@ def then(
 ) -> Callable:
     """Then step decorator.
 
-    :param parserlike: StepHandler name or a parser object.
+    :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
     :param converters: Optional `dict` of the argument or parameter converters in form
                        {<param_name>: <converter function>}.
     :param target_fixture: Target fixture name to replace by steps definition function.
     :param target_fixtures: Target fixture names to be replaced by steps definition function.
-    :param params_fixtures_mapping: StepHandler parameters would be injected as fixtures
+    :param params_fixtures_mapping: Step parameters would be injected as fixtures
     :param param_defaults: Default parameters for step definition
     :param liberal: Could step definition be used with other keywords
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
     """
-    return StepHandler.decorator_builder(
+    return StepDefinitionManager.decorator_builder(
         StepType.outcome,
         parserlike,
         anonymous_group_names=anonymous_group_names,
@@ -211,20 +211,20 @@ def step(
 ):
     """Liberal step decorator which could be used with any keyword.
 
-    :param parserlike: StepHandler name or a parser object.
+    :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
     :param converters: Optional `dict` of the argument or parameter converters in form
                        {<param_name>: <converter function>}.
     :param target_fixture: Target fixture name to replace by steps definition function.
     :param target_fixtures: Target fixture names to be replaced by steps definition function.
-    :param params_fixtures_mapping: StepHandler parameters would be injected as fixtures
+    :param params_fixtures_mapping: Step parameters would be injected as fixtures
     :param param_defaults: Default parameters for step definition
     :param liberal: Could step definition be used with other keywords
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
     """
-    return StepHandler.decorator_builder(
+    return StepDefinitionManager.decorator_builder(
         StepType.unknown,
         parserlike,
         anonymous_group_names=anonymous_group_names,
@@ -238,7 +238,7 @@ def step(
     )
 
 
-class StepHandler:
+class StepDefinitionManager:
     Model: TypeAlias = "Step"
 
     @attrs
@@ -248,7 +248,7 @@ class StepHandler:
         pickle: Pickle = attrib(init=False)
         step: Step = attrib(init=False)
         previous_step: Optional[Step] = attrib(init=False)
-        step_registry: "StepHandler.Registry" = attrib(init=False)
+        step_registry: "StepDefinitionManager.Registry" = attrib(init=False)
         step_type_context = attrib(default=None)
 
         class MatchNotFoundError(RuntimeError):
@@ -261,8 +261,8 @@ class StepHandler:
             pickle: Pickle,
             step: Step,
             previous_step: Optional[Step],
-            step_registry: "StepHandler.Registry",
-        ) -> "StepHandler.Definition":
+            step_registry: "StepDefinitionManager.Registry",
+        ) -> "StepDefinitionManager.Definition":
             self.request = request
             self.feature = feature
             self.pickle = pickle
@@ -330,9 +330,9 @@ class StepHandler:
 
         @staticmethod
         def find_step_definition_matches(
-            registry: Optional["StepHandler.Registry"],
-            matchers: Sequence[Callable[["StepHandler.Definition"], bool]],
-        ) -> Iterable["StepHandler.Definition"]:
+            registry: Optional["StepDefinitionManager.Registry"],
+            matchers: Sequence[Callable[["StepDefinitionManager.Definition"], bool]],
+        ) -> Iterable["StepDefinitionManager.Definition"]:
             if registry:
                 found_matches = False
                 for matcher in matchers:
@@ -344,7 +344,7 @@ class StepHandler:
                         break
                 if not found_matches:
                     with suppress(AttributeError):
-                        yield from StepHandler.Matcher.find_step_definition_matches(registry.parent, matchers)
+                        yield from StepDefinitionManager.Matcher.find_step_definition_matches(registry.parent, matchers)
 
     @attrs(eq=False)
     class Definition:
@@ -450,23 +450,25 @@ class StepHandler:
 
     @runtime_checkable
     class StepProtocol(Protocol):
-        __pytest_bdd_step_definitions__: set["StepHandler.Definition"]
+        __pytest_bdd_step_definitions__: set["StepDefinitionManager.Definition"]
 
     @runtime_checkable
     class NamespaceStepRegistryProtocol(Protocol):
-        _step_registry: "StepHandler.Registry"
+        _step_registry: "StepDefinitionManager.Registry"
 
     @attrs
     class Registry:
-        registry: set["StepHandler.Definition"] = attrib(default=Factory(set))
-        parent: "StepHandler.Registry" = attrib(default=None, init=False)
+        registry: set["StepDefinitionManager.Definition"] = attrib(default=Factory(set))
+        parent: "StepDefinitionManager.Registry" = attrib(default=None, init=False)
 
         @classmethod
-        def inject_registry_fixture_and_register_steps(cls, namespace: "StepHandler.NamespaceStepRegistryProtocol"):
+        def inject_registry_fixture_and_register_steps(
+            cls, namespace: "StepDefinitionManager.NamespaceStepRegistryProtocol"
+        ):
             # Go around namespace and search for step definition containers
-            step_containers: list[StepHandler.StepProtocol] = list(
+            step_containers: list[StepDefinitionManager.StepProtocol] = list(
                 filter(
-                    partial(flip(isinstance), StepHandler.StepProtocol),
+                    partial(flip(isinstance), StepDefinitionManager.StepProtocol),
                     namespace.__dict__.values(),
                 ),
             )
@@ -475,13 +477,13 @@ class StepHandler:
                 return
 
             # Add step registry for a namespace if step containers were found
-            step_definition_registry: StepHandler.Registry = setdefaultattr(
+            step_definition_registry: StepDefinitionManager.Registry = setdefaultattr(
                 namespace,
                 "_step_registry",
-                value_factory=StepHandler.Registry,
+                value_factory=StepDefinitionManager.Registry,
             )
             setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
-            step_definitions: list[StepHandler.Definition] = list(
+            step_definitions: list[StepDefinitionManager.Definition] = list(
                 chain_map(
                     lambda step_container: step_container.__pytest_bdd_step_definitions__,
                     step_containers,
@@ -516,7 +518,7 @@ class StepHandler:
             step_registry.__pytest_bdd_step_registry__ = self
             return step_registry
 
-        def __iter__(self) -> Iterator["StepHandler.Definition"]:
+        def __iter__(self) -> Iterator["StepDefinitionManager.Definition"]:
             return iter(self.registry)
 
     @staticmethod
@@ -532,15 +534,15 @@ class StepHandler:
         liberal: Optional[Any] = None,
         stacklevel=2,
     ) -> Callable:
-        """StepHandler decorator for the type and the name.
+        """Step decorator for the type and the name.
 
-        :param step_type: StepHandler type (CONTEXT, ACTION or OUTCOME).
-        :param step_parserlike: StepHandler name as in the feature file.
+        :param step_type: Step type (CONTEXT, ACTION or OUTCOME).
+        :param step_parserlike: Step name as in the feature file.
         :param anonymous_group_names: Grant names for anonymous groups of parserlike
         :param converters: Optional step arguments converters mapping
         :param target_fixture: Optional fixture name to replace by step definition
         :param target_fixtures: Target fixture names to be replaced by steps definition function.
-        :param params_fixtures_mapping: StepHandler parameters would be injected as fixtures
+        :param params_fixtures_mapping: Step parameters would be injected as fixtures
         :param param_defaults: Default parameters for step definition
         :param liberal: Could step definition be used with other keywords
         :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture
@@ -563,11 +565,11 @@ class StepHandler:
         )
 
         def decorator(step_func: Callable) -> Callable:
-            """StepHandler decorator
+            """Step decorator
 
-            :param function step_func: StepHandler definition function
+            :param function step_func: Step definition function
             """
-            step_definition = StepHandler.Definition(  # type: ignore[call-arg]
+            step_definition = StepDefinitionManager.Definition(  # type: ignore[call-arg]
                 func=step_func,
                 type_=step_type,
                 parser=StepParser.build(step_parserlike),

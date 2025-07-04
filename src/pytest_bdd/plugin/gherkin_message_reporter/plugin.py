@@ -57,7 +57,7 @@ from pytest_bdd.compatibility.pytest import (
     is_set,
     is_testrun_success,
 )
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.util.packaging import get_distribution_version
@@ -360,7 +360,7 @@ class GherkinMessageReporter:
                     step=step,
                     previous_step=previous_step,
                 )
-            except StepHandler.Matcher.MatchNotFoundError:  # noqa:PERF203
+            except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
                 pass
             else:
                 test_step = TestStep(
