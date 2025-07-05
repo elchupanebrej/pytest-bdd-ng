@@ -7,7 +7,7 @@ from itertools import filterfalse
 from operator import contains, itemgetter
 from pathlib import Path
 from shutil import which
-from subprocess import CalledProcessError, check_output  # noqa:S404
+from subprocess import check_output  # noqa:S404
 from typing import Callable, Union
 
 from attr import attrib, attrs
@@ -141,7 +141,7 @@ class MarkdownGherkinParser(BaseParser):
                 gherkin_document_raw_dict = json.loads(
                     check_output([which("node") or "", script_path], stdin=feature_file),  # noqa:S603 intentional
                 )
-            except CalledProcessError as e:
+            except Exception as e:
                 raise FeatureParseError(path) from e
         gherkin_document_raw_dict["uri"] = uri
 

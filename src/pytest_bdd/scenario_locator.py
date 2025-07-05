@@ -23,10 +23,12 @@ from messages import Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import get_config_root_path
+from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import Feature, Pickle
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
+from pytest_bdd.types.exception import FeatureParseError
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.url import is_local_url
 
@@ -154,14 +156,19 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
                 filename = f.name
                 f.write(feature_content)
-
-            feature, feature_data = parser.parse(
-                config,
-                Path(filename),
-                url,
-                *self.parse_args.args,
-                **{"encoding": encoding, **self.parse_args.kwargs},
-            )
+            try:
+                feature, feature_data = parser.parse(
+                    config,
+                    Path(filename),
+                    url,
+                    *self.parse_args.args,
+                    **{"encoding": encoding, **self.parse_args.kwargs},
+                )
+            except FeatureParseError:
+                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                    return
+                else:
+                    raise
             try:
                 yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
             except ValidationError:
@@ -284,13 +291,19 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
-            feature, feature_data = parser.parse(
-                config,
-                feature_path,
-                uri,
-                *self.parse_args.args,
-                **{"encoding": encoding, **self.parse_args.kwargs},
-            )
+            try:
+                feature, feature_data = parser.parse(
+                    config,
+                    feature_path,
+                    uri,
+                    *self.parse_args.args,
+                    **{"encoding": encoding, **self.parse_args.kwargs},
+                )
+            except FeatureParseError:
+                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                    continue
+                else:
+                    raise
             try:
                 yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2
             except ValidationError:
