@@ -32,6 +32,13 @@
       ...
     ```
 
+* When run pytest
+* Then pytest outcome must contain tests with statuses:
+
+    | passed |
+    |--------|
+    | 1      |
+
 ## Scenario: "scenarios" function is used as decorator
 * And File "test_scenario_load.py" with fixture templated content:
 
