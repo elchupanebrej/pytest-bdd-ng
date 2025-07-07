@@ -13,6 +13,8 @@ Planned
     - Add poset plugin/hooks ordering into pluggy library
   - Simplify complex code chunks
   - Allure plugin integration
+    - Investigate messages -> cucumber/junit-xml-formatter -> allure
+    - Implement direct messages -> allure
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
 - Add struct_bdd autoload
