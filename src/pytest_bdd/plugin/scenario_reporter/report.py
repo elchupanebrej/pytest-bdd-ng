@@ -3,7 +3,7 @@ from typing import Any
 
 from attr import Factory, attrib, attrs
 
-from messages import Pickle, PickleStep
+from messages import Pickle, PickleStep  # type:ignore[attr-defined]
 from pytest_bdd.model import Feature
 
 

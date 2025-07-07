@@ -300,7 +300,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     **{"encoding": encoding, **self.parse_args.kwargs},
                 )
             except FeatureParseError:
-                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     continue
                 else:
                     raise

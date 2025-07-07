@@ -8,7 +8,7 @@ from typing import Callable
 
 import pytest
 
-from messages import Pickle, PickleStep
+from messages import Pickle, PickleStep  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
 from pytest_bdd.model import Feature
 from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
