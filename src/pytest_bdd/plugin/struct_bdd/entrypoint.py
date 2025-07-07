@@ -8,6 +8,6 @@ if STRUCT_BDD_INSTALLED:
 
 if STRUCT_BDD_INSTALLED:
 
-    @pytest.mark.trylast
+    @pytest.hookimpl(trylast=True)
     def pytest_configure(config: Config) -> None:
         config.pluginmanager.register(StructBDDPlugin())

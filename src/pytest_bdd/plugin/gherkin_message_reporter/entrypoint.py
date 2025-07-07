@@ -38,11 +38,11 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
-@pytest.mark.trylast
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(GherkinMessageReporter(config=config), name=GherkinMessageReporter.plugin_name)  # type: ignore[call-arg]
 
 
-@pytest.mark.tryfirst
+@pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config: Config) -> None:
     config.pluginmanager.unregister(name=GherkinMessageReporter.plugin_name)

@@ -17,7 +17,7 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
-@pytest.mark.trylast
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     if config.option.gherkin_terminal_reporter:
         # Get the standard terminal reporter plugin and replace it with our
