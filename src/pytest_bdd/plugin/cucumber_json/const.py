@@ -1,4 +1,4 @@
-from enum import StrEnum
+from pytest_bdd.compatibility.enum import StrEnum
 
 
 class CucumberJson:

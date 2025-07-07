@@ -52,6 +52,7 @@ dependencies = [
   # This is needed until messages become regular PyPi package https://github.com/cucumber/messages/pull/165
   "cuke-messages==0.1.0",
   "cucumber-expressions",
+  "cucumber-tag-expressions",
   "decopatch",
   "docopt-ng",
   "filelock",
@@ -68,7 +69,7 @@ dependencies = [
   "py",
   "pydantic>=2.0.3",
   "pytest>=5.2",
-  "cucumber-tag-expressions",
+  "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
 ]
 description = "BDD for pytest"
