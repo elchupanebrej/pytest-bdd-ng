@@ -1,13 +1,9 @@
-import json
 import linecache
 from collections.abc import Sequence
-from contextlib import ExitStack
 from functools import partial
 from itertools import filterfalse
 from operator import contains, itemgetter
 from pathlib import Path
-from shutil import which
-from subprocess import check_output  # noqa:S404
 from typing import Callable, Union
 
 from attr import attrib, attrs
@@ -15,14 +11,15 @@ from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
+from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
+from gherkin.token_scanner import TokenScanner
 
-from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model import Feature
-from pytest_bdd.types.exception import FeatureConcreteParseError, FeatureParseError
+from pytest_bdd.types.exception import FeatureConcreteParseError
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
@@ -131,22 +128,26 @@ class MarkdownGherkinParser(BaseParser):
         uri: str,
         *args,  # noqa: ARG002 overload
         **kwargs,  # noqa: ARG002 overload
-    ) -> tuple[Feature, str]:
-        with ExitStack() as stack:
-            feature_file, script_path = [
-                stack.enter_context(path.open(mode="rb")),
-                stack.enter_context(as_file(files("pytest_bdd").joinpath("markdown_parser.js"))),
-            ]
-            try:
-                gherkin_document_raw_dict = json.loads(
-                    check_output([which("node") or "", script_path], stdin=feature_file),  # noqa:S603 intentional
-                )
-            except Exception as e:
-                raise FeatureParseError(path) from e
+    ):
+        gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
+        matcher = GherkinInMarkdownTokenMatcher()
+        feature_file_data = path.read_text()
+        token_scanner = TokenScanner(feature_file_data)
+
+        try:
+            gherkin_document_raw_dict = gherkin_parser.parse(token_scanner, matcher)
+        except CompositeParserException as e:
+            raise FeatureConcreteParseError(
+                e.args[0],
+                e.errors[0].location["line"],
+                linecache.getline(str(path), e.errors[0].location["line"]).rstrip("\n"),
+                uri,
+            ) from e
+
         gherkin_document_raw_dict["uri"] = uri
 
         feature = self.build_feature(
             gherkin_document_raw_dict,
             filename=str(path.as_posix()),
         )
-        return feature, path.read_text()
+        return feature, feature_file_data

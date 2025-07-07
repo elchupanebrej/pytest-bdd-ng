@@ -27,7 +27,6 @@ from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager
-from pytest_bdd.util.npm_gherkin_checker import is_npm_gherkin_installed
 from pytest_bdd.util.toolz_extra import chain_map
 
 
@@ -152,7 +151,7 @@ class ScenarioTestCollector(BaseCollector):
         # TODO use mimetypes module
         if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
             return Mimetype.gherkin_plain.value
-        if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
+        if str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md"):
             return Mimetype.markdown.value
         return None
 

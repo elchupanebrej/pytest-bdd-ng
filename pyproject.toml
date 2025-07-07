@@ -56,7 +56,7 @@ dependencies = [
   "decopatch",
   "docopt-ng",
   "filelock",
-  "gherkin-official>=24,<30",
+  "gherkin-official>=33",
   "importlib-metadata;python_version<'3.10.0'",
   "importlib-resources",
   "makefun",

@@ -65,6 +65,10 @@ Planned
 - Contribute to messages repository with python model
 - Add support of native legacy cucumber-json
 
+2.4.0
+-----
+- Add python official gherkin parser for markdown documents
+
 2.3.1
 -----
 - Fixup documentation generation
