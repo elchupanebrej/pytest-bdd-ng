@@ -52,7 +52,7 @@ class PatchedAllureListener:
         self.allure_listener = allure_listener
         self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
-    @allure_hookimpl(hookwrapper=True)
+    @allure_hookimpl(hookwrapper=True, tryfirst=True)
     def report_result(
         self,
         result,  # noqa: ARG002 hookspec

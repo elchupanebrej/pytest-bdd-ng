@@ -12,6 +12,7 @@ Planned
   - Split plugins
     - Add poset plugin/hooks ordering into pluggy library
   - Simplify complex code chunks
+  - Allure plugin integration
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
 - Add struct_bdd autoload
