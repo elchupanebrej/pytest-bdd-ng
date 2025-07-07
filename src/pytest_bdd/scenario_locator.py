@@ -10,7 +10,7 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Protocol, TypeAlias, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urljoin
 
 import aiohttp
@@ -32,6 +32,9 @@ from pytest_bdd.types.exception import FeatureParseError
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.url import is_local_url
 
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.typing import TypeAlias
+
 
 @runtime_checkable
 class ScenarioLocatorFeatureResolver(Protocol):
@@ -51,7 +54,7 @@ class ScenarioLocatorResolver(Protocol):
         ...
 
 
-ScenarioLocatorFilterT: TypeAlias = Callable[[Config, Feature, Pickle], bool]
+ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, Feature, Pickle], bool]
 
 
 @attrs

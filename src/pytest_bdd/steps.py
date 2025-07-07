@@ -39,7 +39,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
 from functools import partial
 from inspect import getfile, getsourcelines
-from typing import Any, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 from uuid import uuid4
 from warnings import warn
 
@@ -61,7 +61,6 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
 from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
-from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.model import Feature, StepType
 from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
 from pytest_bdd.parsers import StepParser
@@ -71,6 +70,9 @@ from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import format_as_python_identifier
 from pytest_bdd.util.toolz_extra import chain_map, flip, getitemdefault, setdefaultattr
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.typing import TypeAlias
 
 
 def given(
@@ -239,7 +241,7 @@ def step(
 
 
 class StepDefinitionManager:
-    Model: TypeAlias = "Step"
+    Model: "TypeAlias" = "Step"
 
     @attrs
     class Matcher:
