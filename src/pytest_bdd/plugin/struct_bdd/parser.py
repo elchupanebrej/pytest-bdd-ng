@@ -1,11 +1,10 @@
-from enum import Enum
 from functools import partial
-from operator import methodcaller
 from pathlib import Path
 from typing import Union
 
 from attr import attrib, attrs
 
+from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
@@ -16,7 +15,7 @@ from .model_builder import GherkinDocumentBuilder
 
 @attrs
 class StructBDDParser(ParserProtocol):
-    class KIND(Enum):
+    class KIND(StrEnum):
         HOCON = "hocon"
         HJSON = "hjson"
         JSON = "json"
@@ -25,16 +24,11 @@ class StructBDDParser(ParserProtocol):
         YAML = "yaml"
 
     kind = attrib(kw_only=True)
-    glob = attrib(kw_only=True)
     loader = attrib(kw_only=True)
 
     @kind.default
     def kind_default(self):
         return self.KIND.YAML.value if getattr(self, "loader", None) is None else None
-
-    @glob.default
-    def glob_default(self):
-        return methodcaller("glob", "*" if self.kind is None else f"*.bdd.{self.kind}")
 
     @loader.default
     def loader_default(self):
@@ -59,28 +53,28 @@ class StructBDDParser(ParserProtocol):
 
     # TODO make loaders part of public API
     def build_loader(self):
-        if self.kind == self.KIND.YAML.value:
+        if self.kind is self.KIND.YAML:
             from yaml import FullLoader
             from yaml import load as load_yaml
 
             return partial(load_yaml, Loader=FullLoader)
-        if self.kind == self.KIND.TOML.value:
+        if self.kind is self.KIND.TOML:
             from pytest_bdd.compatibility.tomllib import loads as load_toml
 
             return load_toml
-        if self.kind == self.KIND.JSON.value:
+        if self.kind is self.KIND.JSON:
             from json import loads as load_json
 
             return load_json
-        if self.kind == self.KIND.JSON5.value:
+        if self.kind is self.KIND.JSON5:
             from json5 import loads as load_json5
 
             return load_json5
-        if self.kind == self.KIND.HJSON.value:
+        if self.kind is self.KIND.HJSON:
             from hjson import loads as load_hjson
 
             return load_hjson
-        if self.kind == self.KIND.HOCON.value:
+        if self.kind is self.KIND.HOCON:
             from json import loads
 
             from pyhocon import ConfigFactory, HOCONConverter

@@ -1,6 +1,5 @@
-from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Optional, Protocol, Union, runtime_checkable
 
 from attr import attrib, attrs
 
@@ -16,8 +15,6 @@ if TYPE_CHECKING:  # pragma: no cover
 @attrs
 class ParserProtocol(Protocol):
     id_generator: Optional[IdGenerator] = attrib(default=None, kw_only=True)
-    # Defines which files would be parsed
-    glob: Callable[[Path], Sequence[Union[str, Path]]]
 
     def parse(
         self,

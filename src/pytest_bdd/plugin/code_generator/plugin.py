@@ -167,6 +167,7 @@ def collect_features_and_seen_uris(
     seen_feature_pickles_ids: set[tuple[str, str]],
 ) -> tuple[Sequence[Feature], set[str]]:
     """Collect all features and the set of seen feature URIs."""
+    # TODO Add collection of markdown features
     features: Sequence[Feature] = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
     seen_features_uris: set[str] = {feature_uri for feature_uri, _ in seen_feature_pickles_ids}
 

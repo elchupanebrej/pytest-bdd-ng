@@ -148,7 +148,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
                         - Given: I have 42 cukes in my belly
             """,
         ),
-        content_type=Mimetype.struct_bdd_yaml.value,
+        content_type=Mimetype.struct_bdd_yaml,
     )
     testdir.makepyfile(
         # language=python

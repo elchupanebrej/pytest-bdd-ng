@@ -1,3 +1,4 @@
+import mimetypes
 from collections.abc import Collection, Sequence
 from contextlib import suppress
 from functools import partial
@@ -22,7 +23,7 @@ from pytest_bdd.compatibility.pytest import (
     Metafunc,
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
-from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
 from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
@@ -148,11 +149,16 @@ class ScenarioTestCollector(BaseCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ):
-        # TODO use mimetypes module
-        if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
-            return Mimetype.gherkin_plain.value
-        if str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md"):
-            return Mimetype.markdown.value
+        mimetype_string, _encoding = mimetypes.guess_type(path)
+
+        try:
+            mimetype = Mimetype(mimetype_string)
+        except ValueError:
+            return None
+        if mimetype is Mimetype.gherkin_plain:
+            return mimetype
+        if mimetype is Mimetype.markdown and any(map(partial(contains, gherkin_suffixes), path.suffixes)):
+            return Mimetype.gherkin_markdown
         return None
 
     @pytest.hookimpl
@@ -164,8 +170,9 @@ class ScenarioTestCollector(BaseCollector):
         with suppress(KeyError, ValueError):
             return {
                 Mimetype.gherkin_plain: GherkinParser,
-                Mimetype.markdown: MarkdownGherkinParser,
-            }.get(Mimetype(mimetype))
+                Mimetype.gherkin_markdown: MarkdownGherkinParser,
+            }[Mimetype(mimetype)]
+        return None
 
     @pytest.hookimpl
     def pytest_bdd_is_collectible(
@@ -173,15 +180,18 @@ class ScenarioTestCollector(BaseCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ):
-        # TODO add more extensions
-        if any(
-            map(
-                partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}),
-                path.suffixes,
+        return (
+            any(
+                map(
+                    partial(
+                        contains,
+                        gherkin_suffixes.union(link_suffixes),
+                    ),
+                    path.suffixes,
+                )
             )
-        ):
-            return True
-        return None
+            or None
+        )
 
     @staticmethod
     def is_enabled(config: Config):

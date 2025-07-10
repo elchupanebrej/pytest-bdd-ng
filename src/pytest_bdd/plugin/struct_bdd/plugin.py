@@ -1,13 +1,15 @@
+import mimetypes
 from contextlib import suppress
 from functools import partial
 from inspect import getmembers
+from operator import contains
 from pathlib import Path
 from typing import ClassVar
 
 import pytest
 
 from pytest_bdd.compatibility.pytest import PYTEST7, Config, Module
-from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.mimetype import Mimetype, struct_bdd_suffixes
 
 from .model import StepPrototype
 from .parser import StructBDDParser
@@ -23,6 +25,7 @@ class StructBDDPlugin:
         StructBDDParser.KIND.TOML: Mimetype.struct_bdd_toml,
     }
 
+    @pytest.hookimpl
     def pytest_bdd_get_parser(
         self,
         config: Config,  # noqa: ARG002 hookspec
@@ -38,27 +41,48 @@ class StructBDDPlugin:
                     Mimetype.struct_bdd_json: StructBDDParser.KIND.JSON,
                     Mimetype.struct_bdd_hjson: StructBDDParser.KIND.HJSON,
                     Mimetype.struct_bdd_toml: StructBDDParser.KIND.TOML,
-                }[Mimetype(mimetype)].value,
+                }[Mimetype(mimetype)],
             )
-
-    def pytest_bdd_get_mimetype(
-        self,
-        config: Config,  # noqa: ARG002 hookspec
-        path: Path,
-    ):
-        for extension_suffix, mimetype in self.extension_to_mimetype.items():
-            if str(path).endswith(f".bdd.{extension_suffix.value}"):
-                return mimetype.value
         return None
 
+    @staticmethod
+    def _get_mimetype(path: Path):
+        mimetype_string, _encoding = mimetypes.guess_type(path)
+
+        mimetype = Mimetype(mimetype_string)
+        if any(map(partial(contains, struct_bdd_suffixes), path.suffixes)):
+            try:
+                return {
+                    Mimetype.yaml: Mimetype.struct_bdd_yaml,
+                    Mimetype.hocon: Mimetype.struct_bdd_hocon,
+                    Mimetype.json5: Mimetype.struct_bdd_json5,
+                    Mimetype.json: Mimetype.struct_bdd_json,
+                    Mimetype.hjson: Mimetype.struct_bdd_hjson,
+                    Mimetype.toml: Mimetype.struct_bdd_toml,
+                }[mimetype]
+            except KeyError as e:
+                raise ValueError from e
+        raise ValueError
+
+    @pytest.hookimpl
+    def pytest_bdd_get_mimetype(
+        self,
+        config: Config,  # noqa: ARG002 hookimpl
+        path: Path,
+    ):
+        with suppress(ValueError):
+            return self._get_mimetype(path)
+        return None
+
+    @pytest.hookimpl
     def pytest_bdd_is_collectible(
         self,
         config: Config,  # noqa: ARG002 hookspec
         path: Path,
     ):
-        for extension_suffix in self.extension_to_mimetype:
-            if str(path).endswith(f".bdd.{extension_suffix.value}"):
-                return True
+        with suppress(ValueError):
+            self._get_mimetype(path)
+            return True
         return None
 
     @staticmethod

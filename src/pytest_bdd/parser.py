@@ -4,9 +4,9 @@ from functools import partial
 from itertools import filterfalse
 from operator import contains, itemgetter
 from pathlib import Path
-from typing import Callable, Union
+from typing import Union
 
-from attr import attrib, attrs
+from attr import attrs
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
@@ -43,11 +43,6 @@ class BaseParser(ParserProtocol):
 
 @attrs
 class GherkinParser(BaseParser):
-    glob: Callable[..., Sequence[Union[str, Path]]] = attrib(
-        default=lambda path: path.glob("*.feature") + path.glob("*.gherkin"),
-        kw_only=True,
-    )
-
     def parse(
         self,
         config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
@@ -116,11 +111,6 @@ class GherkinParser(BaseParser):
 
 @attrs
 class MarkdownGherkinParser(BaseParser):
-    glob: Callable[..., Sequence[Union[str, Path]]] = attrib(
-        default=lambda path: path.glob("*.feature.md") + path.glob("*.gherkin.md"),
-        kw_only=True,
-    )
-
     def parse(
         self,
         config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
