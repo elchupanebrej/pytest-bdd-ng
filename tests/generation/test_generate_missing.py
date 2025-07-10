@@ -42,12 +42,12 @@ def test_generate_missing(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         f"""\
-        import functools
+        from functools import partial
 
         from pytest_bdd import scenario, given
         from pathlib import Path
 
-        scenario = functools.partial(scenario, Path(r"{tmp_path}") / "generation.feature")
+        scenario = partial(scenario, Path(r"{tmp_path}") / "generation.feature")
 
         @given("I have a bar")
         def i_have_a_bar():

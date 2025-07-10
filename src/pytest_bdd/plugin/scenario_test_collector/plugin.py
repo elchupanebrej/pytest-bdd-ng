@@ -150,7 +150,8 @@ class ScenarioTestCollector(BaseCollector):
         path: Path,
     ):
         mimetype_string, _encoding = mimetypes.guess_type(path)
-
+        if mimetype_string is None:
+            return None
         try:
             mimetype = Mimetype(mimetype_string)
         except ValueError:

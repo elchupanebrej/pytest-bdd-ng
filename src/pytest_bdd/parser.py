@@ -4,7 +4,7 @@ from functools import partial
 from itertools import filterfalse
 from operator import contains, itemgetter
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
 
 from attr import attrs
 from gherkin.ast_builder import AstBuilder
@@ -14,6 +14,7 @@ from gherkin.pickles.compiler import Compiler as PicklesCompiler
 from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
 from gherkin.token_scanner import TokenScanner
 
+from pytest_bdd.compatibility.gherkin import GherkinDocument
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config
@@ -57,7 +58,7 @@ class GherkinParser(BaseParser):
             feature_file_data = feature_file.read()
 
         try:
-            gherkin_document_raw_dict = gherkin_parser.parse(feature_file_data, *args, **kwargs)
+            gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(feature_file_data, *args, **kwargs))
         except CompositeParserException as e:
             raise FeatureConcreteParseError(
                 e.args[0],
@@ -66,7 +67,7 @@ class GherkinParser(BaseParser):
                 uri,
             ) from e
 
-        gherkin_document_raw_dict["uri"] = uri
+        gherkin_document_raw_dict["uri"] = uri  # type:ignore[]
 
         feature = self.build_feature(
             gherkin_document_raw_dict,
@@ -125,7 +126,7 @@ class MarkdownGherkinParser(BaseParser):
         token_scanner = TokenScanner(feature_file_data)
 
         try:
-            gherkin_document_raw_dict = gherkin_parser.parse(token_scanner, matcher)
+            gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(token_scanner, matcher))
         except CompositeParserException as e:
             raise FeatureConcreteParseError(
                 e.args[0],

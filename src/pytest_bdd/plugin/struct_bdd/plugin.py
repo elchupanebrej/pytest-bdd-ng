@@ -48,7 +48,8 @@ class StructBDDPlugin:
     @staticmethod
     def _get_mimetype(path: Path):
         mimetype_string, _encoding = mimetypes.guess_type(path)
-
+        if mimetype_string is None:
+            raise ValueError
         mimetype = Mimetype(mimetype_string)
         if any(map(partial(contains, struct_bdd_suffixes), path.suffixes)):
             try:
