@@ -1,4 +1,4 @@
-from cucumber_messages import json_converter
+from cucumber_messages import json_converter  # type:ignore[import-untyped]
 
 from . import message_extension
 

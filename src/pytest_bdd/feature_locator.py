@@ -5,12 +5,12 @@ from inspect import signature
 from pathlib import Path
 from typing import Any, Callable, Optional, Union, cast
 
-from cucumber_messages import Pickle
+from cucumber_messages import Pickle  # type:ignore[import-untyped]
 from pathvalidate import is_valid_filepath
 from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import Config, Mark
+from pytest_bdd.compatibility.pytest import Config, Mark, get_config_root_path
 from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
@@ -51,13 +51,15 @@ class ScenarioLocatorBuilder:
     @property
     def default_features_base_dir(self) -> str:
         with suppress(ValueError, KeyError):
-            return self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION)) or None
-        return str(self.config.rootpath)
+            if bool(base_dir := self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION))):
+                return str(base_dir)
+        return str(get_config_root_path(self.config))
 
     @property
     def default_features_base_url(self) -> Optional[str]:
         with suppress(ValueError, KeyError):
-            return self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION)) or None
+            if bool(base_url := self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION))):
+                return str(base_url)
         return None
 
     def build_for_pytest_mark(self, mark: Mark) -> Iterable[Any]:
@@ -82,12 +84,14 @@ class ScenarioLocatorBuilder:
 
     def resolve_features_base_dir(self, features_base_dir: Optional[Union[str, Path, Callable[[Config], str]]]) -> str:
         """Resolve the base directory for the features from the mark or config."""
-
+        resolved_features_base_dir: str
         if features_base_dir is None:
-            features_base_dir = self.default_features_base_dir
-        if callable(features_base_dir):
-            features_base_dir = features_base_dir(self.config)
-        return features_base_dir
+            resolved_features_base_dir = self.default_features_base_dir
+        elif callable(features_base_dir):
+            resolved_features_base_dir = features_base_dir(self.config)
+        else:
+            resolved_features_base_dir = str(features_base_dir)
+        return resolved_features_base_dir
 
     def resolve_features_base_url(self, features_base_url: Optional[Union[str, Path, Callable[[Config], str]]]) -> Any:
         """Resolve the base URL for the features from the mark or config."""

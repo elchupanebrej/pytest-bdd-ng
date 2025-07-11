@@ -2,7 +2,7 @@ from io import BufferedIOBase, TextIOBase
 from typing import Any, Optional, Union
 
 import pytest
-from cucumber_messages import Pickle  # type:ignore[attr-defined]
+from cucumber_messages import Pickle  # type:ignore[import-untyped]
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.gherkin_document import Feature

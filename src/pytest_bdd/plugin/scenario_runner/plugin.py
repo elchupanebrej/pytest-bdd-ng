@@ -4,7 +4,7 @@ from itertools import zip_longest
 from typing import TYPE_CHECKING, Optional, cast
 
 import pytest
-from cucumber_messages import Pickle as Scenario
+from cucumber_messages import Pickle as Scenario  # type:ignore[import-untyped]
 from cucumber_messages import PickleStep  # type:ignore[attr-defined, import-untyped]
 from pluggy import PluginManager
 

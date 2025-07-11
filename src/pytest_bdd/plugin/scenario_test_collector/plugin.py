@@ -10,9 +10,9 @@ from typing import Optional, Union
 from unittest.mock import patch
 
 import pytest
-from cucumber_messages import (
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Feature,
-    Pickle,  # type:ignore[attr-defined, import-untyped]
+    Pickle,
 )
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector

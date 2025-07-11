@@ -17,10 +17,10 @@ import aiohttp
 import certifi
 from _pytest.config import Config
 from attr import Factory, attrib, attrs
-from cucumber_messages import (
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Feature,
     Pickle,
-    Source,  # type:ignore[attr-defined, import-untyped]
+    Source,
 )
 from pydantic import ValidationError
 

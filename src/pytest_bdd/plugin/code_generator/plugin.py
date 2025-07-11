@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, Optional, Union, cast
 
 import py
 from cucumber_messages import Pickle, PickleStep, PickleStepType  # type:ignore[attr-defined, import-untyped]
@@ -148,7 +148,7 @@ def process_pickle_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
     """Process pickle steps to gather unmatched steps."""
-    previous_step: PickleStep | None = None
+    previous_step: Optional[PickleStep] = None
     for step in pickle.steps:
         try:
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
@@ -204,7 +204,7 @@ def find_unique_non_matched_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> list[tuple[tuple[Feature, Pickle], PickleStep]]:
     """Find unique non-matched feature pickle steps."""
-    unique_step_defs_ids: set[tuple[PickleStepType | None, str]] = {
+    unique_step_defs_ids: set[tuple[Optional[PickleStepType], str]] = {
         (step.type, step.text) for _, step in non_matched_feature_pickle_steps
     }
     unique_non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = list(

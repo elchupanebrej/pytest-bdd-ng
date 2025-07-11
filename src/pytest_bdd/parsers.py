@@ -28,7 +28,7 @@ class ParserBuildValueError(ValueError):
 
 @runtime_checkable
 class StepParserProtocol(Protocol):
-    type: Union[StepDefinitionPatternType, str] = StepDefinitionPatternType.pytest_bdd_other_expression
+    type: Union[StepDefinitionPatternType, str] = StepDefinitionPatternType.pytest_bdd_other_expression  # type:ignore[attr-defined]
 
     def parse_arguments(
         self,
@@ -112,7 +112,7 @@ class StepParser(StepParserProtocol, ABC):
 class re(StepParser):  # noqa:N801 intentional API
     """Regex step parser."""
 
-    type = StepDefinitionPatternType.pytest_bdd_regular_expression
+    type = StepDefinitionPatternType.pytest_bdd_regular_expression  # type:ignore[attr-defined]
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
@@ -173,7 +173,7 @@ class re(StepParser):  # noqa:N801 intentional API
 class parse(StepParser):  # noqa:N801 intentional API
     """parse step parser."""
 
-    type = StepDefinitionPatternType.pytest_bdd_parse_expression
+    type = StepDefinitionPatternType.pytest_bdd_parse_expression  # type:ignore[attr-defined]
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
@@ -236,7 +236,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 class cfparse(parse):  # noqa:N801 intentional API
     """cfparse step parser."""
 
-    type = StepDefinitionPatternType.pytest_bdd_cfparse_expression
+    type = StepDefinitionPatternType.pytest_bdd_cfparse_expression  # type:ignore[attr-defined]
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("builder", base_cfparse.Parser)
@@ -246,7 +246,7 @@ class cfparse(parse):  # noqa:N801 intentional API
 class string(StepParser):  # noqa: N801 intentional API
     """Exact string step parser."""
 
-    type = StepDefinitionPatternType.pytest_bdd_string_expression
+    type = StepDefinitionPatternType.pytest_bdd_string_expression  # type:ignore[attr-defined]
 
     def __init__(self, name: Union[StringRepresentable, str, bytes]) -> None:
         self.name = normalize_to_string(name)
@@ -333,7 +333,7 @@ class _CucumberExpression(StepParser):
 
 
 class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
-    type = StepDefinitionPatternType.cucumber_expression
+    type = StepDefinitionPatternType.cucumber_expression  # type:ignore[attr-defined]
     expression_type = CucumberExpression
 
     # https://bugs.python.org/issue45684
@@ -364,7 +364,7 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
 
 
 class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentional API
-    type = StepDefinitionPatternType.regular_expression
+    type = StepDefinitionPatternType.regular_expression  # type:ignore[attr-defined]
     expression_type = CucumberRegularExpression
     # https://bugs.python.org/issue45684
 
@@ -395,7 +395,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
 
 
 class heuristic(StepParser):  # noqa: N801 intentional API
-    type = StepDefinitionPatternType.pytest_bdd_heuristic_expression
+    type = StepDefinitionPatternType.pytest_bdd_heuristic_expression  # type:ignore[attr-defined]
 
     def __init__(
         self,

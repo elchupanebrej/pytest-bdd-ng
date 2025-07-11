@@ -60,4 +60,4 @@ class FeatureConcreteParseError(FeatureParseError):
 
     def __str__(self):
         """String representation."""
-        return self.message.format(*self.args[:3])
+        return self.message.format(*self.args[:4])

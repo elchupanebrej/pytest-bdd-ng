@@ -2,7 +2,7 @@ import time
 from typing import Any
 
 from attr import Factory, attrib, attrs
-from cucumber_messages import Pickle, PickleStep  # type:ignore[attr-defined]
+from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
 from pytest_bdd.model.gherkin_document import Feature
 

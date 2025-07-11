@@ -73,9 +73,7 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
     )
 
 
-def decorator_builder(
-    conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
-) -> _Decorator[[str | None, str | None]]:
+def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]) -> _Decorator:
     conjunction_, kind_ = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator

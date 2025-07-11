@@ -136,7 +136,9 @@ testenv = [
 testtypes = [
   "mypy",
   "types-certifi",
+  "types-chevron",
   "types-docopt",
+  "types-pathlib2",
   "types-setuptools"
 ]
 

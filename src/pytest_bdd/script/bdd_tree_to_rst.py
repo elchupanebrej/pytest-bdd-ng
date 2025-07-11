@@ -19,9 +19,9 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import cast
 
-import pypandoc  # type: ignore[import-not-found]
+import pypandoc  # type: ignore[import-not-found, import-untyped]
 from docopt import docopt
-from pathlib2 import Path  # type: ignore[import-not-found]
+from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 

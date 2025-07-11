@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from cucumber_messages import *  # noqa: F403 This module patches the cucumber_messages module to extend it with pytest_bdd specific types
+from cucumber_messages import *  # type:ignore[import-untyped]  # noqa: F403 This module patches the cucumber_messages module to extend it with pytest_bdd specific types
 from cucumber_messages import StepDefinitionPattern as _BaseStepDefinitionPattern
 from cucumber_messages import StepDefinitionPatternType as _BaseStepDefinitionPatternType
 
-StepDefinitionPatternType = Enum(
+StepDefinitionPatternType = Enum(  # type:ignore[misc]
     "StepDefinitionPatternType",
     dict(
         **{name: member.value for name, member in _BaseStepDefinitionPatternType.__members__.items()},

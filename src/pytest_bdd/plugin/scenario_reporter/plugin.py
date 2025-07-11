@@ -7,7 +7,7 @@ that enriches the pytest test reporting.
 from typing import Callable
 
 import pytest
-from cucumber_messages import Pickle, PickleStep  # type:ignore[attr-defined]
+from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
 from pytest_bdd.model.gherkin_document import Feature

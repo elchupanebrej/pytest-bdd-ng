@@ -428,7 +428,8 @@ class StepDefinitionManager:
                 except ValidationError:
                     # Workaround because of https://github.com/cucumber/messages/issues/160
                     pattern = StepDefinitionPattern(
-                        source=str(self.parser), type=StepDefinitionPatternType.regular_expression
+                        source=str(self.parser),
+                        type=StepDefinitionPatternType.regular_expression,  # type:ignore[attr-defined]
                     )
                 message = self.__cache[id(id_generator)] = StepDefinition(
                     id=self.id,
