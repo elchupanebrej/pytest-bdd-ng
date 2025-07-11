@@ -9,30 +9,30 @@ from pathlib import Path
 from typing import Any, Union, cast
 
 import py
+from cucumber_messages import Pickle, PickleStep, PickleStepType  # type:ignore[attr-defined, import-untyped]
 from mako.template import Template
 
-from messages import Pickle, PickleStep, Type  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
-from pytest_bdd.model import Feature, StepType
+from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.packaging import compare_distribution_version
 from pytest_bdd.util.toolz_extra import chain_map
 
 STEP_TYPE_TO_STEP_PREFIX = {
-    StepType.unknown: "*",
-    StepType.outcome: "Then",
-    StepType.context: "Given",
-    StepType.action: "When",
+    PickleStepType.unknown: "*",
+    PickleStepType.outcome: "Then",
+    PickleStepType.context: "Given",
+    PickleStepType.action: "When",
 }
 
 STEP_TYPE_TO_STEP_METHOD_NAME = {
-    StepType.unknown: "step",
-    StepType.outcome: "then",
-    StepType.context: "given",
-    StepType.action: "when",
+    PickleStepType.unknown: "step",
+    PickleStepType.outcome: "then",
+    PickleStepType.context: "given",
+    PickleStepType.action: "when",
 }
 
 
@@ -204,7 +204,7 @@ def find_unique_non_matched_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> list[tuple[tuple[Feature, Pickle], PickleStep]]:
     """Find unique non-matched feature pickle steps."""
-    unique_step_defs_ids: set[tuple[Type | None, str]] = {
+    unique_step_defs_ids: set[tuple[PickleStepType | None, str]] = {
         (step.type, step.text) for _, step in non_matched_feature_pickle_steps
     }
     unique_non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = list(
@@ -314,7 +314,7 @@ def print_missing_code(
 
     for (feature, pickle), step in feature_pickle_steps:
         tw.line()
-        step_type = STEP_TYPE_TO_STEP_PREFIX[step.type if step.type is not None else StepType.unknown]
+        step_type = STEP_TYPE_TO_STEP_PREFIX[step.type if step.type is not None else PickleStepType.unknown]
         tw.line(
             f"""Step {step_type} "{step.text}" is not defined in the scenario "{pickle.name}" in the feature"""
             f""" "{feature.name}" in the file"""

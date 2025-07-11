@@ -2,8 +2,8 @@ from collections import deque
 from typing import Optional
 
 import pytest
+from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
 
-from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd import given, then, when
 from pytest_bdd.compatibility.pytest import (
     Config,

@@ -1,4 +1,5 @@
-from messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+
 from pytest_bdd.compatibility.pytest import Config
 
 

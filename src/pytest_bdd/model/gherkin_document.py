@@ -21,13 +21,13 @@ one line.
 """
 
 from collections.abc import Sequence
+from functools import partial
 from itertools import chain
 from textwrap import dedent
 from typing import Union, cast
 
 from attr import Factory, attrib, attrs
-
-from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
     Background,
     Examples,
     GherkinDocument,
@@ -40,9 +40,11 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
     TableRow,
     Tag,
 )
-from messages import Feature as FeatureMessage  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import Feature as FeatureMessage  # type:ignore[attr-defined, import-untyped]
+
 from pytest_bdd.const import TAG_PREFIX
-from pytest_bdd.util.toolz_extra import deepattrgetter, itemgetter_
+from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.util.toolz_extra import deepattrgetter, flip, itemgetter_
 
 
 @attrs
@@ -59,7 +61,7 @@ class Feature:
 
     @staticmethod
     def load_pickles(scenarios_data) -> Sequence[Pickle]:
-        return [*map(Pickle.model_validate, scenarios_data)]  # type: ignore[attr-defined] # migration to pydantic2
+        return [*map(partial(flip(message_converter.from_dict), Pickle), scenarios_data)]  # type: ignore[attr-defined] # migration to pydantic2
 
     def fill_registry(self):
         self.registry.update(self.get_child_ids_gen(self.gherkin_document.feature))
@@ -131,7 +133,9 @@ class Feature:
         elif isinstance(obj, (TableRow, Step)):
             yield obj.id, obj
 
-    load_gherkin_document = staticmethod(GherkinDocument.model_validate)  # type: ignore[attr-defined] # migration to pydantic2
+    @staticmethod
+    def load_gherkin_document(raw_gherkin_document):
+        return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
 
     @property
     def name(self) -> Union[str, None]:

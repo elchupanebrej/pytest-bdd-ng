@@ -4,13 +4,13 @@ from itertools import zip_longest
 from typing import TYPE_CHECKING, Optional, cast
 
 import pytest
+from cucumber_messages import Pickle as Scenario
+from cucumber_messages import PickleStep  # type:ignore[attr-defined, import-untyped]
 from pluggy import PluginManager
 
 import pytest_bdd.types.exception as exceptions
-from messages import PickleStep  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model import Feature
-from pytest_bdd.model import Pickle as Scenario
+from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_args

@@ -3,12 +3,13 @@ from operator import contains
 from textwrap import dedent
 
 import pytest
+from cucumber_messages import StepKeywordType
 from gherkin.pickles.compiler import Compiler
 from yaml import FullLoader
 from yaml import load as load_yaml
 
-from messages import KeywordType  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_bdd.model.message_converter import message_converter  # type:ignore[attr-defined]
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import doesnt_raise
 
@@ -200,7 +201,7 @@ def test_step_non_containing_data_load():
 def test_load_simplest_step_with_text_steps():
     step: Step = Step().model_validate({"Steps": ["Do something"]})
     assert step.steps[0].type == Keyword.Star
-    assert step.steps[0].keyword_type == KeywordType.unknown
+    assert step.steps[0].keyword_type == StepKeywordType.unknown
     assert step.steps[0].action == "Do something"
 
     routes = list(step.routes)
@@ -220,7 +221,7 @@ def test_load_simplest_given():
         },
     )
     assert step.steps[0].type == Keyword.Given
-    assert step.steps[0].keyword_type == KeywordType.context
+    assert step.steps[0].keyword_type == StepKeywordType.context
     assert step.steps[0].action == "Do something"
 
     routes = list(step.routes)
@@ -234,7 +235,7 @@ def test_load_simplest_given():
 def test_load_actioned_step_with_text_steps():
     step: Step = Step.model_validate({"Action": "First do", "Steps": ["Do something"]})
     assert step.steps[0].type == Keyword.Star
-    assert step.steps[0].keyword_type == KeywordType.unknown
+    assert step.steps[0].keyword_type == StepKeywordType.unknown
     assert step.steps[0].action == "Do something"
 
     routes = list(step.routes)
@@ -517,7 +518,7 @@ def test_tags_steps_examples_load():
     document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
     document_ast.uri = "uri"
 
-    pickles = Compiler().compile(document_ast.dict(by_alias=True, exclude_none=True))
+    pickles = Compiler().compile(message_converter.to_dict(document_ast))
     oracle_pickles_count = 4
     assert len(pickles) == oracle_pickles_count
 

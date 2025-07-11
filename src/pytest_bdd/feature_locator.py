@@ -5,12 +5,13 @@ from inspect import signature
 from pathlib import Path
 from typing import Any, Callable, Optional, Union, cast
 
+from cucumber_messages import Pickle
 from pathvalidate import is_valid_filepath
 from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark
-from pytest_bdd.model import Feature, Pickle
+from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator

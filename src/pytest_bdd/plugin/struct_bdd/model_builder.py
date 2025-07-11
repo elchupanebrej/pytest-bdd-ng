@@ -1,28 +1,30 @@
+import json
 from itertools import filterfalse
 from json import loads as json_loads
 from operator import attrgetter
 from typing import Any, Union, cast
 
 from attr import attrib, attrs
-from gherkin.pickles.compiler import Compiler
-
-from messages import (  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     DataTable,
     DocString,
     Examples,
     Feature,
     FeatureChild,
     GherkinDocument,
-    KeywordType,
     Location,
+    PickleStepType,
     Scenario,
     Step,
+    StepKeywordType,
     TableCell,
     TableRow,
     Tag,
-    Type,
 )
+from gherkin.pickles.compiler import Compiler
+
 from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
+from pytest_bdd.model.message_converter import message_converter
 
 from .model import Join as StructJoin
 from .model import StepPrototype as StructStep
@@ -52,7 +54,7 @@ class GherkinDocumentBuilder(_ASTBuilder):
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
 
-        gherkin_document_serialized = gherkin_document.model_dump_json(by_alias=True, exclude_none=True)
+        gherkin_document_serialized = json.dumps(message_converter.to_dict(gherkin_document))
 
         scenarios_data = Compiler().compile(json_loads(gherkin_document_serialized))
         pickles = GherkinDocumentFeature.load_pickles(scenarios_data)
@@ -94,12 +96,14 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                         for step in steps:
                             step_keyword_type = (
                                 previous_step_keyword_type
-                                if step.keyword_type is KeywordType.conjunction
+                                if step.keyword_type is StepKeywordType.conjunction
                                 else step.keyword_type
                             )
                             yield Step(
                                 id=next(id_generator),
-                                keyword=(step.type if isinstance(step.type, str) else cast(Type, step.type).value),
+                                keyword=(
+                                    step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
+                                ),
                                 location=Location(column=0, line=0),
                                 text=step.action,
                                 keyword_type=step_keyword_type.value,

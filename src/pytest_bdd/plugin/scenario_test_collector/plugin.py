@@ -10,8 +10,11 @@ from typing import Optional, Union
 from unittest.mock import patch
 
 import pytest
+from cucumber_messages import (
+    Feature,
+    Pickle,  # type:ignore[attr-defined, import-untyped]
+)
 
-from messages import Pickle  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
@@ -24,7 +27,6 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
-from pytest_bdd.model import Feature
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager

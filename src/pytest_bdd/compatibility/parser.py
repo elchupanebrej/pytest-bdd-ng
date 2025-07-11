@@ -8,7 +8,7 @@ from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.model import Feature
+    from pytest_bdd.model.gherkin_document import Feature
 
 
 @runtime_checkable

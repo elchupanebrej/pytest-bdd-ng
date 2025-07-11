@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, Literal, NamedTuple, Optional, Union, cast
 
 from attr import attrib, attrs
+from cucumber_messages import Source, SourceMediaType, StepKeywordType  # type:ignore[attr-defined, import-untyped]
 from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
     AfterValidator,
     BaseModel,
@@ -19,7 +20,6 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
     model_validator,
 )
 
-from messages import KeywordType, MediaType, Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.typing import Self
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
@@ -42,16 +42,16 @@ class SubKeyword(Enum):
     Alternative = "Alternative"
 
 
-KEYWORD_TO_TYPE: Mapping[Union[Keyword, str, None], KeywordType] = defaultdict(
-    lambda: KeywordType.unknown,
+KEYWORD_TO_TYPE: Mapping[Union[Keyword, str, None], StepKeywordType] = defaultdict(
+    lambda: StepKeywordType.unknown,
     [
-        (Keyword.Given, KeywordType.context),
-        (Keyword.When, KeywordType.action),
-        (Keyword.Then, KeywordType.outcome),
-        (Keyword.And, KeywordType.conjunction),
-        (Keyword.But, KeywordType.conjunction),
-        (Keyword.Star, KeywordType.unknown),
-        (None, KeywordType.unknown),
+        (Keyword.Given, StepKeywordType.context),
+        (Keyword.When, StepKeywordType.action),
+        (Keyword.Then, StepKeywordType.outcome),
+        (Keyword.And, StepKeywordType.conjunction),
+        (Keyword.But, StepKeywordType.conjunction),
+        (Keyword.Star, StepKeywordType.unknown),
+        (None, StepKeywordType.unknown),
     ],
 )
 
@@ -215,7 +215,7 @@ def after_convert_sub_steps_to_steps(value):
     return value.sub_step if isinstance(value, SubStep) else value
 
 
-StepKeywordType = Union[Keyword, Annotated[str, select_step_keyword_type]]
+StepStepKeywordType = Union[Keyword, Annotated[str, select_step_keyword_type]]
 
 
 class StepPrototype(Node):
@@ -226,7 +226,7 @@ class StepPrototype(Node):
         ]
     ] = Field(default_factory=list, alias="Steps")
 
-    type: Optional[StepKeywordType] = Field(default=Keyword.Star, alias="Type")
+    type: Optional[StepStepKeywordType] = Field(default=Keyword.Star, alias="Type")
     data: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
         default_factory=list,
         alias="Data",
@@ -235,7 +235,7 @@ class StepPrototype(Node):
         default_factory=list,
         alias="Examples",
     )
-    keyword_type: Optional[KeywordType] = Field(KeywordType.unknown)
+    keyword_type: Optional[StepKeywordType] = Field(StepKeywordType.unknown)
 
     class Route(NamedTuple):
         tags: Optional[Sequence[str]]
@@ -315,7 +315,7 @@ class StepPrototype(Node):
                 id_generator=config.pytest_bdd_id_generator,
             )
 
-            if isinstance(self.mimetype, MediaType):
+            if isinstance(self.mimetype, SourceMediaType):
                 media_type = self.mimetype
             elif isinstance(self.mimetype, Mimetype):
                 media_type = self.mimetype.value
@@ -380,7 +380,7 @@ class Alternative(Node):
 
 
 class Step(StepPrototype):
-    type: Optional[StepKeywordType] = Field(default=Keyword.Star, alias="Type")
+    type: Optional[StepStepKeywordType] = Field(default=Keyword.Star, alias="Type")
     action: Optional[str] = Field(None, alias="Action")
 
 
@@ -389,32 +389,32 @@ class SubStep(BaseModel):
 
 
 class StarStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Star, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.Star, alias="Type")
     action: Optional[str] = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Given, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.Given, alias="Type")
     action: Optional[str] = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.When, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.When, alias="Type")
     action: Optional[str] = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Then, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.Then, alias="Type")
     action: Optional[str] = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.And, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.And, alias="Type")
     action: Optional[str] = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.But, alias="Type")
+    type: StepStepKeywordType = Field(Keyword.But, alias="Type")
     action: Optional[str] = Field(alias=Keyword.But.value)
 
 

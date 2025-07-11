@@ -46,23 +46,23 @@ from warnings import warn
 import pytest
 from _pytest.fixtures import FixtureRequest
 from attr import Factory, attrib, attrs
-from ordered_set import OrderedSet
-from pydantic import ValidationError
-from typing_extensions import Protocol, runtime_checkable
-
-from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
-    ExpressionType,
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+    Feature,
     Location,
     Pickle,
+    PickleStepType,
     SourceReference,
     StepDefinition,
     StepDefinitionPattern,
 )
-from messages import PickleStep as Step  # type:ignore[attr-defined]
+from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
+from ordered_set import OrderedSet
+from pydantic import ValidationError
+from typing_extensions import Protocol, runtime_checkable
+
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
-from pytest_bdd.model import Feature, StepType
-from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
+from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser
 from pytest_bdd.plugin.scenario_runner.const import Steps
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
@@ -104,7 +104,7 @@ def given(
     :return: Decorator function for the step.
     """
     return StepDefinitionManager.decorator_builder(
-        StepType.context,
+        PickleStepType.context,
         parserlike,
         anonymous_group_names=anonymous_group_names,
         converters=converters,
@@ -145,7 +145,7 @@ def when(
     :return: Decorator function for the step.
     """
     return StepDefinitionManager.decorator_builder(
-        StepType.action,
+        PickleStepType.action,
         parserlike,
         anonymous_group_names=anonymous_group_names,
         converters=converters,
@@ -186,7 +186,7 @@ def then(
     :return: Decorator function for the step.
     """
     return StepDefinitionManager.decorator_builder(
-        StepType.outcome,
+        PickleStepType.outcome,
         parserlike,
         anonymous_group_names=anonymous_group_names,
         converters=converters,
@@ -227,7 +227,7 @@ def step(
     :return: Decorator function for the step.
     """
     return StepDefinitionManager.decorator_builder(
-        StepType.unknown,
+        PickleStepType.unknown,
         parserlike,
         anonymous_group_names=anonymous_group_names,
         converters=converters,
@@ -274,7 +274,7 @@ class StepDefinitionManager:
 
             self.step_type_context = (
                 self.step_type_context
-                if self.step.type is StepType.unknown and self.step_type_context is not None
+                if self.step.type is PickleStepType.unknown and self.step_type_context is not None
                 else self.step.type
             )
 
@@ -306,7 +306,7 @@ class StepDefinitionManager:
 
         def unspecified_matcher(self, step_definition):
             return (
-                StepType.unknown in {self.step_type_context, step_definition.type_}
+                PickleStepType.unknown in {self.step_type_context, step_definition.type_}
             ) and step_definition.parser.is_matching(
                 self.request,
                 self.step.text,
@@ -351,7 +351,7 @@ class StepDefinitionManager:
     @attrs(eq=False)
     class Definition:
         func: Callable = attrib()
-        type_: Optional[Union[str, StepType]] = attrib()
+        type_: Optional[Union[str, PickleStepType]] = attrib()
         parser: StepParser = attrib()
         anonymous_group_names: Optional[Iterable[str]] = attrib()
         converters: dict[str, Callable] = attrib()
@@ -415,10 +415,10 @@ class StepDefinitionManager:
 
                 parser_expression_type = self.parser.type
 
-                expression_type: Union[ExpressionType, str]
-                if isinstance(parser_expression_type, ExpressionType):
+                expression_type: Union[StepDefinitionPatternType, str]
+                if isinstance(parser_expression_type, StepDefinitionPatternType):
                     expression_type = parser_expression_type
-                elif isinstance(parser_expression_type, ExpressionTypeExtension):
+                elif isinstance(parser_expression_type, StepDefinitionPatternType):
                     expression_type = parser_expression_type.value
                 else:
                     expression_type = str(parser_expression_type)
@@ -427,7 +427,9 @@ class StepDefinitionManager:
                     pattern = StepDefinitionPattern(source=str(self.parser), type=expression_type)
                 except ValidationError:
                     # Workaround because of https://github.com/cucumber/messages/issues/160
-                    pattern = StepDefinitionPattern(source=str(self.parser), type=ExpressionType.regular_expression)
+                    pattern = StepDefinitionPattern(
+                        source=str(self.parser), type=StepDefinitionPatternType.regular_expression
+                    )
                 message = self.__cache[id(id_generator)] = StepDefinition(
                     id=self.id,
                     pattern=pattern,
@@ -525,7 +527,7 @@ class StepDefinitionManager:
 
     @staticmethod
     def decorator_builder(
-        step_type: Optional[Union[str, StepType]],
+        step_type: Optional[Union[str, PickleStepType]],
         step_parserlike: Any,
         anonymous_group_names: Optional[Iterable[str]] = None,
         converters: Optional[dict[str, Callable]] = None,

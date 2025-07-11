@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
 
-from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
 from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.model import message_converter
 from pytest_bdd.util.data_table import data_table_to_dicts
 from pytest_bdd.util.toolz_extra import compose
 
@@ -139,6 +140,6 @@ def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:
             for raw_datum in ast_file:
-                Envelope.model_validate(json.loads(raw_datum))
+                message_converter.from_dict(json.loads(raw_datum), Envelope)
         except Exception as e:
             raise AssertionError from e

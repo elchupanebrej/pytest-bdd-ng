@@ -14,7 +14,7 @@ from pytest_bdd.compatibility.gherkin import GherkinDocument
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.model import Feature
+from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.types.exception import FeatureConcreteParseError
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
@@ -97,6 +97,8 @@ class MarkdownGherkinParser(BaseParser):
             ) from e
 
         gherkin_document_raw_dict["uri"] = uri
+        # TODO create a defect for a gherkin parser repo
+        gherkin_document_raw_dict["feature"].setdefault("keyword", "")
 
         feature = self.build_feature(
             gherkin_document_raw_dict,

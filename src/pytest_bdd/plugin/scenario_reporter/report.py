@@ -2,9 +2,9 @@ import time
 from typing import Any
 
 from attr import Factory, attrib, attrs
+from cucumber_messages import Pickle, PickleStep  # type:ignore[attr-defined]
 
-from messages import Pickle, PickleStep  # type:ignore[attr-defined]
-from pytest_bdd.model import Feature
+from pytest_bdd.model.gherkin_document import Feature
 
 
 class StepReport:

@@ -19,13 +19,10 @@ import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
-from filelock import FileLock
-from pydantic import ValidationError
-
-from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
     Attachment,
+    AttachmentContentEncoding,
     Ci,
-    ContentEncoding,
     Duration,
     Hook,
     Location,
@@ -34,7 +31,6 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
     Product,
     Source,
     SourceReference,
-    Status,
     TestCase,
     TestCaseFinished,
     TestCaseStarted,
@@ -43,10 +39,13 @@ from messages import (  # type:ignore[attr-defined, import-untyped]  # type:igno
     TestStep,
     TestStepFinished,
     TestStepResult,
+    TestStepResultStatus,
     TestStepStarted,
     Timestamp,
 )
-from messages import Envelope as Message  # type:ignore[attr-defined]
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
+from filelock import FileLock
+
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
     Config,
@@ -57,6 +56,7 @@ from pytest_bdd.compatibility.pytest import (
     is_set,
     is_testrun_success,
 )
+from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
@@ -140,8 +140,8 @@ class GherkinMessageReporter:
                             continue
 
                         try:
-                            Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
-                        except ValidationError:
+                            message_converter.from_dict(json.loads(message_json), Message)
+                        except TypeError:
                             logger.exception("Failed to parse:\n%s\n", pformat(message_json))
                         else:
                             lines.append(f"{message_json}\n")
@@ -224,7 +224,8 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        message_json = message.model_dump_json(exclude_none=True, by_alias=True)  # type: ignore[attr-defined] # migration to pydantic2
+
+        message_json = json.dumps(message_converter.to_dict(message))
         self.process_messages_io_queue.put_nowait(message_json)
 
     def pytest_runtestloop(self, session: pytest.Session):
@@ -247,6 +248,8 @@ class GherkinMessageReporter:
         config = session.config
         hook_handler = config.hook
 
+        ci = message_converter.from_dict(obj, Ci) if (obj := detect_ci_environment(os.environ)) is not None else None
+
         hook_handler.pytest_bdd_message(
             config=config,
             message=Message(
@@ -260,7 +263,7 @@ class GherkinMessageReporter:
                     runtime=Product(name="Python", version=sys.version),
                     os=Product(name=system(), version=version()),
                     cpu=Product(name=machine(), version=processor()),
-                    ci=(Ci.model_validate(obj) if (obj := detect_ci_environment(os.environ)) is not None else None),
+                    ci=ci,
                 ),
             ),
         )
@@ -558,7 +561,9 @@ class GherkinMessageReporter:
                     test_case_started_id=self.current_test_case.id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.passed),
+                    test_step_result=TestStepResult(
+                        duration=current_test_case_step_duration, status=TestStepResultStatus.passed
+                    ),
                 ),
             ),
         )
@@ -606,7 +611,9 @@ class GherkinMessageReporter:
                     test_case_started_id=self.current_test_case.id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.failed),
+                    test_step_result=TestStepResult(
+                        duration=current_test_case_step_duration, status=TestStepResultStatus.failed
+                    ),
                 ),
             ),
         )
@@ -618,13 +625,13 @@ class GherkinMessageReporter:
         hook_handler = config.hook
 
         if isinstance(attachment, (str, TextIOBase)):
-            content_encoding = ContentEncoding.identity
+            content_encoding = AttachmentContentEncoding.identity
             media_type_ = "text/plain;charset=UTF-8" if media_type is None else media_type
         elif isinstance(attachment, (bytes, bytearray, BufferedIOBase)):
-            content_encoding = ContentEncoding.base64
+            content_encoding = AttachmentContentEncoding.base64
             media_type_ = "application/octet-stream" if media_type is None else media_type
         else:
-            content_encoding = ContentEncoding.identity
+            content_encoding = AttachmentContentEncoding.identity
             media_type_ = "text/plain;charset=UTF-8" if media_type is None else media_type
 
         if isinstance(attachment, str):

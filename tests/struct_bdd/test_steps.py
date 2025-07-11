@@ -548,9 +548,9 @@ def test_dsl_decorator(testdir):
     testdir.makepyfile(
         # language=python
         """ \
-            from pytest_bdd import given, then
+        from pytest_bdd import given, then
         from pytest_bdd.plugin.struct_bdd.model import Step, Table
-        from pytest_bdd.model import Feature
+        from pytest_bdd.model.gherkin_document import Feature
 
         step = Step(
             name="Examples are substituted",

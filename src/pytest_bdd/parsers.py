@@ -16,9 +16,8 @@ from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 from cucumber_expressions.regular_expression import RegularExpression as CucumberRegularExpression
 
-from messages import ExpressionType  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.pytest import FixtureRequest
-from pytest_bdd.model.messages_extension import ExpressionType as ExpressionTypeExtension
+from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.util.other import StringRepresentable, normalize_to_string
 
 
@@ -29,7 +28,7 @@ class ParserBuildValueError(ValueError):
 
 @runtime_checkable
 class StepParserProtocol(Protocol):
-    type: Union[ExpressionType, ExpressionTypeExtension, str] = ExpressionTypeExtension.pytest_bdd_other_expression
+    type: Union[StepDefinitionPatternType, str] = StepDefinitionPatternType.pytest_bdd_other_expression
 
     def parse_arguments(
         self,
@@ -113,7 +112,7 @@ class StepParser(StepParserProtocol, ABC):
 class re(StepParser):  # noqa:N801 intentional API
     """Regex step parser."""
 
-    type = ExpressionTypeExtension.pytest_bdd_regular_expression
+    type = StepDefinitionPatternType.pytest_bdd_regular_expression
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
@@ -174,7 +173,7 @@ class re(StepParser):  # noqa:N801 intentional API
 class parse(StepParser):  # noqa:N801 intentional API
     """parse step parser."""
 
-    type = ExpressionTypeExtension.pytest_bdd_parse_expression
+    type = StepDefinitionPatternType.pytest_bdd_parse_expression
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
@@ -237,7 +236,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 class cfparse(parse):  # noqa:N801 intentional API
     """cfparse step parser."""
 
-    type = ExpressionTypeExtension.pytest_bdd_cfparse_expression
+    type = StepDefinitionPatternType.pytest_bdd_cfparse_expression
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("builder", base_cfparse.Parser)
@@ -247,7 +246,7 @@ class cfparse(parse):  # noqa:N801 intentional API
 class string(StepParser):  # noqa: N801 intentional API
     """Exact string step parser."""
 
-    type = ExpressionTypeExtension.pytest_bdd_string_expression
+    type = StepDefinitionPatternType.pytest_bdd_string_expression
 
     def __init__(self, name: Union[StringRepresentable, str, bytes]) -> None:
         self.name = normalize_to_string(name)
@@ -334,7 +333,7 @@ class _CucumberExpression(StepParser):
 
 
 class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
-    type = ExpressionType.cucumber_expression
+    type = StepDefinitionPatternType.cucumber_expression
     expression_type = CucumberExpression
 
     # https://bugs.python.org/issue45684
@@ -365,7 +364,7 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
 
 
 class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentional API
-    type = ExpressionType.regular_expression
+    type = StepDefinitionPatternType.regular_expression
     expression_type = CucumberRegularExpression
     # https://bugs.python.org/issue45684
 
@@ -396,7 +395,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
 
 
 class heuristic(StepParser):  # noqa: N801 intentional API
-    type = ExpressionTypeExtension.pytest_bdd_heuristic_expression
+    type = StepDefinitionPatternType.pytest_bdd_heuristic_expression
 
     def __init__(
         self,
