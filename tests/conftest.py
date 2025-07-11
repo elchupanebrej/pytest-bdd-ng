@@ -2,8 +2,6 @@ import pytest
 
 from pytest_bdd.compatibility.pytest import PYTEST6
 
-pytest_plugins = "pytester"
-
 
 def pytest_generate_tests(metafunc):
     if "pytest_params" in metafunc.fixturenames:
