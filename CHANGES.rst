@@ -40,6 +40,8 @@ Planned
     - undefined_parameter_type
 
 - Add mode to execute scenarios with missing/failing steps
+    - Ambiguous steps must be handled
+    - Undefined steps must be handled
 - Remove
 
   - Hide traceback for pytest code "__tracebackhide__ = True"

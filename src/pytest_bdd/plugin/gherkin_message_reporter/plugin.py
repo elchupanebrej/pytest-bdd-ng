@@ -254,8 +254,7 @@ class GherkinMessageReporter:
             config=config,
             message=Message(
                 meta=Meta(
-                    # TODO: Get from environment
-                    protocol_version="22.0.0",
+                    protocol_version=str(get_distribution_version("cucumber-messages")),
                     implementation=Product(
                         name="pytest-bdd-ng",
                         version=str(get_distribution_version("pytest-bdd-ng")),

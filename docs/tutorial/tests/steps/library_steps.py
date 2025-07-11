@@ -1,8 +1,9 @@
 import re
 from typing import Literal
 
+from cucumber_messages import DataTable, TestStep  # type:ignore[attr-defined]
+
 from docs.tutorial.src.catalog import Book, Catalog
-from messages import DataTable, Step  # type:ignore[attr-defined]
 from pytest_bdd import given, then, when
 
 
@@ -26,7 +27,7 @@ def get_books_from_data_table(data_table: DataTable):
 def these_books_in_the_catalog(
     # `step` fixture is injected by pytest dependency injection mechanism into scope of step by default;
     # So it could be used without extra effort
-    step: Step,
+    step: TestStep,
 ):
     books = get_books_from_data_table(step.data_table)
 
@@ -69,7 +70,7 @@ def only_these_books_will_be_returned(
     # Fixtures persist during step execution, so usual `context` common for behave users is not required,
     # so if you define fixture dependencies debugging becomes much easier.
     search_results: list[Book],
-    step: Step,
+    step: TestStep,
 ):
     expected_books = get_books_from_data_table(step.data_table)
     non_expected_books = [book for book in search_results if book not in expected_books]
