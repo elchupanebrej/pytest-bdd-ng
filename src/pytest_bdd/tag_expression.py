@@ -1,16 +1,11 @@
-from itertools import cycle
 from operator import attrgetter
 from typing import Optional, Protocol, Union, runtime_checkable
 
-from _pytest.mark import Mark
 from attr import attrib, attrs
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 from typing_extensions import Self
 
-from pytest_bdd.compatibility.pytest import PYTEST6, PYTEST83
-
-if PYTEST6:
-    from pytest_bdd.compatibility.pytest import Expression, MarkMatcher, ParseError
+from pytest_bdd.compatibility.pytest import PYTEST83, Expression, Mark, MarkMatcher, ParseError
 
 
 @runtime_checkable
@@ -56,41 +51,8 @@ class _MarksTagExpression(_ModernTagExpression):
         )
 
 
-@attrs
-class _FallbackMarksTagExpression(TagExpression):
-    """Used for pytest<6.0"""
-
-    expression: Optional[str] = attrib()
-
-    @classmethod
-    def parse(cls, expression: str):
-        try:
-            if expression:
-                eval(expression, {})  # noqa:S307 intentional
-        except SyntaxError as e:
-            msg = f"Unable parse mark expression: {expression}: {e}"
-            raise ValueError(msg) from e
-        except NameError:
-            pass
-        return cls(expression=expression or None)
-
-    def evaluate(self, marks):
-        if self.expression is None:
-            return True
-        return eval(  # noqa:S307 intentional
-            self.expression,
-            {},
-            dict(zip(map(attrgetter("name"), marks), cycle([True]))),
-        )
-
-
-MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression, _FallbackMarksTagExpression]]
-if PYTEST83:
-    MarksTagExpression = _EnhancedMarksTagExpression
-elif PYTEST6:
-    MarksTagExpression = _MarksTagExpression
-else:
-    MarksTagExpression = _FallbackMarksTagExpression
+MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression]]
+MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 
 @attrs
@@ -109,6 +71,4 @@ class GherkinTagExpression(TagExpression):
         return self.expression.evaluate(map(attrgetter("name"), marks))
 
 
-TagExpressionType = Union[
-    _EnhancedMarksTagExpression, _MarksTagExpression, _FallbackMarksTagExpression, GherkinTagExpression
-]
+TagExpressionType = Union[_EnhancedMarksTagExpression, _MarksTagExpression, GherkinTagExpression]

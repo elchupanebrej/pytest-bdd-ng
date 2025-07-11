@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING, Union, cast
 
 import py
 import pytest
-from _pytest.config import Config, PytestPluginManager
+from _pytest.compat import NotSetType
+from _pytest.config import Config, ExitCode, PytestPluginManager
 from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
-from _pytest.mark import Mark, MarkDecorator
+from _pytest.mark import Mark, MarkDecorator, MarkMatcher
+from _pytest.mark.expression import Expression, ParseError
 from _pytest.nodes import Collector
 from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
@@ -22,24 +24,27 @@ from _pytest.terminal import TerminalReporter
 
 from pytest_bdd.util.packaging import compare_distribution_version
 
-if TYPE_CHECKING:
-    from pytest_bdd.compatibility.typing import TypeAlias
-
 __all__ = [
-    "PYTEST6",
     "PYTEST7",
+    "PYTEST61",
+    "PYTEST62",
+    "PYTEST81",
+    "PYTEST83",
     "CallInfo",
     "Collector",
     "Config",
     "ExitCode",
+    "Expression",
     "FixtureDef",
     "FixtureLookupError",
     "FixtureRequest",
     "Item",
     "Mark",
     "MarkDecorator",
+    "MarkMatcher",
     "Metafunc",
     "Module",
+    "ParseError",
     "Parser",
     "PytestPluginManager",
     "RunResult",
@@ -59,10 +64,9 @@ def is_pytest_version_greater_or_equal(version: str):
     return compare_distribution_version("pytest", version, ge)
 
 
-PYTEST6, PYTEST61, PYTEST62, PYTEST7, PYTEST8, PYTEST81, PYTEST83 = map(
+PYTEST61, PYTEST62, PYTEST7, PYTEST8, PYTEST81, PYTEST83 = map(
     is_pytest_version_greater_or_equal,
     [
-        "6.0",
         "6.1",
         "6.2",
         "7.0",
@@ -72,24 +76,6 @@ PYTEST6, PYTEST61, PYTEST62, PYTEST7, PYTEST8, PYTEST81, PYTEST83 = map(
     ],
 )
 
-if PYTEST6:
-    # noinspection PyUnresolvedReferences
-    from _pytest.compat import NotSetType
-    from _pytest.config import ExitCode
-
-    # noinspection PyUnresolvedReferences
-    from _pytest.mark import MarkMatcher
-
-    # noinspection PyUnresolvedReferences
-    from _pytest.mark.expression import Expression, ParseError
-
-    __all__ += [
-        "Expression",
-        "MarkMatcher",
-        "ParseError",
-    ]
-else:
-    ExitCode: TypeAlias = int  # type:ignore[no-redef]
 
 if PYTEST7:
     from pytest import Testdir  # noqa: PT013
@@ -128,48 +114,24 @@ class Module(pytest.Module):
         return getattr(self, "path", Path(self.fspath))
 
 
-if PYTEST6:
-
-    def assert_outcomes(
-        result: RunResult,
-        passed: int = 0,
-        skipped: int = 0,
-        failed: int = 0,
-        errors: int = 0,
-        xpassed: int = 0,
-        xfailed: int = 0,
-    ) -> None:
-        """Compatibility function for result.assert_outcomes"""
-        result.assert_outcomes(
-            errors=errors,
-            passed=passed,
-            skipped=skipped,
-            failed=failed,
-            xpassed=xpassed,
-            xfailed=xfailed,
-        )
-
-else:
-
-    def assert_outcomes(
-        result: RunResult,
-        passed: int = 0,
-        skipped: int = 0,
-        failed: int = 0,
-        errors: int = 0,
-        xpassed: int = 0,
-        xfailed: int = 0,
-    ) -> None:
-        """Compatibility function for result.assert_outcomes"""
-        result.assert_outcomes(  # type: ignore[call-arg]
-            #  Pytest < 6 uses the singular form
-            error=errors,
-            passed=passed,
-            skipped=skipped,
-            failed=failed,
-            xpassed=xpassed,
-            xfailed=xfailed,
-        )
+def assert_outcomes(
+    result: RunResult,
+    passed: int = 0,
+    skipped: int = 0,
+    failed: int = 0,
+    errors: int = 0,
+    xpassed: int = 0,
+    xfailed: int = 0,
+) -> None:
+    """Compatibility function for result.assert_outcomes"""
+    result.assert_outcomes(
+        errors=errors,
+        passed=passed,
+        skipped=skipped,
+        failed=failed,
+        xpassed=xpassed,
+        xfailed=xfailed,
+    )
 
 
 def get_config_root_path(config: Config) -> Path:
@@ -183,15 +145,8 @@ def fail(reason, *, pytrace=True):
     return pytest.fail(msg=reason, pytrace=pytrace)
 
 
-if PYTEST6:
-
-    def is_set(obj):
-        return not isinstance(obj, NotSetType)
-
-else:
-
-    def is_set(obj):
-        return type(obj) is not object
+def is_set(obj):
+    return not isinstance(obj, NotSetType)
 
 
 def get_metafunc_call_arg(call, arg):
