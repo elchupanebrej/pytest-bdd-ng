@@ -49,13 +49,13 @@ class ScenarioLocatorBuilder:
     config: Config
 
     @property
-    def default_features_base_dir(self):
+    def default_features_base_dir(self) -> str:
         with suppress(ValueError, KeyError):
             return self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION)) or None
-        return self.config.rootpath
+        return str(self.config.rootpath)
 
     @property
-    def default_features_base_url(self):
+    def default_features_base_url(self) -> Optional[str]:
         with suppress(ValueError, KeyError):
             return self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION)) or None
         return None
@@ -98,7 +98,7 @@ class ScenarioLocatorBuilder:
         return features_base_url
 
     @staticmethod
-    def resolve_features_path_type(feature_path_type: Optional[FeaturePathType] = None) -> Any:
+    def resolve_features_path_type(feature_path_type: Optional[Union[FeaturePathType, str]] = None) -> Any:
         """Resolve the type of feature paths (PATH, URL, or UNDEFINED)."""
         if feature_path_type is None:
             return FeaturePathType.UNDEFINED
