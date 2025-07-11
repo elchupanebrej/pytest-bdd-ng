@@ -8,19 +8,19 @@ Feature: Simple project tests that use pytest-bdd-ng could be run via pytest
 Scenario: Catalog example with simplest steps
 '''''''''''''''''''''''''''''''''''''''''''''
 
-- Given Copy path from "docs/tutorial" to test path "tutorial"
+-  Given Copy path from "docs/tutorial" to test path "tutorial"
 
-- When run pytest
+-  When run pytest
 
-  ======== ================== ==============
-  cli_args --rootdir=tutorial tutorial/tests
-  ======== ================== ==============
-  ======== ================== ==============
+   ======== ================== ==============
+   cli_args --rootdir=tutorial tutorial/tests
+   ======== ================== ==============
+   ======== ================== ==============
 
-- Then pytest outcome must contain tests with statuses:
+-  Then pytest outcome must contain tests with statuses:
 
-  +--------+
-  | passed |
-  +========+
-  | 1      |
-  +--------+
+   +--------+
+   | passed |
+   +========+
+   | 1      |
+   +--------+
