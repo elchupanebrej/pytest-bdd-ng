@@ -104,10 +104,8 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             if isinstance(response, Exception):
                 continue
 
-            mimetype, feature_content = self._resolve_mimetype(response)
-            if self.mimetype is not None:
-                mimetype = self._normalize_mimetype(mimetype)
-
+            mimetype_raw, feature_content = response
+            mimetype = Mimetype(self.mimetype if self.mimetype is not None else mimetype_raw)
             parser_type = self._get_parser_type(hook_handler, config, mimetype)
             if parser_type is None:
                 break
@@ -134,16 +132,6 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         loop.run_until_complete(asyncio.sleep(0.250))
         loop.close()
         return responses
-
-    def _resolve_mimetype(self, response):
-        mimetype, feature_content = response
-        return mimetype, feature_content
-
-    def _normalize_mimetype(self, mimetype):
-        mimetype = self.mimetype
-        if isinstance(mimetype, Mimetype):
-            mimetype = mimetype.value
-        return mimetype
 
     def _get_parser_type(self, hook_handler, config, mimetype):
         if self.parser_type is None:

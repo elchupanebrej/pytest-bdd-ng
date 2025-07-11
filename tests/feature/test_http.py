@@ -7,6 +7,7 @@ from pytest_httpserver import HTTPServer
 
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.util.webloc import write as webloc_write
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -198,14 +199,15 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
 def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPServer):
     httpserver.expect_request("/feature").respond_with_data(
         MINIMAL_FEATURE,
-        content_type=Mimetype.gherkin_plain.value,
+        content_type=Mimetype.gherkin_plain,
     )
 
     testdir.makeini(
+        # language=ini
         f"""\
         [pytest]
         console_output_style=classic
-        bdd_features_base_url=http://localhost:{httpserver.port}
+        {FeatureBaseLoad.Ini.URL_OPTION}=http://localhost:{httpserver.port}
         """,
     )
 

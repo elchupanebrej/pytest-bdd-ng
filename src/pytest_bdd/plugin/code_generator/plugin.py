@@ -1,6 +1,7 @@
 """pytest-bdd missing test code generation."""
 
 import argparse
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
@@ -13,11 +14,12 @@ from mako.template import Template
 from messages import Pickle, PickleStep, Type  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
+from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model import Feature, StepType
-from pytest_bdd.parser import GherkinParser
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.packaging import compare_distribution_version
+from pytest_bdd.util.toolz_extra import chain_map
 
 STEP_TYPE_TO_STEP_PREFIX = {
     StepType.unknown: "*",
@@ -167,8 +169,14 @@ def collect_features_and_seen_uris(
     seen_feature_pickles_ids: set[tuple[str, str]],
 ) -> tuple[Sequence[Feature], set[str]]:
     """Collect all features and the set of seen feature URIs."""
-    # TODO Add collection of markdown features
-    features: Sequence[Feature] = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
+    locator_builder = ScenarioLocatorBuilder(config=config)
+    locators = locator_builder.build_for_feature_locator_args(
+        cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+    )
+    feature_pickles_feature_source = chain_map(methodcaller("resolve", config), locators)
+
+    features: Sequence[Feature] = [feature for feature, pickle, source in feature_pickles_feature_source]
+
     seen_features_uris: set[str] = {feature_uri for feature_uri, _ in seen_feature_pickles_ids}
 
     return features, seen_features_uris
@@ -229,19 +237,17 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
         session.exitstatus = 100
         return
 
-    features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
-
-    feature_pickles: Sequence[tuple[Feature, Pickle]] = list(
-        chain.from_iterable(
-            (
-                cast(
-                    Iterable[tuple[Feature, Pickle]],
-                    zip_longest((), feature.pickles, fillvalue=feature),
-                )
-                for feature in features
-            ),
-        ),
+    locator_builder = ScenarioLocatorBuilder(config=config)
+    locators = locator_builder.build_for_feature_locator_args(
+        cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
     )
+    feature_pickles_feature_source = list(chain_map(methodcaller("resolve", config), locators))
+
+    features: Sequence[Feature] = [feature for feature, pickle, source in feature_pickles_feature_source]
+
+    feature_pickles: Sequence[tuple[Feature, Pickle]] = [
+        (feature, pickle) for feature, pickle, source in feature_pickles_feature_source
+    ]
 
     feature_pickles_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]] = list(
         chain.from_iterable(

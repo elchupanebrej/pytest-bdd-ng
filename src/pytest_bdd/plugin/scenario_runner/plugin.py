@@ -98,6 +98,7 @@ class ScenarioRunner:
 
         return dispatcher
 
+    # TODO Move into the separate hook
     @contextmanager
     def extended_step_context(self, feature: Feature, scenario, step):
         try:

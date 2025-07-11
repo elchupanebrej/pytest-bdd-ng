@@ -114,7 +114,8 @@ class ScenarioTestCollector(BaseCollector):
         mark_names = [mark.name for mark in marks]
         if PYTEST_BDD_MARK in mark_names:
             scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
-            locators = ScenarioLocatorBuilder(scenario_marks, config=config).build_locators()
+            locator_builder = ScenarioLocatorBuilder(config=config)
+            locators = chain_map(locator_builder.build_for_pytest_mark, scenario_marks)
             feature_scenario_feature_source = chain_map(methodcaller("resolve", config), locators)
 
             metafunc.parametrize(

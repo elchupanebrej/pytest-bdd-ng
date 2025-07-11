@@ -1,8 +1,4 @@
 import linecache
-from collections.abc import Sequence
-from functools import partial
-from itertools import filterfalse
-from operator import contains, itemgetter
 from pathlib import Path
 from typing import Union, cast
 
@@ -16,7 +12,6 @@ from gherkin.token_scanner import TokenScanner
 
 from pytest_bdd.compatibility.gherkin import GherkinDocument
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model import Feature
@@ -74,40 +69,6 @@ class GherkinParser(BaseParser):
             filename=str(path.as_posix()),
         )
         return feature, feature_file_data
-
-    # TODO Move out of parser to loader component
-    def get_from_paths(self, config: Config, paths: Sequence[Path], **kwargs) -> Sequence[Feature]:
-        """Get features for given paths."""
-        seen_names: set[Path] = set()
-        features_content: list[tuple[Feature, str]] = []
-        features_base_dir = kwargs.pop("features_base_dir", Path.cwd())
-        if not features_base_dir.is_absolute():
-            features_base_dir = Path.cwd() / features_base_dir
-
-        for rel_path in map(Path, paths):
-            path = rel_path if rel_path.is_absolute() else Path(features_base_dir) / rel_path
-
-            file_paths = list(map(Path, self.glob(path))) if path.is_dir() else [Path(path)]
-
-            features_content.extend(
-                (
-                    self.parse(
-                        config,
-                        path,
-                        "file:" + relpath(str(path), str(features_base_dir)),
-                        **kwargs,
-                    )
-                    for path in filterfalse(partial(contains, seen_names), file_paths)
-                ),
-            )
-
-            for file_path in file_paths:
-                if file_path not in seen_names:
-                    seen_names.add(path)
-
-        features = map(itemgetter(0), features_content)
-
-        return sorted(features, key=lambda feature: feature.name or feature.filename)
 
 
 @attrs

@@ -15,6 +15,9 @@ Planned
   - Allure plugin integration
     - Investigate messages -> cucumber/junit-xml-formatter -> allure
     - Implement direct messages -> allure
+  - Code generation
+    - Code generation must patch existing conftest/test files for generated tests
+    - Features must not be specified. Code must be generated for imported features
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
 - Add struct_bdd autoload
