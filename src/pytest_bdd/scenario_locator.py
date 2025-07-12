@@ -15,10 +15,8 @@ from urllib.parse import urljoin
 
 import aiohttp
 import certifi
-from _pytest.config import Config
 from attr import Factory, attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
-    Feature,
     Pickle,
     Source,
 )
@@ -26,9 +24,10 @@ from pydantic import ValidationError
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pathlib import GlobError
-from pytest_bdd.compatibility.pytest import get_config_root_path
+from pytest_bdd.compatibility.pytest import Config, get_config_root_path
 from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError

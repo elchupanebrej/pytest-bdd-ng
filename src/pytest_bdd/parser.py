@@ -49,8 +49,7 @@ class GherkinParser(BaseParser):
     ) -> tuple[Feature, str]:
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         encoding = kwargs.pop("encoding", "utf-8")
-        with path.open(mode="r", encoding=encoding) as feature_file:
-            feature_file_data = feature_file.read()
+        feature_file_data = path.read_text(encoding=encoding)
 
         try:
             gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(feature_file_data, *args, **kwargs))
@@ -79,11 +78,12 @@ class MarkdownGherkinParser(BaseParser):
         path: Path,
         uri: str,
         *args,  # noqa: ARG002 overload
-        **kwargs,  # noqa: ARG002 overload
+        **kwargs,
     ):
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         matcher = GherkinInMarkdownTokenMatcher()
-        feature_file_data = path.read_text()
+        encoding = kwargs.pop("encoding", "utf-8")
+        feature_file_data = path.read_text(encoding=encoding)
         token_scanner = TokenScanner(feature_file_data)
 
         try:
