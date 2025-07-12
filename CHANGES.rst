@@ -18,6 +18,7 @@ Planned
   - Code generation
     - Code generation must patch existing conftest/test files for generated tests
     - Features must not be specified. Code must be generated for imported features
+    - Remove dependency on pydantic where possible
 - Check using Path globs on the feature loading via scenario/scenarios
 - API doc
 - Add struct_bdd autoload
