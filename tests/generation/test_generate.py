@@ -1,6 +1,5 @@
 """Test code generation command."""
 
-import os
 import sys
 from pathlib import Path
 from textwrap import dedent
@@ -36,7 +35,7 @@ def test_generate(testdir):
         result.stdout.str().strip()
         == dedent(
             # language=python
-            f'''\
+            '''\
             """Code generation feature tests."""
 
             from pathlib import Path
@@ -50,9 +49,7 @@ def test_generate(testdir):
             )
 
 
-            @scenario(Path('scripts'''
-            f"{os.path.sep}"
-            '''generate.feature'), 'Given and when using the same fixture should not evaluate it twice')
+            @scenario(Path('scripts/generate.feature'), 'Given and when using the same fixture should not evaluate it twice')
             def test_given_and_when_using_the_same_fixture_should_not_evaluate_it_twice():
                 """Given and when using the same fixture should not evaluate it twice."""
 
