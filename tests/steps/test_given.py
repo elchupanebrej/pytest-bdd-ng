@@ -25,7 +25,7 @@ def test_given_injection(testdir):
         def foo_is_injected_foo(foo):
             assert foo == "injected foo"
 
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

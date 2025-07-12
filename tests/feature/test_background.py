@@ -89,7 +89,7 @@ def test_background_basic(testdir, tmp_path):
         """"), "Basic usage")
         def test_background():
             pass
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -97,7 +97,6 @@ def test_background_basic(testdir, tmp_path):
 
 def test_background_check_order(testdir, tmp_path):
     """Test feature background to ensure that background steps are executed first."""
-
     (tmp_path / "background.feature").write_text(dedent(FEATURE))
 
     testdir.makeconftest(STEPS)
@@ -114,7 +113,7 @@ def test_background_check_order(testdir, tmp_path):
         """"), "Background steps are executed first")
         def test_background():
             pass
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

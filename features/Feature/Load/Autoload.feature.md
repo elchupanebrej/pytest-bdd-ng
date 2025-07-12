@@ -21,11 +21,6 @@
     * Given Passing step
     ```
 
-* Given Install npm packages
-
-    | packages | @cucumber/gherkin |
-    |----------|-------------------|
-
 * Given File "conftest.py" with content:
 
     ```python

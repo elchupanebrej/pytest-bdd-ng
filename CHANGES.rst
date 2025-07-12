@@ -6,52 +6,95 @@ Changelog
 
 Planned
 -------
-- Add official gherkin parser support >30
-- Refactor internal parser API: split loader and parser APIs
-- Check using Path globs on the feature loading via scenario/scenarios
-- API doc
-- Add struct_bdd autoload
-- Move tox.ini, pytest.ini into pyproject.toml
+- Refactor
+
+  - Split plugins
+
+    - Add poset plugin/hooks ordering into pluggy library
+  - Simplify complex code chunks
+
+    - Rework extended_step_context method usage
+  - Hide traceback for pytest code "__tracebackhide__ = True"
+  - Allure plugin integration
+
+    - Investigate messages -> cucumber/junit-xml-formatter -> allure
+    - Implement direct messages -> allure
+    - Check newest allure-reporting plugin for reporting
+
+      - pytest
+      - messages
+
+    - Implement allure-formater to convert messages into allure report
+  - Code generation
+
+    - Generate code into dir structure aligned with proposed project layout
+    - Code generation must patch existing conftest/test files for generated tests
+    - Features parameter must not be specified. Code must be generated for imported features
+
+      - Rework generation code to include new features directly
+    - Remove dependency on pydantic where possible
+  - Documentation generation
+
+    - Use modern tools; Don't use multiple templating tools
+    - Include StructBDD support
+    - Add API doc
+    - Move tox.ini, pytest.ini into pyproject.toml
+    - Generate documentation via https://github.com/jolly-good-toolbelt/sphinx_gherkindoc instead of direct use
+
+      - Move sphinx-gherkindoc to official parser
+        - Documentation is ugly when contains injected code
 - Review report generation to be conform with official tools
-- Add tests about linked files and features autoload (feature autoload must not be disabled on linked files)
-- Rework extended_step_context method usage
-- Remove tests targeting Feature parsing
-
-  - https://github.com/pytest-dev/pytest-bdd/issues/488
-- Continue support of \*.md files
-
-  - Waiting for upstream issue https://github.com/cucumber/gherkin/pull/64
 - Support of messages:
 
+  - Check official cucumber-messages full support; Some items were added
   - Pending:
 
     - parse_error
     - undefined_parameter_type
 
 - Add mode to execute scenarios with missing/failing steps
-- Remove
 
-  - Hide traceback for pytest code "__tracebackhide__ = True"
-- Generate documentation via https://github.com/jolly-good-toolbelt/sphinx_gherkindoc instead of direct use
+  - Ambiguous steps must be handled
+  - Undefined steps must be handled
+- Tests rework
 
-  - Move sphinx-gherkindoc to official parser
-
-    - Documentation is ugly when contains injected code
-- Rework generation code to include new features directly
-
-  - Generate code into dir structure aligned with proposed project layout
-
-- Test messages against
-
-  - pytest-xdist at workers on different machines (sending back ndjson info https://codespeak.net/execnet/example/test_info.html#sending-channels-over-channels)
+  - Try to use pytest-xdist at workers on different machines (sending back ndjson info https://codespeak.net/execnet/example/test_info.html#sending-channels-over-channels)
 
     - Investigate https://smarie.github.io/python-pytest-harvest/
-  - pytest-rerunfailures
+  - Check support of pytest-rerunfailures
   - Parametrize step execution by different step realizations using https://smarie.github.io/python-pytest-cases/
-- Switch testdir to pytester after pytest<6.2 get EOL (python 3.8 and 3.9 get EOL)
+  - Add tests about linked files and features autoload (feature autoload must not be disabled on linked files)
+  - Remove tests targeting Feature parsing
+
+    - https://github.com/pytest-dev/pytest-bdd/issues/488
+  - Add support of native legacy cucumber-json
+  - Switch testdir to pytester after pytest<6.2 get EOL (python 3.9 get EOL)
 - Use uv/ruff
-- Contribute to messages repository with python model
-- Add support of native legacy cucumber-json
+
+  - Use mypy on ci, pyright on-commit
+
+
+Unreleased
+----------
+
+- Internal: package functions were split between plugins
+- Unify paths globbing between generation and autoloading
+- Ruff is used for code formatting and linting
+- Official gherkin parser support =33
+- Official cucumber-messages package is used for messages reporting
+
+  - cucumber-messages has accepted by gherkin community
+- Temporarily allure reporting is disabled
+- Switched *.md support to native realization
+- Declined usage of pytest<6.0
+- StructBDD features autoload is checked and uses common mechanism
+
+  - Features are collected by their mimetype
+
+
+2.4.0
+-----
+- Add python official gherkin parser for markdown documents
 
 2.3.1
 -----
@@ -64,9 +107,9 @@ Planned
 - Implement support of `Markdown <https://github.com/cucumber/gherkin/blob/main/MARKDOWN_WITH_GHERKIN.md>`_ using js based parser
 - Update versions:
 
- - Drop python 3.8
- - Add python 3.13
- - Drop pytest<5.2
+  - Drop python 3.8
+  - Add python 3.13
+  - Drop pytest<5.2
 
 - Added dummy html reporter
 - Fixed pytest.ini non-working option "disable_feature_autoload"

@@ -8,5 +8,4 @@ def relpath(path, start=os.curdir):
     except ValueError:
         if sys.platform == "win32":
             return path
-        else:
-            raise
+        raise

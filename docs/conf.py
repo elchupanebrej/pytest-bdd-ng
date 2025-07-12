@@ -14,10 +14,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-import os
 import sys
+from pathlib import Path
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, str(Path("..").resolve()))
 
 import pytest_bdd
 
@@ -44,7 +44,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Pytest-BDD-NG"
-copyright = "2013-2024, Konstantin Goloveshko"
+copyright = "2013-2025, Konstantin Goloveshko"  # noqa: A001
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -184,16 +184,24 @@ htmlhelp_basename = "Pytest-BDDdoc"
 
 latex_elements: dict = {
     # The paper size ('letterpaper' or 'a4paper').
-    #'papersize': 'letterpaper',
+    # 'papersize': 'letterpaper',
     # The font size ('10pt', '11pt' or '12pt').
-    #'pointsize': '10pt',
+    # 'pointsize': '10pt',
     # Additional stuff for the LaTeX preamble.
-    #'preamble': '',
+    # 'preamble': '',
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
-latex_documents = [("index", "Pytest-BDD.tex", "Pytest-BDD-NG Documentation", "Konstantin Goloveshko", "manual")]
+latex_documents = [
+    (
+        "index",
+        "Pytest-BDD.tex",
+        "Pytest-BDD-NG Documentation",
+        "Konstantin Goloveshko",
+        "manual",
+    )
+]
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
@@ -239,7 +247,7 @@ texinfo_documents = [
         "Konstantin Goloveshko",
         "Pytest plugin to execute Gherkin scenarios",
         "Miscellaneous",
-    )
+    ),
 ]
 
 # Documents to append as an appendix to all manuals.

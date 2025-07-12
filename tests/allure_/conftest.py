@@ -20,22 +20,26 @@ def has_test_case(name, *matchers):
         "test_cases",
         has_item(
             all_of(
-                any_of(has_entry("fullName", contains_string(name)), has_entry("name", contains_string(name))),
+                any_of(
+                    has_entry("fullName", contains_string(name)),
+                    has_entry("name", contains_string(name)),
+                ),
                 *matchers,
-            )
+            ),
         ),
     )
 
 
 def has_step(name, *matchers):
     return has_entry(
-        "steps", has_item(has_entry("steps", has_item(all_of(has_entry("name", equal_to(name)), *matchers))))
+        "steps",
+        has_item(has_entry("steps", has_item(all_of(has_entry("name", equal_to(name)), *matchers)))),
     )
 
 
 def match(matcher, *args):
     for i, arg in enumerate(args):
-        if not hasattr(arg, "__call__"):
+        if not callable(arg):
             matcher = partial(matcher, arg)
         else:
             matcher = partial(matcher, match(arg, *args[i + 1 :]))
@@ -50,8 +54,8 @@ def fake_logger(path, logger):
         allure_commons.plugin_manager.unregister(plugin=plugin, name=name)
         blocked_plugins.append(plugin)
 
-    with mock.patch(path) as ReporterMock:
-        ReporterMock.return_value = logger
+    with mock.patch(path) as reporter_mock:
+        reporter_mock.return_value = logger
         yield
 
     for plugin in blocked_plugins:
@@ -107,18 +111,21 @@ def allured_testdir(testdir, request):
 
 @pytest.fixture
 def context():
-    return dict()
+    return {}
 
 
 @pytest.fixture
-def allure_report(allured_testdir, context):
+def allure_report(
+    allured_testdir,
+    context,  # noqa: ARG001 fixture
+):
     return allured_testdir.allure_report
 
 
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
 def feature_definition(name, extension, testdir, step):
     content = step.doc_string.content
-    testdir.makefile(extension, **dict([(name, content)]))
+    testdir.makefile(extension, **{name: content})
 
 
 @when("run pytest-bdd with allure")

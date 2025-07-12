@@ -1,27 +1,21 @@
 import re
-from typing import List, Literal
+from typing import Literal
 
-from messages import DataTable, Step  # type:ignore[attr-defined]
-from pytest_bdd import given, step, then, when
+from cucumber_messages import DataTable, TestStep  # type:ignore[attr-defined]
 
-from ...src.catalog import Book, Catalog
+from docs.tutorial.src.catalog import Book, Catalog
+from pytest_bdd import given, then, when
 
 
 def get_books_from_data_table(data_table: DataTable):
     # Gherkin data-tables have no title row by default, but we could define them if we want.
     title_row, *book_rows = data_table.rows
 
-    step_data_table_titles = []
-    for cell in title_row.cells:
-        step_data_table_titles.append(cell.value)
+    step_data_table_titles = [cell.value for cell in title_row.cells]
 
     assert step_data_table_titles == ["Author", "Title"]
 
-    books = []
-    for row in book_rows:
-        books.append(Book(row.cells[0].value, row.cells[1].value))
-
-    return books
+    return [Book(row.cells[0].value, row.cells[1].value) for row in book_rows]
 
 
 # Steps to be used in scenarios are defined with special decorators
@@ -33,7 +27,7 @@ def get_books_from_data_table(data_table: DataTable):
 def these_books_in_the_catalog(
     # `step` fixture is injected by pytest dependency injection mechanism into scope of step by default;
     # So it could be used without extra effort
-    step: Step,
+    step: TestStep,
 ):
     books = get_books_from_data_table(step.data_table)
 
@@ -45,7 +39,7 @@ def these_books_in_the_catalog(
 
 @when(
     # Step definitions could have parameters. Here could be raw stings, cucumber expressions or regular expressions
-    re.compile("a (?P<search_type>name|title) search is performed for (?P<search_term>.+)"),
+    re.compile(r"a (?P<search_type>name|title) search is performed for (?P<search_term>.+)"),
     target_fixture="search_results",
 )
 def a_search_type_is_performed_for_search_term(
@@ -63,7 +57,8 @@ def a_search_type_is_performed_for_search_term(
     elif search_type == "name":
         search = catalog.search_by_author
     else:
-        assert False, "Unknown"
+        msg = "Unknown"
+        raise AssertionError(msg)
 
     found_books = search(search_term)
     search_results.extend(found_books)
@@ -75,11 +70,8 @@ def only_these_books_will_be_returned(
     # Fixtures persist during step execution, so usual `context` common for behave users is not required,
     # so if you define fixture dependencies debugging becomes much easier.
     search_results: list[Book],
-    step: Step,
-    catalog: Catalog,
+    step: TestStep,
 ):
     expected_books = get_books_from_data_table(step.data_table)
-
-    for book in search_results:
-        if book not in expected_books:
-            assert False, f"Book ${book} is not expected"
+    non_expected_books = [book for book in search_results if book not in expected_books]
+    assert not non_expected_books, f"Books {non_expected_books} are not expected"

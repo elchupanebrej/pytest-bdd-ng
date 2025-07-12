@@ -12,8 +12,8 @@ def test_hooks(testdir):
 
             def pytest_generate_tests(metafunc):
                 print('\npytest_generate_tests hook')
-            """
-        )
+            """,
+        ),
     )
 
     subdir.join("foo.feature").write(
@@ -22,8 +22,8 @@ def test_hooks(testdir):
             r"""
             Feature: The feature
                 Scenario: Some scenario
-            """
-        )
+            """,
+        ),
     )
 
     result = testdir.runpytest("-s")
@@ -51,7 +51,7 @@ def test_item_collection_does_not_break_on_non_function_items(testdir):
         class CustomItem(pytest.Item):
             def runtest(self):
                 assert True
-        """
+        """,
     )
 
     testdir.makepyfile(
@@ -59,7 +59,7 @@ def test_item_collection_does_not_break_on_non_function_items(testdir):
         """\
         def test_convert_me_to_custom_item_and_assert_true():
             assert False
-        """
+        """,
     )
 
     result = testdir.runpytest()

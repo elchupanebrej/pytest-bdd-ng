@@ -49,13 +49,13 @@ dependencies = [
   "certifi",
   "chevron",
   "ci-environment",
-  # This is needed until messages become regular PyPi package https://github.com/cucumber/messages/pull/165
-  "cuke-messages==0.1.0",
   "cucumber-expressions",
+  "cucumber-messages",
+  "cucumber-tag-expressions",
   "decopatch",
   "docopt-ng",
   "filelock",
-  "gherkin-official>=24,<30",
+  "gherkin-official>=33",
   "importlib-metadata;python_version<'3.10.0'",
   "importlib-resources",
   "makefun",
@@ -67,8 +67,8 @@ dependencies = [
   "pathvalidate",
   "py",
   "pydantic>=2.0.3",
-  "pytest>=5.2",
-  "cucumber-tag-expressions",
+  "pytest>=6.0",
+  "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
 ]
 description = "BDD for pytest"
@@ -82,7 +82,15 @@ requires-python = ">=3.9"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
-"pytest-bdd" = "pytest_bdd.plugin"
+"pytest-bdd-allure-logger" = "pytest_bdd.plugin.allure_logger.entrypoint"
+"pytest-bdd-code-generator" = "pytest_bdd.plugin.code_generator.entrypoint"
+"pytest-bdd-cucumber-json" = "pytest_bdd.plugin.cucumber_json.entrypoint"
+"pytest-bdd-gherkin-message-reporter" = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
+"pytest-bdd-gherkin-scenario-reporter" = "pytest_bdd.plugin.scenario_reporter.entrypoint"
+"pytest-bdd-gherkin-terminal-reporter" = "pytest_bdd.plugin.gherkin_terminal_reporter.entrypoint"
+"pytest-bdd-scenario-runner" = "pytest_bdd.plugin.scenario_runner.entrypoint"
+"pytest-bdd-scenario-test-collector" = "pytest_bdd.plugin.scenario_test_collector.entrypoint"
+"pytest-bdd-struct-bdd" = "pytest_bdd.plugin.struct_bdd.entrypoint"
 
 [project.optional-dependencies]
 allure = [
@@ -118,7 +126,8 @@ test = [
   "PyHamcrest",
   "pytest-httpserver",
   "python-coveralls",
-  "pytest-bdd-ng[doc-gen];python_version>='3.12.0'"
+  "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
+  "ruff"
 ]
 testenv = [
   "tox~=4.0",
@@ -127,7 +136,9 @@ testenv = [
 testtypes = [
   "mypy",
   "types-certifi",
+  "types-chevron",
   "types-docopt",
+  "types-pathlib2",
   "types-setuptools"
 ]
 
@@ -137,16 +148,6 @@ bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
 [project.urls]
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
-
-[tool.black]
-line-length = 120
-target-version = ["py39", "py310", "py311", "py312", "py313"]
-verbose = true
-
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-profile = "black"
 
 [tool.mypy]
 files = "src/pytest_bdd/**/*.py"
@@ -184,3 +185,147 @@ module = [
   "pytest.*",
   "yaml.*"
 ]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".mypy_cache",
+  ".ruff_cache",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "build",
+  "dist",
+  "venv"
+]
+# Same as Black.
+line-length = 120
+# Assume Python 3.9+
+target-version = "py39"
+
+[tool.ruff.format]
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+ignore = [
+  # Linter-Formatter interference
+  "W191",  # tab-indentation
+  "E111",  # indentation-with-invalid-multiple
+  "E114",  # indentation-with-invalid-multiple-comment
+  "E117",  # over-indented
+  "D206",  # docstring-tab-indentation
+  "D300",  # triple-single-quotes
+  "Q000",  # bad-quotes-inline-string
+  "Q001",  # bad-quotes-multiline-string
+  "Q002",  # bad-quotes-docstring
+  "Q003",  # avoidable-escaped-quote
+  "COM812",  # missing-trailing-comma
+  "COM819",  # prohibited-trailing-comma
+  "ISC002",  # multi-line-implicit-string-concatenation
+  "E501",  # line too long, handled by formatter
+  # / Linter-Formatter interference
+  "TC006",  # https://youtrack.jetbrains.com/issue/PY-46326/Pycharm-does-not-recognize-imports-used-for-typing.cast-when-they-are-incased-in-a-string-and-removing-them-when-optimizing]
+  "CPY001"  # flake8-copyright: Copyright headers
+]
+preview = true
+select = [
+  "A",  # flake8-builtins: Built-in names shadowed
+  # TODO "ANN",  # flake8-annotations: Annotations
+  "ARG",  # flake8-unused-arguments: Unused function arguments
+  "ASYNC",  # flake8-async: Asyncio
+  "B",  # flake8-bugbear: Likely bugs and design problems
+  "BLE",  # blind-except: Blind excepts
+  "C4",  # flake8-comprehensions: Comprehension optimizations
+  "C90",  # flake8-c90: C90 style issues
+  "COM",  # flake8-commas: Comma issues
+  "CPY",  # flake8-copyright: Copyright headers
+  # TODO "D",  # pydocstyle: Docstring conventions
+  "DTZ",  # flake8-datetimez: Datetime issues
+  # TODO "DOC",  # pydoclint: Docstring linting
+  "E",  # pycodestyle errors: Style guide enforcement
+  "EXE",  # flake8-executable: Executable scripts
+  "EM",  # flake8-errmsg: Error message consistency
+  "ERA",  # eradicate: Remove commented-out code
+  "F",  # Pyflakes: Logical errors, undefined names
+  "FA",  # flake8-future-annotations: Future annotations
+  "FBT",  # flake8-boolean-trap: Boolean trap
+  # TODO "FIX",  # flake8-fixme: Fixme comments
+  "FLY",  # flynt: String formatting modernization
+  "FURB",  # refurb: Code modernization
+  "G",  # flake8-logging-format: Logging format issues
+  "I",  # isort: Import sorting
+  "ICN",  # flake8-import-conventions: Import conventions
+  "INT",  # flake8-gettext: Gettext usage
+  "INP",  # flake8-no-pep420: PEP 420 namespace packages
+  "ISC",  # flake8-implicit-str-concat: Implicit string concatenation
+  "LOG",  # flake8-logging: Logging issues
+  "N",  # pep8-naming: Naming conventions
+  "PERF",  # perflint: Performance issues
+  "PGH",  # pygrep-hooks: Pre-commit hooks
+  "PIE",  # flake8-pie: Miscellaneous checks
+  # TODO "PL",  # pylint: Linting
+  "PT",  # flake8-pytest-style: Pytest style
+  "PTH",  # flake8-use-pathlib: Use pathlib
+  "PYI",  # flake8-pyi: Pyi file checks
+  "RET",  # flake8-return: Return statement checks
+  "RSE",  # flake8-raise: Raise statement checks
+  "RUF",  # ruff: Ruff-specific checks
+  "S",  # bandit: Security issues
+  "SIM",  # flake8-simplify: Simplifiable code
+  # TODO "SLF",  # flake8-self: Private member access
+  "SLOT",  # flake8-slots: Slots usage
+  "T10",  # flake8-debugger: Debugger usage
+  "T20",  # flake8-print: Print statement usage
+  "TC",  # flake8-type-checking: Type checking
+  # TODO "TD",  # flake8-todos: TODO comments
+  "TID",  # flake8-tidy-imports: Import restrictions
+  "TRY",  # tryceratops: Try/except issues
+  "YTT",  # flake8-2020: Outdated sys.version checks
+  "W",  # pycodestyle warnings: Style guide warnings
+  "UP",  # pyupgrade: Modernize syntax for newer Python versions
+  "Q"  # flake8-quotes: String quote consistency
+]
+unfixable = []
+
+[tool.ruff.lint.isort]
+# Like isort, sort imports using a single line after the import block.
+force-single-line = false
+# Like isort, separate sections with a blank line.
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-folder"
+]
+
+[tool.ruff.lint.mccabe]
+# Flag errors (`C901`) whenever the complexity level exceeds.
+max-complexity = 10  # TODO target is 6
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"docs/conf.py" = ["ERA001"]
+"docs/tutorial/tests/*" = ["S101", "S506"]
+"src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin
+"src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin
+"src/pytest_bdd/util/toolz_test.py" = ["S301"]
+"tests/*" = ["D103", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "S101", "S506"]
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true

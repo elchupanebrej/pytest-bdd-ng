@@ -21,17 +21,15 @@ one line.
 """
 
 from collections.abc import Sequence
+from functools import partial
 from itertools import chain
 from textwrap import dedent
 from typing import Union, cast
 
 from attr import Factory, attrib, attrs
-from gherkin.errors import CompositeParserException  # type: ignore[import]
-from gherkin.pickles.compiler import Compiler  # type: ignore[import]
-
-from messages import Background, Examples  # type:ignore[attr-defined, import-untyped]
-from messages import Feature as FeatureMessage  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+    Background,
+    Examples,
     GherkinDocument,
     Location,
     Pickle,
@@ -42,8 +40,11 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
     Tag,
 )
+from cucumber_messages import Feature as FeatureMessage  # type:ignore[attr-defined, import-untyped]
+
 from pytest_bdd.const import TAG_PREFIX
-from pytest_bdd.utils import _itemgetter, deepattrgetter
+from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.util.toolz_extra import deepattrgetter, flip, itemgetter_
 
 
 @attrs
@@ -60,7 +61,7 @@ class Feature:
 
     @staticmethod
     def load_pickles(scenarios_data) -> Sequence[Pickle]:
-        return [*map(Pickle.model_validate, scenarios_data)]  # type: ignore[attr-defined] # migration to pydantic2
+        return [*map(partial(flip(message_converter.from_dict), Pickle), scenarios_data)]  # type: ignore[attr-defined] # migration to pydantic2
 
     def fill_registry(self):
         self.registry.update(self.get_child_ids_gen(self.gherkin_document.feature))
@@ -74,12 +75,10 @@ class Feature:
                     chain(
                         obj.tags,
                         chain.from_iterable(
-                            map(
-                                lambda child: filter(None, [child.rule, child.background, child.scenario]), obj.children
-                            )
+                            (filter(None, [child.rule, child.background, child.scenario]) for child in obj.children),
                         ),
                     ),
-                )
+                ),
             )
         elif isinstance(obj, Tag):
             yield obj.id, obj
@@ -91,8 +90,8 @@ class Feature:
                     chain(
                         obj.tags,
                         chain.from_iterable(
-                            map(
-                                lambda child: filter(
+                            (
+                                filter(
                                     None,
                                     [
                                         # TODO Check why we don't support nested Rules;
@@ -101,12 +100,12 @@ class Feature:
                                         child.background,
                                         child.scenario,
                                     ],
-                                ),
-                                obj.children,
-                            )
+                                )
+                                for child in obj.children
+                            ),
                         ),
                     ),
-                )
+                ),
             )
         elif isinstance(obj, Background):
             yield obj.id, obj
@@ -121,34 +120,35 @@ class Feature:
                         obj.steps,
                         obj.examples,
                     ),
-                )
+                ),
             )
         elif isinstance(obj, Examples):
             yield obj.id, obj
             yield from chain.from_iterable(
-                map(cls.get_child_ids_gen, chain(obj.tags, [obj.table_header], obj.table_body))
+                map(
+                    cls.get_child_ids_gen,
+                    chain(obj.tags, [obj.table_header], obj.table_body),
+                ),
             )
-        elif isinstance(obj, TableRow):
-            yield obj.id, obj
-        elif isinstance(obj, Step):
+        elif isinstance(obj, (TableRow, Step)):
             yield obj.id, obj
 
-    load_gherkin_document = staticmethod(GherkinDocument.model_validate)  # type: ignore[attr-defined] # migration to pydantic2
+    @staticmethod
+    def load_gherkin_document(raw_gherkin_document):
+        return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
 
     @property
     def name(self) -> Union[str, None]:
         if self.gherkin_document.feature is not None:
             return cast(str, self.gherkin_document.feature.name)
-        else:
-            return None
+        return None
 
     @property
     def rel_filename(self):
         file_schema = "file"
         if self.uri.startswith(file_schema):
             return self.uri[len(file_schema) + 1 :]
-        else:
-            return None
+        return None
 
     @property
     def line_number(self):
@@ -160,14 +160,14 @@ class Feature:
 
     @property
     def tag_names(self):
-        return sorted(map(lambda tag: tag.name.lstrip(TAG_PREFIX), self.gherkin_document.feature.tags))
+        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in self.gherkin_document.feature.tags)
 
     def build_pickle_table_rows_breadcrumb(self, pickle):
         table_rows_lines = ",".join(
-            map(
-                lambda row: f"line: {deepattrgetter('location.line', default=-1)(row)[0]}",
-                self._get_pickle_ast_table_rows(pickle),
-            )
+            (
+                f"line: {deepattrgetter('location.line', default=-1)(row)[0]}"
+                for row in self._get_pickle_ast_table_rows(pickle)
+            ),
         )
         return f"[table_rows:[{table_rows_lines}]]" if table_rows_lines else ""
 
@@ -175,16 +175,28 @@ class Feature:
         return list(filter(lambda node: type(node) is TableRow, self._get_linked_ast_nodes(pickle)))
 
     def _get_linked_ast_nodes(self, obj):
-        return _itemgetter(
-            *((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
-            *getattr(obj, "ast_node_ids", ()),
-        )(self.registry)
+        items = [
+            *filter(
+                lambda _: _ != "",
+                ((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
+            ),
+            *filter(lambda _: _ != "", getattr(obj, "ast_node_ids", ())),
+        ]
+        return itemgetter_(*items)(self.registry)
 
     def _get_pickle_tag_names(self, pickle: Pickle):
-        return sorted(map(lambda tag: tag.name.lstrip(TAG_PREFIX), pickle.tags))  # type: ignore[no-any-return]
+        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in pickle.tags)  # type: ignore[no-any-return]
 
     def _get_pickle_ast_scenario(self, pickle: Pickle) -> Scenario:
-        return cast(Scenario, next(filter(lambda node: type(node) is Scenario, self._get_linked_ast_nodes(pickle))))
+        return cast(
+            Scenario,
+            next(
+                filter(
+                    lambda node: type(node) is Scenario,
+                    self._get_linked_ast_nodes(pickle),
+                )
+            ),
+        )
 
     def _get_pickle_line_number(self, pickle: Pickle):
         return (
@@ -194,22 +206,34 @@ class Feature:
         )
 
     def _get_pickle_step_model_step(self, pickle_step: PickleStep):
-        return cast(Step, next(filter(lambda node: type(node) is Step, self._get_linked_ast_nodes(pickle_step)), None))
+        return cast(
+            Step,
+            next(
+                filter(
+                    lambda node: type(node) is Step,
+                    self._get_linked_ast_nodes(pickle_step),
+                ),
+                None,
+            ),
+        )
 
     def _get_step_keyword(self, step: PickleStep):
         model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return model_step.keyword.strip()
+        return None
 
     def _get_step_prefix(self, step: PickleStep):
         step_keyword = self._get_step_keyword(step)
         if step_keyword is not None:
             return step_keyword.lower()
+        return None
 
     def _get_step_line_number(self, step: PickleStep):
         model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return location.line if (location := model_step.location) is not None else -1
+        return None
 
     def _get_step_doc_string(self, step: PickleStep):
         return getattr(self._get_pickle_step_model_step(step), "doc_string", None)

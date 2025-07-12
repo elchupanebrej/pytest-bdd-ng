@@ -1,4 +1,4 @@
-"""StepHandler arguments tests."""
+"""Step arguments tests."""
 
 
 def test_heuristic_parser(
@@ -8,7 +8,7 @@ def test_heuristic_parser(
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have a wallet
                     Given I have 6 Euro
@@ -52,7 +52,7 @@ def test_heuristic_parser(
         @then(r"I should have (\\d+) Euro", anonymous_group_names=('euro',), converters=dict(euro=int))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()

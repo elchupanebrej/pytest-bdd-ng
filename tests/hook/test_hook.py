@@ -20,12 +20,12 @@ def test_hook_execution_on_feature_tag_using_mark_hook(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_mark, after_mark, around_mark
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')
@@ -66,7 +66,7 @@ def test_hook_execution_on_feature_tag_using_mark_hook(testdir):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -94,12 +94,12 @@ def test_hook_execution_on_feature_tag_using_tag_hook(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, after_tag, around_tag
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')
@@ -140,7 +140,7 @@ def test_hook_execution_on_feature_tag_using_tag_hook(testdir):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -158,12 +158,12 @@ def test_hook_execution_on_feature_no_tag_using_tag_hook(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, after_tag, around_tag
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')
@@ -204,7 +204,7 @@ def test_hook_execution_on_feature_no_tag_using_tag_hook(testdir):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
@@ -222,12 +222,12 @@ def test_hook_execution_on_feature_no_tag_using_mark_hook(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_mark, after_mark, around_mark
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')
@@ -268,7 +268,7 @@ def test_hook_execution_on_feature_no_tag_using_mark_hook(testdir):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

@@ -10,13 +10,13 @@ def test_when_function_name_same_as_step_name(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import when
 
         @when("something")
         def something():
             return "something"
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

@@ -11,7 +11,7 @@
 * Given File "Parametrized.feature" with content:
 
     ```gherkin
-    Feature: StepHandler arguments
+    Feature: Step arguments
       Scenario: Every step takes a parameter with the same name
         Given I have a wallet
         Given I have 6 Euro

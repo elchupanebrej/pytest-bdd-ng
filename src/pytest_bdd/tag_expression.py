@@ -1,23 +1,17 @@
-from itertools import cycle
 from operator import attrgetter
-from typing import AbstractSet, List, Optional, Protocol, Type, TypeVar, Union, runtime_checkable
+from typing import Optional, Protocol, Union, runtime_checkable
 
-from _pytest.mark import Mark
 from attr import attrib, attrs
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
+from typing_extensions import Self
 
-from pytest_bdd.compatibility.pytest import PYTEST6, PYTEST83
-
-if PYTEST6:
-    from pytest_bdd.compatibility.pytest import Expression, MarkMatcher, ParseError
-
-TagExpressionType = TypeVar("TagExpressionType", bound="TagExpression")
+from pytest_bdd.compatibility.pytest import PYTEST83, Expression, Mark, MarkMatcher, ParseError
 
 
 @runtime_checkable
 class TagExpression(Protocol):
     @classmethod
-    def parse(cls: type[TagExpressionType], expression: str) -> TagExpressionType:
+    def parse(cls, expression: str) -> Self:
         raise NotImplementedError  # pragma: no cover
 
     def evaluate(self, marks: list[Mark]) -> bool:
@@ -29,11 +23,12 @@ class _ModernTagExpression(TagExpression):
     expression: Optional["Expression"] = attrib()
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str):
         try:
-            return cls(expression=Expression.compile(expression) if expression != "" else None)
+            return cls(expression=Expression.compile(expression) if expression else None)
         except ParseError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
+            msg = f"Unable parse mark expression: {expression}: {e}"
+            raise ValueError(msg) from e
 
 
 @attrs
@@ -56,38 +51,8 @@ class _MarksTagExpression(_ModernTagExpression):
         )
 
 
-@attrs
-class _FallbackMarksTagExpression(TagExpression):
-    """Used for pytest<6.0"""
-
-    expression: Optional[str] = attrib()
-
-    @classmethod
-    def parse(cls, expression):
-        try:
-            if expression != "":
-                eval(expression, {})
-        except SyntaxError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
-        except NameError:
-            pass
-        return cls(expression=expression if expression != "" else None)
-
-    def evaluate(self, marks):
-        return (
-            eval(self.expression, {}, dict(zip(map(attrgetter("name"), marks), cycle([True]))))
-            if self.expression is not None
-            else True
-        )
-
-
-MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression, _FallbackMarksTagExpression]]
-if PYTEST83:
-    MarksTagExpression = _EnhancedMarksTagExpression
-elif PYTEST6:
-    MarksTagExpression = _MarksTagExpression
-else:
-    MarksTagExpression = _FallbackMarksTagExpression
+MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression]]
+MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 
 @attrs
@@ -99,7 +64,11 @@ class GherkinTagExpression(TagExpression):
         try:
             return cls(expression=TagExpressionParser.parse(expression))
         except TagExpressionError as e:
-            raise ValueError(f"Unable parse tag expression: {expression}: {e}") from e
+            msg = f"Unable parse tag expression: {expression}: {e}"
+            raise ValueError(msg) from e
 
     def evaluate(self, marks):
         return self.expression.evaluate(map(attrgetter("name"), marks))
+
+
+TagExpressionType = Union[_EnhancedMarksTagExpression, _MarksTagExpression, GherkinTagExpression]

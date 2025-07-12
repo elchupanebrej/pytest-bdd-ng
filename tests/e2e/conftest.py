@@ -7,41 +7,40 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pytest import fixture
+import pytest
+from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
 
-from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
 from pytest_bdd.compatibility.pytest import assert_outcomes
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.testing_utils import data_table_to_dicts
-from pytest_bdd.utils import compose
+from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.model import message_converter
+from pytest_bdd.util.data_table import data_table_to_dicts
+from pytest_bdd.util.toolz_extra import compose
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@fixture
+@pytest.fixture
 def httpserver_port(httpserver):
     return httpserver.port
 
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))
-def write_file_with_extras(name, extension, testdir, step, request, extra_opts, tmp_path):
+def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
     content = step.doc_string.content
     is_fixture_templated = "fixture templated" in extra_opts
     if is_fixture_templated:
         template_fields = [field_name for _, field_name, _, _ in string.Formatter().parse(content) if field_name]
 
-        format_options = dict(
-            map(lambda fixture_name: (fixture_name, str(request.getfixturevalue(fixture_name))), template_fields)
-        )
+        format_options = {fixture_name: str(request.getfixturevalue(fixture_name)) for fixture_name in template_fields}
     file_data = str(content).format_map(format_options) if is_fixture_templated else content
     (Path(testdir.tmpdir.strpath) / f"{name}{extension}").write_text(file_data, encoding="utf-8")
 
 
 @given(
-    re.compile('File "(?P<name>\\w+)(?P<extension>\\.\\w+)" in the temporary path with content:'),
+    re.compile(r'File "(?P<name>\w+)(?P<extension>\.\w+)" in the temporary path with content:'),
 )
 def write_file(name, extension, tmp_path: Path, step):
     content = step.doc_string.content
@@ -51,7 +50,7 @@ def write_file(name, extension, tmp_path: Path, step):
 @given(
     re.compile(r'Localserver endpoint "(?P<endpoint>.+)" responding content:'),
 )
-def test_feature_load_by_http_with_base_url(testdir, endpoint, httpserver: HTTPServer, step):
+def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, step):
     httpserver.expect_request(endpoint).respond_with_data(
         step.doc_string.content,
         content_type=Mimetype.gherkin_plain.value,
@@ -59,7 +58,7 @@ def test_feature_load_by_http_with_base_url(testdir, endpoint, httpserver: HTTPS
     yield
 
 
-@given(re.compile("Set pytest.ini content to:"))
+@given(re.compile(r"Set pytest.ini content to:"))
 def _(testdir, step):
     content = step.doc_string.content
     testdir.makeini(content)
@@ -94,13 +93,18 @@ def check_pytest_test_statuses(pytest_result, step):
 
 @step("pytest outcome must match lines:")
 def check_pytest_stdout_lines(pytest_result, step):
-    lines = list(map(compose(attrgetter("value"), itemgetter(0)), map(attrgetter("cells"), step.data_table.rows)))
+    lines = list(
+        map(
+            compose(attrgetter("value"), itemgetter(0)),
+            map(attrgetter("cells"), step.data_table.rows),
+        )
+    )
 
     pytest_result.stdout.fnmatch_lines(lines)
 
 
 @given(re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""))
-def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
+def copy_path(request, testdir: "Testdir", initial_path, final_path):
     full_initial_path = (Path(request.config.rootdir) / Path(initial_path).as_posix()).resolve(strict=True)
     full_final_path = Path(testdir.tmpdir) / Path(final_path).as_posix()
     if full_initial_path.is_file():
@@ -112,7 +116,7 @@ def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has \"(?P<line_count>(\w|\\|.)+)\" lines"),
-    converters=dict(line_count=int, file_path=Path),
+    converters={"line_count": int, "file_path": Path},
 )
 def _(file_path: Path, line_count: int):
     with file_path.open("r") as fp:
@@ -122,17 +126,20 @@ def _(file_path: Path, line_count: int):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
-    converters=dict(file_path=Path),
+    converters={"file_path": Path},
 )
 def _(file_path: Path, testdir):
     assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
 
 
-@then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters=dict(file_path=Path))
+@then(
+    re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"),
+    converters={"file_path": Path},
+)
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:
             for raw_datum in ast_file:
-                Envelope.model_validate(json.loads(raw_datum))
+                message_converter.from_dict(json.loads(raw_datum), Envelope)
         except Exception as e:
             raise AssertionError from e

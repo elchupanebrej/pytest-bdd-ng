@@ -12,7 +12,7 @@ def test_scenarios(testdir, pytest_params, tmp_path):
         [pytest]
         console_output_style=classic
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
     testdir.makeconftest(
         # language=python
@@ -23,7 +23,7 @@ def test_scenarios(testdir, pytest_params, tmp_path):
         def i_have_bar():
             print('bar!')
             return 'bar'
-        """
+        """,
     )
 
     (tmp_path / "features" / "subfolder").mkdir(parents=True)
@@ -36,8 +36,8 @@ def test_scenarios(testdir, pytest_params, tmp_path):
 
                 Scenario: Test scenario
                     Given I have a bar
-            """
-        )
+            """,
+        ),
     )
     (tmp_path / "features" / "subfolder" / "test.feature").write_text(
         # language=gherkin
@@ -54,7 +54,7 @@ def test_scenarios(testdir, pytest_params, tmp_path):
 
             Scenario: Test scenario
                 Given I have a bar
-        """
+        """,
     )
     testdir.makepyfile(
         # language=python
@@ -66,7 +66,7 @@ def test_scenarios(testdir, pytest_params, tmp_path):
         @scenario('features/subfolder/test.feature', 'Test already bound scenario')
         def test_already_bound():
             pass
-        """
+        """,
     )
     result = testdir.runpytest("-v", "-s", *pytest_params)
     assert_outcomes(result, passed=4, failed=1)
@@ -86,7 +86,7 @@ def test_scenarios_none_found(testdir, pytest_params):
         from pytest_bdd import scenarios
 
         test_feature = scenarios('.')
-        """
+        """,
     )
     result = testdir.runpytest_subprocess(testpath, *pytest_params)
     assert_outcomes(result, skipped=1)

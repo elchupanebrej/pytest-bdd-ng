@@ -1,37 +1,48 @@
 import asyncio
 import os
 import ssl
-import sys
 from collections.abc import Iterable
 from contextlib import suppress
+from enum import Enum
 from functools import partial, reduce
 from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Protocol, Tuple, Type, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urljoin
 
 import aiohttp
 import certifi
-from _pytest.config import Config
 from attr import Factory, attrib, attrs
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    Pickle,
+    Source,
+)
 from pydantic import ValidationError
 
-from messages import Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import get_config_root_path
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.model import Feature, Pickle
+from pytest_bdd.compatibility.pathlib import GlobError
+from pytest_bdd.compatibility.pytest import Config, get_config_root_path
+from pytest_bdd.const import PytestConfigParam
+from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
-from pytest_bdd.utils import PytestBDDIdGeneratorHandler, is_local_url
+from pytest_bdd.types.exception import FeatureParseError
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.util.url import is_local_url
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.typing import TypeAlias
 
 
 @runtime_checkable
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
+        self,
+        config: Union[Config, HasPytestBDDIdGenerator],
     ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
         ...
 
@@ -39,21 +50,25 @@ class ScenarioLocatorFeatureResolver(Protocol):
 @runtime_checkable
 class ScenarioLocatorResolver(Protocol):
     def resolve(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
+        self,
+        config: Union[Config, HasPytestBDDIdGenerator],
     ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
         ...
 
 
+ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, Feature, Pickle], bool]
+
+
 @attrs
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
-    filter_: Optional[Callable[[Config, Feature, Pickle], tuple[Feature, Pickle]]] = attrib(default=None, kw_only=True)
+    filter_: Optional[ScenarioLocatorFilterT] = attrib(default=None, kw_only=True)
 
     def filter_scenarios(self, feature, config):
         return (
             (feature, pickle)
             for pickle in feature.pickles
             if self.filter_ is None or self.filter_(config, feature, pickle)
-        )  # type: ignore
+        )
 
     def resolve(self, config):
         for feature, feature_data in self.resolve_features(config):
@@ -79,19 +94,11 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
-        urls = [*filterfalse(is_local_url, self.url_paths)]
-        if self.features_base_url is not None:
-            urls.extend(map(partial(urljoin, f"{self.features_base_url}/"), filter(is_local_url, self.url_paths)))
+    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
+        urls = self._build_urls()
         if not urls:
             return
-        loop = asyncio.new_event_loop()
-        responses = loop.run_until_complete(self.fetch_all(urls))
-
-        # Wait 250 ms for the underlying SSL connections to close
-        loop.run_until_complete(asyncio.sleep(0.250))
-        loop.close()
-
+        responses = self._fetch_feature_responses(urls)
         hook_handler = cast(Config, config).hook
         encoding = self.encoding
 
@@ -99,64 +106,105 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             if isinstance(response, Exception):
                 continue
 
-            mimetype, feature_content = response
-
-            if self.mimetype is not None:
-                mimetype = self.mimetype
-
-                if isinstance(mimetype, Mimetype):
-                    mimetype = mimetype.value
-
-            if self.parser_type is None:
-                parser_type = hook_handler.pytest_bdd_get_parser(
-                    config=config,
-                    mimetype=mimetype,
-                )
-            else:
-                parser_type = self.parser_type
-
+            mimetype_raw, feature_content = response
+            mimetype = Mimetype(self.mimetype if self.mimetype is not None else mimetype_raw)
+            parser_type = self._get_parser_type(hook_handler, config, mimetype)
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
+            yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
+
+    def _build_urls(self):
+        urls = [*filterfalse(is_local_url, self.url_paths)]
+        if self.features_base_url is not None:
+            urls.extend(
+                map(
+                    partial(urljoin, f"{self.features_base_url}/"),
+                    filter(is_local_url, self.url_paths),
+                )
+            )
+        return urls
+
+    def _fetch_feature_responses(self, urls):
+        loop = asyncio.new_event_loop()
+        responses = loop.run_until_complete(self.fetch_all(urls))
+        # Wait 250 ms for the underlying SSL connections to close
+        loop.run_until_complete(asyncio.sleep(0.250))
+        loop.close()
+        return responses
+
+    def _get_parser_type(self, hook_handler, config, mimetype):
+        if self.parser_type is None:
+            return hook_handler.pytest_bdd_get_parser(
+                config=config,
+                mimetype=mimetype,
+            )
+        return self.parser_type
+
+    def _parse_and_yield_feature(self, parser, config, url, feature_content, mimetype, encoding):
+        filename = None
+        try:
+            with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
+                filename = f.name
+                f.write(feature_content)
             try:
-                filename = None
-                with NamedTemporaryFile(mode="w", delete=False) as f:
-                    filename = f.name
-                    f.write(feature_content)
-
                 feature, feature_data = parser.parse(
                     config,
                     Path(filename),
                     url,
                     *self.parse_args.args,
-                    **{**dict(encoding=encoding), **self.parse_args.kwargs},
+                    **{"encoding": encoding, **self.parse_args.kwargs},
                 )
-                try:
-                    yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
-                except ValidationError as e:
-                    # Workaround because of https://github.com/cucumber/messages/issues/161
-                    yield feature, None
-            finally:
-                if filename is not None:
-                    with suppress(Exception):
-                        os.unlink(filename)
+            except FeatureParseError:
+                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                    return
+                else:
+                    raise
+            try:
+                yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
+            except ValidationError:
+                # Workaround because of https://github.com/cucumber/messages/issues/161
+                yield feature, None
+        finally:
+            if filename is not None:
+                with suppress(Exception):
+                    Path(filename).unlink()
+
+
+class FileScenarioLocatorDefaults:
+    @staticmethod
+    def encoding():
+        return "utf-8"
+
+    @staticmethod
+    def parse_args():
+        return Args((), {})
 
 
 @attrs
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
+    Defaults = FileScenarioLocatorDefaults
     feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
-    encoding = attrib(default="utf-8")
+    encoding = attrib(
+        default=FileScenarioLocatorDefaults.encoding,
+        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.encoding()),
+    )
     features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
-    mimetype: Optional[str] = attrib(default=None)
+    mimetype: Optional[Union[str, Enum]] = attrib(default=None)
     parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
-    parse_args: Args = attrib(default=Factory(lambda: Args((), {})))
+    parse_args: Args = attrib(
+        default=Factory(FileScenarioLocatorDefaults.parse_args),
+        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.parse_args()),
+    )
 
-    def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+    def _resolve_features_base_dir(self, config: Union[Config, HasPytestBDDIdGenerator]):
         try:
             if self.features_base_dir is None:
-                features_base_dir = cast(Config, config).getini("bdd_features_base_dir")
+                # TODO: refactor, move out from class usage to initialization or higher
+                # TODO: add base dir command line option
+                features_base_dir = cast(Config, config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
             else:
                 features_base_dir = self.features_base_dir
         except (ValueError, KeyError):
@@ -179,8 +227,11 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     yield feature_path
             else:
                 try:
-                    yield from filter(methodcaller("is_file"), features_base_dir.glob(os.fspath(feature_pathlike)))
-                except IndexError if sys.version_info < (3, 13) else ValueError:
+                    yield from filter(
+                        methodcaller("is_file"),
+                        features_base_dir.glob(os.fspath(feature_pathlike)),
+                    )
+                except GlobError:
                     yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
 
     @staticmethod
@@ -199,7 +250,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
+    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths = set()
 
@@ -215,6 +266,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             if self.mimetype is None:
                 media_type = hook_handler.pytest_bdd_get_mimetype(config=config, path=feature_path)
+            elif isinstance(self.mimetype, (Enum,)):
+                media_type = self.mimetype.value
             else:
                 media_type = self.mimetype
 
@@ -229,17 +282,23 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
-            feature, feature_data = parser.parse(
-                config,
-                feature_path,
-                uri,
-                *self.parse_args.args,
-                **{**dict(encoding=encoding), **self.parse_args.kwargs},
-            )
+            try:
+                feature, feature_data = parser.parse(
+                    config,
+                    feature_path,
+                    uri,
+                    *self.parse_args.args,
+                    **{"encoding": encoding, **self.parse_args.kwargs},
+                )
+            except FeatureParseError:
+                if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                    continue
+                else:
+                    raise
             try:
                 yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2
-            except ValidationError as e:
+            except ValidationError:
                 # Workaround because of https://github.com/cucumber/messages/issues/161
                 yield feature, None

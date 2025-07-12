@@ -19,10 +19,9 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import cast
 
-import panflute as pf  # type: ignore[import-not-found]
-import pypandoc  # type: ignore[import-not-found]
+import pypandoc  # type: ignore[import-not-found, import-untyped]
 from docopt import docopt
-from pathlib2 import Path  # type: ignore[import-not-found]
+from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 
@@ -33,14 +32,7 @@ def diff_folders(dcmp):
         return diff
     if any(diff := list(map(diff_folders, dcmp.subdirs.values()))):
         return diff
-    pass
-
-
-def adjust_heading_level(elem, doc, *, level):
-    if isinstance(elem, pf.Header):
-        new_level = elem.level + level
-        return pf.Header(*elem.content, level=new_level)
-    return elem
+    return None
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path):
@@ -65,7 +57,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
             .. NOTE:: Features below are part of end-to-end test suite; You always could find most specific
                       use cases of **pytest-bdd-ng** by investigation of its regression
                       test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
-        """
+        """,
     )
 
     while processable_paths:
@@ -73,8 +65,14 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
         processable_rel_path = processable_path.relative_to(features_path)
 
-        gherkin_file_paths = [*processable_path.glob("*.gherkin"), *processable_path.glob("*.feature")]
-        markdown_gherkin_file_paths = [*processable_path.glob("*.gherkin.md"), *processable_path.glob("*.feature.md")]
+        gherkin_file_paths = [
+            *processable_path.glob("*.gherkin"),
+            *processable_path.glob("*.feature"),
+        ]
+        markdown_gherkin_file_paths = [
+            *processable_path.glob("*.gherkin.md"),
+            *processable_path.glob("*.feature.md"),
+        ]
         # TODO rework file extension
         struct_bdd_file_paths = processable_path.glob("*.bdd.yaml")
 
@@ -106,7 +104,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
                 (features_path / rel_path).read_text(),
                 "rst",
                 format="gfm",
-                extra_args=[f"--shift-heading-level-by={offset+1}", "--eol=lf"],
+                extra_args=[f"--shift-heading-level-by={offset + 1}", "--eol=lf"],
             )
 
             abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8", newline="\n")
@@ -132,7 +130,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
 
                     .. include:: {reduce(truediv, [".."] * len(rel_path.parts), Path()) / (output_path_rel_to_features_path / rel_path).as_posix()}
                        :code: {codetype}
-                """
+                """,
                 ),
                 encoding="utf-8",
                 newline="\n",
@@ -151,7 +149,8 @@ def main():  # pragma: no cover
     arguments = docopt(__doc__)
     features_dir = Path(arguments["<features_dir>"]).resolve()
     if not features_dir.exists() or not features_dir.is_dir():
-        raise ValueError(f"Wrong input features directory {features_dir} is provided")
+        msg = f"Wrong input features directory {features_dir} is provided"
+        raise ValueError(msg)
     output_dir = Path(arguments["<output_dir>"]).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     snapshot_dir = Path(p) if (p := arguments.get("--snapshot")) else None

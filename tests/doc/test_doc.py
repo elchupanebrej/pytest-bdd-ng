@@ -4,15 +4,23 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from pytest import mark
+import pytest
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@mark.skipif(
-    not (all([sys.version_info.major == 3, sys.version_info.minor == 13, sys.platform.startswith("linux")])),
-    reason="Verify only on the latest version",
+@pytest.mark.skipif(
+    not (
+        all(
+            [
+                sys.version_info.major == 3,
+                sys.version_info.minor == 13,
+                sys.platform.startswith("linux"),
+            ]
+        )
+    ),
+    reason="Verify only on the latest python version and linux environment",
 )
 def test_doc_generation(testdir: "Testdir"):
     from pytest_bdd.script.bdd_tree_to_rst import convert
@@ -23,7 +31,7 @@ def test_doc_generation(testdir: "Testdir"):
         # language=gherkin
         """
         Feature: Do nothing
-        """
+        """,
     )
     (features_path / "simple_markdown.gherkin.md").write_text(
         dedent(
@@ -34,15 +42,15 @@ def test_doc_generation(testdir: "Testdir"):
 
             ## Scenario:
             *  Given some step
-        """
-        )
+        """,
+        ),
     )
     (features_path / "extra").mkdir()
     (features_path / "extra" / "other_simple.gherkin").write_text(
         # language=gherkin
         """
         Feature: Do other nothing
-        """
+        """,
     )
 
     output_path = Path(testdir.tmpdir) / "output"
@@ -74,7 +82,7 @@ def test_doc_generation(testdir: "Testdir"):
                     :maxdepth: 2
 
                     features/extra/other_simple
-            """
+            """,
         )
 
         assert (temp_path / "simple_markdown.gherkin.rst").read_text() == dedent(
@@ -89,7 +97,7 @@ def test_doc_generation(testdir: "Testdir"):
                 ^^^^^^^^^
 
                 -  Given some step
-            """
+            """,
         )
 
         assert (temp_path / "simple.rst").read_text() == dedent(
@@ -100,7 +108,7 @@ def test_doc_generation(testdir: "Testdir"):
 
                 .. include:: ../features/simple.gherkin
                    :code: gherkin
-            """
+            """,
         )
 
         assert (temp_path / "extra" / "other_simple.rst").read_text() == dedent(
@@ -111,5 +119,5 @@ def test_doc_generation(testdir: "Testdir"):
 
                 .. include:: ../../features/extra/other_simple.gherkin
                    :code: gherkin
-            """
+            """,
         )

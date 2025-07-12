@@ -5,11 +5,9 @@ from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, Union, cast
 
-from pydantic import ValidationError
-
-from messages import Attachment, ContentEncoding  # type:ignore[attr-defined]
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined]
+from cucumber_messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]
+    Attachment,
+    AttachmentContentEncoding,
     GherkinDocument,
     Hook,
     Meta,
@@ -18,14 +16,18 @@ from messages import (  # type:ignore[attr-defined]
     Source,
     StepDefinition,
 )
-from messages import TestCase as _TestCase  # type:ignore[attr-defined]
-from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
-from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
-from messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
-from messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
-from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
-from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
-from pytest_bdd.utils import flip
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
+from cucumber_messages import TestCase as _TestCase  # type:ignore[attr-defined]
+from cucumber_messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
+from cucumber_messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
+from cucumber_messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
+from cucumber_messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
+from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
+from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
+from pydantic import ValidationError
+
+from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.util.toolz_extra import flip
 
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_bdd.compatibility.pytest import Testdir
@@ -57,27 +59,28 @@ def unfold_message(message: Message):
     for attr in unfoldable_attrs:
         if (unfold := getattr(message, attr)) is not None:
             return unfold
-    else:  # pragma: nocover
-        raise ValueError("Empty message was given")
+    raise ValueError("Empty message was given")  # noqa:TRY003
 
 
 def list_filter_by_type(t: Union[type, Iterable[type]], items):
     return list(filter(partial(flip(isinstance), tuple(t) if isinstance(t, Iterable) else t), items))
 
 
-class ParseError(RuntimeError): ...
+class ParseError(RuntimeError):
+    def __init__(self, errors):
+        super().__init__(f"Could not parse messages: {errors}")
 
 
-def parse_and_unflold_messages(lines):
+def parse_and_unfold_messages(lines):
     errors = []
     parsed_messages = []
     for line in lines:
         try:
-            parsed_messages.append(Message.model_validate(json.loads(line)))
+            parsed_messages.append(message_converter.from_dict(json.loads(line), Message))
         except ValidationError as e:  # pragma: nocover
             errors.append(e)
         if errors:  # pragma: nocover
-            raise ParseError(f"Could not parse messages: {errors}")
+            raise ParseError(errors)
 
     return list(map(unfold_message, parsed_messages))
 
@@ -103,7 +106,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
         )
         def cukes_count(cukes):
             assert cukes
-        """
+        """,
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
@@ -114,7 +117,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     meta_messages = messages = list_filter_by_type(Meta, unfold_messages)
     assert len(meta_messages) == 1, f"Messages: {pformat(messages)}"
@@ -180,7 +183,8 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     assert isinstance(test_case_step_start_lifetime_messages[1], _TestStepStarted)
 
     test_case_step_finish_lifetime_messages = list_filter_by_type(
-        (_TestCaseFinished, _TestStepFinished), unfold_messages
+        (_TestCaseFinished, _TestStepFinished),
+        unfold_messages,
     )
     assert isinstance(test_case_step_finish_lifetime_messages[0], _TestStepFinished)
     assert isinstance(test_case_step_finish_lifetime_messages[1], _TestCaseFinished)
@@ -245,7 +249,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
             assert Coordinate(40, 50, 60) == end
             assert thick == 5
 
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -267,10 +271,11 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     parameter_type_messages = messages = list_filter_by_type(ParameterType, unfold_messages)
-    assert len(parameter_type_messages) == 12, f"Messages: {pformat(messages)}"
+    oracle_parameter_type_messages_count = 12
+    assert len(parameter_type_messages) == oracle_parameter_type_messages_count, f"Messages: {pformat(messages)}"
 
 
 def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
@@ -282,7 +287,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
         @given('Attach "{value}" as string')
         def attach_as_string(attach, value):
             attach(value)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -304,7 +309,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -312,7 +317,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
     assert attachment_message.media_type == "text/plain;charset=UTF-8"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Testdir", tmp_path):
@@ -324,7 +329,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
         @given('Attach "{value}" as url')
         def attach_as_url(attach, value):
             attach(value, media_type='text/uri-list')
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -346,7 +351,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
@@ -354,7 +359,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "http://https://example.com/"
     assert attachment_message.media_type == "text/uri-list"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
@@ -366,7 +371,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
         @given('Attach "{value}" as bytes')
         def attach_as_bytes(attach, value):
             attach(value.encode('utf-8'))
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -388,14 +393,14 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
 
 
 def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
@@ -412,7 +417,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
         def attach_from_file(attach, file_path: Path):
             with file_path.open(mode='r') as file:
                 attach(file)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -434,14 +439,14 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path):
@@ -458,7 +463,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
         def attach_bytes_from_file(attach, file_path: Path):
             with file_path.open(mode='rb') as file:
                 attach(file, file_name=file_path)
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -480,14 +485,14 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
     assert attachment_message.media_type == "application/octet-stream"
     assert Path(cast(str, attachment_message.file_name)).name == "file.txt"
 
@@ -514,12 +519,12 @@ def test_hook_type_messages(testdir, tmp_path):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, before_mark, after_tag, around_mark
         from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_bdd.util.pytest_extra import inject_fixture
 
 
         @fixture(scope='session')
@@ -560,7 +565,7 @@ def test_hook_type_messages(testdir, tmp_path):
             assert another_tag_fixture
             inject_fixture(request, 'step_fixture', 'step_fixture')
             request.config.test_attr = 'test_attr'
-        """
+        """,
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
@@ -571,19 +576,20 @@ def test_hook_type_messages(testdir, tmp_path):
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
 
-    unfold_messages = parse_and_unflold_messages(ndjson_lines)
+    unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Hook, unfold_messages)
-    assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
+    oracle_attachment_messages_count = 4
+    assert len(attachment_messages) == oracle_attachment_messages_count, f"Messages: {pformat(messages)}"
 
     # before_mark hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name is None, attachment_messages))
+    assert any(message.tag_expression == "tag" and message.name is None for message in attachment_messages)
 
     # before_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "before", attachment_messages))
+    assert any(message.tag_expression == "@tag" and message.name == "before" for message in attachment_messages)
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "after", attachment_messages))
+    assert any(message.tag_expression == "@tag" and message.name == "after" for message in attachment_messages)
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name == "around", attachment_messages))
+    assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)

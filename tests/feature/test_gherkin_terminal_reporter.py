@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from pytest import mark
+import pytest
 
 # language=gherkin
 FEATURE = """\
@@ -43,7 +43,9 @@ def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir)
     assert all(l1 == l2 for l1, l2 in zip(parse_lines(regular.stdout.lines), parse_lines(gherkin.stdout.lines)))
 
 
-def test_verbose_mode_should_display_feature_and_scenario_names_instead_of_test_names_in_a_single_line(testdir):
+def test_verbose_mode_should_display_feature_and_scenario_names_instead_of_test_names_in_a_single_line(
+    testdir,
+):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
     result = testdir.runpytest("--gherkin-terminal-reporter", "-v")
@@ -58,7 +60,7 @@ def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir)
         """\
         def test_1():
             pass
-        """
+        """,
     )
     regular = testdir.runpytest()
     gherkin = testdir.runpytest("--gherkin-terminal-reporter", "-v")
@@ -67,7 +69,7 @@ def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir)
 
     regular.stdout.fnmatch_lines("test_verbose_mode_should_preserve_displaying_regular_tests_as_usual.py . [100%]")
     gherkin.stdout.fnmatch_lines(
-        "test_verbose_mode_should_preserve_displaying_regular_tests_as_usual.py::test_1 PASSED [100%]"
+        "test_verbose_mode_should_preserve_displaying_regular_tests_as_usual.py::test_1 PASSED [100%]",
     )
 
 
@@ -86,23 +88,23 @@ def test_double_verbose_mode_should_display_full_scenario_description(
     result.stdout.fnmatch_lines("*PASSED")
 
 
-@mark.parametrize("verbosity", ["", "-v", "-vv"])
+@pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_for_missing_steps(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
     result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
     result.assert_outcomes(passed=0, failed=1)
     result.stdout.fnmatch_lines(
         """*StepDefinitionNotFoundError: Step definition is not found: "there is a bar". Step keyword: "Given".*"""
-        """Line 3 in scenario "Scenario example 1"*"""
+        """Line 3 in scenario "Scenario example 1"*""",
     )
 
 
-@mark.parametrize("verbosity", ["", "-v", "-vv"])
+@pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_should_be_displayed(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given, when, then
 
         @given('there is a bar')
@@ -116,7 +118,7 @@ def test_error_message_should_be_displayed(testdir, verbosity):
         @then('world explodes')
         def world_explodes():
             raise Exception("BIGBADABOOM")
-        """
+        """,
     )
     result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
     result.assert_outcomes(passed=0, failed=1)
@@ -128,7 +130,7 @@ def test_local_variables_should_be_displayed_when_showlocals_option_is_used(test
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given, when, then
 
         @given('there is a bar')
@@ -143,7 +145,7 @@ def test_local_variables_should_be_displayed_when_showlocals_option_is_used(test
         def world_explodes(request):
             local_var = "MULTIPASS"
             raise Exception("BIGBADABOOM")
-        """
+        """,
     )
     result = testdir.runpytest("--gherkin-terminal-reporter", "--showlocals")
     result.assert_outcomes(passed=0, failed=1)
@@ -167,26 +169,26 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
                 | start | eat | left |
                 |{start}|{eat}|{left}|
             """.format(
-            **example
+            **example,
         ),
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given, when, then, parsers
 
-        @given(parsers.parse('there are {{start}} cucumbers'), target_fixture="start_cucumbers")
+        @given(parsers.parse('there are {start} cucumbers'), target_fixture="start_cucumbers")
         def start_cucumbers(start):
             return start
 
-        @when(parsers.parse('I eat {{eat}} cucumbers'))
+        @when(parsers.parse('I eat {eat} cucumbers'))
         def eat_cucumbers(start_cucumbers, eat):
             pass
 
-        @then(parsers.parse('I should have {{left}} cucumbers'))
+        @then(parsers.parse('I should have {left} cucumbers'))
         def should_have_left_cucumbers(start_cucumbers, left):
             pass
-        """
+        """,
     )
 
     result = testdir.runpytest("--gherkin-terminal-reporter", "-vv")

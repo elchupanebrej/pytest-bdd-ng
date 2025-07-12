@@ -1,9 +1,9 @@
-"""StepHandler arguments tests."""
+"""Step arguments tests."""
 
-from pytest import mark
+import pytest
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         "from pytest_bdd.parsers import parse",
@@ -15,7 +15,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Every step takes a parameter with the same name
                     Given I have 1 Euro
                     When I pay 2 Euro
@@ -50,14 +50,14 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         @then(parse("I should have {euro:d} Euro"))
         def i_should_have(euro, values):
             assert euro == values.pop(0)
-        """
+        """,
     )
 
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "parser_import_string",
     [
         "from pytest_bdd.parsers import parse",
@@ -69,7 +69,7 @@ def test_argument_in_when_step_1(testdir, parser_import_string):
         ".feature",
         # language=gherkin
         arguments="""\
-            Feature: StepHandler arguments
+            Feature: Step arguments
                 Scenario: Argument in when
                     Given I have an argument 1
                     When I get argument 5
@@ -101,7 +101,7 @@ def test_argument_in_when_step_1(testdir, parser_import_string):
         def assert_that_my_argument_is_arg(arguments, arg):
             assert arguments["arg"] == arg
 
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)

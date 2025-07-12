@@ -1,24 +1,24 @@
 from functools import partial
 from textwrap import dedent
 
-from pytest import mark, param
+import pytest
 
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
+    from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser
 else:  # pragma: no cover
     from unittest.mock import Mock
 
     StructBDDParser = Mock()  # type: ignore[misc] # just a stub
 
-pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -40,7 +40,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                         - But: the list should be [1, 2, 3]
             """,
         ),
-        partial(param, id="plain-hocon")(
+        partial(pytest.param, id="plain-hocon")(
             StructBDDParser.KIND.HOCON.value,
             # language=hocon
             r"""
@@ -65,7 +65,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
               ]
             """,
         ),
-        partial(param, id="plain-json")(
+        partial(pytest.param, id="plain-json")(
             StructBDDParser.KIND.JSON.value,
             # language=json
             r"""{
@@ -91,7 +91,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-hjson")(
+        partial(pytest.param, id="plain-hjson")(
             StructBDDParser.KIND.HJSON.value,
             # language=hjson
             r"""{
@@ -124,7 +124,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-json5")(
+        partial(pytest.param, id="plain-json5")(
             StructBDDParser.KIND.JSON5.value,
             # language=json5
             r"""{
@@ -150,7 +150,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
             }
             """,
         ),
-        partial(param, id="plain-toml")(
+        partial(pytest.param, id="plain-toml")(
             StructBDDParser.KIND.TOML.value,
             # language=toml
             """\
@@ -174,7 +174,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                 ]
             """,
         ),
-        partial(param, id="complex-yaml")(
+        partial(pytest.param, id="complex-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -201,7 +201,7 @@ pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not ins
                                     - But: the list should be [1, 2, 3]
             """,
         ),
-        partial(param, id="complex-toml")(
+        partial(pytest.param, id="complex-toml")(
             StructBDDParser.KIND.TOML.value,
             # language=toml
             """\
@@ -243,12 +243,12 @@ def test_steps(testdir, kind, file_content, tmp_path):
         f"""\
         [pytest]
         bdd_features_base_dir={tmp_path}
-        """
+        """,
     )
 
     testdir.makepyfile(
         # language=python
-        """\
+        f"""\
         from textwrap import dedent
         from pytest_bdd import given, when, then, scenario, step
 
@@ -287,18 +287,16 @@ def test_steps(testdir, kind, file_content, tmp_path):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -330,7 +328,7 @@ def test_default_loader(testdir, kind, file_content):
 
     testdir.makepyfile(
         # language=python
-        """\
+        f"""\
         from textwrap import dedent
         from pytest_bdd import given, when, then, scenario
 
@@ -375,18 +373,16 @@ def test_default_loader(testdir, kind, file_content):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """,
     )
     result = testdir.runpytest("--disable-feature-autoload")
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
-    "kind,file_content",
+@pytest.mark.parametrize(
+    ("kind", "file_content"),
     [
-        partial(param, id="plain-yaml")(
+        partial(pytest.param, id="plain-yaml")(
             StructBDDParser.KIND.YAML.value,
             # language=yaml
             """\
@@ -448,16 +444,16 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "file_content",
     [
-        partial(param, id="simple")(
+        partial(pytest.param, id="simple")(
             # language=yaml
             """\
             Name: Examples are substituted
@@ -497,7 +493,7 @@ def test_examples(testdir, file_content):
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -506,9 +502,9 @@ def test_examples(testdir, file_content):
 def test_dsl(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -533,14 +529,16 @@ def test_dsl(testdir):
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -549,10 +547,10 @@ def test_dsl(testdir):
 def test_dsl_decorator(testdir):
     testdir.makepyfile(
         # language=python
-        """\
+        """ \
         from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
-        from pytest_bdd.model import Feature
+        from pytest_bdd.plugin.struct_bdd.model import Step, Table
+        from pytest_bdd.model.gherkin_document import Feature
 
         step = Step(
             name="Examples are substituted",
@@ -574,22 +572,26 @@ def test_dsl_decorator(testdir):
             ]
         )
 
+
         @step
-        def test(feature:Feature, scenario):
+        def test(feature: Feature, scenario):
             assert feature.name == "Examples are substituted"
+
 
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
 
+
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -598,9 +600,9 @@ def test_dsl_decorator(testdir):
 def test_dsl_as_dict(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step
 
         test_scenarios = Step.parse_obj(
             dict(
@@ -624,18 +626,21 @@ def test_dsl_as_dict(testdir):
             )
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -644,9 +649,9 @@ def test_dsl_as_dict(testdir):
 def test_dsl_keyworded_steps(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table
+        """ \
+            from pytest_bdd import given, then
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -666,18 +671,21 @@ def test_dsl_keyworded_steps(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=2, failed=0)
@@ -686,9 +694,9 @@ def test_dsl_keyworded_steps(testdir):
 def test_dsl_alternative_steps(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
+        """ \
+            from pytest_bdd import given, then, step
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -719,22 +727,26 @@ def test_dsl_alternative_steps(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal=True)
         def foo(count, cucumbers):
             return cucumbers - count
 
+
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=8, failed=0)
@@ -743,9 +755,9 @@ def test_dsl_alternative_steps(testdir):
 def test_dsl_joined_tables(testdir):
     testdir.makepyfile(
         # language=python
-        """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Join
+        """ \
+            from pytest_bdd import given, then, step
+        from pytest_bdd.plugin.struct_bdd.model import Step, Given, And, Then, Table, Join
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -786,22 +798,26 @@ def test_dsl_joined_tables(testdir):
             ]
         )
 
+
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
             return count
+
 
         @given('I eat {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             return cucumbers - count
 
-        @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal = True)
+
+        @step('I corrupt {count:g} cucumbers', target_fixture="cucumbers", liberal=True)
         def foo(count, cucumbers):
             return cucumbers - count
+
 
         @then('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count, cucumbers):
             assert count == cucumbers
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=6, failed=0)

@@ -2,7 +2,7 @@
 
 from operator import ge
 
-from pytest_bdd.packaging import compare_distribution_version
+from pytest_bdd.util.packaging import compare_distribution_version
 
 
 def test_tags_selector(testdir):
@@ -38,13 +38,13 @@ def test_tags_selector(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a bar')
         def i_have_bar():
             return 'bar'
-        """
+        """,
     )
     result = testdir.runpytest("-m", "scenario_tag_10 and not scenario_tag_01", "-vv")
     outcomes = result.parseoutcomes()
@@ -56,10 +56,12 @@ def test_tags_selector(testdir):
     assert result["deselected"] == 1
 
     result = testdir.runpytest("-m", "feature_tag_1", "-vv").parseoutcomes()
-    assert result["passed"] == 2
+    oracle_passed_tests_count = 2
+    assert result["passed"] == oracle_passed_tests_count
 
     result = testdir.runpytest("-m", "feature_tag_10", "-vv").parseoutcomes()
-    assert result["deselected"] == 2
+    oracle_deselected_tests_count = 2
+    assert result["deselected"] == oracle_deselected_tests_count
 
 
 def test_tags_after_background_issue_160(testdir):
@@ -90,7 +92,7 @@ def test_tags_after_background_issue_160(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a bar')
@@ -100,7 +102,7 @@ def test_tags_after_background_issue_160(testdir):
         @given('I have a baz')
         def i_have_baz():
             return 'baz'
-        """
+        """,
     )
     result = testdir.runpytest("-m", "tag", "-vv").parseoutcomes()
     assert result["passed"] == 1
@@ -123,7 +125,7 @@ def test_at_in_scenario(testdir):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
         @given('I have a foo@bar')
@@ -133,7 +135,7 @@ def test_at_in_scenario(testdir):
         @given('I have a baz')
         def i_have_baz():
             return 'baz'
-        """
+        """,
     )
 
     # Deprecate --strict after pytest 6.1

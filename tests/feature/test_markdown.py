@@ -1,7 +1,5 @@
 from textwrap import dedent
 
-import pytest
-
 
 def test_markdown(testdir):
     testdir.makefile(
@@ -22,7 +20,7 @@ def test_markdown(testdir):
             * And I append 3 to the list
             * Then foo should have value "foo"
             * But the list should be [1, 2, 3]
-            """
+            """,
         ),
     )
 
@@ -58,7 +56,7 @@ def test_markdown(testdir):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """
+        """,
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)

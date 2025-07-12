@@ -26,7 +26,7 @@ def test_background_no_strict_gherkin(testdir):
         @when('foo has not a value "baz"')
         def has_not_baz(foo):
             assert "baz" not in foo
-        """
+        """,
     )
 
     testdir.makefile(
@@ -73,7 +73,7 @@ def test_scenario_no_strict_gherkin(testdir):
         @when('foo has not a value "baz"')
         def has_not_baz(foo):
             assert "baz" not in foo
-        """
+        """,
     )
 
     testdir.makefile(
