@@ -8,4 +8,3 @@ def test_expand_tox_env_names_returns_compatible_entries_only():
     assert "py313-pytest83-coverage-lin" in envs
     assert "py314-pytest90-coverage-lin" in envs
     assert "py314-pytest83-coverage-lin" not in envs
-

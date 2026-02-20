@@ -8,4 +8,3 @@ def test_existing_py39_pytest60_factor_still_present():
 
     assert "39" in py_factors
     assert "60" in pytest_factors
-

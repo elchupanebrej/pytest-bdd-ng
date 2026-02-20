@@ -1,2 +1,1 @@
 """Compatibility test suite."""
-

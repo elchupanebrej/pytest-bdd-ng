@@ -7,4 +7,3 @@ def test_failure_message_contains_reason(capsys):
 
     assert code == 1
     assert "incompatible pair: python_not_supported_by_pytest" in out
-

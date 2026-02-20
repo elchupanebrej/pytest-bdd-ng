@@ -11,4 +11,3 @@ def test_contract_has_required_paths():
     assert "/compatibility/matrix" in paths
     assert "/compatibility/validate" in paths
     assert "/compatibility/jobs/expand" in paths
-

@@ -9,4 +9,3 @@ def test_tox_env_name_format_is_stable():
         assert env_name.startswith("py")
         assert "-pytest" in env_name
         assert env_name.endswith("-coverage-lin")
-

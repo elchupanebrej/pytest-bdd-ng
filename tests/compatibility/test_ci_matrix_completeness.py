@@ -10,4 +10,3 @@ def test_each_compatible_pair_has_tox_env_name():
     compatible_entries = [entry for entry in entries if entry.is_compatible]
     assert compatible_entries
     assert all(entry.tox_env_name for entry in compatible_entries)
-

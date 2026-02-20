@@ -21,4 +21,3 @@ def test_pair_validation_returns_zero_for_compatible_pair(capsys):
     assert code == 0
     assert payload["isCompatible"] is True
     assert payload["reasonCode"] == "compatible"
-
