@@ -30,6 +30,17 @@ which might be helpful building useful reporting, visualization, etc on top of i
 * pytest_bdd_get_step_caller(request, feature, scenario, step, step_func, step_func_args, step_definition) - Called to get step caller. For example could be used to make steps async
 * pytest_bdd_get_step_dispatcher(request, feature, scenario) - Provide alternative approach to execute scenario steps
 
+Compatibility policy
+--------------------
+
+Compatibility coverage is driven by pytest-to-python compatibility rules.
+`pytest-bdd-ng` does not impose additional project-level caps on valid Python/pytest pairs.
+
+.. code-block:: console
+
+    compatibility_matrix --list --compatible-only
+    compatibility_matrix --python 314 --pytest 90
+
 
 Default steps
 -------------
