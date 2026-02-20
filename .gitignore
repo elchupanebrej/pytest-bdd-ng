@@ -56,3 +56,11 @@ nosetests.xml
 /include
 /share
 /local
+/.agent/
+/.agents/
+/.claude/
+/.cline/
+/.codex/
+/.specify/
+/.windsurf/
+/skills-lock.json
