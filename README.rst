@@ -93,6 +93,18 @@ Install pytest-bdd-ng
 
     pip install pytest-bdd-ng
 
+Compatibility policy
+--------------------
+
+- Supported Python/pytest pairs follow pytest compatibility constraints.
+- The project does not add extra library-specific caps that exclude otherwise compatible pairs.
+- To inspect or validate a pair locally, use:
+
+.. code-block:: console
+
+    compatibility_matrix --list --compatible-only
+    compatibility_matrix --python 314 --pytest 90
+
 Packages for reporting
 ####################################
 
