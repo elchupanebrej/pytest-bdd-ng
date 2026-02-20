@@ -14,7 +14,6 @@ from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
 from _pytest.mark import Mark, MarkDecorator, MarkMatcher
-from _pytest.mark.expression import Expression, ParseError
 from _pytest.nodes import Collector
 from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
@@ -164,3 +163,10 @@ def build_fixture_def(request, *args, **kwargs):
         **({"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}),
         **({"_ispytest": True} if PYTEST8 else {}),
     )
+# pytest 9 dropped ParseError export from _pytest.mark.expression.
+try:
+    from _pytest.mark.expression import Expression, ParseError
+except ImportError:  # pragma: no cover - exercised only on newer pytest versions.
+    from _pytest.mark.expression import Expression  # type: ignore[assignment]
+
+    ParseError = ValueError
