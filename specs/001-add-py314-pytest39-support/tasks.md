@@ -1,6 +1,8 @@
+<!-- markdownlint-disable MD013 MD050 -->
+
 # Tasks: Python and Pytest Compatibility Alignment
 
-**Input**: Design documents from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/`  
+**Input**: Design documents from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/compatibility-matrix.openapi.yaml, quickstart.md
 
 **Tests**: Include test tasks because the specification explicitly requires automated validation and independent testability for each story.
@@ -111,10 +113,11 @@
 
 **Purpose**: Final consistency, documentation, and end-to-end validation across all stories.
 
-- [ ] T029 [P] Regenerate and verify compatibility contract examples in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/contracts/compatibility-matrix.openapi.yaml
-- [ ] T030 [P] Perform full quickstart command validation and record results in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/quickstart.md
-- [ ] T031 Run full tox matrix smoke verification for changed compatibility paths in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tox.ini
-- [ ] T032 Final documentation consistency pass for support policy wording in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/README.rst
+- [X] T029 Fix all pre-commit failures and re-run hooks to green in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+- [X] T030 [P] Regenerate and verify compatibility contract examples in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/contracts/compatibility-matrix.openapi.yaml
+- [X] T031 [P] Perform full quickstart command validation and record results in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/001-add-py314-pytest39-support/quickstart.md
+- [X] T032 Run full tox matrix smoke verification for changed compatibility paths in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tox.ini
+- [X] T033 Final documentation consistency pass for support policy wording in /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/README.rst
 
 ---
 

@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Python 3.14 and Pytest 3.9 Compatibility
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-02-20  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-02-20
 **Feature**: [Link to spec.md](../spec.md)
 
 ## Content Quality

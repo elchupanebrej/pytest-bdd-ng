@@ -96,7 +96,7 @@ Install pytest-bdd-ng
 Compatibility policy
 --------------------
 
-- Supported Python/pytest pairs follow pytest compatibility constraints.
+- Supported Python/pytest pairs include all pairs allowed by pytest compatibility constraints.
 - The project does not add extra library-specific caps that exclude otherwise compatible pairs.
 - To inspect or validate a pair locally, use:
 

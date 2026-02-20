@@ -1,12 +1,15 @@
+---
 openapi: 3.0.3
 info:
-  title: Compatibility Matrix Contract
-  version: 1.0.0
-  description: Contract for listing and validating Python/pytest compatibility pairs.
+  title: Python/Pytest Compatibility Contract
+  version: 1.1.0
+  description: >-
+    Contract describing matrix listing, pair validation, and in-scope file
+    tracking.
 paths:
   /compatibility/matrix:
     get:
-      summary: List matrix entries
+      summary: List compatibility matrix entries
       parameters:
         - in: query
           name: compatibleOnly
@@ -20,23 +23,15 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [entries]
                 properties:
                   entries:
                     type: array
                     items:
                       $ref: '#/components/schemas/CompatibilityMatrixEntry'
-              examples:
-                compatible-matrix:
-                  value:
-                    entries:
-                      - pythonVersion: '3.14'
-                        pytestVersion: '9.0'
-                        isCompatible: true
-                        reasonCode: compatible
-                        toxEnvName: py314-pytest90-coverage-lin
   /compatibility/validate:
     get:
-      summary: Validate a Python/pytest pair
+      summary: Validate one Python/pytest pair
       parameters:
         - in: query
           name: pythonVersion
@@ -50,42 +45,27 @@ paths:
             type: string
       responses:
         '200':
-          description: Pair validation result
+          description: Pair compatibility result
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PairValidationResult'
-              examples:
-                compatible-pair:
-                  value:
-                    pythonVersion: '3.14'
-                    pytestVersion: '9.0'
-                    isCompatible: true
-                    reasonCode: compatible
-                    message: compatible pair
-                incompatible-pair:
-                  value:
-                    pythonVersion: '3.14'
-                    pytestVersion: '8.3'
-                    isCompatible: false
-                    reasonCode: python_not_supported_by_pytest
-                    message: 'incompatible pair: python_not_supported_by_pytest'
-        '400':
-          description: Invalid request
   /compatibility/jobs/expand:
     post:
-      summary: Expand tox job list from selected matrix entries
+      summary: Expand runnable tox environments for compatible entries
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [entries]
               properties:
                 entries:
                   type: array
                   items:
                     type: object
+                    required: [pythonVersion, pytestVersion]
                     properties:
                       pythonVersion:
                         type: string
@@ -93,22 +73,33 @@ paths:
                         type: string
       responses:
         '200':
-          description: Expanded tox jobs
+          description: Expanded tox environment names
           content:
             application/json:
               schema:
                 type: object
+                required: [toxEnvNames]
                 properties:
                   toxEnvNames:
                     type: array
                     items:
                       type: string
-              examples:
-                expanded:
-                  value:
-                    toxEnvNames:
-                      - py314-pytest90-coverage-lin
-                      - py314-pytest90-coverage-mac
+  /feature/scope/uncommitted-files:
+    get:
+      summary: List all uncommitted files included in current feature scope
+      responses:
+        '200':
+          description: In-scope uncommitted files
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [files]
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FeatureScopeFile'
 components:
   schemas:
     CompatibilityMatrixEntry:
@@ -135,12 +126,11 @@ components:
         toxEnvName:
           type: string
           nullable: true
-      example:
-        pythonVersion: '3.14'
-        pytestVersion: '9.0'
-        isCompatible: true
-        reasonCode: compatible
-        toxEnvName: py314-pytest90-coverage-lin
+        platforms:
+          type: array
+          items:
+            type: string
+            enum: [lin, mac, win]
     PairValidationResult:
       type: object
       required:
@@ -148,6 +138,7 @@ components:
         - pytestVersion
         - isCompatible
         - reasonCode
+        - message
       properties:
         pythonVersion:
           type: string
@@ -159,9 +150,18 @@ components:
           type: string
         message:
           type: string
-      example:
-        pythonVersion: '3.14'
-        pytestVersion: '8.3'
-        isCompatible: false
-        reasonCode: python_not_supported_by_pytest
-        message: 'incompatible pair: python_not_supported_by_pytest'
+    FeatureScopeFile:
+      type: object
+      required:
+        - path
+        - changeType
+        - includedInFeature
+      properties:
+        path:
+          type: string
+        changeType:
+          type: string
+          enum: [modified, added, deleted]
+        includedInFeature:
+          type: boolean
+          enum: [true]

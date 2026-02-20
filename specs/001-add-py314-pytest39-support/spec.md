@@ -1,8 +1,10 @@
+<!-- markdownlint-disable MD013 -->
+
 # Feature Specification: Python and Pytest Compatibility Alignment
 
-**Feature Branch**: `001-add-py314-pytest39-support`  
-**Created**: 2026-02-20  
-**Status**: Draft  
+**Feature Branch**: `001-add-py314-pytest39-support`
+**Created**: 2026-02-20
+**Status**: Draft
 **Input**: User description: "I need support of python 3.14 and pytest 3.9 in the project"
 
 ## Clarifications
@@ -11,6 +13,7 @@
 
 - Q: Should support be limited to specific Python/pytest versions or follow broader compatibility rules? → A: Follow pytest compatibility matrix
 - Q: Should automated validation cover all compatible pairs or only a representative subset? → A: Cover all compatible pairs
+- Q: Should all currently uncommitted files be included in this feature scope? → A: Include every currently uncommitted file
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -72,6 +75,7 @@ As a maintainer, I can add support for the new versions without unintentionally 
 - **FR-005**: The project MUST keep existing documented supported combinations valid unless explicitly deprecated in this feature scope.
 - **FR-006**: The project MUST expose clear failure messaging when a requested compatibility combination is unavailable or unsupported in a given environment.
 - **FR-007**: The project MUST update contributor-facing documentation to state support policy, compatibility source of truth, and expected validation commands.
+- **FR-008**: The feature scope MUST include all currently uncommitted files in this branch, including implementation code, tests, workflows, ignore/configuration files, and specification artifacts required to deliver and validate this feature.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -84,6 +88,7 @@ As a maintainer, I can add support for the new versions without unintentionally 
 - Support policy is driven by pytest compatibility constraints instead of hard-coding a single pytest or Python version target.
 - Existing supported versions remain in scope unless they are separately deprecated in a future request.
 - "Support" means documented compatibility plus automated validation coverage, not only local ad-hoc execution.
+- All currently uncommitted files in this branch are treated as intentional deliverables for this feature.
 
 ### Dependencies
 

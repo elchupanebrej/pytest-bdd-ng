@@ -1,43 +1,49 @@
+<!-- markdownlint-disable MD013 -->
+
 # Research: Python/Pytest Compatibility Matrix
 
 ## Decision 1: Compatibility source of truth
 
-- Decision: Treat pytest compatibility constraints as the source of truth for valid Python/pytest pairs.
-- Rationale: The feature explicitly requires no additional project-specific caps beyond pytest-to-python compatibility.
+- Decision: Use pytest-to-Python compatibility matrix as the canonical rule for valid pairs.
+- Rationale: Matches FR-001 and user clarification to follow pytest compatibility matrix directly.
 - Alternatives considered:
-  - Hard-code a fixed list of supported pairs: rejected because it drifts and reintroduces manual caps.
-  - Support only latest pytest per Python version: rejected because it does not satisfy "all compatible pairs".
+  - Maintain a project-specific allowlist: rejected because it drifts and can over-restrict supported pairs.
+  - Only support latest pytest per Python: rejected because it violates full compatible-pair coverage.
 
-## Decision 2: Matrix generation strategy
+## Decision 2: Matrix coverage strategy
 
-- Decision: Generate full pair coverage by combining:
-  - Project-supported Python versions available in CI/local matrix
-  - Pytest versions within support window
-  - Filtering rules that keep only pytest-compatible Python/pytest pairs
-- Rationale: Ensures complete coverage while remaining deterministic and auditable.
+- Decision: Generate and maintain tox environments so every pytest-compatible Python/pytest pair has an explicit runnable job.
+- Rationale: Satisfies FR-003 and makes missing coverage detectable.
 - Alternatives considered:
-  - Representative sampling: rejected by clarification requiring all compatible pairs.
-  - Unbounded historical pytest versions: rejected due to excessive matrix size and low value.
+  - Sampled pair coverage: rejected by clarification requiring all compatible pairs.
+  - Dynamic runtime-only expansion without explicit envs: rejected due to lower auditability.
 
-## Decision 3: Validation contract format
+## Decision 3: Local Python 3.14 provisioning
 
-- Decision: Define a simple REST-style contract describing matrix listing and pair validation.
-- Rationale: Provides an explicit, testable interface for tooling and CI integration.
+- Decision: Standardize local Python 3.14 setup through conda-forge environment creation for maintainers.
+- Rationale: User explicitly requested conda-forge setup and it provides reproducible access to Python 3.14.
 - Alternatives considered:
-  - No contract artifact: rejected because behavior becomes implicit and harder to test.
-  - GraphQL schema: rejected as unnecessary for this feature scope.
+  - System Python only: rejected because availability is inconsistent.
+  - pyenv-only path: rejected as non-standard for current team request.
 
-## Decision 4: Failure handling policy
+## Decision 4: Incompatible/unavailable pair handling
 
-- Decision: Fail fast with explicit reason codes for unsupported or unavailable pairs.
-- Rationale: Required by FR-006 and reduces triage time.
+- Decision: Fail fast with explicit compatibility reason codes and actionable message text.
+- Rationale: Required by FR-006 and reduces troubleshooting time.
 - Alternatives considered:
-  - Silent skip of unsupported pairs: rejected because it obscures coverage gaps.
-  - Generic install error propagation only: rejected because it is not actionable.
+  - Silent skip: rejected because it hides coverage gaps.
+  - Raw dependency install errors only: rejected because diagnostics are not user-actionable.
 
-## Decision 5: Documentation policy
+## Decision 5: Feature-scope inclusion policy
 
-- Decision: Publish support policy as "all pytest-compatible pairs" and include runnable commands to validate any pair.
-- Rationale: Keeps contributor expectations aligned with the clarified requirement.
+- Decision: Treat all currently uncommitted files as in-scope deliverables for this feature.
+- Rationale: Direct clarification recorded in spec (FR-008).
 - Alternatives considered:
-  - Document only CI-covered pairs: rejected because it can be read as an implicit cap.
+  - Include only matrix-related files: rejected because it conflicts with accepted clarification.
+
+## Decision 6: Commit hygiene enforcement
+
+- Decision: Planning and implementation must respect constitution v1.1.0 (task-ID commit messages, mandatory clean pre-commit before commit).
+- Rationale: Constitution is normative and applies to feature delivery gates.
+- Alternatives considered:
+  - Defer commit policy to post-merge cleanup: rejected because governance requires enforcement before commit.

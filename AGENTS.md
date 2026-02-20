@@ -3,8 +3,9 @@
 Auto-generated from all feature plans. Last updated: 2026-02-20
 
 ## Active Technologies
-
-- Python 3.9+ runtime for tooling; validation must include all interpreter versions available in CI that satisfy pytest compatibility rules + ox 4.x, pytest (multiple versions), packaging, Python standard library (`importlib.metadata`, `json`, `pathlib`) (001-add-py314-pytest39-support)
+- Python 3.9-3.14 (Python 3.14 provisioned from conda-forge when needed)
+- pytest, tox>=4.2, pre-commit, mypy, ruff, packaging
+- Project type: Python library and CLI tooling
 
 ## Project Structure
 
@@ -15,15 +16,18 @@ tests/
 
 ## Commands
 
-cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
+- `conda run -n pytest-bdd-ng-py314 tox -l`
+- `conda run -n pytest-bdd-ng-py314 python -m pytest tests/compatibility -q`
+- `conda run -n pytest-bdd-ng-py314 pre-commit run --all-files`
 
 ## Code Style
 
-Python 3.9+ runtime for tooling; validation must include all interpreter versions available in CI that satisfy pytest compatibility rules: Follow standard conventions
+- Follow repository linting/formatting via `ruff` and pre-commit hooks.
+- Keep compatibility behavior aligned with pytest Python-version support matrix.
 
 ## Recent Changes
-
-- 001-add-py314-pytest39-support: Added Python 3.9+ runtime for tooling; validation must include all interpreter versions available in CI that satisfy pytest compatibility rules + ox 4.x, pytest (multiple versions), packaging, Python standard library (`importlib.metadata`, `json`, `pathlib`)
+- 001-add-py314-pytest39-support: Added Python 3.14 support path via conda-forge.
+- 001-add-py314-pytest39-support: Added matrix compatibility validation flow.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

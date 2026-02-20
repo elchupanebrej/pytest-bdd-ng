@@ -1,42 +1,55 @@
 # Quickstart: Validate Python/Pytest Compatibility Coverage
 
-## Prerequisites
+## 1. Create Python 3.14 environment from conda-forge
 
-- Python environment with project dependencies installed.
-- `tox` available in active environment.
-- Project checkout at repository root.
+```bash
+conda create -n pytest-bdd-py314 -c conda-forge python=3.14 -y
+conda activate pytest-bdd-py314
+python -m pip install -U pip
+python -m pip install -e .[test,testenv,testtypes]
+```
 
-## 1. List available tox environments
+## 2. Confirm matrix environments exist
 
 ```bash
 tox -l
 ```
 
-## 2. Run all compatibility jobs
+Expected: entries for Python 3.14 and pytest 9.0 combinations (for example `py314-pytest90-*`).
+
+## 3. Run full matrix
 
 ```bash
 tox
 ```
 
-## 3. Run selected pair checks
+Expected: every configured compatible pair reports a result (pass or fail), not missing/undefined.
 
-Use the matrix runner helper for targeted execution:
+## 4. Run targeted pair checks
 
 ```bash
-python .codex/skills/tox-test-matrix/scripts/run_tox_matrix.py --contains pytest --contains coverage --dry-run
-python .codex/skills/tox-test-matrix/scripts/run_tox_matrix.py --contains py313 --contains pytest83 --contains coverage
+python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 90
+python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 83
+tox -e py314-pytest90-coverage-lin -- -q
 ```
 
-## 4. Validate pair support behavior
+Expected:
+- `314/90` returns compatible.
+- `314/83` returns incompatible with explicit reason code.
+- tox pair command executes or fails with actionable interpreter availability guidance.
 
-Expected outcomes:
-- Compatible pair: test job executes and reports pass/fail.
-- Incompatible pair: command fails fast with explicit compatibility reason.
-- Unavailable pair artifact: command fails with actionable acquisition guidance.
+## 5. Run pre-commit and fix issues before committing
 
-## 5. Verify documentation alignment
+```bash
+pre-commit run --all-files
+```
 
-Confirm support policy in contributor docs states:
-- support follows pytest compatibility matrix
-- no extra library-imposed Python/pytest caps
-- commands to run any compatible pair
+Expected: all hooks pass; any reported issue must be fixed before commit.
+
+## 6. Verify feature scope includes all uncommitted files
+
+```bash
+git status --short
+```
+
+Expected: all listed modified/added/deleted paths are included in this feature's planned implementation and commits.
