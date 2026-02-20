@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
-from typing import Sequence
 
 from pytest_bdd.compatibility.matrix import (
     REASON_COMPATIBLE,
@@ -16,7 +16,7 @@ from pytest_bdd.compatibility.matrix import (
 )
 
 
-def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Inspect Python/pytest compatibility matrix")
     parser.add_argument("--tox-ini", type=Path, default=Path("tox.ini"), help="Path to tox.ini")
     parser.add_argument("--python", dest="python_factor", help="Python factor without prefix, e.g. 314")
@@ -37,7 +37,12 @@ def _entry_payload(entry) -> dict[str, object]:
     }
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _emit(payload: str) -> None:
+    sys.stdout.write(payload)
+    sys.stdout.write("\n")
+
+
+def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     python_factors, pytest_factors = extract_factors_from_tox_ini(args.tox_ini)
     entries = build_matrix(python_factors, pytest_factors)
@@ -54,19 +59,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             "message": "compatible pair" if reason == REASON_COMPATIBLE else f"incompatible pair: {reason}",
         }
         if args.json:
-            print(json.dumps(payload, sort_keys=True))
+            _emit(json.dumps(payload, sort_keys=True))
         else:
-            print(payload["message"])
+            _emit(str(payload["message"]))
         return 0 if compatible else 1
 
     if args.list:
         result = entries if not args.compatible_only else [entry for entry in entries if entry.is_compatible]
         payload = [_entry_payload(entry) for entry in result]
         if args.json:
-            print(json.dumps({"entries": payload}, sort_keys=True))
+            _emit(json.dumps({"entries": payload}, sort_keys=True))
         else:
             for item in payload:
-                print(
+                _emit(
                     f"{item['pythonVersion']}\t{item['pytestVersion']}\t{item['isCompatible']}\t"
                     f"{item['reasonCode']}\t{item['toxEnvName']}",
                 )
@@ -74,12 +79,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     tox_env_names = expand_tox_env_names(entries)
     if args.json:
-        print(json.dumps({"toxEnvNames": tox_env_names}, sort_keys=True))
+        _emit(json.dumps({"toxEnvNames": tox_env_names}, sort_keys=True))
     else:
-        print("\n".join(tox_env_names))
+        _emit("\n".join(tox_env_names))
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

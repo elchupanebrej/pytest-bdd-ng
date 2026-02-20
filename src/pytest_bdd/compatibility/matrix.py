@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from itertools import product
-from pathlib import Path
-import re
-from typing import Iterable
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
 
 PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | None]] = {
     # pytest 6.x
@@ -125,4 +127,3 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
 
 def expand_tox_env_names(entries: Iterable[CompatibilityMatrixEntry]) -> list[str]:
     return [entry.tox_env_name for entry in entries if entry.is_compatible and entry.tox_env_name]
-
