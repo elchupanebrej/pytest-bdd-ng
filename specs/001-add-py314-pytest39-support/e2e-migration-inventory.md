@@ -4,7 +4,8 @@
 
 - Use `.feature.md` suffix for executable markdown feature docs.
 - Use Title Case in file names for user-facing discoverability.
-- Keep source-test traceability in each feature file description.
+- Keep conversion traceability in `conversion-parity-audit.md` instead of
+  linking to deletable source test files.
 
 ## High-Priority Candidates
 
@@ -36,7 +37,7 @@
 ## Progress
 
 - [X] High-priority migration batch complete
-- [ ] Medium-priority migration batch complete
+- [X] Medium-priority migration batch complete
 
 ## Legacy pytest modules retained intentionally
 

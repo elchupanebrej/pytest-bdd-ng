@@ -5,7 +5,8 @@ Features
           scenarios are expected to live under ``features/`` so users can learn
           library behavior without inspecting ``tests/``.
           Naming convention: use descriptive Title Case ``*.feature.md`` files
-          and keep source-test traceability in each converted document.
+          and keep conversion traceability in
+          ``specs/001-add-py314-pytest39-support/conversion-parity-audit.md``.
           Markdown lint and pre-commit checks must pass for converted
           feature documentation before commit.
 
