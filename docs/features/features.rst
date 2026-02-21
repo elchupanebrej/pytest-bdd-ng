@@ -1,6 +1,5 @@
 Features
-========
-
+=
 .. NOTE:: Features below are part of executable documentation; user-facing usage
           scenarios are expected to live under ``features/`` so users can learn
           library behavior without inspecting ``tests/``.
