@@ -59,7 +59,7 @@ A conversion is `PASS` only when all checks pass:
 | T017 | c64fc4d | PASS | Original commit used a generic sample; follow-up restores background order and doc-string intent with explicit assertions. | Pending |
 | T018 | ce6bf8d | PASS | Original commit used a generic sample; follow-up restores Markdown-Gherkin parsing and step-by-step assertions. | Pending |
 | T019 | 65f64b2 | PASS | Original commit used a generic sample; follow-up restores non-strict background/scenario `When`-only execution intent. | Pending |
-| T020 | 729b70b | PENDING | Not audited yet. | Pending |
+| T020 | 729b70b | PASS | Original commit used a generic sample; follow-up restores outline runtime expansion intent with fixture-param multiplication assertions. | Pending |
 | T021 | 5d229c2 | PENDING | Not audited yet. | Pending |
 | T022 | 868a1ba | PENDING | Not audited yet. | Pending |
 | T023 | 716c808 | PENDING | Not audited yet. | Pending |
