@@ -55,8 +55,8 @@ A conversion is `PASS` only when all checks pass:
 
 | Task | Commit | Verdict | Findings | Follow-up commit |
 |------|--------|---------|----------|------------------|
-| T016 | fac73ca | FAIL | Generic sample flow replaced alias intent; explicit alias behavior assertions missing. | Pending |
-| T017 | c64fc4d | PENDING | Not audited yet. | Pending |
+| T016 | fac73ca | PASS | Original commit failed intent parity; fixed in follow-up commit with alias-specific behavior assertions. | `34a387b` |
+| T017 | c64fc4d | PASS | Original commit used a generic sample; follow-up restores background order and doc-string intent with explicit assertions. | Pending |
 | T018 | ce6bf8d | PENDING | Not audited yet. | Pending |
 | T019 | 65f64b2 | PENDING | Not audited yet. | Pending |
 | T020 | 729b70b | PENDING | Not audited yet. | Pending |
