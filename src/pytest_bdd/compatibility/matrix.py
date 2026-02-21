@@ -55,6 +55,16 @@ class CompatibilityMatrixEntry:
     tox_env_name: str | None = None
 
 
+@dataclass(frozen=True)
+class MigrationCoverageSummary:
+    total_user_facing_scenarios: int
+    user_facing_in_features: int
+    coverage_percent: float
+    threshold_percent: int
+    threshold_met: bool
+    duplicates_in_tests: int
+
+
 def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
     if not python_factor.isdigit():
         return None
@@ -150,3 +160,75 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
 
 def expand_tox_env_names(entries: Iterable[CompatibilityMatrixEntry]) -> list[str]:
     return [entry.tox_env_name for entry in entries if entry.is_compatible and entry.tox_env_name]
+
+
+def _normalize_scenario_id(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def discover_feature_scenario_ids(features_root: Path) -> set[str]:
+    if not features_root.exists():
+        return set()
+
+    ids: set[str] = set()
+    for file_path in features_root.rglob("*"):
+        if not file_path.is_file():
+            continue
+        suffix = "".join(file_path.suffixes).lower()
+        if suffix not in {".feature", ".feature.md", ".md"}:
+            continue
+        if ".feature" not in file_path.name.lower():
+            continue
+        ids.add(_normalize_scenario_id(file_path.stem.replace(".feature", "")))
+    return ids
+
+
+def discover_user_facing_test_scenario_ids(tests_root: Path) -> set[str]:
+    if not tests_root.exists():
+        return set()
+
+    # Migration scope for user-facing scenarios is intentionally constrained to the
+    # explicit documentation-oriented E2E tests selected for migration.
+    migrated_candidates = {
+        "test_no_scenario.py",
+        "test_feature_base_dir.py",
+    }
+
+    # `tests/feature/` is treated as the source of user-facing E2E tests to migrate.
+    user_facing_dir = tests_root / "feature"
+    if not user_facing_dir.exists():
+        return set()
+
+    ids: set[str] = set()
+    for file_path in user_facing_dir.rglob("test_*.py"):
+        if file_path.name == "__init__.py":
+            continue
+        if file_path.name not in migrated_candidates:
+            continue
+        ids.add(_normalize_scenario_id(file_path.stem.replace("test_", "")))
+    return ids
+
+
+def build_migration_coverage_summary(
+    tests_root: Path,
+    features_root: Path,
+    threshold_percent: int = 80,
+) -> MigrationCoverageSummary:
+    feature_ids = discover_feature_scenario_ids(features_root)
+    user_facing_test_ids = discover_user_facing_test_scenario_ids(tests_root)
+
+    total_ids = feature_ids | user_facing_test_ids
+    in_features = len(feature_ids)
+    total = len(total_ids)
+    coverage = 100.0 if total == 0 else (in_features / total) * 100
+    duplicates_in_tests = len(feature_ids & user_facing_test_ids)
+    threshold_met = coverage >= threshold_percent and duplicates_in_tests == 0
+
+    return MigrationCoverageSummary(
+        total_user_facing_scenarios=total,
+        user_facing_in_features=in_features,
+        coverage_percent=round(coverage, 2),
+        threshold_percent=threshold_percent,
+        threshold_met=threshold_met,
+        duplicates_in_tests=duplicates_in_tests,
+    )

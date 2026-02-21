@@ -44,6 +44,16 @@ Python ``3.9`` and pytest ``<6.2.5`` are EOL and explicitly unsupported.
     compatibility_matrix --python 310 --pytest 625
     compatibility_matrix --python 314 --pytest 90
 
+Executable usage documentation
+------------------------------
+
+User-facing end-to-end usage scenarios are documented in ``features/`` and
+intended to be readable without browsing implementation tests.
+
+.. code-block:: console
+
+    compatibility_matrix --report-e2e-migration-threshold
+
 
 Default steps
 -------------

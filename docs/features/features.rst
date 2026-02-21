@@ -1,9 +1,9 @@
 Features
 ========
 
-.. NOTE:: Features below are part of end-to-end test suite; You always could find most specific
-          use cases of **pytest-bdd-ng** by investigation of its regression
-          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
+.. NOTE:: Features below are part of executable documentation; user-facing usage
+          scenarios are expected to live under ``features/`` so users can learn
+          library behavior without inspecting ``tests/``.
 
 Tutorial
 --------
@@ -78,6 +78,8 @@ Load
     :maxdepth: 2
 
     features/Feature/Load/Autoload.feature
+    features/Feature/Load/Feature base directory resolution.feature
     features/Feature/Load/Scenario function loader.feature
+    features/Feature/Load/Scenario without steps.feature
     features/Feature/Load/Scenario search from base directory.feature
     features/Feature/Load/Scenario search from base url.feature
