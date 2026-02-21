@@ -2,6 +2,8 @@ from collections.abc import Sequence
 
 import pytest
 
+pytestmark = [pytest.mark.technical_nonconvertible]
+
 # language=gherkin
 FEATURE = """\
 Feature: Gherkin terminal output feature
@@ -43,17 +45,6 @@ def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir)
     assert all(
         l1 == l2 for l1, l2 in zip(parse_lines(regular.stdout.lines), parse_lines(gherkin.stdout.lines), strict=False)
     )
-
-
-def test_verbose_mode_should_display_feature_and_scenario_names_instead_of_test_names_in_a_single_line(
-    testdir,
-):
-    testdir.makefile(".feature", test=FEATURE)
-    testdir.makeconftest(TEST)
-    result = testdir.runpytest("--gherkin-terminal-reporter", "-v")
-    result.assert_outcomes(passed=1, failed=0)
-    result.stdout.fnmatch_lines("Feature: Gherkin terminal output feature")
-    result.stdout.fnmatch_lines("*Scenario: Scenario example 1    PASSED")
 
 
 def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir):
