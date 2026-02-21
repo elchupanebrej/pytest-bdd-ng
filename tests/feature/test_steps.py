@@ -4,6 +4,8 @@ import pytest
 
 from pytest_bdd.util.toolz_test import collect_dumped_objects
 
+pytestmark = [pytest.mark.technical_nonconvertible]
+
 
 def test_steps(testdir):
     testdir.makefile(

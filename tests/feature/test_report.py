@@ -4,8 +4,11 @@ import re
 from pathlib import Path
 
 import execnet.gateway_base
+import pytest
 
 from pytest_bdd.util.toolz_test import InstanceOfType
+
+pytestmark = [pytest.mark.technical_nonconvertible]
 
 
 def matchreport(
