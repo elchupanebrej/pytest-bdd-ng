@@ -1,7 +1,7 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, Optional, Union
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -41,15 +41,15 @@ class FeaturePathType(Enum):
 
 
 def scenario(
-    feature_name: Optional[Union[Path, str]] = None,
-    scenario_name: Optional[str] = None,
+    feature_name: Path | str | None = None,
+    scenario_name: str | None = None,
     encoding: str = "utf-8",
-    features_base_dir: Optional[Union[Path, str]] = None,
+    features_base_dir: Path | str | None = None,
     features_base_url=None,
-    features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
-    features_mimetype: Optional[Mimetype] = None,
-    parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args: Optional[Args] = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
     locators=(),
     *,
     return_test_decorator=True,
@@ -84,16 +84,16 @@ def scenario(
 
 
 def scenarios(
-    *feature_paths: Union[Path, str],
-    filter_: Optional[Union[str, Callable]] = None,
+    *feature_paths: Path | str,
+    filter_: str | Callable | None = None,
     return_test_decorator=False,
     encoding: str = "utf-8",
-    features_base_dir: Optional[Union[Path, str]] = None,
-    features_base_url: Optional[str] = None,
-    features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
-    features_mimetype: Optional[Mimetype] = None,
-    parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args: Optional[Args] = None,
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
     locators=(),
 ):
     """Function to bind feature files to pytest runtime

@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from functools import lru_cache
 from operator import eq
-from typing import Any, Callable
+from typing import Any
 
 from packaging.utils import Version
 

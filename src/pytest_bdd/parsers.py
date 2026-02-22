@@ -7,7 +7,7 @@ from operator import attrgetter, contains, methodcaller
 from re import Match
 from re import Pattern as _RePattern
 from re import compile as re_compile
-from typing import Any, Optional, Protocol, Union, cast, runtime_checkable
+from typing import Any, Protocol, Union, cast, runtime_checkable
 
 import parse as base_parse
 import parse_type.cfparse as base_cfparse
@@ -28,14 +28,14 @@ class ParserBuildValueError(ValueError):
 
 @runtime_checkable
 class StepParserProtocol(Protocol):
-    type: Union[StepDefinitionPatternType, str] = StepDefinitionPatternType.pytest_bdd_other_expression  # type:ignore[attr-defined]
+    type: StepDefinitionPatternType | str = StepDefinitionPatternType.pytest_bdd_other_expression  # type:ignore[attr-defined]
 
     def parse_arguments(
         self,
         request: FixtureRequest,
         name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
-    ) -> Optional[dict[str, Any]]: ...  # pragma: no cover
+        anonymous_group_names: Iterable[str] | None = None,
+    ) -> dict[str, Any] | None: ...  # pragma: no cover
 
     @property
     def arguments(self) -> Collection[str]: ...  # pragma: no cover
@@ -60,8 +60,8 @@ class StepParser(StepParserProtocol, ABC):
         self,
         request: FixtureRequest,
         name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
-    ) -> Optional[dict[str, Any]]:
+        anonymous_group_names: Iterable[str] | None = None,
+    ) -> dict[str, Any] | None:
         """Get step arguments from the given step name.
 
         :return: `dict` of step arguments
@@ -135,7 +135,7 @@ class re(StepParser):  # noqa:N801 intentional API
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name,
-        anonymous_group_names: Optional[Iterable[str]] = None,
+        anonymous_group_names: Iterable[str] | None = None,
     ):
         match = cast(Match, self.regex.fullmatch(name))  # Can't be None because is already matched
         group_dict = match.groupdict()
@@ -150,6 +150,7 @@ class re(StepParser):  # noqa:N801 intentional API
                             map(match.span, range(1, len(match.groups()) + 1)),
                         )
                     ),
+                    strict=False,
                 ),
             )
 
@@ -185,7 +186,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     def __init_stringable__(
         self,
-        format_: Union[StringRepresentable, str, bytes],
+        format_: StringRepresentable | str | bytes,
         *args: Any,
         builder=base_parse.compile,
         **kwargs: Any,
@@ -207,12 +208,12 @@ class parse(StepParser):  # noqa:N801 intentional API
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
-    ) -> Union[dict[str, Any]]:
+        anonymous_group_names: Iterable[str] | None = None,
+    ) -> dict[str, Any]:
         match = self.parser.parse(name)
         group_dict = cast(dict, match.named)
         if anonymous_group_names is not None:
-            group_dict.update(dict(zip(anonymous_group_names, match.fixed)))
+            group_dict.update(dict(zip(anonymous_group_names, match.fixed, strict=False)))
         return group_dict
 
     @property
@@ -248,14 +249,14 @@ class string(StepParser):  # noqa: N801 intentional API
 
     type = StepDefinitionPatternType.pytest_bdd_string_expression  # type:ignore[attr-defined]
 
-    def __init__(self, name: Union[StringRepresentable, str, bytes]) -> None:
+    def __init__(self, name: StringRepresentable | str | bytes) -> None:
         self.name = normalize_to_string(name)
 
     def parse_arguments(
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,  # noqa: ARG002 overload
-        anonymous_group_names: Optional[Iterable[str]] = None,  # noqa: ARG002 overload
+        anonymous_group_names: Iterable[str] | None = None,  # noqa: ARG002 overload
     ) -> dict[str, Any]:
         """No parameters are available for simple string step.
 
@@ -282,8 +283,8 @@ class string(StepParser):  # noqa: N801 intentional API
 class _CucumberExpression(StepParser):
     pattern: str
 
-    expression_type: type[Union[CucumberExpression, CucumberRegularExpression]]
-    parameter_type_registry_like: Union[ParameterTypeRegistry, Any]
+    expression_type: type[CucumberExpression | CucumberRegularExpression]
+    parameter_type_registry_like: ParameterTypeRegistry | Any
     parameter_type_registry = ParameterTypeRegistry()  # default registry
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
@@ -296,8 +297,8 @@ class _CucumberExpression(StepParser):
         self,
         request: FixtureRequest,
         name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
-    ) -> Optional[dict[str, Any]]:
+        anonymous_group_names: Iterable[str] | None = None,
+    ) -> dict[str, Any] | None:
         return dict(
             zip(
                 anonymous_group_names or [],
@@ -305,16 +306,17 @@ class _CucumberExpression(StepParser):
                     attrgetter("value"),
                     self.rebuild_expression_in_test_context(request).match(name) or [],
                 ),
+                strict=False,
             ),
         )
 
     def __str__(self):
         return str(self.pattern)
 
-    def rebuild_expression_in_test_context(self, request) -> Union[CucumberExpression, CucumberRegularExpression]:
+    def rebuild_expression_in_test_context(self, request) -> CucumberExpression | CucumberRegularExpression:
         return self.expression_type(self.pattern, self._get_parameter_type_registry(request))
 
-    def _get_parameter_type_registry(self, request) -> Union[ParameterTypeRegistry, Any]:
+    def _get_parameter_type_registry(self, request) -> ParameterTypeRegistry | Any:
         if (
             isinstance(self.parameter_type_registry_like, (str, RegistryMode))
             or self.parameter_type_registry_like is None
@@ -345,7 +347,7 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
     def _(
         self,
         expression: str,
-        parameter_type_registry: Union[ParameterTypeRegistry, RegistryMode, Any] = RegistryMode.FIXTURE,
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any = RegistryMode.FIXTURE,
     ):
         self.pattern = expression
         self.parameter_type_registry_like = parameter_type_registry
@@ -376,7 +378,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
     def _(
         self,
         expression: str,
-        parameter_type_registry: Union[ParameterTypeRegistry, RegistryMode, Any] = RegistryMode.FIXTURE,
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any = RegistryMode.FIXTURE,
     ):
         self.pattern = expression
         self.parameter_type_registry_like = parameter_type_registry
@@ -400,7 +402,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
     def __init__(
         self,
         format_,
-        parameter_type_registry: Optional[Union[ParameterTypeRegistry, RegistryMode, Any]] = RegistryMode.FIXTURE,
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any | None = RegistryMode.FIXTURE,
     ):
         if isinstance(format_, (StringRepresentable, str, bytes)):
             self.format = normalize_to_string(format_)
@@ -417,7 +419,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         # Rework to exception groups after python 3.10 end of support
         e_cause = None
         try:
-            self.string_parser: Optional[string] = string(self.format)
+            self.string_parser: string | None = string(self.format)
         except Exception as e:  # noqa: BLE001 intentional
             e_cause = e
             self.string_parser = None
@@ -431,7 +433,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
             self.cucumber_expression_parser = None
 
         try:
-            self.cfparse_parser: Optional[cfparse] = cfparse(self.format)
+            self.cfparse_parser: cfparse | None = cfparse(self.format)
         except Exception as e:  # noqa: BLE001 intentional
             e.__cause__, e_cause = e_cause, e
             self.cfparse_parser = None
@@ -447,7 +449,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
             raise ParserBuildValueError(self.format) from e_cause  # pragma: no cover
 
     @property
-    def parser_by_priorities(self) -> Sequence[Optional[StepParser]]:
+    def parser_by_priorities(self) -> Sequence[StepParser | None]:
         return [
             self.string_parser,
             self.cucumber_expression_parser,
@@ -467,8 +469,8 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         self,
         request: FixtureRequest,
         name: str,
-        anonymous_group_names: Optional[Iterable[str]] = None,
-    ) -> Optional[dict[str, Any]]:
+        anonymous_group_names: Iterable[str] | None = None,
+    ) -> dict[str, Any] | None:
         for parser in self.parser_by_priorities:
             if parser is not None and parser.is_matching(request, name):
                 arguments = parser.parse_arguments(request, name, anonymous_group_names=anonymous_group_names)

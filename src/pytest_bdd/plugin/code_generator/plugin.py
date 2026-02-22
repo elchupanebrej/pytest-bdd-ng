@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import Any, cast
 
 import py
 from cucumber_messages import Pickle, PickleStep, PickleStepType  # type:ignore[attr-defined, import-untyped]
@@ -120,7 +120,7 @@ def process_session_items(
 
 
 def process_single_item(
-    item: Union[Item, Any],
+    item: Item | Any,
     seen_feature_pickles_ids: set[tuple[str, str]],
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
@@ -148,7 +148,7 @@ def process_pickle_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
     """Process pickle steps to gather unmatched steps."""
-    previous_step: Optional[PickleStep] = None
+    previous_step: PickleStep | None = None
     for step in pickle.steps:
         try:
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
@@ -204,7 +204,7 @@ def find_unique_non_matched_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> list[tuple[tuple[Feature, Pickle], PickleStep]]:
     """Find unique non-matched feature pickle steps."""
-    unique_step_defs_ids: set[tuple[Optional[PickleStepType], str]] = {
+    unique_step_defs_ids: set[tuple[PickleStepType | None, str]] = {
         (step.type, step.text) for _, step in non_matched_feature_pickle_steps
     }
     unique_non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = list(
@@ -223,7 +223,7 @@ def find_unique_non_matched_steps(
     return unique_non_matched_feature_pickle_steps
 
 
-def generate_and_print_missing_code(config: Config) -> Union[int, ExitCode]:
+def generate_and_print_missing_code(config: Config) -> int | ExitCode:
     """Wrap pytest session to show missing code."""
     return wrap_session(config=config, doit=generate_and_print_missing_code_callback)
 
@@ -279,7 +279,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
     tw.write(code)
 
 
-def generate_and_print_code(config: Config) -> Union[int, ExitCode]:
+def generate_and_print_code(config: Config) -> int | ExitCode:
     """Wrap pytest session to show missing code."""
     verbosity = config.option.verbose
     try:

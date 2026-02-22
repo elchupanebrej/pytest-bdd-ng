@@ -1,7 +1,7 @@
 import asyncio
 import os
 import ssl
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from enum import Enum
 from functools import partial, reduce
@@ -10,7 +10,7 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 from urllib.parse import urljoin
 
 import aiohttp
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],
+        config: Config | HasPytestBDDIdGenerator,
     ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
         ...
 
@@ -51,7 +51,7 @@ class ScenarioLocatorFeatureResolver(Protocol):
 class ScenarioLocatorResolver(Protocol):
     def resolve(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],
+        config: Config | HasPytestBDDIdGenerator,
     ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
         ...
 
@@ -61,7 +61,7 @@ ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, Feature, Pickle], bool]
 
 @attrs
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
-    filter_: Optional[ScenarioLocatorFilterT] = attrib(default=None, kw_only=True)
+    filter_: ScenarioLocatorFilterT | None = attrib(default=None, kw_only=True)
 
     def filter_scenarios(self, feature, config):
         return (
@@ -94,7 +94,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
+    def resolve_features(self, config: Config | HasPytestBDDIdGenerator):
         urls = self._build_urls()
         if not urls:
             return
@@ -102,7 +102,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         hook_handler = cast(Config, config).hook
         encoding = self.encoding
 
-        for url, response in zip(urls, responses):
+        for url, response in zip(urls, responses, strict=False):
             if isinstance(response, Exception):
                 continue
 
@@ -186,20 +186,20 @@ class FileScenarioLocatorDefaults:
 @attrs
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
     Defaults = FileScenarioLocatorDefaults
-    feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
+    feature_paths: list[str | Path] = attrib(default=Factory(list))
     encoding = attrib(
         default=FileScenarioLocatorDefaults.encoding,
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
     )
-    features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
-    mimetype: Optional[Union[str, Enum]] = attrib(default=None)
-    parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
+    features_base_dir: str | Path | None = attrib(default=None)
+    mimetype: str | Enum | None = attrib(default=None)
+    parser_type: type[ParserProtocol] | None = attrib(default=None)
     parse_args: Args = attrib(
         default=Factory(FileScenarioLocatorDefaults.parse_args),
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
     )
 
-    def _resolve_features_base_dir(self, config: Union[Config, HasPytestBDDIdGenerator]):
+    def _resolve_features_base_dir(self, config: Config | HasPytestBDDIdGenerator):
         try:
             if self.features_base_dir is None:
                 # TODO: refactor, move out from class usage to initialization or higher
@@ -250,7 +250,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Union[Config, HasPytestBDDIdGenerator]):
+    def resolve_features(self, config: Config | HasPytestBDDIdGenerator):
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths = set()
 

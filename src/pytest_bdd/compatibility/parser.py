@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Protocol, Union, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from attr import attrib, attrs
 
@@ -14,11 +14,11 @@ if TYPE_CHECKING:  # pragma: no cover
 @runtime_checkable
 @attrs
 class ParserProtocol(Protocol):
-    id_generator: Optional[IdGenerator] = attrib(default=None, kw_only=True)
+    id_generator: IdGenerator | None = attrib(default=None, kw_only=True)
 
     def parse(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],
+        config: Config | HasPytestBDDIdGenerator,
         path: Path,
         uri: str,
         *args,

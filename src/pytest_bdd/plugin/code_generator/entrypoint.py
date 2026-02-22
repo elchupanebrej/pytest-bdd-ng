@@ -1,7 +1,5 @@
 """pytest-bdd missing test code generation."""
 
-from typing import Optional, Union
-
 from pytest_bdd.compatibility.pytest import Config, ExitCode, Parser
 
 from .const import CodeGeneration
@@ -38,7 +36,7 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
-def pytest_cmdline_main(config: Config) -> Optional[Union[int, ExitCode]]:
+def pytest_cmdline_main(config: Config) -> int | ExitCode | None:
     """Check a config option to show missing code."""
     if config.option.generate_missing:
         return generate_and_print_missing_code(config)

@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from functools import partial
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from cucumber_messages import Pickle as Scenario  # type:ignore[import-untyped]
@@ -23,10 +23,10 @@ if TYPE_CHECKING:
 
 class ScenarioRunner:
     def __init__(self) -> None:
-        self.request: Optional[FixtureRequest] = None
-        self.feature: Optional[Feature] = None
+        self.request: FixtureRequest | None = None
+        self.feature: Feature | None = None
         self.scenario = None
-        self.plugin_manager: Optional[PluginManager] = None
+        self.plugin_manager: PluginManager | None = None
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item):
@@ -184,8 +184,8 @@ class ScenarioRunner:
 
     def _inject_step_parameters_as_fixtures(
         self,
-        step_params: Optional[dict] = None,
-        params_fixtures_mapping: Optional[dict] = None,
+        step_params: dict | None = None,
+        params_fixtures_mapping: dict | None = None,
     ):
         step_params = step_params or {}
         params_fixtures_mapping = (
@@ -215,7 +215,7 @@ class ScenarioRunner:
         if len(step_definition.target_fixtures) == 1:
             injectable_fixtures = [(step_definition.target_fixtures[0], step_result)]
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
-            injectable_fixtures = zip(step_definition.target_fixtures, step_result)
+            injectable_fixtures = zip(step_definition.target_fixtures, step_result, strict=False)
         else:
             injectable_fixtures = zip_longest(step_definition.target_fixtures, [])
 

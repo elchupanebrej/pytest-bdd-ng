@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from enum import Enum
 from inspect import signature
 from itertools import count, product, starmap
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import pytest
 from _pytest.mark import Mark
@@ -32,7 +32,7 @@ class HookConjunction(Enum):
 
 
 def _get_conjunction_and_kind(
-    *, conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]
+    *, conjunction: str | HookConjunction, kind: str | HookKind
 ) -> tuple[HookConjunction, HookKind]:
     conjunction_ = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     kind_ = HookKind(kind) if isinstance(kind, str) else kind
@@ -73,11 +73,11 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
     )
 
 
-def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]) -> _Decorator:
+def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) -> _Decorator:
     conjunction_, kind_ = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator
-    def decorator_wrapper(expression: Optional[str] = None, name: Optional[str] = None):
+    def decorator_wrapper(expression: str | None = None, name: str | None = None):
         expression_: str = expression if expression is not None else ""
 
         def decorator(func):

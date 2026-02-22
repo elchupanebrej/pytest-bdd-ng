@@ -153,7 +153,7 @@ def get_metafunc_call_arg(call, arg):
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
-def is_testrun_success(exitstatus: Union[int, pytest.ExitCode]) -> bool:
+def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
 
 

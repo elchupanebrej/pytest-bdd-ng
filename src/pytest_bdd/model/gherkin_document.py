@@ -24,7 +24,7 @@ from collections.abc import Sequence
 from functools import partial
 from itertools import chain
 from textwrap import dedent
-from typing import Union, cast
+from typing import cast
 
 from attr import Factory, attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
@@ -138,7 +138,7 @@ class Feature:
         return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
 
     @property
-    def name(self) -> Union[str, None]:
+    def name(self) -> str | None:
         if self.gherkin_document.feature is not None:
             return cast(str, self.gherkin_document.feature.name)
         return None
@@ -218,7 +218,7 @@ class Feature:
         )
 
     def _get_step_keyword(self, step: PickleStep):
-        model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
+        model_step: Step | None = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return model_step.keyword.strip()
         return None
@@ -230,7 +230,7 @@ class Feature:
         return None
 
     def _get_step_line_number(self, step: PickleStep):
-        model_step: Union[Step, None] = self._get_pickle_step_model_step(step)
+        model_step: Step | None = self._get_pickle_step_model_step(step)
         if model_step is not None:
             return location.line if (location := model_step.location) is not None else -1
         return None

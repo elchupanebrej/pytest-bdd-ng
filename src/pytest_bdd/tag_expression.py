@@ -51,7 +51,7 @@ class _MarksTagExpression(_ModernTagExpression):
         )
 
 
-MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression]]
+MarksTagExpression: type[_EnhancedMarksTagExpression | _MarksTagExpression]
 MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 

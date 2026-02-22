@@ -5,6 +5,7 @@ import re
 import sys
 import tempfile
 from base64 import b64encode
+from collections.abc import Callable
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
@@ -13,7 +14,7 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import TYPE_CHECKING, Callable, ClassVar, Union, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import chevron
 import pytest
@@ -122,7 +123,7 @@ class GherkinMessageReporter:
         self.process_messages_thread.join()
 
     @staticmethod
-    def process_messages(queue: Queue, stop_event: Event, messages_file_path: Union[str, Path]):
+    def process_messages(queue: Queue, stop_event: Event, messages_file_path: str | Path):
         with tempfile.TemporaryDirectory() as tmpdirname:
             last_enter = False
             while not (stop_event.is_set() and last_enter):  # give one more enter to take all left messages
@@ -337,7 +338,7 @@ class GherkinMessageReporter:
             return
 
         session = item.session
-        config: Union[Config, HasPytestBDDIdGenerator] = session.config  # https://github.com/python/typing/issues/213
+        config: Config | HasPytestBDDIdGenerator = session.config  # https://github.com/python/typing/issues/213
 
         hook_handler = cast(Config, config).hook
 

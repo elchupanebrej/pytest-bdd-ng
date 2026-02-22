@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -21,7 +20,7 @@ class ScenarioTestCollectorHookSpec:
         """Get parser for specific file path"""
 
     @pytest.hookspec(firstresult=True)
-    def pytest_bdd_convert_tag_to_marks(self, feature, scenario, tag) -> Optional[Iterable[Mark]]:
+    def pytest_bdd_convert_tag_to_marks(self, feature, scenario, tag) -> Iterable[Mark] | None:
         """Apply a tag (from a ``.feature`` file) to the given test item.
 
         The default implementation does the equivalent of

@@ -1,9 +1,9 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, cast
+from typing import Any, cast
 
 from cucumber_messages import Pickle  # type:ignore[import-untyped]
 from pathvalidate import is_valid_filepath
@@ -20,17 +20,17 @@ from pytest_bdd.util.url import is_url_parsable
 
 
 class FeatureLocatorArgs(TypedDict):
-    feature_paths: list[Union[Path, str]]  # List of paths to features
-    filter_: Optional[Callable[[Config, Feature, Any], tuple[Feature, Any]]]  # Callable or string filter
-    return_test_decorator: Optional[bool]
-    encoding: Optional[str]
-    features_base_dir: Optional[Union[Path, str]]
-    features_base_url: Optional[str]
-    features_path_type: Optional[Union[FeaturePathType, str]]  # Enum or string
-    features_mimetype: Optional[str]
-    parser_type: Optional[type[ParserProtocol]]
-    parse_args: Optional[Args]
-    locators: Optional[Iterable[Any]]  # Iterable for locators
+    feature_paths: list[Path | str]  # List of paths to features
+    filter_: Callable[[Config, Feature, Any], tuple[Feature, Any]] | None  # Callable or string filter
+    return_test_decorator: bool | None
+    encoding: str | None
+    features_base_dir: Path | str | None
+    features_base_url: str | None
+    features_path_type: FeaturePathType | str | None  # Enum or string
+    features_mimetype: str | None
+    parser_type: type[ParserProtocol] | None
+    parse_args: Args | None
+    locators: Iterable[Any] | None  # Iterable for locators
 
 
 def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
@@ -56,7 +56,7 @@ class ScenarioLocatorBuilder:
         return str(get_config_root_path(self.config))
 
     @property
-    def default_features_base_url(self) -> Optional[str]:
+    def default_features_base_url(self) -> str | None:
         with suppress(ValueError, KeyError):
             if bool(base_url := self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION))):
                 return str(base_url)
@@ -82,7 +82,7 @@ class ScenarioLocatorBuilder:
         ):
             yield url_locator
 
-    def resolve_features_base_dir(self, features_base_dir: Optional[Union[str, Path, Callable[[Config], str]]]) -> str:
+    def resolve_features_base_dir(self, features_base_dir: str | Path | Callable[[Config], str] | None) -> str:
         """Resolve the base directory for the features from the mark or config."""
         resolved_features_base_dir: str
         if features_base_dir is None:
@@ -93,7 +93,7 @@ class ScenarioLocatorBuilder:
             resolved_features_base_dir = str(features_base_dir)
         return resolved_features_base_dir
 
-    def resolve_features_base_url(self, features_base_url: Optional[Union[str, Path, Callable[[Config], str]]]) -> Any:
+    def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> Any:
         """Resolve the base URL for the features from the mark or config."""
         if features_base_url is None:
             features_base_url = self.default_features_base_url
@@ -102,7 +102,7 @@ class ScenarioLocatorBuilder:
         return features_base_url
 
     @staticmethod
-    def resolve_features_path_type(feature_path_type: Optional[Union[FeaturePathType, str]] = None) -> Any:
+    def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> Any:
         """Resolve the type of feature paths (PATH, URL, or UNDEFINED)."""
         if feature_path_type is None:
             return FeaturePathType.UNDEFINED
@@ -116,7 +116,7 @@ class ScenarioLocatorBuilder:
     @staticmethod
     def _create_file_locator(
         feature_locator_args: FeatureLocatorArgs,
-        filter_: Optional[ScenarioLocatorFilterT],
+        filter_: ScenarioLocatorFilterT | None,
         features_base_dir: Any,
         features_path_type: Any,
     ) -> Any:
@@ -145,7 +145,7 @@ class ScenarioLocatorBuilder:
     @staticmethod
     def _create_url_locator(
         feature_locator_args: FeatureLocatorArgs,
-        filter_: Optional[ScenarioLocatorFilterT],
+        filter_: ScenarioLocatorFilterT | None,
         features_base_url: Any,
         features_path_type: Any,
     ) -> Any:
@@ -174,8 +174,8 @@ class ScenarioLocatorBuilder:
 
     @staticmethod
     def build_scenario_filter(
-        filter_: Optional[Union[ScenarioLocatorFilterT, str, StringRepresentable]],
-    ) -> Optional[ScenarioLocatorFilterT]:
+        filter_: ScenarioLocatorFilterT | str | StringRepresentable | None,
+    ) -> ScenarioLocatorFilterT | None:
         """Build and return a scenario filter function."""
         if callable(filter_):
             return filter_

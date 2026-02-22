@@ -1,5 +1,4 @@
 from collections import deque
-from typing import Optional
 
 import pytest
 from cucumber_messages import PickleStep as Step  # type:ignore[import-untyped]
@@ -96,7 +95,7 @@ def parameter_type_registry():
 def attach(request: FixtureRequest):
     """Fixture parameter type registry for Cucumber expressions"""
 
-    def add_attachment(attachment, media_type: Optional[str] = None, file_name=None):
+    def add_attachment(attachment, media_type: str | None = None, file_name=None):
         request.config.hook.pytest_bdd_attach(
             request=request,
             attachment=attachment,

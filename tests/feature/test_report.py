@@ -2,7 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import Union
 
 import execnet.gateway_base
 
@@ -11,7 +10,7 @@ from pytest_bdd.util.toolz_test import InstanceOfType
 
 def matchreport(
     result,
-    inamepart_match: Union[str, re.Pattern] = "",
+    inamepart_match: str | re.Pattern = "",
     names="pytest_runtest_logreport pytest_collectreport",
     when=None,
 ):

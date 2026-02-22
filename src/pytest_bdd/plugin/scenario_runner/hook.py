@@ -1,5 +1,5 @@
 from io import BufferedIOBase, TextIOBase
-from typing import Any, Optional, Union
+from typing import Any
 
 import pytest
 from cucumber_messages import Pickle  # type:ignore[import-untyped]
@@ -88,8 +88,8 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_attach(
         self,
         request: FixtureRequest,
-        attachment: Union[str, bytes, bytearray, BufferedIOBase, TextIOBase, Any],
-        media_type: Optional[str],
-        file_name: Optional[str],
+        attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | Any,
+        media_type: str | None,
+        file_name: str | None,
     ):
         """Internal hook to add attachment to a test case"""

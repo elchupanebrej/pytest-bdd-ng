@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
 from contextlib import nullcontext, suppress
 from enum import Enum
 from functools import reduce
 from itertools import chain, tee
 from operator import attrgetter, getitem, itemgetter
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal, cast
 
 
 class DefaultMapping(defaultdict):
@@ -46,7 +46,7 @@ class DefaultMapping(defaultdict):
     ):
         if isinstance(bool_or_items, Collection):
             if not isinstance(bool_or_items, Mapping):
-                bool_or_items = zip(*tee(iter(bool_or_items)))
+                bool_or_items = zip(*tee(iter(bool_or_items)), strict=False)
         else:
             bool_or_items = cast(dict, {...: ...} if bool_or_items else {...: DefaultMapping.Skip})
         return cls(bool_or_items, warm_up_keys=warm_up_keys)

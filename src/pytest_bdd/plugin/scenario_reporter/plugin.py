@@ -4,7 +4,7 @@ Collection of the scenario execution statuses, timing and other information
 that enriches the pytest test reporting.
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 import pytest
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
