@@ -7,7 +7,6 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import jq  # type: ignore[import-untyped]
 import pytest
 from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
