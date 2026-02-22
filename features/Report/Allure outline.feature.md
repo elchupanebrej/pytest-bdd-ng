@@ -29,11 +29,11 @@
 
 * When run pytest
 
-    | cli_args | -k test_sample.py |
-    |----------|-------------------|
+    | cli_args | -k test_sample |
+    |----------|----------------|
 
 * Then pytest outcome must contain tests with statuses:
 
     | skipped |
     |---------|
-    | 2       |
+    | 1       |
