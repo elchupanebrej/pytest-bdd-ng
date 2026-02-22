@@ -50,3 +50,64 @@ Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/h
     | subprocess | true            |          |
 
 * Then File "out.html" is not empty
+
+## Scenario: Verbose reporting handles complex scenario parameters
+* Given File "test.feature" with content:
+
+    ```gherkin
+    Feature: Report serialization containing parameters of complex types
+
+      Scenario Outline: Complex
+        Given there is a coordinate <point>
+
+        Examples:
+        | point |
+        | 10,20 |
+    ```
+
+* And File "test_complex.py" with content:
+
+    ```python
+    import pytest
+    from pytest_bdd import given, scenario, parsers
+
+    class Point:
+      def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+      @classmethod
+      def parse(cls, value):
+        return cls(*(int(x) for x in value.split(",")))
+
+    class Alien:
+      pass
+
+    @given(
+      parsers.parse("there is a coordinate {point}"),
+      target_fixture="point",
+      converters={"point": Point.parse},
+    )
+    def _given_point(point):
+      assert isinstance(point, Point)
+
+    @pytest.mark.parametrize("alien", [Alien()])
+    @scenario("test.feature", "Complex")
+    def test_complex(alien):
+      pass
+    ```
+
+* When run pytest
+
+    | cli_args | -vvl | --disable-feature-autoload |
+    |----------|------|----------------------------|
+
+* Then pytest outcome must contain tests with statuses:
+
+    | passed | failed |
+    |--------|--------|
+    | 1      | 0      |
+
+* And pytest outcome must match lines:
+
+    | *test_complex.py::test_complex*alien0*PASSED* |
