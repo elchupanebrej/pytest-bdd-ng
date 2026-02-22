@@ -15,6 +15,10 @@
 - Q: Should automated validation cover all compatible pairs or only a representative subset? → A: Cover all compatible pairs
 - Q: Should all currently uncommitted files be included in this feature scope? → A: Include every currently uncommitted file
 
+### Session 2026-02-22
+
+- Q: Should Python/pytest compatibility work and end-to-end test conversion remain in one spec? → A: No; keep compatibility in this spec and move end-to-end conversion to a separate spec
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Run tests on compatible versions (Priority: P1)
@@ -57,6 +61,13 @@ As a maintainer, I can add support for the new versions without unintentionally 
 **Acceptance Scenarios**:
 
 1. **Given** existing supported runtime/test-runner combinations, **When** the compatibility update is applied, **Then** those existing combinations remain runnable with no new version-gating failures introduced by this feature.
+
+---
+
+### Out of Scope
+
+- Converting existing tests from `tests/` into documentation-style `features/` files is explicitly out of scope for this specification.
+- Any migration of end-to-end scenarios into `features/` MUST be implemented in a separate feature specification and branch.
 
 ### Edge Cases
 

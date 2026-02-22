@@ -1,49 +1,34 @@
 <!-- markdownlint-disable MD013 -->
 
-# Research: Python/Pytest Compatibility Matrix
+# Research: Python/Pytest Compatibility Alignment
 
 ## Decision 1: Compatibility source of truth
 
-- Decision: Use pytest-to-Python compatibility matrix as the canonical rule for valid pairs.
-- Rationale: Matches FR-001 and user clarification to follow pytest compatibility matrix directly.
+- Decision: Use pytest compatibility matrix as canonical Python/pytest support logic.
+- Rationale: Avoids project-specific drift and accidental version restrictions.
 - Alternatives considered:
-  - Maintain a project-specific allowlist: rejected because it drifts and can over-restrict supported pairs.
-  - Only support latest pytest per Python: rejected because it violates full compatible-pair coverage.
+  - Project-maintained static compatibility list: rejected due to maintenance drift.
+  - Latest-only pytest policy: rejected because it violates full compatible-pair support.
 
-## Decision 2: Matrix coverage strategy
+## Decision 2: Matrix validation completeness
 
-- Decision: Generate and maintain tox environments so every pytest-compatible Python/pytest pair has an explicit runnable job.
-- Rationale: Satisfies FR-003 and makes missing coverage detectable.
+- Decision: Keep explicit matrix coverage for all compatible pairs and report pass/fail deterministically.
+- Rationale: Ensures auditability and complete regression signal.
 - Alternatives considered:
-  - Sampled pair coverage: rejected by clarification requiring all compatible pairs.
-  - Dynamic runtime-only expansion without explicit envs: rejected due to lower auditability.
+  - Sampled subset matrix: rejected because coverage would be partial.
+  - Dynamic ad-hoc runs only: rejected because results are not reproducible enough for release gating.
 
-## Decision 3: Local Python 3.14 provisioning
+## Decision 3: Python 3.14 local provisioning
 
-- Decision: Standardize local Python 3.14 setup through conda-forge environment creation for maintainers.
-- Rationale: User explicitly requested conda-forge setup and it provides reproducible access to Python 3.14.
+- Decision: Standardize local Python 3.14 environment setup using conda-forge.
+- Rationale: Aligns with user requirement and gives reproducible maintainer workflow.
 - Alternatives considered:
-  - System Python only: rejected because availability is inconsistent.
-  - pyenv-only path: rejected as non-standard for current team request.
+  - Depend on system Python availability: rejected as inconsistent.
+  - pyenv-only workflow: rejected because conda-forge path was explicitly requested.
 
-## Decision 4: Incompatible/unavailable pair handling
+## Decision 4: Governance and commit hygiene
 
-- Decision: Fail fast with explicit compatibility reason codes and actionable message text.
-- Rationale: Required by FR-006 and reduces troubleshooting time.
+- Decision: Keep constitutional requirements for task-traceable commits and mandatory clean pre-commit before commit.
+- Rationale: Governance is normative for this repository.
 - Alternatives considered:
-  - Silent skip: rejected because it hides coverage gaps.
-  - Raw dependency install errors only: rejected because diagnostics are not user-actionable.
-
-## Decision 5: Feature-scope inclusion policy
-
-- Decision: Treat all currently uncommitted files as in-scope deliverables for this feature.
-- Rationale: Direct clarification recorded in spec (FR-008).
-- Alternatives considered:
-  - Include only matrix-related files: rejected because it conflicts with accepted clarification.
-
-## Decision 6: Commit hygiene enforcement
-
-- Decision: Planning and implementation must respect constitution v1.1.0 (task-ID commit messages, mandatory clean pre-commit before commit).
-- Rationale: Constitution is normative and applies to feature delivery gates.
-- Alternatives considered:
-  - Defer commit policy to post-merge cleanup: rejected because governance requires enforcement before commit.
+  - Enforce only in CI: rejected because local commit-time quality gate is required.

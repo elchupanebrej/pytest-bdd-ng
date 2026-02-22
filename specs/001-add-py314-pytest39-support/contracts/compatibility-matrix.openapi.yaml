@@ -2,10 +2,8 @@
 openapi: 3.0.3
 info:
   title: Python/Pytest Compatibility Contract
-  version: 1.1.0
-  description: >-
-    Contract describing matrix listing, pair validation, and in-scope file
-    tracking.
+  version: 1.2.0
+  description: Contract for compatibility matrix operations and feature scope tracking.
 paths:
   /compatibility/matrix:
     get:
@@ -52,7 +50,7 @@ paths:
                 $ref: '#/components/schemas/PairValidationResult'
   /compatibility/jobs/expand:
     post:
-      summary: Expand runnable tox environments for compatible entries
+      summary: Expand tox environment names for compatible entries
       requestBody:
         required: true
         content:
@@ -73,7 +71,7 @@ paths:
                         type: string
       responses:
         '200':
-          description: Expanded tox environment names
+          description: Expanded tox env names
           content:
             application/json:
               schema:
@@ -86,10 +84,10 @@ paths:
                       type: string
   /feature/scope/uncommitted-files:
     get:
-      summary: List all uncommitted files included in current feature scope
+      summary: List uncommitted files included in this feature scope
       responses:
         '200':
-          description: In-scope uncommitted files
+          description: In-scope file list
           content:
             application/json:
               schema:
@@ -104,11 +102,7 @@ components:
   schemas:
     CompatibilityMatrixEntry:
       type: object
-      required:
-        - pythonVersion
-        - pytestVersion
-        - isCompatible
-        - reasonCode
+      required: [pythonVersion, pytestVersion, isCompatible, reasonCode]
       properties:
         pythonVersion:
           type: string
@@ -152,10 +146,7 @@ components:
           type: string
     FeatureScopeFile:
       type: object
-      required:
-        - path
-        - changeType
-        - includedInFeature
+      required: [path, changeType, includedInFeature]
       properties:
         path:
           type: string
