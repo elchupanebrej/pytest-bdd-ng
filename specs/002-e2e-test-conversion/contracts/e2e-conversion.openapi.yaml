@@ -118,6 +118,10 @@ components:
         - featurePath
         - verdict
         - findings
+        - happyPathCovered
+        - failurePathCovered
+        - boundaryPathCovered
+        - restorationRequired
       properties:
         taskId:
           type: string
@@ -130,6 +134,14 @@ components:
           enum: [pass, pending, fail]
         findings:
           type: string
+        happyPathCovered:
+          type: boolean
+        failurePathCovered:
+          type: boolean
+        boundaryPathCovered:
+          type: boolean
+        restorationRequired:
+          type: boolean
         remediationCommit:
           type: string
           nullable: true

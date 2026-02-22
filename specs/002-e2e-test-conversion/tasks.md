@@ -7,103 +7,115 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Establish inventory, parity rubric, and marker contract for all later conversion work.
+**Purpose**: establish parity accounting and inventory structure used by all stories.
 
-- [X] T001 Build conversion candidate inventory with rubric columns in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
-- [X] T002 Define parity checklist template (intent, assertions, clarity, stale-link check) in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T003 Register canonical markers `e2e_convert_candidate`, `e2e_retain_technical`, and `e2e_deferred_conversion` in `pytest.ini`
-- [X] T004 Align conversion API schema enums and fields with marker policy in `specs/002-e2e-test-conversion/contracts/e2e-conversion.openapi.yaml`
+- [X] T001 Align marker declarations in `pytest.ini` for `e2e_convert_candidate`, `e2e_retain_technical`, and `e2e_deferred_conversion`
+- [X] T002 Define category-parity checklist fields (happy/failure/boundary) in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T003 Add restoration-required flag column for FR-006B in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T004 Sync OpenAPI parity fields with category-parity rule in `specs/002-e2e-test-conversion/contracts/e2e-conversion.openapi.yaml`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Apply classification marks and baseline retention/deferred policy before any conversion.
+**Purpose**: classify tests and restore any deleted pytest sources lacking parity evidence.
 
-**⚠️ CRITICAL**: User story conversion tasks start only after this phase is complete.
+**⚠️ CRITICAL**: complete this phase before any additional deletion work.
 
-- [X] T005 Mark conversion candidates with `@pytest.mark.e2e_convert_candidate` in `tests/feature/test_alias.py`, `tests/feature/test_background.py`, `tests/feature/test_markdown.py`, `tests/feature/test_no_sctrict_gherkin.py`, `tests/feature/test_outline.py`, `tests/feature/test_outline_empty_values.py`, `tests/feature/test_rule.py`, `tests/feature/test_scenario.py`, `tests/feature/test_scenarios.py`, `tests/feature/test_tags.py`, `tests/feature/test_wrong.py`, and `tests/feature/test_http.py`
-- [X] T006 Mark conversion candidates with `@pytest.mark.e2e_convert_candidate` in `tests/feature/test_autoload.py`, `tests/feature/test_cucumber_json.py`, `tests/feature/test_gherkin_terminal_reporter.py`, `tests/feature/test_report.py`, `tests/feature/test_steps.py`, `tests/allure_/test_allure_outline.py`, `tests/allure_/test_allure_scenario.py`, `tests/struct_bdd/test_deserialization.py`, and `tests/struct_bdd/test_steps.py`
-- [X] T007 Mark retained technical tests with `@pytest.mark.e2e_retain_technical` in `tests/e2e/test_e2e.py` and `tests/e2e/allure/test_e2e_allure.py`
-- [X] T008 Mark blocked-but-convertible tests with `@pytest.mark.e2e_deferred_conversion` (with unblock notes) in `tests/compatibility/test_e2e_inventory.py`
-- [X] T009 Persist classification decisions and rationale for all marked tests in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T005 Restore `tests/feature/test_autoload.py` from pre-deletion history into `tests/feature/test_autoload.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T006 Restore `tests/feature/test_cucumber_json.py` from pre-deletion history into `tests/feature/test_cucumber_json.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T007 Restore `tests/feature/test_gherkin_terminal_reporter.py` from pre-deletion history into `tests/feature/test_gherkin_terminal_reporter.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T008 Restore `tests/feature/test_report.py` from pre-deletion history into `tests/feature/test_report.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T009 Restore `tests/feature/test_steps.py` from pre-deletion history into `tests/feature/test_steps.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T010 Restore `tests/struct_bdd/test_steps.py` from pre-deletion history into `tests/struct_bdd/test_steps.py` and mark inventory status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T011 Apply `@pytest.mark.e2e_retain_technical` to retained harness modules in `tests/e2e/test_e2e.py` and `tests/e2e/allure/test_e2e_allure.py`
+- [X] T012 Apply `@pytest.mark.e2e_deferred_conversion` to deferred coverage modules in `tests/feature/test_outline.py`, `tests/feature/test_http.py`, and `tests/struct_bdd/test_deserialization.py`
 
-**Checkpoint**: Marker and inventory baseline is complete; conversion tasks can start.
+**Checkpoint**: restoration + marker baseline complete.
 
 ---
 
 ## Phase 3: User Story 1 - Learn usage from feature docs (Priority: P1) 🎯 MVP
 
-**Goal**: Convert user-facing pytest scenarios into feature documentation with parity and optional source-test deletion.
+**Goal**: ensure converted feature docs preserve user-facing behavior while preventing edge-case coverage loss.
 
-**Independent Test**: `python -m pytest -q tests/e2e tests/compatibility/test_e2e_no_duplicates.py`
+**Independent Test**: `conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/feature tests/e2e`
 
-### Implementation for User Story 1 (High Priority)
+### High-Priority Conversion Parity
 
-- [X] T010 [US1] Convert `tests/feature/test_alias.py` to `features/Scenario/Alias.feature.md` and delete converted pytest coverage from `tests/feature/test_alias.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T011 [US1] Convert `tests/feature/test_background.py` to `features/Scenario/Background.feature.md` and delete converted pytest coverage from `tests/feature/test_background.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T012 [US1] Convert `tests/feature/test_markdown.py` to `features/Feature/Markdown parsing.feature.md` and delete converted pytest coverage from `tests/feature/test_markdown.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T013 [US1] Convert `tests/feature/test_no_sctrict_gherkin.py` to `features/Feature/Non-strict gherkin.feature.md` and delete converted pytest coverage from `tests/feature/test_no_sctrict_gherkin.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T014 [US1] Keep deferred technical coverage in `tests/feature/test_outline.py` while user-facing conversion remains in `features/Scenario/Outline/Runtime expansion.feature.md` with deferred status tracked in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
-- [X] T015 [US1] Convert `tests/feature/test_outline_empty_values.py` to `features/Scenario/Outline/Empty values.feature.md` and delete converted pytest coverage from `tests/feature/test_outline_empty_values.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T016 [US1] Convert `tests/feature/test_rule.py` to `features/Feature/Rule.feature.md` and delete converted pytest coverage from `tests/feature/test_rule.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T017 [US1] Convert `tests/feature/test_scenario.py` to `features/Scenario/Scenario binding.feature.md` and delete converted pytest coverage from `tests/feature/test_scenario.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T018 [US1] Convert `tests/feature/test_scenarios.py` to `features/Scenario/Scenarios loader.feature.md` and delete converted pytest coverage from `tests/feature/test_scenarios.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T019 [US1] Convert `tests/feature/test_tags.py` to `features/Scenario/Tag filtering.feature.md` and delete converted pytest coverage from `tests/feature/test_tags.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T020 [US1] Convert `tests/feature/test_wrong.py` to `features/Feature/Error reporting.feature.md` and delete converted pytest coverage from `tests/feature/test_wrong.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T021 [US1] Keep deferred technical coverage in `tests/feature/test_http.py` while user-facing conversion remains in `features/Feature/Load/HTTP feature loading.feature.md` with deferred status tracked in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T013 [US1] Record category parity evidence for `tests/feature/test_alias.py` against `features/Scenario/Alias.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T014 [US1] Record category parity evidence for `tests/feature/test_background.py` against `features/Scenario/Background.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T015 [US1] Record category parity evidence for `tests/feature/test_markdown.py` against `features/Feature/Markdown parsing.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T016 [US1] Record category parity evidence for `tests/feature/test_no_sctrict_gherkin.py` against `features/Feature/Non-strict gherkin.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T017 [US1] Record category parity evidence for `tests/feature/test_outline_empty_values.py` against `features/Scenario/Outline/Empty values.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T018 [US1] Record category parity evidence for `tests/feature/test_rule.py` against `features/Feature/Rule.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T019 [US1] Record category parity evidence for `tests/feature/test_scenario.py` against `features/Scenario/Scenario binding.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T020 [US1] Record category parity evidence for `tests/feature/test_scenarios.py` against `features/Scenario/Scenarios loader.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T021 [US1] Record category parity evidence for `tests/feature/test_tags.py` against `features/Scenario/Tag filtering.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T022 [US1] Record category parity evidence for `tests/feature/test_wrong.py` against `features/Feature/Error reporting.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T023 [US1] Keep deferred split status for `tests/feature/test_outline.py` and `tests/feature/test_http.py` synchronized in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
 
-### Implementation for User Story 1 (Medium Priority)
+### Medium-Priority Conversion Parity
 
-- [X] T030 [US1] Convert `tests/feature/test_autoload.py` to `features/Feature/Load/Autoload.feature.md` and delete converted pytest coverage from `tests/feature/test_autoload.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T031 [US1] Convert `tests/feature/test_cucumber_json.py` to `features/Report/Cucumber JSON reporter.feature.md` and delete converted pytest coverage from `tests/feature/test_cucumber_json.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T032 [US1] Convert `tests/feature/test_gherkin_terminal_reporter.py` to `features/Report/Gherkin terminal reporter.feature.md` and delete converted pytest coverage from `tests/feature/test_gherkin_terminal_reporter.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T033 [US1] Convert `tests/feature/test_report.py` to `features/Report/Gathering.feature.md` and delete converted pytest coverage from `tests/feature/test_report.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T034 [US1] Convert user-facing part of `tests/feature/test_steps.py` to `features/Step/Step lifecycle and errors.feature.md` and delete only converted pytest coverage from `tests/feature/test_steps.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T035 [US1] Convert user-facing part of `tests/allure_/test_allure_outline.py` to `features/Report/Allure outline.feature.md` and delete only converted pytest coverage from `tests/allure_/test_allure_outline.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T036 [US1] Convert user-facing part of `tests/allure_/test_allure_scenario.py` to `features/Report/Allure scenario.feature.md` and delete only converted pytest coverage from `tests/allure_/test_allure_scenario.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T037 [US1] Defer conversion of `tests/struct_bdd/test_deserialization.py` and track unblock condition/target cycle in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
-- [X] T038 [US1] Convert user-facing part of `tests/struct_bdd/test_steps.py` to `features/StructBDD/Steps.feature.md` and delete only converted pytest coverage from `tests/struct_bdd/test_steps.py` when parity is PASS in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T024 [US1] Record category parity evidence for `tests/feature/test_autoload.py` against `features/Feature/Load/Autoload.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T025 [US1] Record category parity evidence for `tests/feature/test_cucumber_json.py` against `features/Report/Cucumber JSON reporter.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T026 [US1] Record category parity evidence for `tests/feature/test_gherkin_terminal_reporter.py` against `features/Report/Gherkin terminal reporter.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T027 [US1] Record category parity evidence for `tests/feature/test_report.py` against `features/Report/Gathering.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T028 [US1] Record category parity evidence for `tests/feature/test_steps.py` against `features/Step/Step lifecycle and errors.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T029 [US1] Record category parity evidence for `tests/allure_/test_allure_outline.py` against `features/Report/Allure outline.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T030 [US1] Record category parity evidence for `tests/allure_/test_allure_scenario.py` against `features/Report/Allure scenario.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T031 [US1] Record category parity evidence for `tests/struct_bdd/test_steps.py` against `features/StructBDD/Steps.feature.md` in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T032 [US1] Keep deferred split status for `tests/struct_bdd/test_deserialization.py` synchronized in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
 
-**Checkpoint**: User-facing conversion set is runnable from `features/` with duplicate cleanup only for parity-complete coverage.
+### Conditional Deletion (Only After Evidence)
+
+- [X] T033 [US1] Delete `tests/feature/test_autoload.py` only when T024 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T034 [US1] Delete `tests/feature/test_cucumber_json.py` only when T025 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T035 [US1] Delete `tests/feature/test_gherkin_terminal_reporter.py` only when T026 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T036 [US1] Delete `tests/feature/test_report.py` only when T027 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T037 [US1] Delete `tests/feature/test_steps.py` only when T028 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T038 [US1] Delete `tests/struct_bdd/test_steps.py` only when T031 category parity is PASS and record deletion evidence in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+
+**Checkpoint**: converted features have explicit edge-case parity evidence before deletion.
 
 ---
 
 ## Phase 4: User Story 2 - Preserve technical coverage boundaries (Priority: P2)
 
-**Goal**: Keep technical tests in pytest with enforceable retention/deferred policy.
+**Goal**: prevent regression by retaining technical/deferred coverage until parity requirements are met.
 
-**Independent Test**: `python -m pytest -q tests/compatibility/test_e2e_classification.py tests/e2e/test_e2e.py`
+**Independent Test**: `conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility/test_e2e_inventory.py tests/compatibility/test_e2e_no_duplicates.py`
 
-- [X] T040 [US2] Verify every retained technical module has `@pytest.mark.e2e_retain_technical` in `tests/e2e/test_e2e.py` and `tests/e2e/allure/test_e2e_allure.py`
-- [X] T041 [US2] Verify deferred tests include `@pytest.mark.e2e_deferred_conversion` and unblock metadata in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
-- [X] T042 [US2] Add non-removal guard checks for retained/deferred tests in `tests/compatibility/test_e2e_no_duplicates.py`
+- [X] T039 [US2] Add enforcement test for FR-006B restoration rule in `tests/compatibility/test_e2e_no_duplicates.py`
+- [X] T040 [US2] Add enforcement test for category-parity fields in parity audit rows in `tests/compatibility/test_e2e_inventory.py`
+- [X] T041 [US2] Ensure retained/deferred markers and unblock metadata stay synchronized in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
 
-**Checkpoint**: Non-convertible tests are protected from accidental deletion.
+**Checkpoint**: technical and deferred coverage cannot be accidentally dropped.
 
 ---
 
 ## Phase 5: User Story 3 - Audit conversion parity per commit (Priority: P2)
 
-**Goal**: Enforce conversion quality and commit-level remediation traceability.
+**Goal**: maintain commit-level traceability and auditable parity outcomes for each conversion.
 
-**Independent Test**: `python -m pytest -q tests/compatibility/test_e2e_inventory.py tests/compatibility/test_e2e_migration_threshold.py`
+**Independent Test**: `conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/e2e`
 
-- [X] T043 [US3] Record parity verdict for T010-T038 with source/feature mapping in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T044 [US3] Record follow-up fix commit IDs for failed parity checks in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
-- [X] T045 [US3] Validate no converted feature references deleted pytest files and record check results in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T042 [US3] Record source-to-feature mapping and verdict for T013-T032 in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T043 [US3] Record follow-up remediation commit IDs for any non-PASS parity entries in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
+- [X] T044 [US3] Validate no stale links to deleted pytest files in `features/` and document command/output in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
 
-**Checkpoint**: Every conversion task has auditable parity status and remediation linkage.
+**Checkpoint**: every conversion decision is traceable and reproducible.
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final quality checks across all stories.
+**Purpose**: run final validation and publish migration summary.
 
-- [X] T046 Run full pre-commit checks and resolve findings in `.pre-commit-config.yaml`
-- [X] T047 Run quickstart validation commands and update expected workflow notes in `specs/002-e2e-test-conversion/quickstart.md`
-- [X] T048 Recalculate migration threshold progress and update summary rows in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
+- [X] T045 Run full static checks with `conda run -n pytest-bdd-ng-py314 pre-commit run --all-files`
+- [X] T046 Run CI-aligned validation slice `conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/e2e`
+- [X] T047 Update quickstart commands and expected outcomes in `specs/002-e2e-test-conversion/quickstart.md`
+- [X] T048 Recalculate migration metrics and threshold status in `specs/002-e2e-test-conversion/e2e-migration-inventory.md`
 
 ---
 
@@ -111,47 +123,47 @@
 
 ### Phase Dependencies
 
-- **Phase 1 (Setup)**: starts immediately.
-- **Phase 2 (Foundational)**: depends on Phase 1 and blocks all user stories.
-- **Phase 3 (US1)**: depends on Phase 2.
-- **Phase 4 (US2)**: depends on Phase 2; should run after or alongside late Phase 3 cleanup.
-- **Phase 5 (US3)**: depends on Phase 3 outputs and uses Phase 4 safeguards.
-- **Phase 6 (Polish)**: depends on completion of Phases 3-5.
+- **Phase 1** → no dependencies.
+- **Phase 2** → depends on Phase 1 and blocks all user stories.
+- **Phase 3 (US1)** → depends on Phase 2.
+- **Phase 4 (US2)** → depends on Phase 2 and should complete before Phase 6.
+- **Phase 5 (US3)** → depends on Phase 3 parity evidence.
+- **Phase 6** → depends on Phases 3, 4, and 5.
 
 ### User Story Dependencies
 
-- **US1 (P1)**: starts after foundational markers/inventory are complete.
-- **US2 (P2)**: depends on marker baseline and feeds cleanup guardrails used by US1 cleanup.
-- **US3 (P2)**: depends on conversion outputs from US1 and classification/retention signals from US2.
+- **US1 (P1)**: requires restoration + marker baseline first.
+- **US2 (P2)**: enforces retention/deferred and restoration guardrails used by US1.
+- **US3 (P2)**: consumes parity outputs from US1 and rule checks from US2.
 
 ### Within Each User Story
 
-- Apply/update markers and inventory baseline before converting tests.
-- For each conversion task: convert -> validate parity -> delete duplicate pytest coverage only when parity is PASS.
-- Record parity and remediation commit links before marking task complete.
+- Write parity evidence before deletion tasks.
+- Delete source pytest files only after category parity PASS entries exist.
+- Record follow-up commits for any parity remediation.
 
 ## Parallel Execution Examples
 
 ### US1 Parallel Example
 
 ```bash
-Task: "T010 Convert tests/feature/test_alias.py -> features/Scenario/Alias.feature.md"
-Task: "T011 Convert tests/feature/test_background.py -> features/Scenario/Background.feature.md"
-Task: "T012 Convert tests/feature/test_markdown.py -> features/Feature/Markdown parsing.feature.md"
+Task: "T024 Record category parity for tests/feature/test_autoload.py"
+Task: "T025 Record category parity for tests/feature/test_cucumber_json.py"
+Task: "T026 Record category parity for tests/feature/test_gherkin_terminal_reporter.py"
 ```
 
 ### US2 Parallel Example
 
 ```bash
-Task: "T040 Verify retained markers in tests/e2e/test_e2e.py and tests/e2e/allure/test_e2e_allure.py"
-Task: "T041 Verify deferred markers/unblock metadata in specs/002-e2e-test-conversion/e2e-migration-inventory.md"
+Task: "T039 Add FR-006B restoration guard in tests/compatibility/test_e2e_no_duplicates.py"
+Task: "T040 Add category-parity audit guard in tests/compatibility/test_e2e_inventory.py"
 ```
 
 ### US3 Parallel Example
 
 ```bash
-Task: "T043 Record parity verdicts in specs/002-e2e-test-conversion/conversion-parity-audit.md"
-Task: "T045 Record stale-link validation in specs/002-e2e-test-conversion/conversion-parity-audit.md"
+Task: "T042 Record mapping/verdict rows in conversion-parity-audit.md"
+Task: "T044 Validate stale links in features/ and append evidence to conversion-parity-audit.md"
 ```
 
 ## Implementation Strategy
@@ -159,17 +171,17 @@ Task: "T045 Record stale-link validation in specs/002-e2e-test-conversion/conver
 ### MVP First (US1)
 
 1. Complete Phase 1 and Phase 2.
-2. Deliver high-priority US1 conversions (T010-T021).
-3. Validate parity and delete duplicates only where PASS.
+2. Complete US1 parity evidence tasks (T013-T032).
+3. Execute conditional deletion tasks only for PASS-parity cases.
 
 ### Incremental Delivery
 
-1. Finish medium-priority US1 conversions (T030-T038).
-2. Apply US2 retention/deferred safeguards.
-3. Finalize US3 parity traceability and polish checks.
+1. Enforce US2 regression guards.
+2. Complete US3 traceability and stale-link verification.
+3. Run polish checks and update migration summary.
 
 ### Commit Discipline
 
-1. Commit each completed task (or tightly coupled task pair) with task IDs in commit message.
-2. Run pre-commit before every commit and fix all findings.
-3. Keep parity remediations in follow-up commits only.
+1. Commit per completed task or tightly related pair with task IDs in message.
+2. Run pre-commit before each commit and resolve all issues.
+3. Keep parity remediations in follow-up commits; do not rewrite history.

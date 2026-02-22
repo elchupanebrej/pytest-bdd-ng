@@ -18,6 +18,9 @@
 - Q: What is the lifecycle for retained technical tests? → A: Keep them in CI and re-evaluate conversion eligibility each feature cycle
 - Q: Should classification support deferred conversion state? → A: Yes, add deferred status with explicit unblock condition and due cycle
 - Q: How should deferred conversion be tagged? → A: Use canonical marker `@pytest.mark.e2e_deferred_conversion`
+- Q: What is the deletion policy for converted pytest tests? → A: Delete only after proving equal-or-higher coverage via explicit parity metrics
+- Q: What parity metric is mandatory before deletion? → A: Category parity is required: happy path + failure path + boundary/empty case
+- Q: How to handle already deleted pytest tests without category-parity evidence? → A: Restore them unless parity audit explicitly proves category parity
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -63,6 +66,7 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - Mixed tests containing both user-facing and low-level assertions must be split: user-facing part in `features/`, low-level part remains in `tests/`.
 - Converted docs must not link to test files that are expected to be deleted.
 - Auto-discovery/autoload behavior must be preserved; conversions must not rely on duplicated manual runs to pass.
+- Previously deleted pytest tests without category-parity evidence must be treated as regression-risk and restored.
 
 ## Requirements *(mandatory)*
 
@@ -74,6 +78,8 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - **FR-004**: Converted feature files MUST include a clear description of what is tested and why.
 - **FR-005**: Converted feature files MUST NOT depend on links to source pytest files that are deleted.
 - **FR-006**: Duplicate pytest tests MAY be removed only when converted coverage is verified as parity-complete.
+- **FR-006A**: Deleting converted pytest tests is allowed ONLY when explicit parity metrics prove category parity against the original tests: at least one happy-path, one failure-path, and one boundary/empty-case assertion set.
+- **FR-006B**: If a pytest source test was deleted without recorded category-parity evidence, it MUST be restored until parity evidence is added and validated.
 - **FR-007**: Every conversion task MUST have an audit entry mapping source test, converted file, verdict, and remediation commit.
 - **FR-008**: Conversion fixes MUST be delivered in follow-up commits; no history rewrite for parity remediation.
 - **FR-009**: Conversion classification MUST use canonical pytest markers `@pytest.mark.e2e_convert_candidate`, `@pytest.mark.e2e_retain_technical`, and `@pytest.mark.e2e_deferred_conversion`, and those markers MUST be registered in `pytest.ini`.
@@ -119,6 +125,7 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 ### Measurable Outcomes
 
 - **SC-001**: At least 80% of tests marked `@pytest.mark.e2e_convert_candidate` in `specs/002-e2e-test-conversion/e2e-migration-inventory.md` are represented in runnable `features/*.feature.md` scenarios.
+- **SC-001A**: Each deletion candidate MUST record category parity in parity audit with happy-path, failure-path, and boundary/empty-case coverage explicitly marked as satisfied.
 - **SC-002**: 100% of converted scenarios have parity audit entries with explicit verdicts.
 - **SC-003**: 100% of retained technical tests include a non-convertible classification marker.
 - **SC-004**: 100% of conversion-related fix actions are delivered as follow-up commits linked from audit records.

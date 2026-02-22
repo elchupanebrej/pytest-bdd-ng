@@ -18,7 +18,7 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.plugin.struct_bdd.model_builder import GherkinDocumentBuilder
 
 pytestmark = [
-    pytest.mark.e2e_convert_candidate,
+    pytest.mark.e2e_deferred_conversion,
     pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed"),
 ]
 
