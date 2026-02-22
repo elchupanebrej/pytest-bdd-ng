@@ -324,6 +324,7 @@ max-complexity = 10  # TODO target is 6
 "docs/conf.py" = ["ERA001"]
 "docs/tutorial/tests/*" = ["S101", "S506"]
 "src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin
+"src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]
 "tests/*" = ["D103", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "S101", "S506"]

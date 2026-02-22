@@ -266,7 +266,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
         map(
             lambda step_def_id: next(  # type: ignore[no-any-return]
                 filter(
-                    lambda s: (s[1].type == step_def_id[0] and s[1].text == step_def_id[1]),
+                    lambda s: s[1].type == step_def_id[0] and s[1].text == step_def_id[1],
                     feature_pickles_steps,
                 ),
             ),

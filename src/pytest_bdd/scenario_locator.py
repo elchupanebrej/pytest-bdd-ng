@@ -189,14 +189,14 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
     encoding = attrib(
         default=FileScenarioLocatorDefaults.encoding,
-        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.encoding()),
+        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
     )
     features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
     mimetype: Optional[Union[str, Enum]] = attrib(default=None)
     parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
     parse_args: Args = attrib(
         default=Factory(FileScenarioLocatorDefaults.parse_args),
-        converter=lambda _: (_ if _ is not None else FileScenarioLocatorDefaults.parse_args()),
+        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
     )
 
     def _resolve_features_base_dir(self, config: Union[Config, HasPytestBDDIdGenerator]):

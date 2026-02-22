@@ -150,11 +150,11 @@ class Join(BaseModel):
                                 product(
                                     [
                                         value
-                                        for _parameter, value in zip(
+                                        for table_parameter, value in zip(
                                             filled_tables_parameters,
                                             filled_tables_values,
                                         )
-                                        if parameter == _parameter
+                                        if parameter == table_parameter
                                     ],
                                     repeat=2,
                                 ),
@@ -169,8 +169,8 @@ class Join(BaseModel):
                             filled_tables_values=filled_tables_values,
                         ):
                             for parameter in parameters:
-                                for _parameter, value in zip(filled_tables_parameters, filled_tables_values):
-                                    if parameter == _parameter:
+                                for table_parameter, value in zip(filled_tables_parameters, filled_tables_values):
+                                    if parameter == table_parameter:
                                         yield value
                                         break
 
@@ -257,11 +257,11 @@ class StepPrototype(Node):
             steps = [self, *chain.from_iterable(map(attrgetter("steps"), routes))]
 
             if self.examples:
-                for _example_table in self.examples:
+                for example_candidate in self.examples:
                     example_table = Join(
                         tables=[
                             *map(attrgetter("example_table"), routes),
-                            _example_table,
+                            example_candidate,
                         ]
                     )
                     tags = list(

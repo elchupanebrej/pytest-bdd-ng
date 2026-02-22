@@ -24,6 +24,8 @@ tests/
 
 - Follow repository linting/formatting via `ruff` and pre-commit hooks.
 - Keep compatibility behavior aligned with pytest Python-version support matrix.
+- For non-native platform test environments, run via the Docker skill; Windows
+  targets are exempt from this Docker requirement.
 
 ## Recent Changes
 - 001-add-py314-pytest39-support: Added Python 3.14 support path via conda-forge.
