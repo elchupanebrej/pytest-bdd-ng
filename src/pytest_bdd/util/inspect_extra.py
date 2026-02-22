@@ -1,7 +1,7 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from inspect import getframeinfo, signature
 from sys import _getframe
-from typing import Any, Callable
+from typing import Any
 
 
 def get_args(func: Callable) -> Sequence[str]:

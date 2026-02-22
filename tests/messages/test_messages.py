@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from cucumber_messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     Attachment,
@@ -62,7 +62,7 @@ def unfold_message(message: Message):
     raise ValueError("Empty message was given")  # noqa:TRY003
 
 
-def list_filter_by_type(t: Union[type, Iterable[type]], items):
+def list_filter_by_type(t: type | Iterable[type], items):
     return list(filter(partial(flip(isinstance), tuple(t) if isinstance(t, Iterable) else t), items))
 
 

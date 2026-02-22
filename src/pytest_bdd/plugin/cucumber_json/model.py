@@ -14,8 +14,8 @@ class Argument(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    value: Optional[str] = None
-    offset: Optional[float] = None
+    value: str | None = None
+    offset: float | None = None
 
 
 class Status(Enum):
@@ -32,9 +32,9 @@ class DocString(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    line: Optional[float] = None
-    value: Optional[str] = None
-    content_type: Optional[str] = None
+    line: float | None = None
+    value: str | None = None
+    content_type: str | None = None
 
 
 class DataTableRow(BaseModel):
@@ -51,7 +51,7 @@ class Tag(BaseModel):
         populate_by_name=True,
     )
     name: str
-    line: Optional[float] = None
+    line: float | None = None
 
 
 class Match(BaseModel):
@@ -59,8 +59,8 @@ class Match(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    location: Optional[str] = None
-    arguments: Optional[list["Argument"]] = None
+    location: str | None = None
+    arguments: list["Argument"] | None = None
 
 
 class Result(BaseModel):
@@ -68,9 +68,9 @@ class Result(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    duration: Optional[float] = None
+    duration: float | None = None
     status: "Status"
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class Step(BaseModel):
@@ -78,13 +78,13 @@ class Step(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    keyword: Optional[str] = None
-    line: Optional[float] = None
+    keyword: str | None = None
+    line: float | None = None
     match: Optional["Match"] = None
-    name: Optional[str] = None
+    name: str | None = None
     result: Optional["Result"] = None
     doc_string: Optional["DocString"] = None
-    rows: Optional[list["DataTableRow"]] = None
+    rows: list["DataTableRow"] | None = None
 
 
 class Hook(BaseModel):
@@ -101,17 +101,17 @@ class Element(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    start_timestamp: Optional[str] = None
-    line: Optional[float] = None
-    id: Optional[str] = None
+    start_timestamp: str | None = None
+    line: float | None = None
+    id: str | None = None
     type: Optional["ElementType"] = None
-    keyword: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    before: Optional[list["Hook"]] = None
-    steps: Optional[list["Step"]] = None
-    after: Optional[list["Hook"]] = None
-    tags: Optional[list["Tag"]] = None
+    keyword: str | None = None
+    name: str | None = None
+    description: str | None = None
+    before: list["Hook"] | None = None
+    steps: list["Step"] | None = None
+    after: list["Hook"] | None = None
+    tags: list["Tag"] | None = None
 
 
 class Feature(BaseModel):
@@ -119,14 +119,14 @@ class Feature(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    uri: Optional[str] = None
-    id: Optional[str] = None
-    line: Optional[float] = None
-    keyword: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    elements: Optional[list["Element"]] = None
-    tags: Optional[list["Tag"]] = None
+    uri: str | None = None
+    id: str | None = None
+    line: float | None = None
+    keyword: str | None = None
+    name: str | None = None
+    description: str | None = None
+    elements: list["Element"] | None = None
+    tags: list["Tag"] | None = None
 
 
 class CucumberJson(BaseModel):
@@ -134,5 +134,5 @@ class CucumberJson(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    implementation: Optional[str] = None
-    features: Optional[list["Feature"]] = None
+    implementation: str | None = None
+    features: list["Feature"] | None = None

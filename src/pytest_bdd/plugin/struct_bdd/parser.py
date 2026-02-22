@@ -1,6 +1,5 @@
 from functools import partial
 from pathlib import Path
-from typing import Union
 
 from attr import attrib, attrs
 
@@ -36,7 +35,7 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 hookspec
+        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 hookspec
         path: Path,
         uri: str,
         *args,

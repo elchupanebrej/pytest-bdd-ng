@@ -1,5 +1,5 @@
 from operator import attrgetter
-from typing import Optional, Protocol, Union, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 from attr import attrib, attrs
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
@@ -51,7 +51,7 @@ class _MarksTagExpression(_ModernTagExpression):
         )
 
 
-MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression]]
+MarksTagExpression: type[_EnhancedMarksTagExpression | _MarksTagExpression]
 MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 
@@ -71,4 +71,4 @@ class GherkinTagExpression(TagExpression):
         return self.expression.evaluate(map(attrgetter("name"), marks))
 
 
-TagExpressionType = Union[_EnhancedMarksTagExpression, _MarksTagExpression, GherkinTagExpression]
+TagExpressionType = _EnhancedMarksTagExpression | _MarksTagExpression | GherkinTagExpression

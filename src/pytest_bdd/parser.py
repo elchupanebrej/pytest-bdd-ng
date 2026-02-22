@@ -1,6 +1,6 @@
 import linecache
 from pathlib import Path
-from typing import Union, cast
+from typing import cast
 
 from attr import attrs
 from gherkin.ast_builder import AstBuilder
@@ -41,7 +41,7 @@ class BaseParser(ParserProtocol):
 class GherkinParser(BaseParser):
     def parse(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
+        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 overload
         path: Path,
         uri: str,
         *args,
@@ -74,7 +74,7 @@ class GherkinParser(BaseParser):
 class MarkdownGherkinParser(BaseParser):
     def parse(
         self,
-        config: Union[Config, HasPytestBDDIdGenerator],  # noqa: ARG002 overload
+        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 overload
         path: Path,
         uri: str,
         *args,  # noqa: ARG002 overload

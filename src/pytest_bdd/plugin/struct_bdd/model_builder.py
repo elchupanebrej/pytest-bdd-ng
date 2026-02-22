@@ -2,7 +2,7 @@ import json
 from itertools import filterfalse
 from json import loads as json_loads
 from operator import attrgetter
-from typing import Any, Union, cast
+from typing import Any, cast
 
 from attr import attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -206,7 +206,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
 
 @attrs
 class ExampleASTBuilder(_ASTBuilder):
-    model: Union[StructJoin, StructTable] = attrib()
+    model: StructJoin | StructTable = attrib()
 
     def build(self, id_generator):
         return Examples(

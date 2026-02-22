@@ -3,7 +3,7 @@ import sys
 from collections.abc import Sequence
 from contextlib import contextmanager
 from re import Pattern
-from typing import Any, Optional, Union
+from typing import Any
 
 from pytest_bdd.compatibility.pytest import FixtureRequest, build_fixture_def, fail
 
@@ -46,9 +46,9 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
 
 @contextmanager
 def doesnt_raise(
-    expected_exception: Union[type[Exception], Sequence[type[Exception]]],
+    expected_exception: type[Exception] | Sequence[type[Exception]],
     *,
-    match: Optional[Union[str, Pattern[str]]] = None,
+    match: str | Pattern[str] | None = None,
     suppress_not_matched=True,
 ):
     """:param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails

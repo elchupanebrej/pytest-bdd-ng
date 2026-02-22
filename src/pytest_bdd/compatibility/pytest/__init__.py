@@ -14,7 +14,7 @@ from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
 from _pytest.mark import Mark, MarkDecorator, MarkMatcher
-from _pytest.mark.expression import Expression, ParseError
+from _pytest.mark import expression as _mark_expression
 from _pytest.nodes import Collector
 from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
@@ -153,7 +153,7 @@ def get_metafunc_call_arg(call, arg):
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
-def is_testrun_success(exitstatus: Union[int, pytest.ExitCode]) -> bool:
+def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
 
 
@@ -164,3 +164,7 @@ def build_fixture_def(request, *args, **kwargs):
         **({"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}),
         **({"_ispytest": True} if PYTEST8 else {}),
     )
+
+
+Expression = _mark_expression.Expression
+ParseError = getattr(_mark_expression, "ParseError", ValueError)

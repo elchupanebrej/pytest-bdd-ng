@@ -86,7 +86,7 @@ def _(testdir: "Testdir", step):
 def check_pytest_test_statuses(pytest_result, step):
     outcomes_kwargs = map(attrgetter("value"), step.data_table.rows[0].cells)
     outcomes_kwargs_values = map(compose(int, attrgetter("value")), step.data_table.rows[1].cells)
-    outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values))
+    outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values, strict=False))
 
     assert_outcomes(pytest_result, **outcome_result)
 

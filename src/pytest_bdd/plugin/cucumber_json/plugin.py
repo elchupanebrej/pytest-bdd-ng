@@ -109,10 +109,9 @@ class LogBDDCucumberJSON:
         self.suite_start_time = time.time()
 
     def pytest_sessionfinish(self) -> None:
-        with Path(self.logfile).open("w", encoding="utf-8") as logfile:
-            for feature in self.features.values():
-                Feature.model_validate(feature)
-            logfile.write(json.dumps(list(self.features.values())))
+        for feature in self.features.values():
+            Feature.model_validate(feature)
+        Path(self.logfile).write_text(json.dumps(list(self.features.values())), encoding="utf-8")
 
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         terminalreporter.write_sep("-", f"generated json file: {self.logfile}")

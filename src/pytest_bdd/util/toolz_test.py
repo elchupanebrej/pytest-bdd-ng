@@ -1,7 +1,7 @@
 import base64
 import pickle  # noqa:S403
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
@@ -36,7 +36,7 @@ class InstanceOfType:
     (or always True if no type is specified).
     """
 
-    def __init__(self, type_: Optional[type] = None) -> None:
+    def __init__(self, type_: type | None = None) -> None:
         self.type = type_
 
     def __eq__(self, other: object) -> bool:

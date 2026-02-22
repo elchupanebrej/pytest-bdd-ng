@@ -74,8 +74,10 @@ def test_generate_missing(testdir, tmp_path):
 
     result.stdout.fnmatch_lines(
         [
-            'Step Given "I have a custom bar" is not defined in the scenario '
-            '"Code is generated for scenario steps which are not yet defined(implemented)" *',
+            (
+                'Step Given "I have a custom bar" is not defined in the scenario '
+                '"Code is generated for scenario steps which are not yet defined(implemented)" *'
+            ),
         ],
     )
 

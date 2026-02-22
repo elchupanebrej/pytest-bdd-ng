@@ -93,6 +93,22 @@ Install pytest-bdd-ng
 
     pip install pytest-bdd-ng
 
+Compatibility policy
+--------------------
+
+- Supported Python/pytest pairs include all pairs allowed by pytest compatibility constraints
+  within project support floors.
+- Supported Python range: ``3.10``-``3.14``.
+- Supported pytest range: ``>=6.2.5``.
+- Python ``3.9`` and pytest ``<6.2.5`` are EOL and are treated as unsupported.
+- To inspect or validate a pair locally, use:
+
+.. code-block:: console
+
+    compatibility_matrix --list --compatible-only
+    compatibility_matrix --python 310 --pytest 625
+    compatibility_matrix --python 314 --pytest 90
+
 Packages for reporting
 ####################################
 

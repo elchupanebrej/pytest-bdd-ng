@@ -56,3 +56,23 @@ nosetests.xml
 /include
 /share
 /local
+/.agent/
+/.agents/
+/.claude/
+/.cline/
+/.codex/
+/.specify/
+/.windsurf/
+/skills-lock.json
+
+# Universal OS/editor temp files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+
+# Python virtual environments
+.venv/
+venv/
+/.gemini/

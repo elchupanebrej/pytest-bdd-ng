@@ -2,7 +2,7 @@ from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -35,9 +35,9 @@ class FeatureFileModule(Module):
 
     def _build_test_module(
         self,
-        path: Optional[Path],
+        path: Path | None,
         features_path_type: PathType,
-        base_dir: Optional[Path],
+        base_dir: Path | None,
     ):
         module_name = format_as_python_identifier(f"{path}_{uuid4()}")
 
@@ -72,7 +72,7 @@ class FeatureFileModule(Module):
         return path, features_path_type
 
     @classmethod
-    def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str, PathType, Optional[str]]:
+    def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str, PathType, str | None]:
         config_parser = ConfigParser()
         config_parser.read(path)
 
@@ -82,7 +82,7 @@ class FeatureFileModule(Module):
         return *cls.detect_uri_pathtype(url), working_dir  # type: ignore[return-value]
 
     @classmethod
-    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> Optional[str]:
+    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> str | None:
         config_parser = ConfigParser()
         config_parser.read(path)
 

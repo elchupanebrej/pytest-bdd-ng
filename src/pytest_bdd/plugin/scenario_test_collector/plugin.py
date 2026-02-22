@@ -6,7 +6,6 @@ from itertools import starmap
 from operator import contains, methodcaller
 from pathlib import Path
 from types import ModuleType
-from typing import Optional, Union
 from unittest.mock import patch
 
 import pytest
@@ -134,7 +133,7 @@ class ScenarioTestCollector(BaseCollector):
         feature,  # noqa: ARG002 hookimpl
         scenario,  # noqa: ARG002 hookimpl
         tag,
-    ) -> Optional[Collection[Union[Mark, MarkDecorator]]]:
+    ) -> Collection[Mark | MarkDecorator] | None:
         return [getattr(pytest.mark, tag)]
 
     @pytest.hookimpl

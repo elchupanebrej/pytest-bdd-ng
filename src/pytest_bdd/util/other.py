@@ -1,5 +1,5 @@
 import re
-from typing import Any, Protocol, Union, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from gherkin.stream.id_generator import IdGenerator as BaseIdGenerator
 
@@ -24,7 +24,7 @@ class StringRepresentable(Protocol):
     def __str__(self) -> str: ...  # pragma: no cover
 
 
-def normalize_to_string(value: Union[StringRepresentable, str, bytes]) -> str:
+def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
     return str(value, **({"encoding": "utf-8"} if isinstance(value, bytes) else {}))
 
 

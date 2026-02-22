@@ -28,4 +28,4 @@ def data_table_to_dicts(data_table: Optional["DataTable"]):
         ),
         map(attrgetter("cells"), data_table.rows),
     )
-    return dict(zip(data_table_keys, data_table_values))
+    return dict(zip(data_table_keys, data_table_values, strict=False))

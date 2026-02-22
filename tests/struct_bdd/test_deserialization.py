@@ -612,7 +612,7 @@ def test_tags_steps_examples_load_complex():
     oracle_route_example_table_lengths = (12, 6, 24, 12)
     assert all(
         len(route.example_table.values) == oracle_length
-        for route, oracle_length in zip(routes, oracle_route_example_table_lengths)
+        for route, oracle_length in zip(routes, oracle_route_example_table_lengths, strict=False)
     )
 
     assert all(

@@ -1,12 +1,12 @@
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from functools import partial
 from inspect import getfile
 from itertools import chain, product, starmap
 from operator import attrgetter, eq, is_not
 from pathlib import Path
-from typing import Annotated, Any, Callable, Literal, NamedTuple, Optional, Union, cast
+from typing import Annotated, Any, Literal, NamedTuple, Union, cast
 
 from attr import attrib, attrs
 from cucumber_messages import Source, SourceMediaType, StepKeywordType  # type:ignore[attr-defined, import-untyped]
@@ -42,7 +42,7 @@ class SubKeyword(Enum):
     Alternative = "Alternative"
 
 
-KEYWORD_TO_TYPE: Mapping[Union[Keyword, str, None], StepKeywordType] = defaultdict(
+KEYWORD_TO_TYPE: Mapping[Keyword | str | None, StepKeywordType] = defaultdict(
     lambda: StepKeywordType.unknown,
     [
         (Keyword.Given, StepKeywordType.context),
@@ -62,24 +62,24 @@ class Node(BaseModel):
         populate_by_name=True,
     )
 
-    tags: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Tags")
-    name: Optional[str] = Field(None, alias="Name")
-    description: Optional[str] = Field(None, alias="Description")
-    comments: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Comments")
+    tags: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Tags")
+    name: str | None = Field(None, alias="Name")
+    description: str | None = Field(None, alias="Description")
+    comments: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Comments")
 
 
 class Table(Node):
-    type: Optional[Literal["Rowed", "Columned"]] = Field("Rowed", alias="Type")
-    parameters: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Parameters")
-    values: Optional[Sequence[Sequence[Any]]] = Field(default_factory=cast(Callable, list), alias="Values")
+    type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
+    parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
+    values: Sequence[Sequence[Any]] | None = Field(default_factory=cast(Callable, list), alias="Values")
 
     @property
     def columned_values(self):
-        return self.values if self.type == "Columned" else list(zip(*self.values))
+        return self.values if self.type == "Columned" else list(zip(*self.values, strict=False))
 
     @property
     def rowed_values(self):
-        return self.values if self.type == "Rowed" else list(zip(*self.values))
+        return self.values if self.type == "Rowed" else list(zip(*self.values, strict=False))
 
 
 class SubTable(Node):
@@ -150,11 +150,12 @@ class Join(BaseModel):
                                 product(
                                     [
                                         value
-                                        for _parameter, value in zip(
+                                        for table_parameter, value in zip(
                                             filled_tables_parameters,
                                             filled_tables_values,
+                                            strict=False,
                                         )
-                                        if parameter == _parameter
+                                        if parameter == table_parameter
                                     ],
                                     repeat=2,
                                 ),
@@ -169,8 +170,10 @@ class Join(BaseModel):
                             filled_tables_values=filled_tables_values,
                         ):
                             for parameter in parameters:
-                                for _parameter, value in zip(filled_tables_parameters, filled_tables_values):
-                                    if parameter == _parameter:
+                                for table_parameter, value in zip(
+                                    filled_tables_parameters, filled_tables_values, strict=False
+                                ):
+                                    if parameter == table_parameter:
                                         yield value
                                         break
 
@@ -186,7 +189,7 @@ class Join(BaseModel):
 
     @property
     def columned_values(self):
-        return list(zip(*self.values))
+        return list(zip(*self.values, strict=False))
 
     @property
     def rowed_values(self):
@@ -215,7 +218,7 @@ def after_convert_sub_steps_to_steps(value):
     return value.sub_step if isinstance(value, SubStep) else value
 
 
-StepStepKeywordType = Union[Keyword, Annotated[str, select_step_keyword_type]]
+StepStepKeywordType = Keyword | Annotated[str, select_step_keyword_type]
 
 
 class StepPrototype(Node):
@@ -226,19 +229,19 @@ class StepPrototype(Node):
         ]
     ] = Field(default_factory=list, alias="Steps")
 
-    type: Optional[StepStepKeywordType] = Field(default=Keyword.Star, alias="Type")
-    data: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
+    type: StepStepKeywordType | None = Field(default=Keyword.Star, alias="Type")
+    data: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list,
         alias="Data",
     )
-    examples: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
+    examples: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list,
         alias="Examples",
     )
-    keyword_type: Optional[StepKeywordType] = Field(StepKeywordType.unknown)
+    keyword_type: StepKeywordType | None = Field(StepKeywordType.unknown)
 
     class Route(NamedTuple):
-        tags: Optional[Sequence[str]]
+        tags: Sequence[str] | None
         steps: list["StepPrototype"]
         example_table: Union[Table, "Join", SubTable]
 
@@ -257,11 +260,11 @@ class StepPrototype(Node):
             steps = [self, *chain.from_iterable(map(attrgetter("steps"), routes))]
 
             if self.examples:
-                for _example_table in self.examples:
+                for example_candidate in self.examples:
                     example_table = Join(
                         tables=[
                             *map(attrgetter("example_table"), routes),
-                            _example_table,
+                            example_candidate,
                         ]
                     )
                     tags = list(
@@ -380,8 +383,8 @@ class Alternative(Node):
 
 
 class Step(StepPrototype):
-    type: Optional[StepStepKeywordType] = Field(default=Keyword.Star, alias="Type")
-    action: Optional[str] = Field(None, alias="Action")
+    type: StepStepKeywordType | None = Field(default=Keyword.Star, alias="Type")
+    action: str | None = Field(None, alias="Action")
 
 
 class SubStep(BaseModel):
@@ -390,32 +393,32 @@ class SubStep(BaseModel):
 
 class StarStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.Star, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Star.value)
+    action: str | None = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.Given, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Given.value)
+    action: str | None = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.When, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.When.value)
+    action: str | None = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.Then, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Then.value)
+    action: str | None = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.And, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.And.value)
+    action: str | None = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
     type: StepStepKeywordType = Field(Keyword.But, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.But.value)
+    action: str | None = Field(alias=Keyword.But.value)
 
 
 Join.model_rebuild()  # type:ignore[attr-defined] # migration to pydantic 2

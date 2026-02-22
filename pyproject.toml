@@ -37,11 +37,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: Utilities",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13"
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14"
 ]
 dependencies = [
   "aiohttp",
@@ -67,7 +67,7 @@ dependencies = [
   "pathvalidate",
   "py",
   "pydantic>=2.0.3",
-  "pytest>=6.0",
+  "pytest>=6.2.5",
   "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
 ]
@@ -78,7 +78,7 @@ maintainers = [
 ]
 name = "pytest-bdd-ng"
 readme = {file = "README.rst", content-type = "text/x-rst"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
@@ -144,6 +144,7 @@ testtypes = [
 
 [project.scripts]
 bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
+compatibility_matrix = "pytest_bdd.script.compatibility_matrix:main"
 
 [project.urls]
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
@@ -203,8 +204,8 @@ exclude = [
 ]
 # Same as Black.
 line-length = 120
-# Assume Python 3.9+
-target-version = "py39"
+# Assume Python 3.10+
+target-version = "py310"
 
 [tool.ruff.format]
 # Like Black, indent with spaces, rather than tabs.
@@ -322,6 +323,7 @@ max-complexity = 10  # TODO target is 6
 "docs/conf.py" = ["ERA001"]
 "docs/tutorial/tests/*" = ["S101", "S506"]
 "src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin
+"src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]
 "tests/*" = ["D103", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "S101", "S506"]
