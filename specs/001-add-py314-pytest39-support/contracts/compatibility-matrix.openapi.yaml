@@ -3,7 +3,8 @@ openapi: 3.0.3
 info:
   title: Python/Pytest Compatibility Contract
   version: 1.2.0
-  description: Contract for compatibility matrix operations and feature scope tracking.
+  description: >-
+    Contract for compatibility matrix operations and feature scope tracking.
 paths:
   /compatibility/matrix:
     get:

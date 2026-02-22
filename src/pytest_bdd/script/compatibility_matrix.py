@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.python_factor and args.pytest_factor:
         compatible, reason = is_pair_compatible(args.python_factor, args.pytest_factor)
-        payload = {
+        pair_payload: dict[str, object] = {
             "pythonVersion": f"{args.python_factor[0]}.{args.python_factor[1:]}"
             if args.python_factor.isdigit() and len(args.python_factor) == 3
             else args.python_factor,
@@ -59,18 +59,18 @@ def main(argv: list[str] | None = None) -> int:
             "message": "compatible pair" if reason == REASON_COMPATIBLE else f"incompatible pair: {reason}",
         }
         if args.json:
-            _emit(json.dumps(payload, sort_keys=True))
+            _emit(json.dumps(pair_payload, sort_keys=True))
         else:
-            _emit(str(payload["message"]))
+            _emit(str(pair_payload["message"]))
         return 0 if compatible else 1
 
     if args.list:
         result = entries if not args.compatible_only else [entry for entry in entries if entry.is_compatible]
-        payload = [_entry_payload(entry) for entry in result]
+        list_payload: list[dict[str, object]] = [_entry_payload(entry) for entry in result]
         if args.json:
-            _emit(json.dumps({"entries": payload}, sort_keys=True))
+            _emit(json.dumps({"entries": list_payload}, sort_keys=True))
         else:
-            for item in payload:
+            for item in list_payload:
                 _emit(
                     f"{item['pythonVersion']}\t{item['pytestVersion']}\t{item['isCompatible']}\t"
                     f"{item['reasonCode']}\t{item['toxEnvName']}",
