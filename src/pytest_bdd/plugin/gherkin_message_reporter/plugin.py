@@ -65,6 +65,8 @@ from pytest_bdd.util.packaging import get_distribution_version
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
 logger = logging.getLogger(__name__)

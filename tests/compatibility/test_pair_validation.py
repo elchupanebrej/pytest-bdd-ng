@@ -10,6 +10,7 @@ def test_pair_validation_returns_nonzero_for_incompatible_pair(capsys):
 
     assert code == 1
     assert payload["isCompatible"] is False
+    assert payload["isSupported"] is False
     assert payload["reasonCode"] == "python_not_supported_by_pytest"
 
 
@@ -20,4 +21,16 @@ def test_pair_validation_returns_zero_for_compatible_pair(capsys):
 
     assert code == 0
     assert payload["isCompatible"] is True
+    assert payload["isSupported"] is True
     assert payload["reasonCode"] == "compatible"
+
+
+def test_pair_validation_returns_nonzero_for_eol_pair(capsys):
+    code = main(["--python", "39", "--pytest", "90", "--json"])
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+
+    assert code == 1
+    assert payload["isCompatible"] is False
+    assert payload["isSupported"] is False
+    assert payload["reasonCode"] == "eol_python"

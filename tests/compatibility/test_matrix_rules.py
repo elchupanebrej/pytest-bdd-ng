@@ -1,5 +1,7 @@
 from pytest_bdd.compatibility.matrix import (
     REASON_COMPATIBLE,
+    REASON_EOL_PYTEST,
+    REASON_EOL_PYTHON,
     REASON_PYTEST_UNAVAILABLE,
     REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST,
     is_pair_compatible,
@@ -27,4 +29,10 @@ def test_unknown_pytest_factor_is_unavailable():
 def test_eol_pytest60_factor_is_unavailable():
     compatible, reason = is_pair_compatible("310", "60")
     assert compatible is False
-    assert reason == REASON_PYTEST_UNAVAILABLE
+    assert reason == REASON_EOL_PYTEST
+
+
+def test_eol_python39_factor_is_unsupported():
+    compatible, reason = is_pair_compatible("39", "90")
+    assert compatible is False
+    assert reason == REASON_EOL_PYTHON

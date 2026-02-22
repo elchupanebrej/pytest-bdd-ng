@@ -218,7 +218,7 @@ def after_convert_sub_steps_to_steps(value):
     return value.sub_step if isinstance(value, SubStep) else value
 
 
-StepStepKeywordType = Union[Keyword, Annotated[str, select_step_keyword_type]]
+StepStepKeywordType = Keyword | Annotated[str, select_step_keyword_type]
 
 
 class StepPrototype(Node):

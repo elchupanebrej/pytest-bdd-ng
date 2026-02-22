@@ -32,10 +32,15 @@ PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | 
     "latest": ((3, 9), (3, 14)),
 }
 
+MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 10)
+MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (6, 2, 5)
+
 REASON_COMPATIBLE = "compatible"
 REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST = "python_not_supported_by_pytest"
 REASON_PYTEST_UNAVAILABLE = "pytest_unavailable"
 REASON_PYTHON_UNAVAILABLE = "python_unavailable"
+REASON_EOL_PYTHON = "eol_python"
+REASON_EOL_PYTEST = "eol_pytest"
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,7 @@ class CompatibilityMatrixEntry:
     python_version: str
     pytest_version: str
     is_compatible: bool
+    is_supported: bool
     reason_code: str
     execution_targets: tuple[str, ...] = ("lin", "mac", "win")
     compatibility_source: str = "pytest-metadata"
@@ -74,10 +80,29 @@ def _format_pytest_version(pytest_factor: str) -> str:
     return pytest_factor
 
 
+def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
+    if pytest_factor == "latest":
+        # Keep "latest" above current known floor.
+        return (99, 0, 0)
+    if not pytest_factor.isdigit():
+        return None
+    if len(pytest_factor) == 2:
+        return (int(pytest_factor[0]), int(pytest_factor[1]), 0)
+    if len(pytest_factor) == 3:
+        return (int(pytest_factor[0]), int(pytest_factor[1]), int(pytest_factor[2]))
+    return None
+
+
 def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:
     py = _parse_python_factor(python_factor)
     if py is None:
         return False, REASON_PYTHON_UNAVAILABLE
+    if py < MIN_SUPPORTED_PYTHON:
+        return False, REASON_EOL_PYTHON
+
+    pytest_version = _parse_pytest_factor(pytest_factor)
+    if pytest_version is not None and pytest_version < MIN_SUPPORTED_PYTEST:
+        return False, REASON_EOL_PYTEST
 
     bounds = PYTEST_COMPATIBILITY_BOUNDS.get(pytest_factor)
     if bounds is None:
@@ -107,6 +132,7 @@ def build_matrix(
                 python_version=_format_python_version(python_factor),
                 pytest_version=_format_pytest_version(pytest_factor),
                 is_compatible=compatible,
+                is_supported=compatible,
                 reason_code=reason,
                 execution_targets=execution_targets,
                 tox_env_name=tox_env,

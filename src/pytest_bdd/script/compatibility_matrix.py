@@ -32,6 +32,7 @@ def _entry_payload(entry) -> dict[str, object]:
         "pythonVersion": entry.python_version,
         "pytestVersion": entry.pytest_version,
         "isCompatible": entry.is_compatible,
+        "isSupported": entry.is_supported,
         "reasonCode": entry.reason_code,
         "toxEnvName": entry.tox_env_name,
     }
@@ -55,8 +56,9 @@ def main(argv: list[str] | None = None) -> int:
             else args.python_factor,
             "pytestVersion": args.pytest_factor,
             "isCompatible": compatible,
+            "isSupported": compatible,
             "reasonCode": reason,
-            "message": "compatible pair" if reason == REASON_COMPATIBLE else f"incompatible pair: {reason}",
+            "message": "compatible pair" if reason == REASON_COMPATIBLE else f"unsupported pair: {reason}",
         }
         if args.json:
             _emit(json.dumps(pair_payload, sort_keys=True))
