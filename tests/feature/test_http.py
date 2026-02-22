@@ -7,7 +7,6 @@ from pytest_httpserver import HTTPServer
 
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.util.webloc import write as webloc_write
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -39,32 +38,6 @@ MINIMAL_CONFTEST = dedent(
         assert cukes_count == '42'
     """,
 )
-
-
-def test_feature_load_by_http(testdir: "Testdir", httpserver: HTTPServer):
-    httpserver.expect_request("/feature").respond_with_data(
-        MINIMAL_FEATURE,
-        content_type=Mimetype.gherkin_plain.value,
-    )
-    testdir.makepyfile(
-        # language=python
-        test_http=f"""\
-            from pytest_bdd import given, scenarios, FeaturePathType
-            from pytest_bdd.mimetype import Mimetype
-
-            @given("I have {{cukes_count}} cukes in my belly")
-            def results(cukes_count):
-                assert cukes_count == '42'
-
-            test_cukes = scenarios(
-                f"http://localhost:{httpserver.port}/feature",
-                features_mimetype=Mimetype.gherkin_plain,
-                features_path_type=FeaturePathType.URL
-            )
-        """,
-    )
-    result = testdir.runpytest_inprocess()
-    result.assert_outcomes(passed=1)
 
 
 def test_feature_load_by_http_from_url_file(testdir, httpserver: HTTPServer):
@@ -189,40 +162,6 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
                 f"/feature",
                 features_mimetype=Mimetype.gherkin_plain,
                 features_base_url="http://localhost:{httpserver.port}",
-            )
-        """,
-    )
-    result = testdir.runpytest_inprocess()
-    result.assert_outcomes(passed=1)
-
-
-def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPServer):
-    httpserver.expect_request("/feature").respond_with_data(
-        MINIMAL_FEATURE,
-        content_type=Mimetype.gherkin_plain,
-    )
-
-    testdir.makeini(
-        # language=ini
-        f"""\
-        [pytest]
-        console_output_style=classic
-        {FeatureBaseLoad.Ini.URL_OPTION}=http://localhost:{httpserver.port}
-        """,
-    )
-
-    testdir.makepyfile(
-        # language=python
-        test_http="""\
-            from pytest_bdd import given, scenarios, FeaturePathType
-
-            @given("I have {cukes_count} cukes in my belly")
-            def results(cukes_count):
-                assert cukes_count == '42'
-
-            test_cukes = scenarios(
-                f"/feature",
-                features_path_type=FeaturePathType.URL
             )
         """,
     )

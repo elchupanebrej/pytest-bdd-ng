@@ -4,6 +4,8 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import pytest
+
 from pytest_bdd.util.toolz_test import InstanceOfType
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -19,6 +21,7 @@ def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, An
     return result, jsonobject
 
 
+@pytest.mark.technical_nonconvertible
 def test_step_trace(testdir):
     """Test step trace."""
     testdir.makefile(

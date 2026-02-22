@@ -1,0 +1,114 @@
+---
+openapi: 3.0.3
+info:
+  title: E2E Conversion Tracking Contract
+  version: 0.1.0
+  description: Contract for E2E conversion inventory and parity audit tracking.
+paths:
+  /e2e-scenarios:
+    get:
+      summary: List E2E conversion candidates and classification
+      responses:
+        '200':
+          description: E2E scenario inventory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scenarios]
+                properties:
+                  scenarios:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EndToEndScenario'
+  /e2e-scenarios/migration-summary:
+    get:
+      summary: Get migration coverage summary for user-facing E2E scenarios
+      responses:
+        '200':
+          description: Migration coverage result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationCoverageSummary'
+  /e2e-conversion/parity-audit:
+    get:
+      summary: List parity audit entries
+      responses:
+        '200':
+          description: Parity audit entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParityAuditEntry'
+components:
+  schemas:
+    EndToEndScenario:
+      type: object
+      required:
+        - scenarioId
+        - sourcePath
+        - classification
+        - targetLocation
+        - isMigrated
+      properties:
+        scenarioId:
+          type: string
+        sourcePath:
+          type: string
+        classification:
+          type: string
+          enum: [user_facing, technical_regression]
+        targetLocation:
+          type: string
+          enum: [features, tests]
+        isMigrated:
+          type: boolean
+        isDuplicateRemovedFromTests:
+          type: boolean
+    MigrationCoverageSummary:
+      type: object
+      required:
+        - totalUserFacingScenarios
+        - userFacingInFeatures
+        - coveragePercent
+        - thresholdPercent
+        - thresholdMet
+      properties:
+        totalUserFacingScenarios:
+          type: integer
+        userFacingInFeatures:
+          type: integer
+        coveragePercent:
+          type: number
+        thresholdPercent:
+          type: number
+          enum: [80]
+        thresholdMet:
+          type: boolean
+    ParityAuditEntry:
+      type: object
+      required:
+        - taskId
+        - sourceTestPath
+        - featurePath
+        - verdict
+      properties:
+        taskId:
+          type: string
+        sourceTestPath:
+          type: string
+        featurePath:
+          type: string
+        verdict:
+          type: string
+          enum: [pass, pending, fail]
+        followUpCommit:
+          type: string
+          nullable: true

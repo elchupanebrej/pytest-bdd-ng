@@ -21,6 +21,11 @@ from pytest_bdd.util.toolz_extra import compose
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
+try:
+    import jq  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover - platform-specific availability
+    jq = None
+
 
 @pytest.fixture
 def httpserver_port(httpserver):
@@ -143,3 +148,17 @@ def _(file_path: Path):
                 message_converter.from_dict(json.loads(raw_datum), Envelope)
         except Exception as e:
             raise AssertionError from e
+
+
+@then(
+    re.compile(
+        r'JSON file "(?P<file_path>.+)" jq query "(?P<query>.+)" returns "(?P<expected>.+)"',
+    ),
+    converters={"file_path": Path},
+)
+def _(file_path: Path, query: str, expected: str, testdir):
+    if jq is None:
+        pytest.skip("jq package is unavailable on this platform")
+    payload = json.loads((Path(str(testdir.tmpdir)) / file_path).read_text(encoding="utf-8"))
+    actual = jq.compile(query).input(payload).first()
+    assert str(actual) == expected

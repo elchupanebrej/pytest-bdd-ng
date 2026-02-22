@@ -1,4 +1,6 @@
-# Feature:
+# Feature: Report gathering outputs
+  This feature documents generation of machine-readable and HTML reports during
+  feature execution.
 ## Background:
 * Given File "Passing.feature" with content:
 
