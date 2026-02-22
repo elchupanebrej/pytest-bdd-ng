@@ -1,34 +1,43 @@
 <!-- markdownlint-disable MD013 -->
 
-# Research: Python/Pytest Compatibility Alignment
+# Research: Python/Pytest Compatibility Alignment (EOL Floor Update)
 
-## Decision 1: Compatibility source of truth
+## Decision 1: Supported version floor policy
 
-- Decision: Use pytest compatibility matrix as canonical Python/pytest support logic.
-- Rationale: Avoids project-specific drift and accidental version restrictions.
+- Decision: Support Python 3.10-3.14 and pytest>=6.2.5; treat Python 3.9 and pytest<6.2.5 as explicitly unsupported.
+- Rationale: This matches EOL policy, keeps support deterministic, and prevents accidental legacy matrix expansion.
 - Alternatives considered:
-  - Project-maintained static compatibility list: rejected due to maintenance drift.
-  - Latest-only pytest policy: rejected because it violates full compatible-pair support.
+  - Keep Python 3.9 as best-effort: rejected because it conflicts with explicit EOL deprecation.
+  - Keep pytest 6.0/6.1/6.2.0-6.2.4 in matrix: rejected due to requested support floor and maintenance cost.
 
-## Decision 2: Matrix validation completeness
+## Decision 2: Validation scope after deprecation
 
-- Decision: Keep explicit matrix coverage for all compatible pairs and report pass/fail deterministically.
-- Rationale: Ensures auditability and complete regression signal.
+- Decision: Run full matrix validation only for supported pairs; add explicit negative checks for deprecated EOL pairs.
+- Rationale: Provides complete confidence for supported surface while still asserting fail-fast behavior for unsupported combinations.
 - Alternatives considered:
-  - Sampled subset matrix: rejected because coverage would be partial.
-  - Dynamic ad-hoc runs only: rejected because results are not reproducible enough for release gating.
+  - Validate all historical pairs: rejected as unnecessary and contradictory to deprecation scope.
+  - Validate only a representative subset: rejected because it weakens deterministic coverage guarantees.
 
-## Decision 3: Python 3.14 local provisioning
+## Decision 3: Runtime and tooling representation
 
-- Decision: Standardize local Python 3.14 environment setup using conda-forge.
-- Rationale: Aligns with user requirement and gives reproducible maintainer workflow.
+- Decision: Encode support floor in matrix logic, tox env selection, CI job matrix, and contributor docs.
+- Rationale: Single policy reflected in all execution paths avoids drift between local runs, CI, and documentation.
 - Alternatives considered:
-  - Depend on system Python availability: rejected as inconsistent.
-  - pyenv-only workflow: rejected because conda-forge path was explicitly requested.
+  - Enforce floor only in docs: rejected because tooling drift would reintroduce unsupported execution paths.
+  - Enforce floor only in CI: rejected because local and release workflows would remain inconsistent.
 
-## Decision 4: Governance and commit hygiene
+## Decision 4: Diagnostics for unsupported combinations
 
-- Decision: Keep constitutional requirements for task-traceable commits and mandatory clean pre-commit before commit.
-- Rationale: Governance is normative for this repository.
+- Decision: Unsupported EOL pairs MUST fail fast with explicit reason code and actionable message.
+- Rationale: Clear diagnostics reduce triage time and make deprecation behavior testable.
 - Alternatives considered:
-  - Enforce only in CI: rejected because local commit-time quality gate is required.
+  - Silent skip behavior: rejected due to ambiguity and hidden failures.
+  - Generic exception without reason code: rejected because it is weak for automation and contract testing.
+
+## Decision 5: Cross-platform validation execution rule
+
+- Decision: Use native execution for host-native targets; use Docker skill for non-native platform validation except Windows targets.
+- Rationale: Satisfies constitution requirements while preserving practical execution for Windows-target exceptions.
+- Alternatives considered:
+  - Native-only validation for all targets: rejected due to constitution non-compliance.
+  - Docker for all targets including Windows: rejected because constitution explicitly allows Windows exception.

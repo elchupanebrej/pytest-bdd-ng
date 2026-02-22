@@ -18,6 +18,11 @@
 ### Session 2026-02-22
 
 - Q: Should Python/pytest compatibility work and end-to-end test conversion remain in one spec? → A: No; keep compatibility in this spec and move end-to-end conversion to a separate spec
+- Q: How should Python 3.9 and pytest<6.2.5 be treated after EOL? → A: Treat Python 3.9 and pytest<6.2.5 as explicitly unsupported: fail fast with clear messaging, remove from CI/tox/docs
+- Q: What is the new supported Python range? → A: 3.10-3.14
+- Q: How should this change be scoped in the specification? → A: Keep this in current spec and add explicit deprecation scope section (EOL removal + compatibility floor)
+- Q: How should automated validation be scoped after deprecating EOL versions? → A: Execute CI/tests only for supported pairs (Python 3.10-3.14, pytest>=6.2.5), and add explicit negative checks for unsupported EOL pairs
+- Q: How should the non-repo support-ticket success criterion be handled? → A: Replace it with a repo-verifiable metric based on documented compatibility command validation in CI
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -69,6 +74,13 @@ As a maintainer, I can add support for the new versions without unintentionally 
 - Converting existing tests from `tests/` into documentation-style `features/` files is explicitly out of scope for this specification.
 - Any migration of end-to-end scenarios into `features/` MUST be implemented in a separate feature specification and branch.
 
+### Deprecation Scope
+
+- Python 3.9 is deprecated and out of support for this feature because it has reached EOL.
+- pytest versions lower than 6.2.5 are deprecated and out of support for this feature because they are EOL.
+- Unsupported combinations MUST fail fast with clear actionable guidance.
+- CI, tox environments, and contributor-facing documentation MUST exclude deprecated combinations.
+
 ### Edge Cases
 
 - What happens when a requested Python and pytest pair is not a compatible pair according to pytest constraints? The project must provide a clear compatibility outcome and fail with actionable messaging.
@@ -79,14 +91,18 @@ As a maintainer, I can add support for the new versions without unintentionally 
 
 ### Functional Requirements
 
-- **FR-001**: The project MUST define support policy as Python/pytest combinations that are compatible per pytest's compatibility matrix.
-- **FR-002**: The project MUST NOT impose additional library-specific version restrictions that exclude otherwise pytest-compatible Python/pytest pairs.
-- **FR-003**: The project MUST provide automated validation for every pytest-compatible Python/pytest pair.
+- **FR-001**: The project MUST define support policy as Python/pytest combinations that are compatible per pytest's compatibility matrix, bounded by explicit EOL support floors in this specification.
+- **FR-002**: The project MUST NOT impose additional library-specific version restrictions that exclude otherwise pytest-compatible Python/pytest pairs above the declared support floors.
+- **FR-003**: The project MUST provide automated validation for every supported Python/pytest pair (Python 3.10-3.14 with pytest>=6.2.5), and explicit negative validation for deprecated EOL pairs.
 - **FR-004**: The project MUST ensure version-selection configuration allows contributors to intentionally run checks for any requested pytest-compatible Python/pytest pair.
 - **FR-005**: The project MUST keep existing documented supported combinations valid unless explicitly deprecated in this feature scope.
-- **FR-006**: The project MUST expose clear failure messaging when a requested compatibility combination is unavailable or unsupported in a given environment.
+- **FR-006**: The project MUST expose clear failure messaging when a requested compatibility combination is unavailable or unsupported in a given environment, including explicit EOL reasons for Python 3.9 and pytest<6.2.5.
 - **FR-007**: The project MUST update contributor-facing documentation to state support policy, compatibility source of truth, and expected validation commands.
 - **FR-008**: The feature scope MUST include all currently uncommitted files in this branch, including implementation code, tests, workflows, ignore/configuration files, and specification artifacts required to deliver and validate this feature.
+- **FR-009**: The supported Python range for this feature MUST be 3.10 through 3.14.
+- **FR-010**: The minimum supported pytest version for this feature MUST be 6.2.5.
+- **FR-011**: CI and tox configuration MUST exclude Python 3.9 and pytest<6.2.5 environments.
+- **FR-012**: The test suite MUST include explicit negative checks proving unsupported EOL combinations fail fast with actionable diagnostics.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -100,6 +116,7 @@ As a maintainer, I can add support for the new versions without unintentionally 
 - Existing supported versions remain in scope unless they are separately deprecated in a future request.
 - "Support" means documented compatibility plus automated validation coverage, not only local ad-hoc execution.
 - All currently uncommitted files in this branch are treated as intentional deliverables for this feature.
+- Python 3.9 and pytest<6.2.5 are intentionally removed from support due to EOL.
 
 ### Dependencies
 
@@ -111,7 +128,7 @@ As a maintainer, I can add support for the new versions without unintentionally 
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of validation runs for all pytest-compatible Python/pytest pairs complete with a reported result (pass or fail), with no skipped or undefined status due to missing matrix configuration.
+- **SC-001**: 100% of validation runs for all supported Python/pytest pairs complete with a reported result (pass or fail), with no skipped or undefined status due to missing matrix configuration, and explicit negative checks pass for unsupported EOL pairs.
 - **SC-002**: Maintainers can execute the documented command path for any selected pytest-compatible Python/pytest pair in under 10 minutes from a clean checkout.
-- **SC-003**: 95% or more of compatibility-related support requests after release are resolved without requiring undocumented workaround steps.
+- **SC-003**: 100% of documented compatibility command examples in contributor-facing docs and quickstart are executed in CI validation at least once per pre-release cycle and complete with expected outcomes.
 - **SC-004**: Existing documented supported-version validation jobs show no newly introduced compatibility failures attributable to this feature across one full pre-release validation cycle.

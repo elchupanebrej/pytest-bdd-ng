@@ -1,47 +1,52 @@
-# Quickstart: Python/Pytest Compatibility Validation
+# Quickstart: Python/Pytest Compatibility Validation (3.10-3.14, pytest>=6.2.5)
 
 ## 1. Create Python 3.14 environment from conda-forge
 
 ```bash
 conda create -n pytest-bdd-ng-py314 -c conda-forge python=3.14 -y
-conda activate pytest-bdd-ng-py314
-python -m pip install -U pip
-python -m pip install -e '.[test,testenv,testtypes]'
+conda run -n pytest-bdd-ng-py314 python -m pip install -U pip
+conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
 ```
 
-## 2. Validate compatibility matrix behavior
+## 2. Validate supported and unsupported pairs via matrix CLI
 
 ```bash
-python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 90
-python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 83
+conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 625
+conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 39 --pytest 625
+conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 310 --pytest 620
 ```
 
 Expected:
-- Compatible pair returns success with explicit compatibility reason.
-- Incompatible pair returns non-zero with explicit reason code.
+- Supported pair (`314` + `625`) returns compatible/supported result.
+- EOL Python pair (`39` + `625`) fails fast with explicit EOL reason.
+- EOL pytest pair (`310` + `620`) fails fast with explicit EOL reason.
 
-## 3. Validate representative matrix execution
+## 3. Validate supported tox matrix environments
 
 ```bash
-tox -e py314-pytest90-coverage-mac -- -q
+conda run -n pytest-bdd-ng-py314 tox -l
+conda run -n pytest-bdd-ng-py314 tox -e py310-pytest625-coverage-lin -- -q
+conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-coverage-lin -- -q
 ```
 
-Expected: selected environment executes and reports deterministic pass/fail result.
+Expected:
+- Listed tox envs include supported combinations only.
+- Selected supported envs execute and report deterministic pass/fail results.
 
-## 4. Validate full compatibility/contract suites
+## 4. Run compatibility and contract checks
 
 ```bash
-python -m pytest -q tests/compatibility tests/contract
+conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/contract
 ```
 
 Expected:
 - Compatibility and contract suites pass.
-- Existing supported combinations are not regressed by the update.
+- Negative checks for unsupported EOL pairs are present and passing.
 
 ## 5. Run pre-commit before commit
 
 ```bash
-pre-commit run --all-files
+conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
 ```
 
-Expected: all hooks pass and any reported issue is fixed before commit.
+Expected: all hooks pass and all reported issues are fixed before commit.
