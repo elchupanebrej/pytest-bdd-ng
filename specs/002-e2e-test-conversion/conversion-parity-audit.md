@@ -55,7 +55,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T020 | 9600408 | `tests/feature/test_scenarios.py` | `features/Scenario/Scenarios loader.feature.md` |
 | T021 | 25dd4b3 | `tests/feature/test_tags.py` | `features/Scenario/Tag filtering.feature.md` |
 | T022 | d4560e9 | `tests/feature/test_wrong.py` | `features/Feature/Error reporting.feature.md` |
-| T023 | 729b70b + 63fcad9 | `tests/feature/test_outline.py`, `tests/feature/test_http.py` (deferred split) | `features/Scenario/Outline/Runtime expansion.feature.md`, `features/Feature/Load/HTTP feature loading.feature.md` |
+| T023 | 729b70b + 63fcad9 | `tests/feature/test_outline.py`, `tests/feature/test_http.py` | `features/Scenario/Outline/Runtime expansion.feature.md`, `features/Feature/Load/HTTP feature loading.feature.md` |
 
 ## Medium-Priority Conversion Commit Map
 
@@ -69,7 +69,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T029 | ebcc6c4 | `tests/allure_/test_allure_outline.py` | `features/Report/Allure outline.feature.md` |
 | T030 | 4a69187 | `tests/allure_/test_allure_scenario.py` | `features/Report/Allure scenario.feature.md` |
 | T031 | b7c64c4 | `tests/struct_bdd/test_steps.py` | `features/StructBDD/Steps.feature.md` |
-| T032 | c5ae120 | `tests/struct_bdd/test_deserialization.py` (deferred split) | `features/StructBDD/Deserialization.feature.md` |
+| T032 | c5ae120 | `tests/struct_bdd/test_deserialization.py` | `features/StructBDD/Deserialization.feature.md` |
 
 ## Audit Results
 
@@ -85,7 +85,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T020 | 9600408 | PASS | Source pytest test removed; scenarios loader behavior preserved in feature docs. | `already-squashed` |
 | T021 | 25dd4b3 | PASS | Source pytest test removed; tag filtering intent and expectations preserved. | `already-squashed` |
 | T022 | d4560e9 | PASS | Source pytest test removed; error-reporting behavior preserved in converted feature. | `already-squashed` |
-| T023 | 729b70b + 63fcad9 | DEFERRED | Outline and HTTP tests still contain mixed technical assertions and remain intentionally deferred. | `deferred-next-cycle` |
+| T023 | 729b70b + 63fcad9 | PASS | Outline parse-failure coverage and HTTP loading variants are now documented in executable feature scenarios. | `current-branch` |
 | T024 | 7317931 | PASS | Source pytest test removed in this branch; autoload behavior documented in feature file with boundary case. | `current-branch` |
 | T025 | 65fe32e | PASS | Source pytest test removed in this branch; cucumber JSON reporting includes outline boundary coverage. | `current-branch` |
 | T026 | 96c9c90 | PASS | Source pytest test removed in this branch; gherkin terminal reporter includes `-vv` substitution boundary. | `current-branch` |
@@ -94,7 +94,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T029 | ebcc6c4 | PASS | Source pytest test already removed; allure outline behavior covered in feature file. | `already-squashed` |
 | T030 | 4a69187 | PASS | Source pytest test already removed; allure scenario behavior covered in feature file. | `already-squashed` |
 | T031 | b7c64c4 | PASS | Source pytest test removed in this branch; StructBDD steps include examples-expansion boundary coverage. | `current-branch` |
-| T032 | c5ae120 | DEFERRED | StructBDD deserialization remains technical and is deferred to next cycle. | `deferred-next-cycle` |
+| T032 | c5ae120 | PASS | StructBDD deserialization defaults, joins, and nested routes are now covered via executable feature scenarios. | `current-branch` |
 
 ## Category Parity Matrix (T013-T032)
 
@@ -110,7 +110,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T020 | yes | yes | yes | yes | Loader scenarios include absent/malformed source cases. |
 | T021 | yes | yes | yes | yes | Tag filtering includes include/exclude/empty edge behavior. |
 | T022 | yes | yes | yes | yes | Error reporting conversion includes failing and edge cases. |
-| T023 | yes | yes | yes | no | Deferred split in `test_outline.py` and `test_http.py` remains. |
+| T023 | yes | yes | yes | yes | Outline parse errors and HTTP loading variants are covered in feature docs. |
 | T024 | yes | yes | yes | yes | Boundary coverage added for explicit `features_base_dir` with autoload disabled. |
 | T025 | yes | yes | yes | yes | Boundary coverage added for outline row serialization and jq row-count checks. |
 | T026 | yes | yes | yes | yes | Boundary coverage added for `-vv` output with substituted outline values. |
@@ -119,7 +119,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T029 | yes | yes | yes | yes | Allure outline feature already covers sample boundary table cases. |
 | T030 | yes | yes | yes | yes | Allure scenario feature retains failure and boundary contexts. |
 | T031 | yes | yes | yes | yes | Boundary coverage added for StructBDD examples expansion across two rows. |
-| T032 | yes | yes | yes | no | Deferred deserialization technical split remains in pytest. |
+| T032 | yes | yes | yes | yes | StructBDD deserialization boundary behavior is covered in feature docs. |
 
 ## Stale Link Validation (T044)
 
