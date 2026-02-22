@@ -7,7 +7,6 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import jq  # type: ignore[import-untyped]
 import pytest
 from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
@@ -21,6 +20,11 @@ from pytest_bdd.util.toolz_extra import compose
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
+
+try:
+    import jq  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover - platform-specific availability
+    jq = None
 
 
 @pytest.fixture
@@ -153,6 +157,8 @@ def _(file_path: Path):
     converters={"file_path": Path},
 )
 def _(file_path: Path, query: str, expected: str, testdir):
+    if jq is None:
+        pytest.skip("jq package is unavailable on this platform")
     payload = json.loads((Path(str(testdir.tmpdir)) / file_path).read_text(encoding="utf-8"))
     actual = jq.compile(query).input(payload).first()
     assert str(actual) == expected
