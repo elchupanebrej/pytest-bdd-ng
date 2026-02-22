@@ -13,9 +13,6 @@ if TYPE_CHECKING:
 
 PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | None]] = {
     # pytest 6.x
-    "60": ((3, 6), (3, 10)),
-    "61": ((3, 6), (3, 10)),
-    "62": ((3, 6), (3, 10)),
     "625": ((3, 6), (3, 10)),
     # pytest 7.x
     "70": ((3, 7), (3, 11)),

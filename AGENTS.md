@@ -3,7 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2026-02-20
 
 ## Active Technologies
-- Python 3.9-3.14 (Python 3.14 provisioned from conda-forge when needed)
+- Python 3.10-3.14 (Python 3.14 provisioned from conda-forge when needed)
 - pytest, tox>=4.2, pre-commit, mypy, ruff, packaging
 - Project type: Python library and CLI tooling
 

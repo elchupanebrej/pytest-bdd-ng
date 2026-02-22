@@ -22,3 +22,9 @@ def test_unknown_pytest_factor_is_unavailable():
     compatible, reason = is_pair_compatible("313", "999")
     assert compatible is False
     assert reason == REASON_PYTEST_UNAVAILABLE
+
+
+def test_eol_pytest60_factor_is_unavailable():
+    compatible, reason = is_pair_compatible("310", "60")
+    assert compatible is False
+    assert reason == REASON_PYTEST_UNAVAILABLE
