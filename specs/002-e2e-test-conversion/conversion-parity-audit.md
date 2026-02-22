@@ -94,7 +94,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T029 | ebcc6c4 | PASS | Source pytest test already removed; allure outline behavior covered in feature file. | `already-squashed` |
 | T030 | 4a69187 | PASS | Source pytest test already removed; allure scenario behavior covered in feature file. | `already-squashed` |
 | T031 | b7c64c4 | PASS | Source pytest test removed in this branch; StructBDD steps include examples-expansion boundary coverage. | `current-branch` |
-| T032 | c5ae120 | PASS | StructBDD deserialization defaults, joins, and nested routes are now covered via executable feature scenarios. | `current-branch` |
+| T032 | c5ae120 | PARTIAL | Core StructBDD behavior is covered in feature docs, but full edge-case granularity is not 1:1 with the original 24-case pytest suite. Original pytest module restored and marked deferred conversion. | `current-branch` |
 
 ## Category Parity Matrix (T013-T032)
 
@@ -119,7 +119,7 @@ Use this checklist for each conversion task before deleting duplicate pytest cov
 | T029 | yes | yes | yes | yes | Allure outline feature already covers sample boundary table cases. |
 | T030 | yes | yes | yes | yes | Allure scenario feature retains failure and boundary contexts. |
 | T031 | yes | yes | yes | yes | Boundary coverage added for StructBDD examples expansion across two rows. |
-| T032 | yes | yes | yes | yes | StructBDD deserialization boundary behavior is covered in feature docs. |
+| T032 | yes | no | no | no | Core paths are covered in feature docs; detailed edge-case assertions are retained in `tests/struct_bdd/test_deserialization.py` until parity completion. |
 
 ## Stale Link Validation (T044)
 

@@ -34,7 +34,8 @@ def test_discovers_user_facing_tests_from_tests_feature_folder(tmp_path: Path):
 
 def test_deferred_conversion_notes_are_complete():
     inventory = Path("specs/002-e2e-test-conversion/e2e-migration-inventory.md").read_text(encoding="utf-8")
-    assert "| Deferred conversion | 0 |" in inventory
+    assert "| Deferred conversion | 1 |" in inventory
+    assert "`tests/struct_bdd/test_deserialization.py`" in inventory
 
 
 def _iter_markdown_table_rows(markdown_text: str, prefix: str):

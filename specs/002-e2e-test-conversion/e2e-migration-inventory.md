@@ -32,7 +32,7 @@
 | `tests/feature/test_steps.py` | medium | yes | yes | yes | converted | `e2e_convert_candidate` | no | Boundary coverage added in feature docs; pytest source deleted after category parity PASS. | n/a | completed |
 | `tests/allure_/test_allure_outline.py` | medium | yes | yes | yes | converted | `e2e_convert_candidate` | no | Converted coverage retained in `features/Report/Allure outline.feature.md`. | n/a | completed |
 | `tests/allure_/test_allure_scenario.py` | medium | yes | yes | yes | converted | `e2e_convert_candidate` | no | Converted coverage retained in `features/Report/Allure scenario.feature.md`. | n/a | completed |
-| `tests/struct_bdd/test_deserialization.py` | medium | yes | yes | yes | converted | `e2e_convert_candidate` | no | Core StructBDD deserialization defaults, joins, and nested-route behavior are documented in feature docs. | n/a | completed |
+| `tests/struct_bdd/test_deserialization.py` | medium | yes | yes | yes | deferred_conversion | `e2e_deferred_conversion` | yes | Feature conversion keeps core user-facing behavior, but it does not preserve full edge-case granularity from original pytest module. Keep pytest suite for detailed regression coverage. | Split remaining 24-case parity into additional feature scenarios with one-to-one edge assertions. | next-feature-cycle |
 | `tests/struct_bdd/test_steps.py` | medium | yes | yes | yes | converted | `e2e_convert_candidate` | no | Boundary coverage added in feature docs; pytest source deleted after category parity PASS. | n/a | completed |
 | `tests/e2e/test_e2e.py` | n/a | no | yes | yes | retain_technical | `e2e_retain_technical` | no | E2E harness glue is technical and should stay in pytest. | n/a | reviewed-each-cycle |
 | `tests/e2e/allure/test_e2e_allure.py` | n/a | no | yes | yes | retain_technical | `e2e_retain_technical` | no | Allure harness filtering is technical test infrastructure. | n/a | reviewed-each-cycle |
@@ -40,7 +40,7 @@
 ## Progress
 
 - [x] High-priority remaining conversion in pytest sources (`test_outline.py`, `test_http.py`)
-- [x] Medium-priority conversion in pytest sources (`test_deserialization.py`)
+- [x] Medium-priority conversion in pytest sources (`test_deserialization.py`) with deferred technical parity retained in pytest
 - [x] Retained technical harness tests marked and tracked
 - [x] Deferred conversion entries include unblock condition and target cycle
 
@@ -51,8 +51,8 @@ Recalculated after completing T033-T038 conditional deletions and parity upgrade
 | Metric | Value |
 |---|---:|
 | Total user-facing scenarios tracked | 21 |
-| Converted to feature docs | 21 |
-| Deferred conversion | 0 |
-| Coverage across tracked user-facing scenarios | 100.00% |
+| Converted to feature docs | 20 |
+| Deferred conversion | 1 |
+| Coverage across tracked user-facing scenarios | 95.24% |
 | Threshold target | 80% |
 | Threshold met | yes |
