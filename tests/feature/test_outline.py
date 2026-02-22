@@ -6,6 +6,8 @@ import pytest
 
 from pytest_bdd.compatibility.pytest import assert_outcomes
 
+pytestmark = [pytest.mark.e2e_deferred_conversion]
+
 
 @pytest.fixture
 def steps_conftest(testdir):

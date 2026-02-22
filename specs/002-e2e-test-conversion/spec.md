@@ -14,6 +14,10 @@
 - Q: Should E2E conversion stay in compatibility spec? → A: No, it is a separate feature and must be tracked in a separate spec
 - Q: Should converted tests preserve original intent? → A: Yes, intent parity is mandatory while keeping docs user-friendly
 - Q: Should fixes rewrite history? → A: No, fixes must be follow-up commits
+- Q: How should conversion eligibility be decided? → A: Use a mandatory classification rubric recorded per test in the conversion inventory
+- Q: What is the lifecycle for retained technical tests? → A: Keep them in CI and re-evaluate conversion eligibility each feature cycle
+- Q: Should classification support deferred conversion state? → A: Yes, add deferred status with explicit unblock condition and due cycle
+- Q: How should deferred conversion be tagged? → A: Use canonical marker `@pytest.mark.e2e_deferred_conversion`
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -72,7 +76,10 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - **FR-006**: Duplicate pytest tests MAY be removed only when converted coverage is verified as parity-complete.
 - **FR-007**: Every conversion task MUST have an audit entry mapping source test, converted file, verdict, and remediation commit.
 - **FR-008**: Conversion fixes MUST be delivered in follow-up commits; no history rewrite for parity remediation.
-- **FR-009**: Conversion classification MUST use canonical pytest markers `@pytest.mark.e2e_convert_candidate` and `@pytest.mark.e2e_retain_technical`, and those markers MUST be registered in `pytest.ini`.
+- **FR-009**: Conversion classification MUST use canonical pytest markers `@pytest.mark.e2e_convert_candidate`, `@pytest.mark.e2e_retain_technical`, and `@pytest.mark.e2e_deferred_conversion`, and those markers MUST be registered in `pytest.ini`.
+- **FR-010**: Every evaluated test MUST include a rubric-based classification record in `specs/002-e2e-test-conversion/e2e-migration-inventory.md` with decision and rationale.
+- **FR-011**: Tests marked `@pytest.mark.e2e_retain_technical` MUST continue to run in CI and MUST be re-evaluated for convertibility in each feature-cycle inventory refresh.
+- **FR-012**: Classification MUST support a deferred-conversion status with marker `@pytest.mark.e2e_deferred_conversion`, plus required unblock condition and target feature cycle recorded in the inventory.
 
 ### Key Entities
 
@@ -92,10 +99,19 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - Stable E2E harness in `tests/e2e/` for executing converted scenarios.
 - Markdown lint and test tooling for validating converted docs.
 
+### Conversion Classification Rubric
+
+- User-facing value: documents behavior that helps users understand library usage.
+- External observability: validates externally visible behavior, not only internals.
+- Stability suitability: scenario can remain readable and stable as long-lived documentation.
+- Decision logging: each test is marked as convertible, retained-technical, or deferred-conversion with rationale.
+- Deferred rule: deferred-conversion entries MUST include explicit unblock condition and target cycle.
+
 ### Retention Marker Policy
 
 - `@pytest.mark.e2e_convert_candidate`: marks tests eligible for conversion to feature-based E2E documentation.
 - `@pytest.mark.e2e_retain_technical`: marks tests that remain technical/non-convertible and must not be deleted during conversion cleanup.
+- `@pytest.mark.e2e_deferred_conversion`: marks tests that are intended for future conversion but are currently blocked.
 - Marker registration in `pytest.ini` is mandatory to keep marker usage explicit and lint-clean.
 
 ## Success Criteria *(mandatory)*

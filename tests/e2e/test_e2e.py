@@ -1,4 +1,8 @@
+import pytest
+
 from pytest_bdd import scenarios
+
+pytestmark = [pytest.mark.e2e_retain_technical]
 
 
 def _exclude_allure_features(config, feature, scenario):  # noqa: ARG001

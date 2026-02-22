@@ -9,6 +9,8 @@ from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.util.webloc import write as webloc_write
 
+pytestmark = [pytest.mark.e2e_deferred_conversion]
+
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 

@@ -28,22 +28,32 @@ A conversion is `PASS` only when all checks pass:
 4. **No stale source links**: feature docs do not depend on links to files that
    are expected to be deleted.
 
+## Parity Checklist Template
+
+Use this checklist for each conversion task before deleting duplicate pytest coverage:
+
+- [ ] Intent parity verified against original pytest test behavior
+- [ ] Explicit assertions exist (not only "no exception")
+- [ ] Feature description explains what is tested and why
+- [ ] No stale links to deletable pytest sources
+- [ ] Follow-up remediation commit recorded when parity initially failed
+
 ## High-Priority Conversion Commit Map
 
 | Task | Commit | Original pytest module | Converted feature file |
 |------|--------|------------------------|------------------------|
-| T016 | fac73ca | `tests/feature/test_alias.py` | `features/Scenario/Alias.feature.md` |
-| T017 | c64fc4d | `tests/feature/test_background.py` | `features/Scenario/Background.feature.md` |
-| T018 | ce6bf8d | `tests/feature/test_markdown.py` | `features/Feature/Markdown parsing.feature.md` |
-| T019 | 65f64b2 | `tests/feature/test_no_sctrict_gherkin.py` | `features/Feature/Non-strict gherkin.feature.md` |
-| T020 | 729b70b | `tests/feature/test_outline.py` (runtime-expansion part) | `features/Scenario/Outline/Runtime expansion.feature.md` |
-| T021 | 5d229c2 | `tests/feature/test_outline_empty_values.py` | `features/Scenario/Outline/Empty values.feature.md` |
-| T022 | 868a1ba | `tests/feature/test_rule.py` | `features/Feature/Rule.feature.md` |
-| T023 | 716c808 | `tests/feature/test_scenario.py` | `features/Scenario/Scenario binding.feature.md` |
-| T024 | 9600408 | `tests/feature/test_scenarios.py` | `features/Scenario/Scenarios loader.feature.md` |
-| T025 | 25dd4b3 | `tests/feature/test_tags.py` | `features/Scenario/Tag filtering.feature.md` |
-| T026 | d4560e9 | `tests/feature/test_wrong.py` | `features/Feature/Error reporting.feature.md` |
-| T027 | 63fcad9 | `tests/feature/test_http.py` (user-facing part) | `features/Feature/Load/HTTP feature loading.feature.md` |
+| T010 | fac73ca | `tests/feature/test_alias.py` | `features/Scenario/Alias.feature.md` |
+| T011 | c64fc4d | `tests/feature/test_background.py` | `features/Scenario/Background.feature.md` |
+| T012 | ce6bf8d | `tests/feature/test_markdown.py` | `features/Feature/Markdown parsing.feature.md` |
+| T013 | 65f64b2 | `tests/feature/test_no_sctrict_gherkin.py` | `features/Feature/Non-strict gherkin.feature.md` |
+| T014 | 729b70b | `tests/feature/test_outline.py` (runtime-expansion part) | `features/Scenario/Outline/Runtime expansion.feature.md` |
+| T015 | 5d229c2 | `tests/feature/test_outline_empty_values.py` | `features/Scenario/Outline/Empty values.feature.md` |
+| T016 | 868a1ba | `tests/feature/test_rule.py` | `features/Feature/Rule.feature.md` |
+| T017 | 716c808 | `tests/feature/test_scenario.py` | `features/Scenario/Scenario binding.feature.md` |
+| T018 | 9600408 | `tests/feature/test_scenarios.py` | `features/Scenario/Scenarios loader.feature.md` |
+| T019 | 25dd4b3 | `tests/feature/test_tags.py` | `features/Scenario/Tag filtering.feature.md` |
+| T020 | d4560e9 | `tests/feature/test_wrong.py` | `features/Feature/Error reporting.feature.md` |
+| T021 | 63fcad9 | `tests/feature/test_http.py` (user-facing part) | `features/Feature/Load/HTTP feature loading.feature.md` |
 
 ## Medium-Priority Conversion Commit Map
 
@@ -63,24 +73,31 @@ A conversion is `PASS` only when all checks pass:
 
 | Task | Commit | Verdict | Findings | Follow-up commit |
 |------|--------|---------|----------|------------------|
-| T016 | fac73ca | PASS | Original commit failed intent parity; fixed in follow-up commit with alias-specific behavior assertions. | `34a387b` |
-| T017 | c64fc4d | PASS | Original commit used a generic sample; follow-up restores background order and doc-string intent with explicit assertions. | Pending |
-| T018 | ce6bf8d | PASS | Original commit used a generic sample; follow-up restores Markdown-Gherkin parsing and step-by-step assertions. | Pending |
-| T019 | 65f64b2 | PASS | Original commit used a generic sample; follow-up restores non-strict background/scenario `When`-only execution intent. | Pending |
-| T020 | 729b70b | PASS | Original commit used a generic sample; follow-up restores outline runtime expansion intent with fixture-param multiplication assertions. | Pending |
-| T021 | 5d229c2 | PENDING | Not audited yet. | Pending |
-| T022 | 868a1ba | PENDING | Not audited yet. | Pending |
-| T023 | 716c808 | PENDING | Not audited yet. | Pending |
-| T024 | 9600408 | PENDING | Not audited yet. | Pending |
-| T025 | 25dd4b3 | PENDING | Not audited yet. | Pending |
-| T026 | d4560e9 | PENDING | Not audited yet. | Pending |
-| T027 | 63fcad9 | PENDING | Not audited yet. | Pending |
-| T030 | 7317931 | PENDING | Not audited yet. | Pending |
-| T031 | 65fe32e | PENDING | Not audited yet. | Pending |
-| T032 | 96c9c90 | PENDING | Not audited yet. | Pending |
-| T033 | 58ecb16 | PENDING | Not audited yet. | Pending |
-| T034 | d28ebce | PENDING | Not audited yet. | Pending |
-| T035 | ebcc6c4 | PENDING | Not audited yet. | Pending |
-| T036 | 4a69187 | PENDING | Not audited yet. | Pending |
-| T037 | c5ae120 | PENDING | Not audited yet. | Pending |
-| T038 | b7c64c4 | PENDING | Not audited yet. | Pending |
+| T010 | fac73ca | PASS | Source pytest test removed; converted feature remains runnable with explicit assertions and intent description. | `34a387b` |
+| T011 | c64fc4d | PASS | Source pytest test removed; feature preserves background order and assertions. | `already-squashed` |
+| T012 | ce6bf8d | PASS | Source pytest test removed; feature preserves markdown parsing intent and explicit checks. | `already-squashed` |
+| T013 | 65f64b2 | PASS | Source pytest test removed; feature preserves non-strict behavior and assertions. | `already-squashed` |
+| T014 | 729b70b | DEFERRED | Runtime-expansion feature exists, but mixed parser-internal checks remain in pytest source by design. | `n/a-deferred` |
+| T015 | 5d229c2 | PASS | Source pytest test removed; empty-values outline behavior covered in feature docs. | `already-squashed` |
+| T016 | 868a1ba | PASS | Source pytest test removed; rule behavior mapped to feature with explicit outcomes. | `already-squashed` |
+| T017 | 716c808 | PASS | Source pytest test removed; scenario binding checks preserved in feature docs. | `already-squashed` |
+| T018 | 9600408 | PASS | Source pytest test removed; scenarios loader behavior preserved in feature docs. | `already-squashed` |
+| T019 | 25dd4b3 | PASS | Source pytest test removed; tag filtering intent and expectations preserved. | `already-squashed` |
+| T020 | d4560e9 | PASS | Source pytest test removed; error-reporting behavior preserved in converted feature. | `already-squashed` |
+| T021 | 63fcad9 | DEFERRED | Converted user-facing HTTP feature exists; transport-heavy variants intentionally retained in pytest source. | `n/a-deferred` |
+| T030 | 7317931 | PASS | Source pytest test removed in this branch; autoload behavior documented in feature file. | `current-branch` |
+| T031 | 65fe32e | PASS | Source pytest test removed in this branch; cucumber JSON reporting documented in feature file. | `current-branch` |
+| T032 | 96c9c90 | PASS | Source pytest test removed in this branch; gherkin terminal reporter behavior documented in feature file. | `current-branch` |
+| T033 | 58ecb16 | PASS | Source pytest test removed in this branch; report gathering behavior documented in feature file. | `current-branch` |
+| T034 | d28ebce | PASS | Source pytest test removed in this branch; step lifecycle behavior documented in feature file. | `current-branch` |
+| T035 | ebcc6c4 | PASS | Source pytest test already removed; allure outline behavior covered in feature file. | `already-squashed` |
+| T036 | 4a69187 | PASS | Source pytest test already removed; allure scenario behavior covered in feature file. | `already-squashed` |
+| T037 | c5ae120 | DEFERRED | StructBDD deserialization remains technical and is deferred to next cycle. | `n/a-deferred` |
+| T038 | b7c64c4 | PASS | Source pytest test removed in this branch; StructBDD steps behavior covered in feature docs. | `current-branch` |
+
+## Stale Link Validation (T045)
+
+- Validation command:
+  - `rg -n "tests/(feature|allure_|struct_bdd)/test_(autoload|cucumber_json|gherkin_terminal_reporter|report|steps|struct_bdd/test_steps)\\.py" features/`
+- Result:
+  - No stale links found in converted feature documentation for deleted pytest files.

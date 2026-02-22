@@ -27,3 +27,15 @@ def test_no_duplicates_when_user_facing_tests_removed(tmp_path: Path):
 
     assert summary.duplicates_in_tests == 0
     assert summary.threshold_met is True
+
+
+def test_inventory_keeps_non_removable_retained_and_deferred_tests():
+    inventory = Path("specs/002-e2e-test-conversion/e2e-migration-inventory.md").read_text(encoding="utf-8")
+
+    assert "`tests/e2e/test_e2e.py`" in inventory
+    assert "`tests/e2e/allure/test_e2e_allure.py`" in inventory
+    assert "e2e_retain_technical" in inventory
+
+    assert "`tests/feature/test_outline.py`" in inventory
+    assert "`tests/feature/test_http.py`" in inventory
+    assert "e2e_deferred_conversion" in inventory

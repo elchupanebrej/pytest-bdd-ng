@@ -1,9 +1,24 @@
 from pathlib import Path
 
+import pytest
+
 from pytest_bdd.compatibility.matrix import (
     discover_feature_scenario_ids,
     discover_user_facing_test_scenario_ids,
 )
+
+pytestmark = [pytest.mark.e2e_deferred_conversion]
+
+DEFERRED_CONVERSION_NOTES = {
+    "tests/feature/test_outline.py": {
+        "unblock_condition": "split user-facing and parser-internal assertions",
+        "target_cycle": "next-feature-cycle",
+    },
+    "tests/feature/test_http.py": {
+        "unblock_condition": "extract remote transport variants into feature docs",
+        "target_cycle": "next-feature-cycle",
+    },
+}
 
 
 def test_discovers_feature_scenario_ids(tmp_path: Path):
@@ -26,3 +41,10 @@ def test_discovers_user_facing_tests_from_tests_feature_folder(tmp_path: Path):
 
     assert "no-scenario" in ids
     assert "other" not in ids
+
+
+def test_deferred_conversion_notes_are_complete():
+    for path, metadata in DEFERRED_CONVERSION_NOTES.items():
+        assert path.startswith("tests/feature/")
+        assert metadata["unblock_condition"]
+        assert metadata["target_cycle"]

@@ -8,6 +8,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - Project type: Python library and CLI tooling
 - Python 3.10-3.14 + pytest>=6.2.5, tox>=4.2, pre-commit, packaging (001-add-py314-pytest39-support)
 - N/A (repository configuration and documentation only) (001-add-py314-pytest39-support)
+- Python 3.10-3.14 (feature-level validation scope) + pytest, pytest-bdd, pre-commit, markdownlin (002-e2e-spec-remediation)
+- Repository files (`specs/002-e2e-test-conversion/*.md`, `features/`, `tests/`) (002-e2e-spec-remediation)
 
 ## Project Structure
 
@@ -30,9 +32,9 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 002-e2e-spec-remediation: Added Python 3.10-3.14 (feature-level validation scope) + pytest, pytest-bdd, pre-commit, markdownlin
 - 001-add-py314-pytest39-support: Added Python 3.10-3.14 + pytest>=6.2.5, tox>=4.2, pre-commit, packaging
 - 001-add-py314-pytest39-support: Added Python 3.14 support path via conda-forge.
-- 001-add-py314-pytest39-support: Added matrix compatibility validation flow.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
