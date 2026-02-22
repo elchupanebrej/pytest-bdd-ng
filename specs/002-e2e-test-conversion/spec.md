@@ -65,20 +65,21 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 ### Functional Requirements
 
 - **FR-001**: User-facing E2E scenarios MUST be represented in `features/` as executable documentation.
-- **FR-002**: Technical/regression-heavy scenarios MUST remain in `tests/` and be explicitly marked as non-convertible.
+- **FR-002**: Technical/regression-heavy scenarios MUST remain in `tests/` and be explicitly marked with `@pytest.mark.e2e_retain_technical`.
 - **FR-003**: Converted scenarios MUST preserve the original test intent and include explicit assertions, not only "no exception" checks.
 - **FR-004**: Converted feature files MUST include a clear description of what is tested and why.
 - **FR-005**: Converted feature files MUST NOT depend on links to source pytest files that are deleted.
 - **FR-006**: Duplicate pytest tests MAY be removed only when converted coverage is verified as parity-complete.
 - **FR-007**: Every conversion task MUST have an audit entry mapping source test, converted file, verdict, and remediation commit.
 - **FR-008**: Conversion fixes MUST be delivered in follow-up commits; no history rewrite for parity remediation.
+- **FR-009**: Conversion classification MUST use canonical pytest markers `@pytest.mark.e2e_convert_candidate` and `@pytest.mark.e2e_retain_technical`, and those markers MUST be registered in `pytest.ini`.
 
 ### Key Entities
 
 - **ConversionCandidate**: Source pytest test evaluated for conversion with priority and convertibility reason.
 - **ConvertedScenario**: Feature file scenario created from candidate test with intent/assertion mapping.
 - **ParityAuditEntry**: Record that links source test, converted file, verdict, and fix commit.
-- **RetentionMarker**: Tag/marker for technical tests that are intentionally kept in pytest form.
+- **RetentionMarker**: Canonical pytest marker `@pytest.mark.e2e_retain_technical` for tests intentionally kept in pytest form.
 
 ### Assumptions
 
@@ -91,11 +92,17 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - Stable E2E harness in `tests/e2e/` for executing converted scenarios.
 - Markdown lint and test tooling for validating converted docs.
 
+### Retention Marker Policy
+
+- `@pytest.mark.e2e_convert_candidate`: marks tests eligible for conversion to feature-based E2E documentation.
+- `@pytest.mark.e2e_retain_technical`: marks tests that remain technical/non-convertible and must not be deleted during conversion cleanup.
+- Marker registration in `pytest.ini` is mandatory to keep marker usage explicit and lint-clean.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: At least 80% of user-facing E2E scenarios are represented in `features/` and runnable.
+- **SC-001**: At least 80% of tests marked `@pytest.mark.e2e_convert_candidate` in `specs/002-e2e-test-conversion/e2e-migration-inventory.md` are represented in runnable `features/*.feature.md` scenarios.
 - **SC-002**: 100% of converted scenarios have parity audit entries with explicit verdicts.
 - **SC-003**: 100% of retained technical tests include a non-convertible classification marker.
 - **SC-004**: 100% of conversion-related fix actions are delivered as follow-up commits linked from audit records.

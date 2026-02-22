@@ -8,6 +8,14 @@ Validate each conversion commit against the original pytest test intent. Convert
 feature docs may be more user-friendly, but must preserve behavioral intent,
 explicitly state what is validated, and avoid stale links to deletable files.
 
+## Canonical Terms and Markers
+
+- **ConversionCandidate**: test marked `@pytest.mark.e2e_convert_candidate`.
+- **RetentionMarker**: `@pytest.mark.e2e_retain_technical` for non-convertible
+  technical tests retained in `tests/`.
+- **ParityAuditEntry**: audit row linking source pytest test, converted feature
+  file, verdict, and follow-up commit.
+
 ## Parity Rubric
 
 A conversion is `PASS` only when all checks pass:

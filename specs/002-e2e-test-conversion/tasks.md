@@ -45,3 +45,4 @@
 - [ ] T042 [US2] Add/verify technical-test retention markers for non-convertible tests in `tests/`
 - [ ] T043 [US2] Remove only duplicate pytest tests that are parity-complete converted scenarios
 - [ ] T044 Run `pre-commit run --all-files` and fix issues before each conversion commit
+- [ ] T045 [US1] Validate converted feature files do not reference deleted pytest files and record results in `specs/002-e2e-test-conversion/conversion-parity-audit.md`
