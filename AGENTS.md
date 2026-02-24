@@ -8,6 +8,13 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - Project type: Python library and CLI tooling
 - Python 3.10-3.14 + pytest>=6.2.5, tox>=4.2, pre-commit, packaging (001-add-py314-pytest39-support)
 - N/A (repository configuration and documentation only) (001-add-py314-pytest39-support)
+- Python 3.10-3.14 + pytest, pluggy hook system, cucumber-messages models, pytest-bdd runtime/plugin layers (003-unify-run-context)
+- In-memory per-test-run context state bound to pytest runtime objects (no persistent storage) (003-unify-run-context)
+- Python 3.10-3.14 + pytest, pluggy hooks, cucumber-messages models, pytest-bdd runtime/plugin modules (003-unify-run-context)
+- In-memory runtime context state per active scenario execution (no persistent storage) (003-unify-run-context)
+- Python 3.10-3.14 + pytest, pluggy, cucumber-messages, pytest-bdd plugin runtime and hook system (003-unify-run-context)
+- In-memory runtime context graph (session-root + hierarchical child contexts), no persistent storage (003-unify-run-context)
+- In-memory runtime context graph + canonical `pytest.config.stash` entry (no persistent storage) (003-unify-run-context)
 
 ## Project Structure
 
@@ -26,13 +33,14 @@ tests/
 
 - Follow repository linting/formatting via `ruff` and pre-commit hooks.
 - Keep compatibility behavior aligned with pytest Python-version support matrix.
+- Documentation and planning artifacts MUST be written in English.
 - For non-native platform test environments, run via the Docker skill; Windows
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
-- 001-add-py314-pytest39-support: Added Python 3.10-3.14 + pytest>=6.2.5, tox>=4.2, pre-commit, packaging
+- 003-unify-run-context: Added session-root execution context planning updates,
+  fixture/stash access model, and reporting hierarchy requirements.
 - 001-add-py314-pytest39-support: Added Python 3.14 support path via conda-forge.
-- 001-add-py314-pytest39-support: Added matrix compatibility validation flow.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

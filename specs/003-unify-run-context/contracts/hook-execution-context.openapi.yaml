@@ -1,0 +1,450 @@
+---
+openapi: 3.0.3
+info:
+  title: Session-Root Hook Execution Context Contract
+  version: 1.3.0
+  description: >-
+    Design-time contract for session-root execution context hierarchy,
+    fixture and stash accessibility, field-based hook parameter access,
+    reporting hierarchy usage, diagnostics, and additive-only API evolution.
+paths:
+  /execution-context/session-root:
+    get:
+      summary: Return current session-root execution context
+      responses:
+        '200':
+          description: Session execution context root
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionExecutionContext'
+
+  /execution-context/session-fixture:
+    get:
+      summary: >-
+        Resolve session-scoped fixture binding for SessionExecutionContext
+      responses:
+        '200':
+          description: Fixture binding details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContextFixtureBinding'
+
+  /execution-context/config-stash:
+    get:
+      summary: Resolve canonical stash binding for SessionExecutionContext
+      responses:
+        '200':
+          description: Stash binding details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionContextStashBinding'
+
+  /execution-context/active-set:
+    get:
+      summary: Return active object snapshot for current hook point
+      responses:
+        '200':
+          description: Active object set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveObjectSet'
+
+  /hooks/{hookName}/parameter-model:
+    get:
+      summary: Resolve hook parameter model with embedded execution context view
+      parameters:
+        - in: path
+          name: hookName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Hook parameter model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HookParameterModel'
+
+  /reporting/context-snapshot:
+    get:
+      summary: Resolve reporting snapshot from context hierarchy
+      parameters:
+        - in: query
+          name: eventName
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reporting context snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportingContextSnapshot'
+
+  /execution-context/transitions:
+    post:
+      summary: Apply deterministic transition to session-root hierarchy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      responses:
+        '200':
+          description: Updated execution context view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionContextView'
+        '409':
+          description: Transition order violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextErrorState'
+
+  /compatibility/external-api:
+    get:
+      summary: Report external API compatibility impact for this feature
+      responses:
+        '200':
+          description: Compatibility report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalApiCompatibilityRecord'
+
+components:
+  schemas:
+    SessionExecutionContext:
+      type: object
+      required:
+        - sessionContextId
+        - runRef
+        - status
+        - transitionIndex
+      properties:
+        sessionContextId:
+          type: string
+        runRef:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+        activeFeatureContextId:
+          type: string
+          nullable: true
+        activeScenarioContextId:
+          type: string
+          nullable: true
+        activeStepContextId:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        transitionIndex:
+          type: integer
+          minimum: 0
+        lastError:
+          $ref: '#/components/schemas/ContextErrorState'
+          nullable: true
+
+    SessionContextStashBinding:
+      type: object
+      required:
+        - stashKey
+        - sessionContextId
+        - storedAtStage
+      properties:
+        stashKey:
+          type: string
+        sessionContextId:
+          type: string
+        storedAtStage:
+          $ref: '#/components/schemas/ExecutionStage'
+
+    SessionContextFixtureBinding:
+      type: object
+      required:
+        - fixtureName
+        - scope
+        - sessionContextId
+      properties:
+        fixtureName:
+          type: string
+        scope:
+          type: string
+          enum:
+            - session
+        sessionContextId:
+          type: string
+
+    ExecutionContextNode:
+      type: object
+      required:
+        - contextId
+        - parentContextId
+        - kind
+        - objectRef
+        - isActive
+        - openedAtTransition
+      properties:
+        contextId:
+          type: string
+        parentContextId:
+          type: string
+        kind:
+          type: string
+          enum:
+            - feature
+            - scenario
+            - step
+        objectRef:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+        isActive:
+          type: boolean
+        openedAtTransition:
+          type: integer
+          minimum: 0
+        closedAtTransition:
+          type: integer
+          minimum: 0
+          nullable: true
+
+    ExecutionContextView:
+      type: object
+      required:
+        - session
+        - activeSet
+        - activeHook
+        - stage
+        - status
+      properties:
+        session:
+          $ref: '#/components/schemas/SessionExecutionContext'
+        activeSet:
+          $ref: '#/components/schemas/ActiveObjectSet'
+        activeHook:
+          $ref: '#/components/schemas/HookPhase'
+        stage:
+          $ref: '#/components/schemas/ExecutionStage'
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+
+    HookParameterModel:
+      type: object
+      description: >-
+        Existing hook parameter model with embedded execution context field.
+      required:
+        - executionContext
+      properties:
+        requestRef:
+          type: string
+          nullable: true
+        featureRef:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        scenarioRef:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        stepRef:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        executionContext:
+          $ref: '#/components/schemas/ExecutionContextView'
+
+    ReportingContextSnapshot:
+      type: object
+      required:
+        - sessionContextId
+        - activeSet
+        - stage
+        - resolvedFromHierarchy
+      properties:
+        sessionContextId:
+          type: string
+        activeSet:
+          $ref: '#/components/schemas/ActiveObjectSet'
+        stage:
+          $ref: '#/components/schemas/ExecutionStage'
+        resolvedFromHierarchy:
+          type: boolean
+        fallbackReason:
+          type: string
+          nullable: true
+
+    LifecycleObjectRef:
+      type: object
+      required:
+        - kind
+        - objectId
+        - isActive
+      properties:
+        kind:
+          type: string
+          enum:
+            - run
+            - feature
+            - scenario
+            - step
+        objectId:
+          type: string
+        name:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+
+    ActiveObjectSet:
+      type: object
+      required:
+        - run
+        - capturedAtStage
+      properties:
+        run:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+        feature:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        scenario:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        step:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        previousStep:
+          $ref: '#/components/schemas/LifecycleObjectRef'
+          nullable: true
+        capturedAtStage:
+          $ref: '#/components/schemas/ExecutionStage'
+
+    ContextErrorState:
+      type: object
+      required:
+        - code
+        - message
+        - hookName
+        - stage
+      properties:
+        code:
+          type: string
+          enum:
+            - object_inactive
+            - transition_order_violation
+            - context_not_initialized
+        message:
+          type: string
+        hookName:
+          type: string
+        stage:
+          $ref: '#/components/schemas/ExecutionStage'
+        requestedKind:
+          type: string
+          enum:
+            - run
+            - feature
+            - scenario
+            - step
+          nullable: true
+
+    TransitionRequest:
+      type: object
+      required:
+        - hookName
+        - phase
+        - stage
+      properties:
+        hookName:
+          type: string
+        phase:
+          $ref: '#/components/schemas/HookPhase'
+        stage:
+          $ref: '#/components/schemas/ExecutionStage'
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        featureNode:
+          $ref: '#/components/schemas/ExecutionContextNode'
+          nullable: true
+        scenarioNode:
+          $ref: '#/components/schemas/ExecutionContextNode'
+          nullable: true
+        stepNode:
+          $ref: '#/components/schemas/ExecutionContextNode'
+          nullable: true
+
+    ExternalApiCompatibilityRecord:
+      type: object
+      required:
+        - apiSurfaceId
+        - baselineReference
+        - changedSymbols
+        - removedSymbols
+        - renamedSymbols
+        - additiveSymbols
+        - consumerMigrationRequired
+      properties:
+        apiSurfaceId:
+          type: string
+          example: hook-plugin-public-api
+        baselineReference:
+          type: string
+          example: personal/default
+        changedSymbols:
+          type: array
+          items:
+            type: string
+        removedSymbols:
+          type: array
+          items:
+            type: string
+          maxItems: 0
+        renamedSymbols:
+          type: array
+          items:
+            type: string
+          maxItems: 0
+        additiveSymbols:
+          type: array
+          items:
+            type: string
+        consumerMigrationRequired:
+          type: boolean
+          enum:
+            - false
+
+    HookPhase:
+      type: string
+      enum:
+        - before_scenario
+        - run_scenario
+        - after_scenario
+        - run_step
+        - before_step
+        - before_step_call
+        - after_step
+        - step_error
+        - step_lookup_error
+
+    ExecutionStage:
+      type: string
+      enum:
+        - idle
+        - scenario_setup
+        - scenario_running
+        - step_running
+        - scenario_teardown
+        - finished
+
+    ExecutionStatus:
+      type: string
+      enum:
+        - ok
+        - failed
+        - interrupted
