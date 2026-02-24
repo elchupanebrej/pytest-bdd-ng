@@ -38,8 +38,10 @@ def test_inventory_keeps_non_removable_retained_and_deferred_tests():
 
     assert "`tests/feature/test_outline.py`" in inventory
     assert "`tests/feature/test_http.py`" in inventory
+    assert "`tests/feature/test_steps.py`" in inventory
+    assert "`tests/struct_bdd/test_steps.py`" in inventory
     assert "`tests/struct_bdd/test_deserialization.py`" in inventory
-    assert "| Deferred conversion | 1 |" in inventory
+    assert "| Deferred conversion | 3 |" in inventory
 
 
 def _iter_inventory_rows(inventory_text: str):
