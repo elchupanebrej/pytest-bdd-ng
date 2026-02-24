@@ -14,6 +14,13 @@
 - Q: Should E2E conversion stay in compatibility spec? → A: No, it is a separate feature and must be tracked in a separate spec
 - Q: Should converted tests preserve original intent? → A: Yes, intent parity is mandatory while keeping docs user-friendly
 - Q: Should fixes rewrite history? → A: No, fixes must be follow-up commits
+- Q: How should conversion eligibility be decided? → A: Use a mandatory classification rubric recorded per test in the conversion inventory
+- Q: What is the lifecycle for retained technical tests? → A: Keep them in CI and re-evaluate conversion eligibility each feature cycle
+- Q: Should classification support deferred conversion state? → A: Yes, add deferred status with explicit unblock condition and due cycle
+- Q: How should deferred conversion be tagged? → A: Use canonical marker `@pytest.mark.e2e_deferred_conversion`
+- Q: What is the deletion policy for converted pytest tests? → A: Delete only after proving equal-or-higher coverage via explicit parity metrics
+- Q: What parity metric is mandatory before deletion? → A: Category parity is required: happy path + failure path + boundary/empty case
+- Q: How to handle already deleted pytest tests without category-parity evidence? → A: Restore them unless parity audit explicitly proves category parity
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -59,26 +66,33 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - Mixed tests containing both user-facing and low-level assertions must be split: user-facing part in `features/`, low-level part remains in `tests/`.
 - Converted docs must not link to test files that are expected to be deleted.
 - Auto-discovery/autoload behavior must be preserved; conversions must not rely on duplicated manual runs to pass.
+- Previously deleted pytest tests without category-parity evidence must be treated as regression-risk and restored.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: User-facing E2E scenarios MUST be represented in `features/` as executable documentation.
-- **FR-002**: Technical/regression-heavy scenarios MUST remain in `tests/` and be explicitly marked as non-convertible.
+- **FR-002**: Technical/regression-heavy scenarios MUST remain in `tests/` and be explicitly marked with `@pytest.mark.e2e_retain_technical`.
 - **FR-003**: Converted scenarios MUST preserve the original test intent and include explicit assertions, not only "no exception" checks.
 - **FR-004**: Converted feature files MUST include a clear description of what is tested and why.
 - **FR-005**: Converted feature files MUST NOT depend on links to source pytest files that are deleted.
 - **FR-006**: Duplicate pytest tests MAY be removed only when converted coverage is verified as parity-complete.
+- **FR-006A**: Deleting converted pytest tests is allowed ONLY when explicit parity metrics prove category parity against the original tests: at least one happy-path, one failure-path, and one boundary/empty-case assertion set.
+- **FR-006B**: If a pytest source test was deleted without recorded category-parity evidence, it MUST be restored until parity evidence is added and validated.
 - **FR-007**: Every conversion task MUST have an audit entry mapping source test, converted file, verdict, and remediation commit.
 - **FR-008**: Conversion fixes MUST be delivered in follow-up commits; no history rewrite for parity remediation.
+- **FR-009**: Conversion classification MUST use canonical pytest markers `@pytest.mark.e2e_convert_candidate`, `@pytest.mark.e2e_retain_technical`, and `@pytest.mark.e2e_deferred_conversion`, and those markers MUST be registered in `pytest.ini`.
+- **FR-010**: Every evaluated test MUST include a rubric-based classification record in `specs/002-e2e-test-conversion/e2e-migration-inventory.md` with decision and rationale.
+- **FR-011**: Tests marked `@pytest.mark.e2e_retain_technical` MUST continue to run in CI and MUST be re-evaluated for convertibility in each feature-cycle inventory refresh.
+- **FR-012**: Classification MUST support a deferred-conversion status with marker `@pytest.mark.e2e_deferred_conversion`, plus required unblock condition and target feature cycle recorded in the inventory.
 
 ### Key Entities
 
 - **ConversionCandidate**: Source pytest test evaluated for conversion with priority and convertibility reason.
 - **ConvertedScenario**: Feature file scenario created from candidate test with intent/assertion mapping.
 - **ParityAuditEntry**: Record that links source test, converted file, verdict, and fix commit.
-- **RetentionMarker**: Tag/marker for technical tests that are intentionally kept in pytest form.
+- **RetentionMarker**: Canonical pytest marker `@pytest.mark.e2e_retain_technical` for tests intentionally kept in pytest form.
 
 ### Assumptions
 
@@ -91,11 +105,27 @@ As a reviewer, I can audit each conversion commit and its fix commit as a pair s
 - Stable E2E harness in `tests/e2e/` for executing converted scenarios.
 - Markdown lint and test tooling for validating converted docs.
 
+### Conversion Classification Rubric
+
+- User-facing value: documents behavior that helps users understand library usage.
+- External observability: validates externally visible behavior, not only internals.
+- Stability suitability: scenario can remain readable and stable as long-lived documentation.
+- Decision logging: each test is marked as convertible, retained-technical, or deferred-conversion with rationale.
+- Deferred rule: deferred-conversion entries MUST include explicit unblock condition and target cycle.
+
+### Retention Marker Policy
+
+- `@pytest.mark.e2e_convert_candidate`: marks tests eligible for conversion to feature-based E2E documentation.
+- `@pytest.mark.e2e_retain_technical`: marks tests that remain technical/non-convertible and must not be deleted during conversion cleanup.
+- `@pytest.mark.e2e_deferred_conversion`: marks tests that are intended for future conversion but are currently blocked.
+- Marker registration in `pytest.ini` is mandatory to keep marker usage explicit and lint-clean.
+
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: At least 80% of user-facing E2E scenarios are represented in `features/` and runnable.
+- **SC-001**: At least 80% of tests marked `@pytest.mark.e2e_convert_candidate` in `specs/002-e2e-test-conversion/e2e-migration-inventory.md` are represented in runnable `features/*.feature.md` scenarios.
+- **SC-001A**: Each deletion candidate MUST record category parity in parity audit with happy-path, failure-path, and boundary/empty-case coverage explicitly marked as satisfied.
 - **SC-002**: 100% of converted scenarios have parity audit entries with explicit verdicts.
 - **SC-003**: 100% of retained technical tests include a non-convertible classification marker.
 - **SC-004**: 100% of conversion-related fix actions are delivered as follow-up commits linked from audit records.

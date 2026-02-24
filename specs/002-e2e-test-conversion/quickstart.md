@@ -1,24 +1,45 @@
-# Quickstart: E2E Conversion Validation
+# Quickstart: Validate E2E Conversion Workstream
 
-## 1. Run converted feature scenarios
-
-```bash
-python -m pytest -q features
-```
-
-## 2. Run technical E2E tests
+## 1) Validate marker registration and classification tests (expected: pass)
 
 ```bash
-python -m pytest -q tests/e2e/test_e2e.py
+conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility/test_e2e_classification.py
 ```
 
-## 3. Verify parity audit status
-
-- Check `conversion-parity-audit.md` for verdict and follow-up fix commit links.
-- Check `e2e-migration-inventory.md` for convertibility and migration progress.
-
-## 4. Run pre-commit before committing conversion changes
+## 2) Run parity and inventory guardrails (expected: all pass)
 
 ```bash
-pre-commit run --all-files
+conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+  tests/compatibility/test_e2e_inventory.py \
+  tests/compatibility/test_e2e_migration_threshold.py \
+  tests/compatibility/test_e2e_no_duplicates.py
 ```
+
+## 3) Run E2E conversion harness (expected: all pass)
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/e2e
+```
+
+## 4) Run CI-aligned validation slice used in this spec (expected: all pass)
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/e2e
+```
+
+## 5) Run pre-commit checks before commits (expected: all hooks pass)
+
+```bash
+conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+```
+
+## 6) List tox environments used by CI
+
+```bash
+conda run -n pytest-bdd-ng-py314 tox -l
+```
+
+## 7) Non-native platform execution rule
+
+- For non-native platform test environments, execute via Docker skill.
+- Windows targets are exempt and may use non-Docker execution.

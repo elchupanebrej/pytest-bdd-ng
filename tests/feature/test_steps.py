@@ -4,7 +4,7 @@ import pytest
 
 from pytest_bdd.util.toolz_test import collect_dumped_objects
 
-pytestmark = [pytest.mark.technical_nonconvertible]
+pytestmark = [pytest.mark.e2e_deferred_conversion]
 
 
 def test_steps(testdir):

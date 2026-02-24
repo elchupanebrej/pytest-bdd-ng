@@ -1,5 +1,9 @@
+import pytest
+
 from pytest_bdd import scenarios
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+
+pytestmark = [pytest.mark.e2e_retain_technical]
 
 
 def _include_allure_features(config, feature, scenario):  # noqa: ARG001

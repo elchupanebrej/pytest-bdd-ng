@@ -2,41 +2,43 @@
 openapi: 3.0.3
 info:
   title: E2E Conversion Tracking Contract
-  version: 0.1.0
-  description: Contract for E2E conversion inventory and parity audit tracking.
+  version: 0.2.0
+  description: >-
+    Contract for conversion inventory, marker classification, parity audit
+    status, and cycle-based migration metrics for E2E feature conversion.
 paths:
-  /e2e-scenarios:
+  /conversion-candidates:
     get:
-      summary: List E2E conversion candidates and classification
+      summary: List conversion candidates with rubric classification
       responses:
         '200':
-          description: E2E scenario inventory
+          description: Candidate list
           content:
             application/json:
               schema:
                 type: object
-                required: [scenarios]
+                required: [items]
                 properties:
-                  scenarios:
+                  items:
                     type: array
                     items:
-                      $ref: '#/components/schemas/EndToEndScenario'
-  /e2e-scenarios/migration-summary:
+                      $ref: '#/components/schemas/ConversionCandidate'
+  /conversion-candidates/summary:
     get:
-      summary: Get migration coverage summary for user-facing E2E scenarios
+      summary: Get migration summary for convert candidates
       responses:
         '200':
-          description: Migration coverage result
+          description: Migration summary
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MigrationCoverageSummary'
-  /e2e-conversion/parity-audit:
+                $ref: '#/components/schemas/MigrationSummary'
+  /parity-audit-entries:
     get:
       summary: List parity audit entries
       responses:
         '200':
-          description: Parity audit entries
+          description: Parity audit list
           content:
             application/json:
               schema:
@@ -49,41 +51,57 @@ paths:
                       $ref: '#/components/schemas/ParityAuditEntry'
 components:
   schemas:
-    EndToEndScenario:
+    ConversionCandidate:
       type: object
       required:
-        - scenarioId
-        - sourcePath
+        - sourceTestPath
+        - priority
         - classification
-        - targetLocation
-        - isMigrated
+        - userFacingValue
+        - externalObservability
+        - stabilitySuitability
+        - decisionRationale
       properties:
-        scenarioId:
+        sourceTestPath:
           type: string
-        sourcePath:
+        priority:
           type: string
+          enum: [high, medium, low]
         classification:
           type: string
-          enum: [user_facing, technical_regression]
-        targetLocation:
+          enum: [convert_candidate, retain_technical, deferred_conversion]
+        marker:
           type: string
-          enum: [features, tests]
-        isMigrated:
+          enum:
+            - e2e_convert_candidate
+            - e2e_retain_technical
+            - e2e_deferred_conversion
+        userFacingValue:
           type: boolean
-        isDuplicateRemovedFromTests:
+        externalObservability:
           type: boolean
-    MigrationCoverageSummary:
+        stabilitySuitability:
+          type: boolean
+        decisionRationale:
+          type: string
+        targetCycle:
+          type: string
+          nullable: true
+        unblockCondition:
+          type: string
+          nullable: true
+    MigrationSummary:
       type: object
       required:
-        - totalUserFacingScenarios
-        - userFacingInFeatures
+        - totalConvertCandidates
+        - convertedToFeatures
         - coveragePercent
         - thresholdPercent
         - thresholdMet
       properties:
-        totalUserFacingScenarios:
+        totalConvertCandidates:
           type: integer
-        userFacingInFeatures:
+        convertedToFeatures:
           type: integer
         coveragePercent:
           type: number
@@ -99,6 +117,11 @@ components:
         - sourceTestPath
         - featurePath
         - verdict
+        - findings
+        - happyPathCovered
+        - failurePathCovered
+        - boundaryPathCovered
+        - restorationRequired
       properties:
         taskId:
           type: string
@@ -109,6 +132,16 @@ components:
         verdict:
           type: string
           enum: [pass, pending, fail]
-        followUpCommit:
+        findings:
+          type: string
+        happyPathCovered:
+          type: boolean
+        failurePathCovered:
+          type: boolean
+        boundaryPathCovered:
+          type: boolean
+        restorationRequired:
+          type: boolean
+        remediationCommit:
           type: string
           nullable: true

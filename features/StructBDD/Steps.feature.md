@@ -64,3 +64,49 @@
     | passed | failed |
     |--------|--------|
     | 1      | 0      |
+
+## Scenario: StructBDD examples expand into multiple executions
+* Given File "steps.bdd.yaml" with content:
+
+    ```yaml
+    Name: Examples are substituted
+    Steps:
+      - Given: I have <have> cucumbers
+      - And: I eat <eat> cucumbers
+      - Then: I have <left> cucumbers
+    Examples:
+      - Table:
+          Parameters: [have, eat, left]
+          Values:
+            - ["12", 5, 7.0]
+            - ["8.0", 3.0, "5"]
+    ```
+
+* And File "conftest.py" with content:
+
+    ```python
+    from pytest_bdd import given, then, scenario
+
+    @scenario("steps.bdd.yaml", "Examples are substituted")
+    def test_examples():
+      pass
+
+    @given("I have {count:g} cucumbers", target_fixture="cucumbers")
+    def _have(count):
+      return count
+
+    @given("I eat {count:g} cucumbers", target_fixture="cucumbers")
+    def _eat(count, cucumbers):
+      return cucumbers - count
+
+    @then("I have {count:g} cucumbers", target_fixture="cucumbers")
+    def _left(count, cucumbers):
+      assert count == cucumbers
+    ```
+
+* When run pytest
+* Then pytest outcome must contain tests with statuses:
+
+    | passed | failed |
+    |--------|--------|
+    | 2      | 0      |
