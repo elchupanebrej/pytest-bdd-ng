@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+
+def _find_bdd_call_report(result):
+    for rep in result.getreports(names="pytest_runtest_logreport pytest_collectreport"):
+        if getattr(rep, "when", None) != "call":
+            continue
+        if hasattr(rep, "scenario"):
+            return rep
+    raise LookupError
+
+
+def test_reporting_snapshot_uses_context_hierarchy(testdir):
+    testdir.makefile(
+        ".ini",
+        pytest="""
+        [pytest]
+        disable_feature_autoload = true
+        """,
+    )
+
+    testdir.makefile(
+        ".feature",
+        test="""
+        Feature: Reporting context snapshot
+            Scenario: Reporting gets hierarchy snapshot
+                Given first step
+                When second step
+        """,
+    )
+
+    testdir.makepyfile(
+        """
+        from pytest_bdd import given, scenario, when
+
+        @scenario('test.feature', 'Reporting gets hierarchy snapshot')
+        def test_reporting_gets_hierarchy_snapshot():
+            pass
+
+        @given('first step')
+        def first_step():
+            return None
+
+        @when('second step')
+        def second_step():
+            return None
+        """
+    )
+
+    result = testdir.inline_run("-q")
+    report = _find_bdd_call_report(result)
+
+    assert report.passed
+    assert hasattr(report, "execution_context_snapshot")
+
+    snapshot = report.execution_context_snapshot
+    assert snapshot["resolved_from_hierarchy"] is True
+    assert snapshot["fallback_reason"] is None
+    assert snapshot["stage"] == "finished"
+    assert snapshot["active_set"]["run"]["kind"] == "run"
+    assert snapshot["active_set"]["scenario"] is None
+    assert snapshot["session_context_id"].startswith("session-")

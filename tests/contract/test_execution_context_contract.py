@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+CONTRACT_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "specs"
+    / "003-unify-run-context"
+    / "contracts"
+    / "hook-execution-context.openapi.yaml"
+)
+
+
+def test_execution_context_contract_exists() -> None:
+    assert CONTRACT_PATH.exists()
+
+
+def test_execution_context_contract_has_required_paths() -> None:
+    contract_text = CONTRACT_PATH.read_text()
+    assert "/execution-context/session-root:" in contract_text
+    assert "/execution-context/session-fixture:" in contract_text
+    assert "/execution-context/config-stash:" in contract_text
+    assert "/execution-context/active-set:" in contract_text
+    assert "/execution-context/transitions:" in contract_text
+    assert "/hooks/{hookName}/parameter-model:" in contract_text
+    assert "/reporting/context-snapshot:" in contract_text
+    assert "/compatibility/external-api:" in contract_text
+
+
+def test_execution_context_contract_has_minimal_change_constraints() -> None:
+    contract_text = CONTRACT_PATH.read_text()
+    assert "consumerMigrationRequired:" in contract_text
+    assert "- false" in contract_text
+    assert "maxItems: 0" in contract_text
