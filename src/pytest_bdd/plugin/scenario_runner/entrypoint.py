@@ -16,6 +16,7 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
 from .const import Steps
+from .context_store import ExecutionContextStore
 from .plugin import ScenarioRunner
 
 
@@ -47,7 +48,8 @@ def pytest_addoption(parser: Parser) -> None:
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
-    config.pluginmanager.register(ScenarioRunner())
+    runner = ScenarioRunner()
+    config.pluginmanager.register(runner, runner.plugin_name)
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
 
@@ -104,3 +106,12 @@ def attach(request: FixtureRequest):
         )
 
     return add_attachment
+
+
+@pytest.fixture(scope="session")
+def session_execution_context(request: FixtureRequest):
+    """Session-scoped fixture exposing canonical SessionExecutionContext."""
+    return ExecutionContextStore.ensure_session_root_for_session(
+        config=request.config,
+        session=request.session,
+    )

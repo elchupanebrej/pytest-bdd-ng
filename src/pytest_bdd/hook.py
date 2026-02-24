@@ -11,7 +11,7 @@ from _pytest.mark import Mark
 from decopatch import function_decorator
 from makefun import wraps
 
-from pytest_bdd.compatibility.pytest import PYTEST7, FixtureRequest
+from pytest_bdd.compatibility.pytest import PYTEST7, FixtureLookupError, FixtureRequest
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 
 if TYPE_CHECKING:
@@ -64,11 +64,32 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
 
 
 def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureRequest) -> tuple[tuple, dict]:
+    execution_context = getattr(request, "execution_context", None)
+    if execution_context is None:
+        execution_context = getattr(request.node, "_pytest_bdd_execution_context", None)
+    if execution_context is None and "execution_context" in func_sig.parameters:
+        try:
+            from pytest_bdd.plugin.scenario_runner.context_access import resolve_execution_context
+            from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+
+            feature = request.getfixturevalue("feature")
+            scenario = request.getfixturevalue("scenario")
+            execution_context = resolve_execution_context(
+                request,
+                context_store=ExecutionContextStore(),
+                feature=feature,
+                scenario=scenario,
+            )
+            execution_context = getattr(request, "execution_context", execution_context)
+        except FixtureLookupError:  # pragma: no cover - non-bdd test nodes don't expose these fixtures
+            execution_context = None
+
     return (
         args,
         {
             **kwargs,
             **({"request": request} if "request" in func_sig.parameters else {}),
+            **({"execution_context": execution_context} if "execution_context" in func_sig.parameters else {}),
         },
     )
 

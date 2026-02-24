@@ -4,6 +4,7 @@ from typing import Any
 from attr import Factory, attrib, attrs
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
+from pytest_bdd.model.execution_context import ReportingContextSnapshot
 from pytest_bdd.model.gherkin_document import Feature
 
 
@@ -64,6 +65,7 @@ class ScenarioReport:
     feature: Feature = attrib()
     scenario: Pickle = attrib()
     step_reports: list[StepReport] = attrib(default=Factory(list))
+    context_snapshot: ReportingContextSnapshot | None = attrib(default=None)
 
     @property
     def current_step_report(self) -> StepReport:
@@ -81,6 +83,9 @@ class ScenarioReport:
         :type step_report: pytest_bdd.reporting.StepReport
         """
         self.step_reports.append(step_report)
+
+    def set_context_snapshot(self, context_snapshot: ReportingContextSnapshot | None) -> None:
+        self.context_snapshot = context_snapshot
 
     def serialize(self) -> dict[str, Any]:
         """Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode.

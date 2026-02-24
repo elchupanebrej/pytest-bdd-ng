@@ -10,6 +10,53 @@ Features
           Markdown lint and pre-commit checks must pass for converted
           feature documentation before commit.
 
+Execution Context
+-----------------
+The scenario runner keeps one session-root execution context and maintains
+feature/scenario/step child context nodes as the run progresses.
+Hook callbacks access this data through the ``execution_context`` field on
+existing hook parameter objects (``request``, ``feature``, ``scenario``,
+``step`` and ``previous_step`` when present).
+
+Session context distribution:
+
+- ``SessionExecutionContext`` is initialized at ``pytest_sessionstart``.
+- It is available through the ``session_execution_context`` session fixture.
+- The canonical session object is also stored in ``pytest.config.stash``.
+
+Reporting integration:
+
+- Scenario reporting captures a context snapshot from the active hierarchy when
+  available.
+- If a specific scope is already inactive, reporting falls back to session-level
+  context and records a fallback reason.
+
+Compatibility guarantee:
+
+- Existing public hook and plugin APIs remain backward compatible.
+- External API changes for context support are additive and non-breaking.
+
+External API compatibility record
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``ExternalApiCompatibilityRecord`` is the runtime/reporting model used to
+compare the current public hook/decorator symbols with a saved baseline.
+
+In practice it is used for:
+
+- CI gate for breaking changes:
+  if ``removed_symbols`` or ``renamed_symbols`` is not empty, the change is
+  treated as migration-breaking.
+- Release communication:
+  ``additive_symbols`` can be published as newly added public extension points.
+- Plugin ecosystem safety:
+  maintainers can verify that existing plugin integrations keep working without
+  updates.
+
+Current repository usage:
+
+- Baseline file: ``tests/compatibility/hook_public_api_baseline.json``
+- Validation tests: ``tests/compatibility/test_hook_execution_context_api_surface.py``
+
 Tutorial
 --------
 .. toctree::
