@@ -85,7 +85,7 @@ Unreleased
 
   - cucumber-messages has accepted by gherkin community
 - Temporarily allure reporting is disabled
-- Switched *.md support to native realization
+- Switched ``*.md`` support to native realization
 - Declined usage of pytest<6.0
 - StructBDD features autoload is checked and uses common mechanism
 

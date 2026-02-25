@@ -1,9 +1,9 @@
 Feature: Gherkin features autoload
 ''''''''''''''''''''''''''''''''''
 
-By default gherkin features are autoloaded and treated as usual pytest
-tests if are placed in the tests hierarchy proposed by pytest. This
-behavior could be disabled
+By default Gherkin features in the test hierarchy are collected as
+pytest tests. This feature documents how to disable autoload while still
+running explicitly bound scenarios.
 
 Rule: Feature autoload
                       
@@ -89,4 +89,32 @@ Scenario: Feature autoload could be disabled via pytest.ini
    | passed |
    +========+
    | 0      |
+   +--------+
+
+Scenario: Explicit scenario binding still runs when autoload is disabled
+                                                                        
+
+-  Given File "test_explicit.py" with content:
+
+   .. code:: python
+
+      from pytest_bdd import scenario
+
+      @scenario("Passing.feature", "Passing scenario")
+      def test_explicit():
+        pass
+
+-  When run pytest
+
+   ======== ==========================
+   cli_args --disable-feature-autoload
+   ======== ==========================
+   ======== ==========================
+
+-  Then pytest outcome must contain tests with statuses:
+
+   +--------+
+   | passed |
+   +========+
+   | 1      |
    +--------+

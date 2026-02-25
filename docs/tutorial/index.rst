@@ -5,14 +5,32 @@ Tutorial for Behave/Cucumber users
 
 Leslie's tutorial_ ...
 
-.. toctree::
-   :glob:
+Tutorial files
+--------------
 
-    tests/features/*.feature
-    src/*.py
-    tests/*.py
-    tests/*.desktop
-    tests/steps/*.py
+Feature definition:
+
+.. literalinclude:: features/books.feature
+
+Application source:
+
+.. literalinclude:: src/catalog.py
+   :language: python
+
+Test bootstrap:
+
+.. literalinclude:: tests/conftest.py
+   :language: python
+
+Desktop launcher:
+
+.. literalinclude:: tests/books.desktop
+   :language: text
+
+Step definitions:
+
+.. literalinclude:: tests/steps/library_steps.py
+   :language: python
 
 
 Set up the tutorial

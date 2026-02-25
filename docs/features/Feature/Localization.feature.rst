@@ -1,5 +1,5 @@
-Scenarios tags could be localized
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Scenarios could be localized using comment tags
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 pytest-bdd-ng supports all
 `localizations <https://cucumber.io/docs/gherkin/languages/>`__ which
