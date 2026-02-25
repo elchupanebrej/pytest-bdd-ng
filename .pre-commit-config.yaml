@@ -39,45 +39,12 @@ repos:
     hooks:
       - id: pretty-format-toml
         args: [--autofix]
-# TODO: Temporary off of mypy and docgen to speedup development
-#  - repo: local
-#    hooks:
-#      - id: generate-feature-doc
-#        name: generate-feature-doc
-#        # language=python
-#        entry: |
-#          python -c "
-#          from subprocess import run as run_unchecked, CalledProcessError
-#          from sys import exit, executable as python
-#          run = lambda *args: run_unchecked(args, check=True, shell=True)
-#          try:
-#              run(python, '-m', 'ensurepip', '--upgrade')
-#              run(python, '-m', 'pip', 'install', '.[doc-gen]')
-#              run(
-#                  python,
-#                  'src/pytest_bdd/script/bdd_tree_to_rst.py',
-#                  'features',
-#                  'docs/features'
-#              )
-#          except CalledProcessError as e:
-#              exit(e.returncode)
-#          "
-#        language: python
-#        pass_filenames: false
-#      - id: mypy-tox
-#        name: mypy
-#        # language=python
-#        entry: |
-#          python -c "
-#          from subprocess import run as run_unchecked, CalledProcessError
-#          from sys import exit, executable as python
-#          run = lambda *args: run_unchecked(args, check=True, shell=True)
-#          try:
-#              run(python, '-m', 'ensurepip', '--upgrade')
-#              run(python, '-m', 'pip', 'install', '.[testenv]')
-#              run(python, '-m', 'tox', '-e', 'py313-pytestlatest-mypy', '--')
-#          except CalledProcessError as e:
-#              exit(e.returncode)
-#          "
-#        language: python
-#        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: generate-feature-doc
+        name: generate-feature-doc
+        entry: >-
+          conda run -n pytest-bdd-ng-py314 python
+          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+        language: system
+        pass_filenames: false

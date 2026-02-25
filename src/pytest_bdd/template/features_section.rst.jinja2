@@ -1,0 +1,10 @@
+{% if heading %}
+{{ heading }}
+{{ underline }}
+{% endif %}
+.. toctree::
+    :maxdepth: 2
+
+{% for entry in entries %}
+    {{ entry }}
+{% endfor %}

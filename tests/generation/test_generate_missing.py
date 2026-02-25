@@ -82,6 +82,9 @@ def test_generate_missing(testdir, tmp_path):
     )
 
     result.stdout.fnmatch_lines(["Please place the code above to the test file(s):"])
+    generated_output = result.stdout.str()
+    assert "@scenario(" in generated_output
+    assert "raise NotImplementedError" in generated_output
 
 
 def test_generate_missing_with_step_parsers(testdir):

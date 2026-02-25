@@ -3,6 +3,7 @@
 import argparse
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
+from functools import lru_cache
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
@@ -10,9 +11,9 @@ from typing import Any, cast
 
 import py
 from cucumber_messages import Pickle, PickleStep, PickleStepType  # type:ignore[attr-defined, import-untyped]
-from mako.template import Template
+from jinja2 import Environment
 
-from pytest_bdd.compatibility.importlib.resources import as_file, files
+from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model.gherkin_document import Feature
@@ -35,6 +36,14 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
     PickleStepType.action: "when",
 }
 
+TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa: S701
+
+
+@lru_cache(maxsize=1)
+def get_code_generation_template():
+    template_source = files("pytest_bdd.template").joinpath("test.py.jinja2").read_text(encoding="utf-8")
+    return TEMPLATE_ENV.from_string(template_source)
+
 
 # TODO Rework into plugin class
 # TODO Use wrapping around other plugins
@@ -52,8 +61,7 @@ def generate_code(
     feature_pickle_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> str:
     """Generate test code for the given filenames."""
-    with as_file(files("pytest_bdd.template").joinpath("test.py.mak")) as path:
-        template = Template(filename=str(path))  # noqa: S702 used for local use only
+    template = get_code_generation_template()
     code = template.render(
         features=features,
         feature_pickles=feature_pickles,
