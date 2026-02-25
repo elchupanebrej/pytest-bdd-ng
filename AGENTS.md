@@ -21,6 +21,10 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - N/A (file-based generation only) (004-migrate-jinja2-docs)
 - Python 3.10-3.14 + pytest>=6.2.5, Jinja2, pluggy hooks, pre-commit, tox>=4.2, ruff, packaging (004-migrate-jinja2-docs)
 - N/A (in-repo files only) (004-migrate-jinja2-docs)
+- Python 3.10-3.14 + pytest>=6.2.5, pytest-bdd parser/runtime layers,
+  gherkin markdown token matcher, pre-commit, tox>=4.2
+  (005-no-empty-bdd-headings)
+- N/A (in-repo text files and validation diagnostics only) (005-no-empty-bdd-headings)
 
 ## Project Structure
 
@@ -44,10 +48,12 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 005-no-empty-bdd-headings: Added Python 3.10-3.14 + pytest>=6.2.5,
+  pytest-bdd parser/runtime layers, gherkin markdown token matcher,
+  pre-commit, tox>=4.2
 - 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest>=6.2.5, Jinja2, pluggy hooks, pre-commit, tox>=4.2, ruff, packaging
 - 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest, pluggy-based
   pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commit.
-- 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest, Jinja2, pypandoc,
   pathlib2, pytest-bdd plugin/runtime layers.
   cucumber-messages models, pytest-bdd runtime/plugin layers
   fixture/stash access model, and reporting hierarchy requirements.

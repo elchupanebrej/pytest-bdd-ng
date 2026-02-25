@@ -122,10 +122,10 @@
 
 **Purpose**: Final validation evidence and delivery readiness checks across all stories.
 
-- [ ] T043 [P] Run targeted heading-validation pytest suites and record commands in `specs/005-no-empty-bdd-headings/quickstart.md`
-- [ ] T044 [P] Run pre-commit validation and record pass criteria in `specs/005-no-empty-bdd-headings/quickstart.md`
-- [ ] T045 [P] Run optional tox slice (`py314-pytestlatest`) and record result in `specs/005-no-empty-bdd-headings/quickstart.md`
-- [ ] T046 Verify final task-to-story traceability notes in `specs/005-no-empty-bdd-headings/tasks.md`
+- [X] T043 [P] Run targeted heading-validation pytest suites and record commands in `specs/005-no-empty-bdd-headings/quickstart.md`
+- [X] T044 [P] Run pre-commit validation and record pass criteria in `specs/005-no-empty-bdd-headings/quickstart.md`
+- [X] T045 [P] Run optional tox slice (`py314-pytestlatest`) and record result in `specs/005-no-empty-bdd-headings/quickstart.md`
+- [X] T046 Verify final task-to-story traceability notes in `specs/005-no-empty-bdd-headings/tasks.md`
 
 ---
 
@@ -212,3 +212,5 @@ Task T038 in tests/feature/test_heading_validation_snippet_boundaries.py
 - Every task includes an explicit file path for direct execution.
 - Commit with task IDs in commit messages per constitution requirements.
 - Run pre-commit and resolve all issues before each commit.
+- Traceability check completed on 2026-02-25: each user-story task includes
+  story label and explicit file path.
