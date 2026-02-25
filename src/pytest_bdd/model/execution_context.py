@@ -163,7 +163,7 @@ class ExecutionContext:
     feature_node: ExecutionContextNode | None = None
     scenario_node: ExecutionContextNode | None = None
     step_node: ExecutionContextNode | None = None
-    _active_kind_index: dict[LifecycleKind, LifecycleObjectRef] = field(init=False, repr=False)
+    _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._active_kind_index = {

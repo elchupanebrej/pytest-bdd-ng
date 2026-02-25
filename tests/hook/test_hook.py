@@ -272,3 +272,11 @@ def test_hook_execution_on_feature_no_tag_using_mark_hook(testdir):
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_message_hook_signature_uses_event_envelope_annotation():
+    from pytest_bdd.model.message_extension import EventEnvelope
+    from pytest_bdd.plugin.gherkin_message_reporter.hook import GherkinMessageReporterHookSpec
+
+    annotation = GherkinMessageReporterHookSpec.pytest_bdd_message.__annotations__["message"]
+    assert annotation is EventEnvelope

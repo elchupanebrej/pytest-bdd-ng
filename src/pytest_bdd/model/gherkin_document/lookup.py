@@ -72,7 +72,9 @@ def get_pickle_step_model_step(registry: dict[str, Any], pickle_step: PickleStep
 def get_step_keyword(registry: dict[str, Any], step: PickleStep) -> str | None:
     model_step = get_pickle_step_model_step(registry, step)
     if model_step is not None:
-        return model_step.keyword.strip()
+        keyword = getattr(model_step, "keyword", None)
+        if isinstance(keyword, str):
+            return keyword.strip()
     return None
 
 

@@ -187,6 +187,15 @@ module = [
   "yaml.*"
 ]
 
+[[tool.mypy.overrides]]
+check_untyped_defs = true
+module = [
+  "pytest_bdd.model.message_converter",
+  "pytest_bdd.model.message_extension",
+  "pytest_bdd.model.message_validation",
+  "pytest_bdd.plugin.gherkin_message_reporter.*"
+]
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [

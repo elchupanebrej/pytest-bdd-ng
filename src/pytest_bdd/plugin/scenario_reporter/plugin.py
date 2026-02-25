@@ -19,6 +19,11 @@ class ScenarioReporter:
     def __init__(self):
         self.current_report = None
 
+    @staticmethod
+    def _derive_scenario_report(scenario_report: ScenarioReport) -> dict:
+        # Canonical scenario report derivation path: one serializer used for both test reports and downstream renderers.
+        return scenario_report.serialize()
+
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: Item, call: CallInfo):
         outcome = yield
@@ -28,7 +33,7 @@ class ScenarioReporter:
             scenario_report: ScenarioReport = self.current_report
 
             if scenario_report is not None:
-                rep.scenario = scenario_report.serialize()
+                rep.scenario = self._derive_scenario_report(scenario_report)
                 rep.item = {"name": item.name}
                 if scenario_report.context_snapshot is not None:
                     rep.execution_context_snapshot = scenario_report.context_snapshot.as_dict()

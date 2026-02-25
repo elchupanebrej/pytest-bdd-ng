@@ -1,11 +1,15 @@
 """Test cucumber json output."""
 
 import json
+from collections import Counter
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
+from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 
+from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.util.toolz_test import InstanceOfType
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -227,3 +231,60 @@ def test_step_trace(testdir):
     ]
 
     assert jsonobject == expected
+
+
+def test_cucumber_json_step_status_parity_with_canonical_messages(testdir, tmp_path):
+    resultpath = testdir.tmpdir.join("cucumber.json")
+    ndjson_path = tmp_path / "cucumber-json-parity.ndjson"
+
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test="""\
+        Feature: status parity
+
+            Scenario: pass scenario
+                Given a passing step
+
+            Scenario: fail scenario
+                Given a failing step
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+
+        @given("a passing step")
+        def passing_step():
+            return "ok"
+
+        @given("a failing step")
+        def failing_step():
+            raise RuntimeError("boom")
+        """,
+    )
+
+    result = testdir.runpytest(f"--cucumberjson={resultpath}", "--messages-ndjson", str(ndjson_path), "-s")
+    result.assert_outcomes(passed=1, failed=1)
+
+    with resultpath.open() as file:
+        json_payload = json.load(file)
+    json_statuses = Counter(
+        step["result"]["status"]
+        for feature in json_payload
+        for scenario in feature["elements"]
+        for step in scenario["steps"]
+    )
+
+    canonical_step_statuses: Counter[str] = Counter()
+    for line in ndjson_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        envelope = message_converter.from_dict(json.loads(line), Message)
+        payload = envelope.test_step_finished
+        if isinstance(payload, _TestStepFinished):
+            canonical_step_statuses[payload.test_step_result.status.value.lower()] += 1
+
+    assert json_statuses["passed"] == canonical_step_statuses["passed"]
+    assert json_statuses["failed"] == canonical_step_statuses["failed"]

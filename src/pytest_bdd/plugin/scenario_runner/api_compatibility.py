@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from inspect import isfunction
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pytest_bdd.hook import after_mark, after_tag, around_mark, around_tag, before_mark, before_tag
 from pytest_bdd.model.execution_context import ExternalApiCompatibilityRecord
@@ -33,7 +33,8 @@ def collect_hook_public_symbols() -> list[str]:
 
 def load_api_baseline(path: str | Path) -> dict[str, Any]:
     baseline_path = Path(path)
-    return json.loads(baseline_path.read_text())
+    payload = json.loads(baseline_path.read_text())
+    return cast(dict[str, Any], payload)
 
 
 def build_external_api_compatibility_record(

@@ -191,3 +191,31 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
     result.stdout.fnmatch_lines("*When I eat {eat} cucumbers (PASSED)".format(**example))
     result.stdout.fnmatch_lines("*Then I should have {left} cucumbers (PASSED)".format(**example))
     result.stdout.fnmatch_lines("*PASSED")
+
+
+def test_double_verbose_mode_renders_failed_step_from_scenario_status(testdir):
+    testdir.makefile(".feature", test=FEATURE)
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given, when, then
+
+        @given('there is a bar')
+        def a_bar():
+            return 'bar'
+
+        @when('the bar is accessed')
+        def the_bar_is_accessed():
+            ...
+
+        @then('world explodes')
+        def world_explodes():
+            raise RuntimeError("boom")
+        """,
+    )
+    result = testdir.runpytest("--gherkin-terminal-reporter", "-vv")
+    result.assert_outcomes(passed=0, failed=1)
+    result.stdout.fnmatch_lines("*Given there is a bar (PASSED)")
+    result.stdout.fnmatch_lines("*When the bar is accessed (PASSED)")
+    result.stdout.fnmatch_lines("*Then world explodes (FAILED)")
+    result.stdout.fnmatch_lines("*FAILED")

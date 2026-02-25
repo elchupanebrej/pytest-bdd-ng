@@ -5,7 +5,6 @@ import re
 import sys
 import tempfile
 from base64 import b64encode
-from collections.abc import Callable
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
@@ -20,7 +19,7 @@ import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
-from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Attachment,
     AttachmentContentEncoding,
     Ci,
@@ -57,7 +56,9 @@ from pytest_bdd.compatibility.pytest import (
     is_set,
     is_testrun_success,
 )
-from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
+from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
+from pytest_bdd.model.message_validation import validate_message_stream
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
@@ -75,14 +76,36 @@ logger = logging.getLogger(__name__)
 @attrs(eq=False)
 class GherkinMessageReporter:
     config: Config = attrib()
-    current_test_case = attrib(default=None)
-    current_test_case_step_to_definition_mapping = attrib(default=None)
+    current_test_case: TestCase | None = attrib(default=None)
+    current_test_case_step_id_to_step_mapping: dict[int, TestStep] | None = attrib(default=None)
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
     npm_formatter_package = "@cucumber/html-formatter"
     plugin_name = "pytest-bdd-internal-gherkin-message-reporter"
 
+    process_messages_io_queue: Queue[str]
+    process_messages_stop_event: Event
+    process_messages_thread: Thread
+    messages_file_path: Path
+    is_messages_file_temp: bool
+    current_test_case_start: TestCaseStarted | None
+    current_active_test_step_id: str | None
+    current_step_started_ids: dict[str, str]
+    current_attempt_context: dict[str, str | int] | None
+    current_test_case_step_start_timestamp: Timestamp
+    current_test_case_step_finish_timestamp: Timestamp
+    _disabled_warning_emitted: bool
+    _run_id: str | None
+
     def __attrs_post_init__(self):
+        self._disabled_warning_emitted = False
+        self._run_id = None
+        self.current_test_case_start = None
+        self.current_active_test_step_id = None
+        self.current_step_started_ids = {}
+        self.current_attempt_context = None
+        self.current_test_case_step_id_to_step_mapping = None
+
         self.is_disabled = all(
             [
                 self.config.option.messages_ndjson_path is None,
@@ -99,10 +122,20 @@ class GherkinMessageReporter:
             os.close(handle)
             self.messages_file_path = Path(messages_file_path_raw)
         else:
-            self.messages_file_path = Path(self.config.option.messages_ndjson_path)
+            self.messages_file_path = self._resolve_output_path(self.config.option.messages_ndjson_path)
+            self.messages_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         if self.config.option.cucumber_html_path is not None:
+            html_report_path = self._resolve_output_path(self.config.option.cucumber_html_path)
+            html_report_path.parent.mkdir(parents=True, exist_ok=True)
+            self.config.option.cucumber_html_path = str(html_report_path)
             self.check_npm_and_cucumber_packages()
+
+    def _resolve_output_path(self, output_path: str) -> Path:
+        path = Path(output_path)
+        if not path.is_absolute():
+            path = get_config_root_path(self.config) / path
+        return path.resolve()
 
     def start_process_messages_thread(self):
         self.process_messages_io_queue = Queue()
@@ -124,35 +157,67 @@ class GherkinMessageReporter:
         self.process_messages_stop_event.set()
         self.process_messages_thread.join()
 
+    def _emit_disabled_warning_once(self) -> None:
+        if self._disabled_warning_emitted:
+            return
+        self._disabled_warning_emitted = True
+        logger.warning("Message reporting disabled; message-output guarantees were skipped for this run.")
+
+    def _emit_envelope(self, config: Config, message: Message) -> None:
+        if self.is_disabled:
+            return
+        if not has_single_payload(message):
+            message_text = "Envelope must include exactly one payload"
+            raise TypeError(message_text)
+        config.hook.pytest_bdd_message(config=config, message=message)
+
+    def _emit_lifecycle(self, config: Config, payload_kind: str, payload: object) -> None:
+        self._emit_envelope(config, Message(**{payload_kind: payload}))
+
+    @staticmethod
+    def _check_derived_output_consistency(envelopes: list[Message]) -> bool:
+        payload_kinds = [get_payload_kind(envelope) for envelope in envelopes]
+        return "test_run_started" in payload_kinds and "test_run_finished" in payload_kinds
+
     @staticmethod
     def process_messages(queue: Queue, stop_event: Event, messages_file_path: str | Path):
+        messages_path = Path(messages_file_path)
         with tempfile.TemporaryDirectory() as tmpdirname:
             last_enter = False
             while not (stop_event.is_set() and last_enter):  # give one more enter to take all left messages
                 if stop_event.is_set():
                     last_enter = True
 
-                lock_file = str(Path(tmpdirname, f"{messages_file_path}.lock"))
-                with FileLock(lock_file), Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f:
-                    lines = []
-                    while not queue.empty():
-                        try:
-                            message_json = queue.get(timeout=1)
-                        except Empty:
-                            sleep(0)
-                            continue
-
-                        try:
-                            message_converter.from_dict(json.loads(message_json), Message)
-                        except TypeError:
-                            logger.exception("Failed to parse:\n%s\n", pformat(message_json))
-                        else:
-                            lines.append(f"{message_json}\n")
-                        finally:
-                            queue.task_done()
+                lines = []
+                while not queue.empty():
+                    try:
+                        message_json = queue.get(timeout=1)
+                    except Empty:
                         sleep(0)
-                    f.writelines(lines)
-                    f.flush()
+                        continue
+
+                    try:
+                        envelope_from_dict(json.loads(message_json))
+                    except (TypeError, ValueError):
+                        logger.exception("Failed to parse:\n%s\n", pformat(message_json))
+                    else:
+                        lines.append(f"{message_json}\n")
+                    finally:
+                        queue.task_done()
+                    sleep(0)
+
+                if not lines:
+                    sleep(0)
+                    continue
+
+                lock_file = str(Path(tmpdirname, f"{messages_path}.lock"))
+                try:
+                    messages_path.parent.mkdir(parents=True, exist_ok=True)
+                    with FileLock(lock_file), messages_path.open(mode="at+", buffering=1, encoding="utf-8") as f:
+                        f.writelines(lines)
+                        f.flush()
+                except OSError:
+                    logger.exception("Unable to write messages to '%s'", messages_path)
 
     @staticmethod
     def get_timestamp():
@@ -174,7 +239,9 @@ class GherkinMessageReporter:
         with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
             messages = ",".join(f.readlines())
 
-        Path(self.config.option.cucumber_html_path).write_text(
+        html_report_path = Path(self.config.option.cucumber_html_path)
+        html_report_path.parent.mkdir(parents=True, exist_ok=True)
+        html_report_path.write_text(
             chevron.render(
                 template,
                 {
@@ -211,14 +278,11 @@ class GherkinMessageReporter:
 
                 if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
                     feature_registry.add(feature_source.uri)
-                    cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(source=feature_source))
+                    self._emit_envelope(cast(Config, config), Message(source=feature_source))
 
-                    cast(Config, config).hook.pytest_bdd_message(
-                        config=config,
-                        message=Message(gherkin_document=feature.gherkin_document),
-                    )
+                    self._emit_envelope(cast(Config, config), Message(gherkin_document=feature.gherkin_document))
                 if is_set(pickle) and id(pickle) not in pickle_registry:
-                    cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
+                    self._emit_envelope(cast(Config, config), Message(pickle=pickle))
 
     def pytest_bdd_message(
         self,
@@ -228,34 +292,39 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
 
-        message_json = json.dumps(message_converter.to_dict(message))
+        if not has_single_payload(message):
+            message_text = "Cannot emit envelope with zero or multiple payloads"
+            raise TypeError(message_text)
+
+        try:
+            message_json = json.dumps(envelope_to_dict(message))
+        except Exception as exc:
+            message_text = "Message emission failed while serializing envelope"
+            raise RuntimeError(message_text) from exc
+
         self.process_messages_io_queue.put_nowait(message_json)
 
     def pytest_runtestloop(self, session: pytest.Session):
         if self.is_disabled:
             return
         config = session.config
-        hook_handler = config.hook
-
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(test_run_started=TestRunStarted(timestamp=self.get_timestamp())),
-        )
+        self._run_id = str(time_ns())
+        self._emit_lifecycle(config, "test_run_started", TestRunStarted(timestamp=self.get_timestamp()))
 
     def pytest_sessionstart(self, session):
         if self.is_disabled:
+            self._emit_disabled_warning_once()
             return
 
         self.start_process_messages_thread()
 
         config = session.config
-        hook_handler = config.hook
 
         ci = message_converter.from_dict(obj, Ci) if (obj := detect_ci_environment(os.environ)) is not None else None
 
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
+        self._emit_envelope(
+            config,
+            Message(
                 meta=Meta(
                     protocol_version=str(get_distribution_version("cucumber-messages")),
                     implementation=Product(
@@ -274,19 +343,35 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = session.config
-        hook_handler = config.hook
-
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                test_run_finished=TestRunFinished(
-                    timestamp=self.get_timestamp(),
-                    success=is_testrun_success(exitstatus),
-                ),
+        self._emit_lifecycle(
+            config,
+            "test_run_finished",
+            TestRunFinished(
+                timestamp=self.get_timestamp(),
+                success=is_testrun_success(exitstatus),
             ),
         )
 
         self.finish_process_messages_thread()
+
+        envelopes: list[Message] = []
+        if self.messages_file_path.exists():
+            for line in self.messages_file_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                envelopes.append(envelope_from_dict(json.loads(line)))
+        validation_result = validate_message_stream(
+            envelopes,
+            latest_protocol_version=str(get_distribution_version("cucumber-messages")),
+        )
+        if not validation_result.is_valid:
+            logger.error(
+                "Canonical message stream validation failed with %s violation(s).",
+                len(validation_result.violations),
+            )
+        if not self._check_derived_output_consistency(envelopes):
+            logger.error("Derived-output consistency check failed: required run lifecycle envelopes are incomplete.")
+
         if self.config.option.cucumber_html_path is not None:
             self.generate_html_report()
         if self.is_messages_file_temp:
@@ -305,7 +390,6 @@ class GherkinMessageReporter:
             return
 
         config = request.config
-        hook_handler = config.hook
 
         if hasattr(func, "__pytest_bdd_is_hook__"):
             self.hook_registry.add(func_id)
@@ -313,9 +397,9 @@ class GherkinMessageReporter:
             hook_name = getattr(func, "__pytest_bdd_hook_name__", None)
             hook_expression = getattr(func, "__pytest_bdd_hook_expression__", None)
 
-            hook_handler.pytest_bdd_message(
-                config=config,
-                message=Message(
+            self._emit_envelope(
+                config,
+                Message(
                     hook=Hook(
                         id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                         **({"name": hook_name} if hook_name is not None else {}),
@@ -385,10 +469,7 @@ class GherkinMessageReporter:
             test_steps=test_steps,
         )
 
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(test_case=self.current_test_case),
-        )
+        self._emit_lifecycle(cast(Config, config), "test_case", self.current_test_case)
 
     def _report_step_definitions(self, config, request):
         step_registry = request.getfixturevalue("step_registry")
@@ -397,10 +478,7 @@ class GherkinMessageReporter:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
-                    config.hook.pytest_bdd_message(
-                        config=config,
-                        message=Message(step_definition=step_definition.as_message(config=config)),
-                    )
+                    self._emit_envelope(config, Message(step_definition=step_definition.as_message(config=config)))
             step_registry = step_registry.parent
 
     def _register_parameter_types(self, config, request):
@@ -430,9 +508,9 @@ class GherkinMessageReporter:
                     }
 
                     for parameter_type in not_yet_registered_parameter_types.values():
-                        config.hook.pytest_bdd_message(
-                            config=config,
-                            message=Message(
+                        self._emit_envelope(
+                            config,
+                            Message(
                                 parameter_type=ParameterType(
                                     name=parameter_type.name,
                                     regular_expressions=parameter_type.regexps,
@@ -442,7 +520,7 @@ class GherkinMessageReporter:
                                 ),
                             ),
                         )
-                    self.parameter_type_registry |= not_yet_registered_parameter_types.keys()
+                    type(self).parameter_type_registry |= not_yet_registered_parameter_types.keys()
             step_registry = step_registry.parent
 
     def pytest_bdd_before_scenario(
@@ -454,20 +532,23 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
-
+        if self.current_test_case is None:
+            return
+        attempt_index = getattr(request.node, "execution_count", 0)
+        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         self.current_test_case_start = TestCaseStarted(
-            attempt=getattr(request.node, "execution_count", 0),
+            attempt=attempt_index,
             id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
             test_case_id=self.current_test_case.id,
-            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+            worker_id=worker_id,
             timestamp=self.get_timestamp(),
         )
-
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(test_case_started=self.current_test_case_start),
-        )
+        self.current_attempt_context = {
+            "scenario_attempt_id": self.current_test_case_start.id,
+            "attempt_index": attempt_index,
+            "worker_id": worker_id,
+        }
+        self._emit_lifecycle(config, "test_case_started", self.current_test_case_start)
 
     def pytest_bdd_after_scenario(
         self,
@@ -477,22 +558,23 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
+        if self.current_test_case_start is None:
+            return
         config = request.config
-
-        hook_handler = config.hook
-
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                test_case_finished=TestCaseFinished(
-                    test_case_started_id=self.current_test_case_start.id,
-                    timestamp=self.get_timestamp(),
-                    # TODO check usage
-                    will_be_retried=False,
-                ),
+        test_case_start = self.current_test_case_start
+        self._emit_lifecycle(
+            config,
+            "test_case_finished",
+            TestCaseFinished(
+                test_case_started_id=test_case_start.id,
+                timestamp=self.get_timestamp(),
+                will_be_retried=False,
             ),
         )
         self.current_test_case = None
+        self.current_test_case_start = None
+        self.current_active_test_step_id = None
+        self.current_step_started_ids = {}
 
     def pytest_bdd_before_step(
         self,
@@ -504,24 +586,24 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
+        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+            return
         config = request.config
-        hook_handler = config.hook
 
         # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_case_start = self.current_test_case_start
 
         self.current_test_case_step_start_timestamp = self.get_timestamp()
-
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                test_step_started=TestStepStarted(
-                    test_case_started_id=self.current_test_case.id,
-                    timestamp=self.current_test_case_step_start_timestamp,
-                    test_step_id=step_definition.id,
-                ),
-            ),
+        test_step_started = TestStepStarted(
+            test_case_started_id=test_case_start.id,
+            timestamp=self.current_test_case_step_start_timestamp,
+            test_step_id=step_definition.id,
         )
+        self.current_step_started_ids[step_definition.id] = step_definition.id
+        self.current_active_test_step_id = step_definition.id
+
+        self._emit_lifecycle(config, "test_step_started", test_step_started)
 
     def pytest_bdd_after_step(
         self,
@@ -533,11 +615,13 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
+        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+            return
         config = request.config
-        hook_handler = config.hook
 
         # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_case_start = self.current_test_case_start
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
         current_test_case_step_duration_total_nanos = (
@@ -556,19 +640,19 @@ class GherkinMessageReporter:
             nanos=current_test_case_step_duration_nanos,
         )
 
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case.id,
-                    timestamp=self.current_test_case_step_finish_timestamp,
-                    test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(
-                        duration=current_test_case_step_duration, status=TestStepResultStatus.passed
-                    ),
+        self._emit_lifecycle(
+            config,
+            "test_step_finished",
+            TestStepFinished(
+                test_case_started_id=test_case_start.id,
+                timestamp=self.current_test_case_step_finish_timestamp,
+                test_step_id=step_definition.id,
+                test_step_result=TestStepResult(
+                    duration=current_test_case_step_duration, status=TestStepResultStatus.passed
                 ),
             ),
         )
+        self.current_active_test_step_id = None
 
     def pytest_bdd_step_error(
         self,
@@ -583,11 +667,13 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
+        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+            return
         config = request.config
-        hook_handler = config.hook
 
         # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_case_start = self.current_test_case_start
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
         current_test_case_step_duration_total_nanos = (
@@ -606,25 +692,25 @@ class GherkinMessageReporter:
             nanos=current_test_case_step_duration_nanos,
         )
 
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case.id,
-                    timestamp=self.current_test_case_step_finish_timestamp,
-                    test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(
-                        duration=current_test_case_step_duration, status=TestStepResultStatus.failed
-                    ),
+        self._emit_lifecycle(
+            config,
+            "test_step_finished",
+            TestStepFinished(
+                test_case_started_id=test_case_start.id,
+                timestamp=self.current_test_case_step_finish_timestamp,
+                test_step_id=step_definition.id,
+                test_step_result=TestStepResult(
+                    duration=current_test_case_step_duration, status=TestStepResultStatus.failed
                 ),
             ),
         )
+        self.current_active_test_step_id = None
 
     def pytest_bdd_attach(self, request, attachment, media_type, file_name):
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
+        test_case_start = self.current_test_case_start
 
         if isinstance(attachment, (str, TextIOBase)):
             content_encoding = AttachmentContentEncoding.identity
@@ -654,19 +740,20 @@ class GherkinMessageReporter:
         else:
             body = str(attachment)
 
-        hook_handler.pytest_bdd_message(
-            config=config,
-            message=Message(
-                attachment=Attachment(
-                    test_step_id=self.current_test_case.id,
-                    test_case_started_id=self.current_test_case.id,
-                    # TODO find a specification when it useful
-                    # source=,
-                    media_type=media_type_,
-                    **({"file_name": str(file_name)} if file_name is not None else {}),
-                    content_encoding=content_encoding,
-                    body=body,
+        self._emit_lifecycle(
+            config,
+            "attachment",
+            Attachment(
+                **(
+                    {"test_step_id": self.current_active_test_step_id}
+                    if self.current_active_test_step_id is not None
+                    else {}
                 ),
+                **({"test_case_started_id": test_case_start.id} if test_case_start is not None else {}),
+                media_type=media_type_,
+                **({"file_name": str(file_name)} if file_name is not None else {}),
+                content_encoding=content_encoding,
+                body=body,
             ),
         )
 

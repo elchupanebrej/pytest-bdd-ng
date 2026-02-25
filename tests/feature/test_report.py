@@ -358,3 +358,48 @@ def test_complex_types(testdir):
     assert report.passed
     assert execnet.gateway_base.dumps(report.item)
     assert execnet.gateway_base.dumps(report.scenario)
+
+
+def test_missing_step_and_failed_step_have_completion_reports(testdir):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test="""\
+        Feature: mixed completion paths
+
+            Scenario: failing step scenario
+                Given a failing step
+
+            Scenario: missing step scenario
+                Given a missing step
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+
+        @given("a failing step")
+        def failing_step():
+            raise RuntimeError("expected failure")
+        """,
+    )
+
+    result = testdir.inline_run("-vvl")
+    assert result.ret
+
+    failing_report = matchreport(
+        result,
+        re.compile(r".*failing step scenario]"),
+        when="call",
+    ).scenario
+    missing_report = matchreport(
+        result,
+        re.compile(r".*missing step scenario]"),
+        when="call",
+    ).scenario
+
+    assert any(step["failed"] for step in failing_report["steps"])
+    assert missing_report["name"] == "missing step scenario"
+    assert missing_report["feature"]["name"] == "mixed completion paths"
+    assert isinstance(missing_report["steps"], list)

@@ -42,7 +42,9 @@ class ExecutionContextStore:
     def get_session_root_from_config(cls, config: Any) -> SessionExecutionContext | None:
         stash = cls._get_config_stash(config)
         if cls.SESSION_CONTEXT_STASH_KEY in stash:
-            return stash[cls.SESSION_CONTEXT_STASH_KEY]
+            session_root = stash[cls.SESSION_CONTEXT_STASH_KEY]
+            if isinstance(session_root, SessionExecutionContext):
+                return session_root
         return None
 
     @classmethod

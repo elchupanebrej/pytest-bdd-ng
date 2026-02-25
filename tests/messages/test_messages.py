@@ -5,6 +5,7 @@ from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
+import pytest
 from cucumber_messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     Attachment,
     AttachmentContentEncoding,
@@ -26,7 +27,7 @@ from cucumber_messages import TestStepFinished as _TestStepFinished  # type:igno
 from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 from pydantic import ValidationError
 
-from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.model.message_converter import envelope_from_dict, message_converter
 from pytest_bdd.util.toolz_extra import flip
 
 if TYPE_CHECKING:  # pragma: nocover
@@ -593,3 +594,61 @@ def test_hook_type_messages(testdir, tmp_path):
 
     # after_tag hook
     assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)
+
+
+def test_lifecycle_count_and_order_for_pass_and_fail(testdir: "Testdir", tmp_path):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test="""\
+        Feature: lifecycle coverage
+
+            Scenario: pass path
+                Given a passing step
+
+            Scenario: fail path
+                Given a failing step
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+
+        @given("a passing step")
+        def pass_step():
+            return "ok"
+
+        @given("a failing step")
+        def fail_step():
+            raise RuntimeError("boom")
+        """,
+    )
+
+    ndjson_path = tmp_path / "lifecycle.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(passed=1, failed=1)
+
+    unfold_messages = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    assert len(list_filter_by_type(_TestRunStarted, unfold_messages)) == 1
+    assert len(list_filter_by_type(_TestRunFinished, unfold_messages)) == 1
+    assert len(list_filter_by_type(_TestCaseStarted, unfold_messages)) == 2
+    assert len(list_filter_by_type(_TestCaseFinished, unfold_messages)) == 2
+    assert len(list_filter_by_type(_TestStepStarted, unfold_messages)) == 2
+    assert len(list_filter_by_type(_TestStepFinished, unfold_messages)) == 2
+
+    message_type_names = [type(payload).__name__ for payload in unfold_messages]
+    assert message_type_names.index("TestRunStarted") < message_type_names.index("TestCaseStarted")
+    assert message_type_names.index("TestCaseStarted") < message_type_names.index("TestStepStarted")
+    assert message_type_names.index("TestStepFinished") < message_type_names.index("TestCaseFinished")
+
+
+def test_message_converter_rejects_multi_payload_envelope_shape():
+    with pytest.raises(TypeError, match="exactly one payload"):
+        envelope_from_dict(
+            {
+                "test_run_started": {"timestamp": {"seconds": 1, "nanos": 1}},
+                "test_run_finished": {"timestamp": {"seconds": 2, "nanos": 2}, "success": True},
+            }
+        )

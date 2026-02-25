@@ -8,7 +8,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
@@ -141,8 +141,10 @@ def parse_gherkin_document(path: Path) -> dict[str, Any]:
 
     try:
         if _is_markdown_gherkin(path):
-            return parser.parse(TokenScanner(feature_file_data), GherkinInMarkdownTokenMatcher())
-        return parser.parse(feature_file_data)
+            parsed_document = parser.parse(TokenScanner(feature_file_data), GherkinInMarkdownTokenMatcher())
+        else:
+            parsed_document = parser.parse(feature_file_data)
+        return cast(dict[str, Any], parsed_document)
     except CompositeParserException as exc:  # pragma: no cover - parser-level failures are exceptional for this scan
         msg = f"Unable to parse feature document: {path.as_posix()}"
         raise ValueError(msg) from exc
