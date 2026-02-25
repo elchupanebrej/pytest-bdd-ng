@@ -15,6 +15,12 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - Python 3.10-3.14 + pytest, pluggy, cucumber-messages, pytest-bdd plugin runtime and hook system (003-unify-run-context)
 - In-memory runtime context graph (session-root + hierarchical child contexts), no persistent storage (003-unify-run-context)
 - In-memory runtime context graph + canonical `pytest.config.stash` entry (no persistent storage) (003-unify-run-context)
+- Python 3.10-3.14 + pytest, Jinja2, pypandoc, pathlib2, pytest-bdd plugin/runtime layers (004-migrate-jinja2-docs)
+- Filesystem-only artifacts under `docs/features/` and generated temporary output directories (004-migrate-jinja2-docs)
+- Python 3.10-3.14 + pytest, pluggy-based pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commi (004-migrate-jinja2-docs)
+- N/A (file-based generation only) (004-migrate-jinja2-docs)
+- Python 3.10-3.14 + pytest>=6.2.5, Jinja2, pluggy hooks, pre-commit, tox>=4.2, ruff, packaging (004-migrate-jinja2-docs)
+- N/A (in-repo files only) (004-migrate-jinja2-docs)
 
 ## Project Structure
 
@@ -38,9 +44,13 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
-- 003-unify-run-context: Added session-root execution context planning updates,
+- 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest>=6.2.5, Jinja2, pluggy hooks, pre-commit, tox>=4.2, ruff, packaging
+- 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest, pluggy-based
+  pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commit.
+- 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest, Jinja2, pypandoc,
+  pathlib2, pytest-bdd plugin/runtime layers.
+  cucumber-messages models, pytest-bdd runtime/plugin layers
   fixture/stash access model, and reporting hierarchy requirements.
-- 001-add-py314-pytest39-support: Added Python 3.14 support path via conda-forge.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
