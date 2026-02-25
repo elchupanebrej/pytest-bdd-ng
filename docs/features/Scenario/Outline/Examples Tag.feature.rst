@@ -57,8 +57,8 @@ Background:
       def failing_step():
         fail('Enforce fail')
 
-Scenario:
-         
+Scenario: Run pytest with marker "passed"
+                                         
 
 -  When run pytest
 

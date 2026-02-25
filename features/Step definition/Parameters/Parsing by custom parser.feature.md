@@ -1,6 +1,6 @@
 # Feature: Step definitions parameters parsing by custom parser
 
-## Scenario:
+## Scenario: Parse parameters with custom parser
 * Given File "Example.feature" with content:
 
     ```gherkin

@@ -48,3 +48,12 @@ repos:
           src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
         language: system
         pass_filenames: false
+      - id: validate-feature-headings
+        name: validate-feature-headings
+        entry: >-
+          conda run -n pytest-bdd-ng-py314 python
+          src/pytest_bdd/script/validate_feature_headings.py
+          --root-path features
+        language: system
+        files: ^features/
+        pass_filenames: false

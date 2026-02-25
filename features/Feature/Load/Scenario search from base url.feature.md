@@ -43,7 +43,7 @@
     test = scenarios('Passing.feature', features_path_type=FeaturePathType.URL)
     ```
 
-## Scenario:
+## Scenario: Search from configured base URL
 
 * Given File "pytest.ini" with fixture templated content:
 

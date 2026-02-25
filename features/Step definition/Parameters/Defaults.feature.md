@@ -1,5 +1,5 @@
 # Feature: Step definitions parameters could have default values
-## Scenario:
+## Scenario: Apply default parameter values
 * Given File "Example.feature" with content:
 
     ```gherkin

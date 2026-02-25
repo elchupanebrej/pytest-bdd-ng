@@ -5,6 +5,8 @@ env
 *.py[cod]
 *.pyc
 /.env
+.env*
+*.log
 *.orig
 **/__pycache__
 __pycache__/

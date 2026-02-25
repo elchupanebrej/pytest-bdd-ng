@@ -8,7 +8,7 @@
   In pytest-bdd-ng you just declare an argument of the step function that it
   depends on and the PyTest will make sure to provide it.
 
-## Scenario:
+## Scenario: Resolve pytest fixtures in step parameters
 
 * Given File "conftest.py" with content:
 

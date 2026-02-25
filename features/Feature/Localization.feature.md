@@ -2,7 +2,7 @@
   pytest-bdd-ng supports all [localizations](https://cucumber.io/docs/gherkin/languages/)
   which Gherkin does
 
-## Scenario:
+## Scenario: Parse localized feature keywords
 * Given File "Localized.feature" with content:
 
     ```gherkin

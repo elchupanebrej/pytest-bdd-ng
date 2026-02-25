@@ -1,6 +1,6 @@
 # Feature: Scenarios tags could be converted via hooks
 
-## Scenario:
+## Scenario: Convert feature tags to pytest marks
 * Given File "Passed.feature" with content:
 
     ```gherkin

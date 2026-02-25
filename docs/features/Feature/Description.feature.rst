@@ -7,8 +7,8 @@ anything you like, as long as no line starts with a keyword.
 Descriptions can be in the form of Markdown - formatters including the
 official HTML formatter support this.
 
-Scenario:
-'''''''''
+Scenario: Keep feature description text
+'''''''''''''''''''''''''''''''''''''''
 
 -  Given File "Description.feature" with content:
 

@@ -1,5 +1,5 @@
 # Feature: Steps could have docstrings
-## Scenario:
+## Scenario: Read step doc string
 * Given File "Steps.feature" with content:
 
     ````gherkin

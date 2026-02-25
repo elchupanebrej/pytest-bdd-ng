@@ -41,7 +41,7 @@
     test = scenarios('Passing.feature')
     ```
 
-## Scenario:
+## Scenario: Search from configured base directory
 * Given File "pytest.ini" with fixture templated content:
 
     ```ini

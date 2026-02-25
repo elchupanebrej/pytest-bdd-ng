@@ -1,8 +1,8 @@
 Feature: Steps could have docstrings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Scenario:
-'''''''''
+Scenario: Read step data table
+''''''''''''''''''''''''''''''
 
 -  Given File "Steps.feature" with content:
 
