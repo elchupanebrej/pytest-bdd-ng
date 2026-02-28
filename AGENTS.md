@@ -27,6 +27,11 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - N/A (in-repo text files and validation diagnostics only) (005-no-empty-bdd-headings)
 - Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages models/converter, pytest-bdd reporter/runtime plugins, mypy, tox>=4.2, pre-commi (006-unify-event-messages)
 - In-memory runtime state + NDJSON report artifacts + repository `specs/` directory metadata (006-unify-event-messages)
+- Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages (upstream baseline pinned per release cycle), pytest-bdd runtime/reporter plugins, mypy, tox>=4.2, pre-commi (007-maximize-messages-coverage)
+- In-memory runtime reporting state + NDJSON artifacts + feature planning artifacts under `specs/007-maximize-messages-coverage/` (007-maximize-messages-coverage)
+- In-memory runtime reporting state + NDJSON artifacts + feature governance artifacts under `specs/007-maximize-messages-coverage/` (007-maximize-messages-coverage)
+- Python 3.10-3.14 + `pytest`, `cucumber-messages`, `pluggy`, `jsonschema` (007-maximize-messages-coverage)
+- N/A (in-repo json artifacts only) (007-maximize-messages-coverage)
 
 ## Project Structure
 
@@ -50,11 +55,11 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
-- 006-unify-event-messages: Added Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages models/converter, pytest-bdd reporter/runtime plugins, mypy, tox>=4.2, pre-commi
-- 005-no-empty-bdd-headings: Added Python 3.10-3.14 + pytest>=6.2.5,
+- 007-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest`, `cucumber-messages`, `pluggy`, `jsonschema`
+- 007-maximize-messages-coverage: Added Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages (upstream baseline pinned per release cycle), pytest-bdd runtime/reporter plugins, mypy, tox>=4.2, pre-commi
+- 007-maximize-messages-coverage: Added Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages (upstream baseline pinned per release cycle), pytest-bdd runtime/reporter plugins, mypy, tox>=4.2, pre-commi
   pytest-bdd parser/runtime layers, gherkin markdown token matcher,
   pre-commit, tox>=4.2
-- 004-migrate-jinja2-docs: Added Python 3.10-3.14 + pytest>=6.2.5, Jinja2, pluggy hooks, pre-commit, tox>=4.2, ruff, packaging
   pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commit.
   pathlib2, pytest-bdd plugin/runtime layers.
   cucumber-messages models, pytest-bdd runtime/plugin layers
