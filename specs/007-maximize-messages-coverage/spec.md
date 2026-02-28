@@ -8,12 +8,19 @@
 
 ## Clarifications
 
-### Session 2026-02-25
+### Session 2026-02-28
 
-- Q: Which mandatory evidence fields are required for non-implemented statuses? → A: `rationale` + `decision_owner` + `evidence_refs` + `reviewed_at`
-- Q: What cadence should baseline comparison use? → A: Weekly schedule only
-- Q: Which scenario matrix defines release-readiness mapping validation? → A: Fixed matrix with pass, fail, skipped, undefined, interrupted, plus one retry and one parallel-worker scenario
-- Q: How is a relevant capability defined? → A: A capability is relevant if it can affect emitted envelope payload, lifecycle linkage, status mapping, or governance checklist output
+- Q: How should paths between package artifacts (like the JSON schema) be resolved? → A: Package Resources (Relative path resolution based on module location is prohibited. Use `importlib.resources` for package artifacts, or `git` for test-only paths. Patterns like `PLUGIN_PATH` must be avoided).
+- Q: When the validation process exhaustively checks payload fields, how should the system handle the failure? → A: Hard failure (Any missing coverage or structurally invalid field immediately fails the test suite).
+- Q: Will dynamic traceability be active for all test runs by default, or enabled via a specific flag? → A: Opt-in via flag (Tracing only runs when explicitly requested, preserving fast normal test execution).
+
+### Session 2026-02-27
+
+- Q: How should coverage verification be implemented to ensure no "white spots" are missed? → A: Schema-oriented (Automatically derive inventory from messages JSON Schema/Protobuf).
+- Q: What is the required validation depth for each message payload? → A: Exhaustive (Validate every field defined in the schema).
+- Q: How should the system determine if a field is "covered" during runtime tests? → A: Dynamic Traceability (Count as covered ONLY when runtime execution populates the field).
+- Q: How should the coverage report treat optional fields that are never populated? → A: Scenario-Specific (Require specific "Evidence Scenarios" for each field, e.g., error fields require failing tests).
+- Q: How should complex nested fields like step arguments be validated? → A: Structural Integrity (Validate full nesting and exact character offsets).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -72,7 +79,7 @@ As a release reviewer, I need a governance checklist that shows coverage decisio
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST maintain a canonical inventory of all upstream `messages` capabilities that can affect emitted envelope payload, lifecycle linkage, status mapping, or governance checklist output.
+- **FR-001**: The system MUST automatically maintain a canonical inventory of all upstream `messages` capabilities derived from the official JSON Schema/Protobuf definitions to ensure 100% field coverage.
 - **FR-002**: Each capability in the inventory MUST have exactly one status from the controlled vocabulary: Implemented, Non-Implementable, Not-Acceptable, Not-Applicable, or Pending.
 - **FR-003**: Any capability not marked Implemented MUST include `rationale`, `decision_owner`, `evidence_refs`, and `reviewed_at`.
 - **FR-004**: The system MUST define mapping rules from supported runtime outcomes to capability entries in the inventory.
@@ -84,6 +91,9 @@ As a release reviewer, I need a governance checklist that shows coverage decisio
 - **FR-010**: The specification MUST declare explicit out-of-scope boundaries for capabilities intentionally excluded from the current release scope.
 - **FR-011**: Stakeholders MUST be able to trace each reported message outcome in sample runs back to a capability entry in the governance artifact.
 - **FR-012**: Status terminology MUST remain consistent across specification, planning, and governance artifacts.
+- **FR-013**: The validation process MUST exhaustively check every field defined in the `messages` schema for each emitted payload to ensure no data is omitted. Any missing coverage or structurally invalid field MUST result in a hard failure of the test suite.
+- **FR-014**: The system MUST require specific "Evidence Scenarios" to prove coverage for state-dependent fields (e.g., ensuring `exception` fields are populated during failing test scenarios). Dynamic traceability MUST be opt-in via a specific CLI flag (e.g., `--messages-coverage`) to preserve performance during normal test executions.
+- **FR-015**: For complex nested fields (e.g., `step_match_arguments_lists`), the validation MUST verify structural integrity, including all nested groups, children, and exact character offsets.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -109,7 +119,7 @@ As a release reviewer, I need a governance checklist that shows coverage decisio
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of relevant upstream `messages` capabilities are present in the governance inventory with exactly one assigned status.
+- **SC-001**: 100% of fields in relevant upstream `messages` payloads are verified via dynamic traceability (observed in runtime output) or documented with explicit non-implementation rationale.
 - **SC-002**: 100% of non-implemented capability entries include rationale and decision owner metadata.
 - **SC-003**: In the fixed release-readiness matrix (pass, fail, skipped, undefined, interrupted, plus one retry and one parallel-worker scenario), at least 95% of observed reporting outcomes map to approved capability entries with no ambiguous status terms.
 - **SC-004**: Release reviewers can determine unresolved coverage gaps using only the governance artifact in under 10 minutes.

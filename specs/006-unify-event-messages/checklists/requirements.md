@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Unify Event Message Reporting
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-02-25  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-02-25
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

@@ -1,11 +1,21 @@
 import time
-from typing import Any
+from typing import Any, Final, Literal
 
 from attr import Factory, attrib, attrs
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
 from pytest_bdd.model.execution_context import ReportingContextSnapshot
 from pytest_bdd.model.gherkin_document import Feature
+
+RuntimeStepStatus = Literal["passed", "failed"]
+CONTROLLED_RUNTIME_STEP_STATUSES: Final[tuple[RuntimeStepStatus, ...]] = ("passed", "failed")
+
+
+def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) -> RuntimeStepStatus:
+    normalized = (status or "").strip().lower()
+    if normalized in CONTROLLED_RUNTIME_STEP_STATUSES:
+        return normalized  # type: ignore[return-value]
+    return "failed" if failed_fallback else "passed"
 
 
 class StepReport:
@@ -34,6 +44,7 @@ class StepReport:
             "keyword": feature._get_step_keyword(self.step),
             "line_number": feature._get_step_line_number(self.step),
             "failed": self.failed,
+            "status": normalize_runtime_step_status(None, failed_fallback=self.failed),
             "duration": self.duration,
         }
 

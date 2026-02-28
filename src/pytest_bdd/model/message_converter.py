@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import asdict, is_dataclass
+from datetime import datetime
 from typing import Any, cast
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
@@ -22,3 +24,15 @@ def envelope_from_dict(payload: dict[str, Any]) -> Message:
     message = message_converter.from_dict(payload, Message)
     validate_envelope_shape(message)
     return message
+
+
+def governance_value_to_dict(value: Any) -> Any:
+    if is_dataclass(value) and not isinstance(value, type):
+        return governance_value_to_dict(asdict(value))
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: governance_value_to_dict(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [governance_value_to_dict(item) for item in value]
+    return value

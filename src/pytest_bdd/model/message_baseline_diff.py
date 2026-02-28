@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Final, Literal
 
 if TYPE_CHECKING:
@@ -48,7 +48,7 @@ def is_weekly_run_due(
 ) -> bool:
     if schedule.cadence != WEEKLY_CADENCE:
         return False
-    current = now or datetime.now(UTC)
+    current = now or datetime.now(timezone.utc)
     return current >= schedule.next_run_at
 
 
@@ -87,13 +87,13 @@ def build_baseline_diff(
     ]
 
     return BaselineDiffRecord(
-        diff_run_id=f"diff-{int((generated_at or datetime.now(UTC)).timestamp())}",
+        diff_run_id=f"diff-{int((generated_at or datetime.now(timezone.utc)).timestamp())}",
         previous_baseline=previous_baseline,
         current_baseline=current_baseline,
         added_capability_ids=added,
         changed_capability_ids=tuple(changed_ids),
         removed_capability_ids=removed,
-        generated_at=generated_at or datetime.now(UTC),
+        generated_at=generated_at or datetime.now(timezone.utc),
     )
 
 
@@ -106,7 +106,7 @@ def execute_weekly_baseline_diff(
     current_capabilities: list[MessageCapability],
     now: datetime | None = None,
 ) -> BaselineDiffExecutionResult:
-    current = now or datetime.now(UTC)
+    current = now or datetime.now(timezone.utc)
     if not is_weekly_run_due(schedule, now=current):
         return BaselineDiffExecutionResult(due=False, schedule=schedule, record=None)
 

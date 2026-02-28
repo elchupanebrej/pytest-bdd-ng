@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, TypeVar
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 
 from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, validate_outcome_mappings
+from pytest_bdd.model.message_validation import collect_observed_outcomes
 
 _MessagePayload = TypeVar("_MessagePayload")
 
@@ -71,3 +73,15 @@ def payload_ids(payloads: Iterable[object]) -> list[str]:
 def assert_unique_payload_ids(payloads: Iterable[object]) -> None:
     ids = payload_ids(payloads)
     assert len(ids) == len(set(ids))
+
+
+def assert_fixed_matrix_mapping_is_valid(
+    messages: Iterable[Message],
+    mapping_rules: list[OutcomeMappingRule],
+) -> None:
+    observed_outcomes = collect_observed_outcomes(list(messages))
+    result = validate_outcome_mappings(mapping_rules, observed_outcomes)
+    assert result.status == "pass"
+    assert result.ambiguous_outcomes == ()
+    assert result.unmapped_outcomes == ()
+    assert result.missing_required_matrix_cases == ()

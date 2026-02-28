@@ -135,6 +135,8 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
             if name is not None:
                 hook.__pytest_bdd_hook_name__ = name
             hook.__pytest_bdd_hook_expression__ = expression_
+            hook.__pytest_bdd_hook_kind__ = kind_.value
+            hook.__pytest_bdd_hook_conjunction__ = conjunction_.value
 
             return fixture_decorator(hook)
 

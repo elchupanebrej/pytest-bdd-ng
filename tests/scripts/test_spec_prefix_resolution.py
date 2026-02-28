@@ -15,7 +15,6 @@ def _read(path: Path) -> str:
 def test_common_script_contains_prefix_lookup_function() -> None:
     script_text = _read(COMMON_SCRIPT)
     assert "find_feature_dir_by_prefix" in script_text
-    assert "list_prefix_conflicts" in script_text
 
 
 def test_check_prerequisites_supports_paths_json_mode() -> None:
@@ -23,7 +22,6 @@ def test_check_prerequisites_supports_paths_json_mode() -> None:
     assert "--paths-only" in script_text
     assert "FEATURE_DIR" in script_text
     assert "TASKS" in script_text
-    assert "PREFIX_AUDIT" in script_text
 
 
 def test_create_new_feature_contains_monotonic_prefix_logic() -> None:

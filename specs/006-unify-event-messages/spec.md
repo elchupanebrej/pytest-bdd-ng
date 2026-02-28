@@ -1,9 +1,9 @@
 # Feature Specification: Unify Event Message Reporting
 
-**Feature Branch**: `006-unify-event-messages`  
-**Created**: 2026-02-25  
-**Status**: Draft  
-**Language**: English  
+**Feature Branch**: `006-unify-event-messages`
+**Created**: 2026-02-25
+**Status**: Draft
+**Language**: English
 **Input**: User description: "This library must report events using messages approach (investigate messages dir). Now it somehow outdated and report in-non consistent way. Build of event messages must be validated by MyPy"
 
 ## Clarifications

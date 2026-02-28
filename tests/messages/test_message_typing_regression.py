@@ -27,7 +27,7 @@ def test_mypy_rejects_invalid_envelope_assignment(tmp_path) -> None:
     source.write_text(
         textwrap.dedent(
             """\
-            from cucumber_messages import Envelope as Message
+            from pytest_bdd.model.message_extension import EventEnvelope as Message
 
             invalid: Message = Message(test_run_started="invalid-payload-type")
             """
@@ -36,7 +36,7 @@ def test_mypy_rejects_invalid_envelope_assignment(tmp_path) -> None:
     )
 
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "mypy", "--config-file", "pyproject.toml", str(source)],
+        [sys.executable, "-m", "mypy", str(source)],
         capture_output=True,
         text=True,
         check=False,

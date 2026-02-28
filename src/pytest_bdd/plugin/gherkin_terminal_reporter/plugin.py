@@ -1,6 +1,11 @@
 from typing import Any
 
 from pytest_bdd.compatibility.pytest import Config, TerminalReporter, TestReport
+from pytest_bdd.plugin.scenario_reporter.report import normalize_runtime_step_status
+
+
+def canonical_terminal_step_status(step: dict[str, Any]) -> str:
+    return normalize_runtime_step_status(step.get("status"), failed_fallback=bool(step.get("failed")))
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
@@ -37,7 +42,7 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
             self._tw.write("\n")
             has_already_failed = False
             for step in scenario["steps"]:
-                step_status = step.get("status", "failed" if step["failed"] else "passed")
+                step_status = canonical_terminal_step_status(step)
                 step_failed = step_status == "failed"
                 step_markup = {"red" if step_failed else "green": True}
                 # Highlight first failed step

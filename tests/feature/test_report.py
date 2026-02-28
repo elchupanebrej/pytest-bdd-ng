@@ -6,9 +6,19 @@ from pathlib import Path
 import execnet.gateway_base
 import pytest
 
+from pytest_bdd.plugin.gherkin_terminal_reporter.plugin import canonical_terminal_step_status
+from pytest_bdd.plugin.scenario_reporter.report import normalize_runtime_step_status
 from pytest_bdd.util.toolz_test import InstanceOfType
 
 pytestmark = [pytest.mark.technical_nonconvertible]
+
+
+def test_status_terminology_normalization_is_shared_between_reporters() -> None:
+    assert normalize_runtime_step_status("passed", failed_fallback=False) == "passed"
+    assert normalize_runtime_step_status("FAILED", failed_fallback=False) == "failed"
+    assert canonical_terminal_step_status({"status": "passed", "failed": False}) == "passed"
+    assert canonical_terminal_step_status({"status": "FAILED", "failed": False}) == "failed"
+    assert canonical_terminal_step_status({"failed": True}) == "failed"
 
 
 def matchreport(
@@ -140,6 +150,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Given",
                 "line_number": 6,
                 "name": "a passing step",
@@ -148,6 +159,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "And",
                 "line_number": 7,
                 "name": "some other passing step",
@@ -179,6 +191,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Given",
                 "line_number": 11,
                 "name": "a passing step",
@@ -187,6 +200,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": True,
+                "status": "failed",
                 "keyword": "And",
                 "line_number": 12,
                 "name": "a failing step",
@@ -219,6 +233,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Given",
                 "line_number": 15,
                 "name": "there are 12 cucumbers",
@@ -227,6 +242,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "When",
                 "line_number": 16,
                 "name": "I eat 5 cucumbers",
@@ -235,6 +251,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Then",
                 "line_number": 17,
                 "name": "I should have 7 cucumbers",
@@ -267,6 +284,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Given",
                 "line_number": 15,
                 "name": "there are 5 cucumbers",
@@ -275,6 +293,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "When",
                 "line_number": 16,
                 "name": "I eat 4 cucumbers",
@@ -283,6 +302,7 @@ def test_step_trace(testdir):
             {
                 "duration": InstanceOfType(float),
                 "failed": False,
+                "status": "passed",
                 "keyword": "Then",
                 "line_number": 17,
                 "name": "I should have 1 cucumbers",

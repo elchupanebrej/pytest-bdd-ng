@@ -5,6 +5,8 @@ import re
 import sys
 import tempfile
 from base64 import b64encode
+from contextlib import suppress
+from dataclasses import dataclass
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
@@ -13,10 +15,11 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import chevron
 import pytest
+from _pytest.mark import Mark
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -24,6 +27,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     AttachmentContentEncoding,
     Ci,
     Duration,
+    Group,
     Hook,
     Location,
     Meta,
@@ -31,6 +35,8 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Product,
     Source,
     SourceReference,
+    StepMatchArgument,
+    StepMatchArgumentsList,
     TestCase,
     TestCaseFinished,
     TestCaseStarted,
@@ -48,8 +54,10 @@ from filelock import FileLock
 
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
+    PYTEST7,
     Config,
     FixtureDef,
+    FixtureLookupError,
     FixtureRequest,
     get_config_root_path,
     get_metafunc_call_arg,
@@ -58,8 +66,14 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
-from pytest_bdd.model.message_validation import validate_message_stream
+from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
+from pytest_bdd.model.message_validation import (
+    default_outcome_mapping_rules,
+    observed_outcome_from_envelope,
+    validate_message_stream,
+)
 from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.util.packaging import get_distribution_version
@@ -73,6 +87,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class HookRegistration:
+    hook_message_id: str
+    expression: str
+    kind: str
+
+
 @attrs(eq=False)
 class GherkinMessageReporter:
     config: Config = attrib()
@@ -80,6 +101,7 @@ class GherkinMessageReporter:
     current_test_case_step_id_to_step_mapping: dict[int, TestStep] | None = attrib(default=None)
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
+    hook_registration_registry: ClassVar[dict[int, HookRegistration]] = {}
     npm_formatter_package = "@cucumber/html-formatter"
     plugin_name = "pytest-bdd-internal-gherkin-message-reporter"
 
@@ -96,6 +118,8 @@ class GherkinMessageReporter:
     current_test_case_step_finish_timestamp: Timestamp
     _disabled_warning_emitted: bool
     _run_id: str | None
+    _outcome_mapping_rules: list[OutcomeMappingRule]
+    _mapping_diagnostics_count: int
 
     def __attrs_post_init__(self):
         self._disabled_warning_emitted = False
@@ -105,6 +129,8 @@ class GherkinMessageReporter:
         self.current_step_started_ids = {}
         self.current_attempt_context = None
         self.current_test_case_step_id_to_step_mapping = None
+        self._outcome_mapping_rules = default_outcome_mapping_rules()
+        self._mapping_diagnostics_count = 0
 
         self.is_disabled = all(
             [
@@ -169,6 +195,27 @@ class GherkinMessageReporter:
         if not has_single_payload(message):
             message_text = "Envelope must include exactly one payload"
             raise TypeError(message_text)
+        observed_outcome = observed_outcome_from_envelope(message)
+        if observed_outcome is not None:
+            selected_rule, is_ambiguous = resolve_outcome_mapping(
+                self._outcome_mapping_rules,
+                outcome_scope=observed_outcome.outcome_scope,
+                outcome_status=observed_outcome.outcome_status,
+            )
+            if is_ambiguous:
+                self._mapping_diagnostics_count += 1
+                logger.warning(
+                    "Ambiguous outcome mapping for %s:%s",
+                    observed_outcome.outcome_scope,
+                    observed_outcome.outcome_status,
+                )
+            elif selected_rule is None:
+                self._mapping_diagnostics_count += 1
+                logger.warning(
+                    "No outcome mapping rule for %s:%s",
+                    observed_outcome.outcome_scope,
+                    observed_outcome.outcome_status,
+                )
         config.hook.pytest_bdd_message(config=config, message=message)
 
     def _emit_lifecycle(self, config: Config, payload_kind: str, payload: object) -> None:
@@ -369,6 +416,10 @@ class GherkinMessageReporter:
                 "Canonical message stream validation failed with %s violation(s).",
                 len(validation_result.violations),
             )
+        if self._mapping_diagnostics_count:
+            logger.error(
+                "Detected %s mapping diagnostic warning(s) in message emission flow.", self._mapping_diagnostics_count
+            )
         if not self._check_derived_output_consistency(envelopes):
             logger.error("Derived-output consistency check failed: required run lifecycle envelopes are incomplete.")
 
@@ -396,22 +447,31 @@ class GherkinMessageReporter:
 
             hook_name = getattr(func, "__pytest_bdd_hook_name__", None)
             hook_expression = getattr(func, "__pytest_bdd_hook_expression__", None)
+            hook_kind = getattr(func, "__pytest_bdd_hook_kind__", "tag")
+
+            hook_message_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+            hook_message = Hook(
+                id=hook_message_id,
+                **({"name": hook_name} if hook_name is not None else {}),
+                source_reference=SourceReference(
+                    uri=relpath(
+                        getfile(func),
+                        str(get_config_root_path(cast(Config, config))),
+                    ),
+                    location=Location(line=getsourcelines(func)[1]),
+                ),
+                **({"tag_expression": hook_expression} if hook_expression is not None else {}),
+            )
+            type(self).hook_registration_registry[func_id] = HookRegistration(
+                hook_message_id=hook_message_id,
+                expression="" if hook_expression is None else str(hook_expression),
+                kind=str(hook_kind),
+            )
 
             self._emit_envelope(
                 config,
                 Message(
-                    hook=Hook(
-                        id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
-                        **({"name": hook_name} if hook_name is not None else {}),
-                        source_reference=SourceReference(
-                            uri=relpath(
-                                getfile(func),
-                                str(get_config_root_path(cast(Config, config))),
-                            ),
-                            location=Location(line=getsourcelines(func)[1]),
-                        ),
-                        **({"tag_expression": hook_expression} if hook_expression is not None else {}),
-                    ),
+                    hook=hook_message,
                 ),
             )
 
@@ -429,8 +489,11 @@ class GherkinMessageReporter:
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        scenario = request.getfixturevalue("scenario")
-        feature = request.getfixturevalue("feature")
+        try:
+            scenario = request.getfixturevalue("scenario")
+            feature = request.getfixturevalue("feature")
+        except FixtureLookupError:
+            return
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)
@@ -439,6 +502,16 @@ class GherkinMessageReporter:
         previous_step = None
 
         self.current_test_case_step_id_to_step_mapping = {}
+
+        test_steps.extend(
+            [
+                TestStep(
+                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                    hook_id=hook_registration.hook_message_id,
+                )
+                for hook_registration in self._iter_matching_hook_registrations(request=request, scenario=scenario)
+            ]
+        )
 
         for step in scenario.steps:
             try:
@@ -452,11 +525,18 @@ class GherkinMessageReporter:
             except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
                 pass
             else:
+                step_match_arguments_lists = self._build_step_match_arguments_lists(
+                    request=request,
+                    step_definition=step_definition,
+                    step_text=step.text,
+                )
                 test_step = TestStep(
                     id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
-                    # TODO Check step_match_arguments_lists
+                    **(
+                        {"step_match_arguments_lists": step_match_arguments_lists} if step_match_arguments_lists else {}
+                    ),
                 )
                 test_steps.append(test_step)
                 self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
@@ -481,6 +561,127 @@ class GherkinMessageReporter:
                     self._emit_envelope(config, Message(step_definition=step_definition.as_message(config=config)))
             step_registry = step_registry.parent
 
+    def _iter_matching_hook_registrations(self, request: FixtureRequest, scenario: Any):
+        for hook_registration in type(self).hook_registration_registry.values():
+            if self._hook_expression_matches(
+                request=request,
+                scenario=scenario,
+                expression=hook_registration.expression,
+                kind=hook_registration.kind,
+            ):
+                yield hook_registration
+
+    def _hook_expression_matches(
+        self,
+        *,
+        request: FixtureRequest,
+        scenario: Any,
+        expression: str,
+        kind: str,
+    ) -> bool:
+        if not expression.strip():
+            return True
+
+        try:
+            if kind == "mark":
+                parsed_expression = MarksTagExpression.parse(expression)
+                return bool(parsed_expression.evaluate(list(request.node.iter_markers())))
+            if kind == "tag":
+                parsed_expression = GherkinTagExpression.parse(expression)
+                scenario_tags = []
+                for tag in scenario.tags:
+                    mark = Mark(tag.name, args=(), kwargs={})
+                    if PYTEST7:
+                        setattr(mark, "_ispytest", True)
+                    scenario_tags.append(mark)
+                return bool(parsed_expression.evaluate(scenario_tags))
+        except Exception:  # noqa: BLE001
+            return False
+
+        return False
+
+    def _build_step_match_arguments_lists(
+        self,
+        *,
+        request: FixtureRequest,
+        step_definition: StepDefinitionManager.Definition,
+        step_text: str,
+    ) -> list[StepMatchArgumentsList]:
+        from pytest_bdd.parsers import _CucumberExpression
+
+        parser = step_definition.parser
+
+        if isinstance(parser, _CucumberExpression):
+            matches = parser.rebuild_expression_in_test_context(request).match(step_text)
+            if matches:
+
+                def build_group(g) -> Group:
+                    return Group(
+                        **({"start": g.start} if getattr(g, "start", None) is not None else {}),
+                        **({"value": g.value} if getattr(g, "value", None) is not None else {}),
+                        children=[build_group(c) for c in (getattr(g, "children", []) or [])],
+                    )
+
+                step_match_arguments = []
+                for i, match in enumerate(matches):
+                    anon_groups = list(step_definition.anonymous_group_names) if step_definition.anonymous_group_names else []
+                    parameter_name = (
+                        anon_groups[i]
+                        if i < len(anon_groups)
+                        else None
+                    )
+                    step_match_arguments.append(
+                        StepMatchArgument(
+                            group=build_group(match.group),
+                            **({"parameter_type_name": str(parameter_name)} if parameter_name is not None else {}),
+                        )
+                    )
+                return [StepMatchArgumentsList(step_match_arguments=step_match_arguments)]
+
+        parsed_arguments = (
+            step_definition.parser.parse_arguments(
+                request,
+                step_text,
+                anonymous_group_names=step_definition.anonymous_group_names,
+            )
+            or {}
+        )
+        if not parsed_arguments:
+            return []
+
+        parsed_step_match_arguments: list[StepMatchArgument] = []
+        for parameter_name, parameter_value in parsed_arguments.items():
+            parameter_value_text = "" if parameter_value is None else str(parameter_value)
+            parameter_start_index = step_text.find(parameter_value_text) if parameter_value_text else -1
+            group = Group(
+                **({"start": parameter_start_index} if parameter_start_index >= 0 else {}),
+                **({"value": parameter_value_text} if parameter_value_text else {}),
+            )
+            parsed_step_match_arguments.append(
+                StepMatchArgument(
+                    group=group,
+                    **({"parameter_type_name": str(parameter_name)} if parameter_name is not None else {}),
+                )
+            )
+        return [StepMatchArgumentsList(step_match_arguments=parsed_step_match_arguments)]
+
+    def _build_parameter_type_source_reference(self, config: Config, parameter_type: Any):
+        transformer = getattr(parameter_type, "transformer", None)
+        if transformer is None:
+            return None
+
+        with suppress(OSError, TypeError):
+            source_file = getfile(transformer)
+            source_line = getsourcelines(transformer)[1]
+            return SourceReference(
+                uri=relpath(
+                    source_file,
+                    str(get_config_root_path(cast(Config, config))),
+                ),
+                location=Location(line=source_line),
+            )
+        return None
+
     def _register_parameter_types(self, config, request):
         step_registry = request.getfixturevalue("step_registry")
         seen_steps = set()
@@ -493,7 +694,7 @@ class GherkinMessageReporter:
                     )(step_definition.parser)[0]
 
                     if parameter_type_registry_getter is None:
-                        break
+                        continue
 
                     parameter_type_registry = parameter_type_registry_getter(request)
 
@@ -508,6 +709,10 @@ class GherkinMessageReporter:
                     }
 
                     for parameter_type in not_yet_registered_parameter_types.values():
+                        parameter_type_source_reference = self._build_parameter_type_source_reference(
+                            cast(Config, config),
+                            parameter_type,
+                        )
                         self._emit_envelope(
                             config,
                             Message(
@@ -517,6 +722,11 @@ class GherkinMessageReporter:
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
                                     id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                                    **(
+                                        {"source_reference": parameter_type_source_reference}
+                                        if parameter_type_source_reference is not None
+                                        else {}
+                                    ),
                                 ),
                             ),
                         )

@@ -1,9 +1,9 @@
 # Feature Specification: Non-empty BDD Headings in Feature Files
 
-**Feature Branch**: `005-no-empty-bdd-headings`  
-**Created**: 2026-02-25  
-**Status**: Draft  
-**Language**: English  
+**Feature Branch**: `005-no-empty-bdd-headings`
+**Created**: 2026-02-25
+**Status**: Draft
+**Language**: English
 **Input**: User description: "В feature файлах в папке features не должно быть Feature и Scenario с пустыми заголовками"
 
 ## User Scenarios & Testing *(mandatory)*

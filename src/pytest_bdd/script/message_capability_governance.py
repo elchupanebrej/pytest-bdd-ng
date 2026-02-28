@@ -3,10 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, cast
 
+from pytest_bdd.model.coverage.inventory import SCHEMA_DIR, generate_inventory
 from pytest_bdd.model.message_baseline_diff import WEEKLY_CADENCE, BaselineDiffRecord, build_baseline_diff
 from pytest_bdd.model.message_capability import (
     CapabilityCategory,
@@ -15,13 +16,14 @@ from pytest_bdd.model.message_capability import (
     MessageCapability,
 )
 from pytest_bdd.model.message_capability_inventory import sync_capability_inventory
-from pytest_bdd.model.message_converter import governance_value_to_dict
+from pytest_bdd.model.message_converter import envelope_from_dict, governance_value_to_dict
 from pytest_bdd.model.message_governance_checklist import build_governance_checklist, render_checklist_markdown
 from pytest_bdd.model.message_status_governance import (
     CapabilityDecision,
     normalize_capability_status,
     validate_capability_decision,
 )
+from pytest_bdd.model.message_validation import validate_message_stream
 
 ALLOWED_CATEGORIES: Final[set[str]] = {"core", "lifecycle", "hook", "attachment", "parameter", "metadata"}
 ALLOWED_IMPACTS: Final[set[str]] = {
@@ -120,7 +122,7 @@ def _load_baseline_diff(path: Path) -> BaselineDiffRecord:
         msg = f"Expected baseline diff object in {path}"
         raise TypeError(msg)
     generated_at_raw = payload.get("generated_at")
-    generated_at = datetime.fromisoformat(generated_at_raw) if isinstance(generated_at_raw, str) else datetime.now(UTC)
+    generated_at = datetime.fromisoformat(generated_at_raw) if isinstance(generated_at_raw, str) else datetime.now(timezone.utc)
     return BaselineDiffRecord(
         diff_run_id=str(payload["diff_run_id"]),
         previous_baseline=str(payload["previous_baseline"]),
@@ -167,6 +169,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     checklist_parser.add_argument("--format", choices=("json", "markdown"), default="json")
     checklist_parser.add_argument("--output", type=Path)
 
+    report_parser = subparsers.add_parser("report", help="Generate governance coverage report from NDJSON")
+    report_parser.add_argument("--messages-file", type=Path, required=True)
+    report_parser.add_argument("--output", type=Path)
+
+    # Legacy fallback for quickstart.md:
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if "--messages-file" in argv and "report" not in argv:
+        argv.insert(0, "report")
+
     return parser.parse_args(argv)
 
 
@@ -196,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
             current_baseline=args.current_baseline,
             previous_capabilities=previous_capabilities,
             current_capabilities=current_capabilities,
-            generated_at=datetime.now(UTC),
+            generated_at=    datetime.now(timezone.utc),
         )
         payload = governance_value_to_dict(diff_result)
         payload["cadence"] = WEEKLY_CADENCE
@@ -213,6 +226,37 @@ def main(argv: list[str] | None = None) -> int:
         else:
             _emit_text(json.dumps(governance_value_to_dict(checklist), sort_keys=True), output_path=args.output)
         return 0 if checklist.unresolved_blockers == 0 else 1
+
+    if args.command == "report":
+        envelopes = []
+        with Path(args.messages_file).open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    envelopes.append(envelope_from_dict(json.loads(line)))
+
+        validation_result = validate_message_stream(envelopes, track_coverage=True)
+        inventory = generate_inventory(SCHEMA_DIR)
+
+        total_fields = len(inventory.fields)
+        covered_fields = (
+            len(validation_result.observed_coverage.observed_fields) if validation_result.observed_coverage else 0
+        )
+        coverage_percentage = (covered_fields / total_fields) * 100 if total_fields > 0 else 0.0
+
+        report = {
+            "version": "1.0",
+            "generated_at":     datetime.now(timezone.utc).isoformat(),
+            "summary": {
+                "total_fields": total_fields,
+                "covered_fields": covered_fields,
+                "coverage_percentage": coverage_percentage,
+            },
+            "capabilities": [],
+        }
+
+        _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
+        return 0
 
     return 1
 

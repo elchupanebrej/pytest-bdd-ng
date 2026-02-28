@@ -59,6 +59,7 @@ dependencies = [
   "importlib-metadata;python_version<'3.10.0'",
   "importlib-resources",
   "Jinja2",
+  "jsonschema",
   "makefun",
   "ordered_set",
   "packaging",
@@ -121,6 +122,7 @@ struct-bdd = [
 ]
 test = [
   "allure-python-commons-test",
+  "deepdiff",
   "execnet",
   "jq;platform_system!='Windows'",
   "packaging",
