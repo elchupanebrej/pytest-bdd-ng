@@ -1,0 +1,3841 @@
+[
+  {
+    "capability_id": "attachment.body",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.contentEncoding",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.fileName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.source.data",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.source.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.source.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.testCaseStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.testRunHookStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.testRunStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.testStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "attachment.url",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.testCaseStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.testRunHookStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.testStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "externalAttachment.url",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.comments.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.comments.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.comments.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.dataTable.rows.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.content",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.delimiter",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.keywordType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.content",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.delimiter",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.keywordType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.docString.content",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.docString.delimiter",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.docString.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.docString.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.docString.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.keywordType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.steps.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.content",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.delimiter",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.keywordType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.description",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.keyword",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.language",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.tags.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.tags.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.tags.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "gherkinDocument.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.methodParameterTypes",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.fileName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.sourceReference.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.tagExpression",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "hook.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.buildNumber",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.git.branch",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.git.remote",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.git.revision",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.git.tag",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.ci.url",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.cpu.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.cpu.version",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.implementation.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.implementation.version",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.os.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.os.version",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.protocolVersion",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.runtime.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "meta.runtime.version",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.preferForRegularExpressionMatch",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.regularExpressions",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.methodParameterTypes",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.fileName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parameterType.useForSnippets",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.methodParameterTypes",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.fileName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "parseError.source.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.astNodeIds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.language",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.argument.dataTable.rows.cells.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.argument.docString.content",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.argument.docString.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.astNodeIds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.text",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.steps.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.tags.astNodeId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.tags.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "pickle.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "source.data",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "source.mediaType",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "source.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.pattern.source",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.pattern.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaMethod.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaMethod.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaMethod.methodParameterTypes",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaStackTraceElement.className",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaStackTraceElement.fileName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.javaStackTraceElement.methodName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.location.column",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.location.line",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "stepDefinition.sourceReference.uri",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "suggestion.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "suggestion.pickleStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "suggestion.snippets.code",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "suggestion.snippets.language",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.pickleId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testRunStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.hookId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.pickleStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.stepDefinitionIds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.group.start",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.group.value",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.parameterTypeName",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseFinished.testCaseStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseFinished.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseFinished.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseFinished.willBeRetried",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.attempt",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.testCaseId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testCaseStarted.workerId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.exception.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.exception.stackTrace",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.exception.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.success",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.testRunStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunFinished.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.duration.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.duration.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.stackTrace",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.status",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.testRunHookStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookFinished.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.hookId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.testRunStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunHookStarted.workerId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunStarted.id",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunStarted.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testRunStarted.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testCaseStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.duration.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.duration.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.stackTrace",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.type",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.message",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.status",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepFinished.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepStarted.testCaseStartedId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepStarted.testStepId",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepStarted.timestamp.nanos",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "testStepStarted.timestamp.seconds",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "undefinedParameterType.expression",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  },
+  {
+    "capability_id": "undefinedParameterType.name",
+    "decision_owner": "Messages Coverage Governance",
+    "evidence_refs": [
+      "tests/messages_coverage/test_full_capability_governance.py"
+    ],
+    "rationale": "Capability is not emitted by pytest-bdd-ng runtime in the dedicated coverage audit suite.",
+    "release_target": "messages-capability-audit",
+    "reviewed_at": "2026-03-02T00:00:00+00:00",
+    "status": "Not-Applicable"
+  }
+]

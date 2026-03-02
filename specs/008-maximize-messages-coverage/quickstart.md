@@ -39,6 +39,8 @@ Expected outcome:
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
 conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
   --messages-file messages.ndjson \
+  --decisions specs/008-maximize-messages-coverage/contracts/capability-decisions.json \
+  --require-fully-governed \
   --output governance.json
 ```
 

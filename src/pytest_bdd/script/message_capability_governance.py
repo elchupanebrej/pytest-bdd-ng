@@ -22,6 +22,7 @@ from pytest_bdd.model.message_converter import envelope_from_dict, governance_va
 from pytest_bdd.model.message_governance_checklist import build_governance_checklist, render_checklist_markdown
 from pytest_bdd.model.message_status_governance import (
     CapabilityDecision,
+    ensure_single_status_per_capability,
     normalize_capability_status,
     validate_capability_decision,
 )
@@ -184,6 +185,31 @@ def _load_decisions(path: Path) -> list[CapabilityDecision]:
     return result
 
 
+def _validate_decisions(decisions: list[CapabilityDecision]) -> dict[str, CapabilityDecision]:
+    uniqueness = ensure_single_status_per_capability(decisions)
+    if not uniqueness.is_unique:
+        msg = f"Duplicate capability decisions found for: {', '.join(uniqueness.duplicates)}"
+        raise ValueError(msg)
+
+    validated: dict[str, CapabilityDecision] = {}
+    for decision in decisions:
+        validation = validate_capability_decision(decision)
+        if not validation.accepted:
+            parts: list[str] = []
+            if validation.violations:
+                parts.append("; ".join(validation.violations))
+            if validation.missing_required_evidence_fields:
+                parts.append(
+                    "missing required evidence fields: " + ", ".join(validation.missing_required_evidence_fields)
+                )
+            details = "; ".join(parts) if parts else "invalid decision"
+            msg = f"Invalid decision for '{decision.capability_id}': {details}"
+            raise ValueError(msg)
+        validated[decision.capability_id] = decision
+
+    return validated
+
+
 def _load_baseline_diff(path: Path) -> BaselineDiffRecord:
     payload = _load_json(path)
     if not isinstance(payload, dict):
@@ -248,6 +274,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     report_parser.add_argument("--format", choices=("json", "markdown"), default="json")
     report_parser.add_argument("--baseline-release", default="unknown")
     report_parser.add_argument("--schema", type=Path, default=None)
+    report_parser.add_argument(
+        "--decisions",
+        type=Path,
+        default=None,
+        help="Optional JSON decisions file that classifies uncovered capabilities.",
+    )
+    report_parser.add_argument(
+        "--require-fully-governed",
+        action="store_true",
+        default=False,
+        help="Fail if report contains blocked or pending capabilities after decision merge.",
+    )
 
     # Legacy fallback for quickstart.md:
     if argv is None:
@@ -323,6 +361,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
         validation_result = validate_message_stream(envelopes, track_coverage=True)
         inventory = generate_inventory(SCHEMA_DIR)
+        decisions_by_capability: dict[str, CapabilityDecision] = {}
+        if args.decisions is not None:
+            decisions_by_capability = _validate_decisions(_load_decisions(args.decisions))
 
         observed_fields = (
             validation_result.observed_coverage.observed_fields if validation_result.observed_coverage else set()
@@ -333,25 +374,60 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         deferred_count = 0
         now = datetime.now(timezone.utc).isoformat()
 
+        inventory_capability_ids = {
+            f"{payload_kind}.{path}" if path else payload_kind for payload_kind, path in inventory.fields
+        }
+        unknown_decision_ids = sorted(set(decisions_by_capability).difference(inventory_capability_ids))
+        if unknown_decision_ids:
+            sample = ", ".join(unknown_decision_ids[:10])
+            msg = f"Decision file contains unknown capability IDs (first 10): {sample}"
+            raise ValueError(msg)
+
         for payload_kind, path in sorted(inventory.fields):
             capability_id = f"{payload_kind}.{path}" if path else payload_kind
             implemented = (payload_kind, path) in observed_fields
-            status = "Implemented" if implemented else "Pending"
-            disposition = "approved" if implemented else "blocked"
+            decision = decisions_by_capability.get(capability_id)
             if implemented:
+                status = "Implemented"
+                disposition = "approved"
                 implemented_count += 1
+            elif decision is not None:
+                status = normalize_capability_status(decision.status) or "Pending"
+                if status in {"Non-Implementable", "Not-Applicable"}:
+                    disposition = "deferred"
+                    deferred_count += 1
+                else:
+                    disposition = "blocked"
+                    blocked_count += 1
             else:
+                status = "Pending"
+                disposition = "blocked"
                 blocked_count += 1
             payload = {
                 "capability_id": capability_id,
                 "status": status,
                 "disposition": disposition,
-                "decision_owner": "Automation",
-                "reviewed_at": now,
-                "evidence_refs": [],
+                "decision_owner": decision.decision_owner if decision is not None else "Automation",
+                "reviewed_at": (
+                    decision.reviewed_at.isoformat()
+                    if decision is not None and decision.reviewed_at is not None
+                    else now
+                ),
+                "evidence_refs": list(decision.evidence_refs) if decision is not None else [],
             }
-            if not implemented:
+            if decision is not None and decision.rationale is not None:
+                payload["rationale"] = decision.rationale
+
+            if status == "Pending":
                 payload["open_risk"] = "Missing runtime evidence"
+            elif status == "Implemented" and not implemented:
+                payload["open_risk"] = "Marked implemented by decision but runtime evidence is missing"
+            elif disposition == "blocked":
+                payload["open_risk"] = (
+                    decision.rationale
+                    if decision is not None and decision.rationale
+                    else "Unresolved governance decision"
+                )
             capabilities_list.append(payload)
 
         total_capabilities = len(capabilities_list)
@@ -372,6 +448,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         }
 
         validate_governance_report_payload(report, schema_path=args.schema)
+
+        if args.require_fully_governed:
+            unresolved = [
+                capability
+                for capability in report["capabilities"]
+                if capability["status"] == "Pending" or capability["disposition"] == "blocked"
+            ]
+            if unresolved:
+                _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
+                return 1
 
         if args.format == "markdown":
             lines = [
