@@ -1,147 +1,208 @@
+from __future__ import annotations
+
 import argparse
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
-SCHEMA_DIR = Path(__file__).parent.parent.parent.parent.parent / "messages" / "jsonschema" / "src"
+from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
+
+SCHEMA_DIR = resolve_messages_schema_dir()
 
 
-@dataclass
+@dataclass(slots=True)
 class FieldMetadata:
-    """Metadata for a specific field in the messages schema."""
-
     path: str
     type: str
     is_required: bool
     description: str = ""
 
 
-@dataclass
+@dataclass(slots=True)
 class CapabilityInventory:
-    """A collection of all possible fields and payloads derived from the messages schema."""
-
     payload_kinds: list[str] = field(default_factory=list)
-    # Map of (payload_kind, field_path) to FieldMetadata
     fields: dict[tuple[str, str], FieldMetadata] = field(default_factory=dict)
 
 
-def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict) -> tuple[dict, dict]:
-    """Resolves a JSON Schema $ref. Returns the resolved subschema and its root schema."""
+def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     if "#" in ref:
         file_part, path_part = ref.split("#", 1)
     else:
         file_part, path_part = ref, ""
 
     if file_part:
-        file_part = file_part.removeprefix("./")
-        target_path = schema_dir / file_part
-        if not target_path.exists():
-            target_path = Path.cwd() / "messages" / "jsonschema" / "src" / file_part
-        with target_path.open(encoding="utf-8") as f:
-            new_root = json.load(f)
+        normalized_file = file_part.removeprefix("./")
+        target_path = schema_dir / normalized_file
+        if not target_path.is_file():
+            msg = f"Referenced schema file '{normalized_file}' was not found in '{schema_dir}'."
+            raise FileNotFoundError(msg)
+        new_root = json.loads(target_path.read_text(encoding="utf-8"))
     else:
         new_root = root_schema
 
-    resolved = new_root
+    resolved: Any = new_root
     if path_part:
-        parts = [p for p in path_part.split("/") if p]
-        for p in parts:
-            resolved = resolved[p]
+        for part in (p for p in path_part.split("/") if p):
+            resolved = resolved[part]
 
     return resolved, new_root
 
 
-def _extract_fields(
+def _extract_fields(  # noqa: C901
     schema_dir: Path,
-    schema: dict,
-    root_schema: dict,
+    schema: dict[str, Any],
+    root_schema: dict[str, Any],
     payload_kind: str,
     current_path: str,
     inventory: CapabilityInventory,
+    *,
     is_required: bool = False,
     visited: set[str] | None = None,
 ) -> None:
-    if visited is None:
-        visited = set()
-
+    refs_seen = visited or set()
     if "$ref" in schema:
-        ref = schema["$ref"]
-        if ref in visited:
+        ref = str(schema["$ref"])
+        if ref in refs_seen:
             return
         resolved, new_root = _resolve_schema(schema_dir, ref, root_schema)
         _extract_fields(
-            schema_dir, resolved, new_root, payload_kind, current_path, inventory, is_required, visited | {ref}
+            schema_dir,
+            resolved,
+            new_root,
+            payload_kind,
+            current_path,
+            inventory,
+            is_required=is_required,
+            visited=refs_seen | {ref},
         )
         return
 
     if schema.get("type") == "object" or "properties" in schema:
         properties = schema.get("properties", {})
-        required_fields = schema.get("required", [])
-        for prop_name, prop_schema in properties.items():
-            new_path = f"{current_path}.{prop_name}" if current_path else prop_name
-            prop_required = prop_name in required_fields
+        required_fields = set(schema.get("required", ()))
+        for property_name, property_schema in properties.items():
+            child_path = f"{current_path}.{property_name}" if current_path else property_name
             _extract_fields(
-                schema_dir, prop_schema, root_schema, payload_kind, new_path, inventory, prop_required, visited
+                schema_dir,
+                property_schema,
+                root_schema,
+                payload_kind,
+                child_path,
+                inventory,
+                is_required=property_name in required_fields,
+                visited=refs_seen,
             )
-    elif schema.get("type") == "array" and "items" in schema:
+        return
+
+    if schema.get("type") == "array" and "items" in schema:
         _extract_fields(
-            schema_dir, schema["items"], root_schema, payload_kind, current_path, inventory, is_required, visited
+            schema_dir,
+            schema["items"],
+            root_schema,
+            payload_kind,
+            current_path,
+            inventory,
+            is_required=is_required,
+            visited=refs_seen,
         )
-    elif "anyOf" in schema:
-        for sub_schema in schema["anyOf"]:
-            _extract_fields(
-                schema_dir, sub_schema, root_schema, payload_kind, current_path, inventory, is_required, visited
-            )
-    elif "allOf" in schema:
-        for sub_schema in schema["allOf"]:
-            _extract_fields(
-                schema_dir, sub_schema, root_schema, payload_kind, current_path, inventory, is_required, visited
-            )
-    elif "oneOf" in schema:
-        for sub_schema in schema["oneOf"]:
-            _extract_fields(
-                schema_dir, sub_schema, root_schema, payload_kind, current_path, inventory, is_required, visited
-            )
-    else:
-        # Scalar or enum
-        if current_path:
-            field_type = schema.get("type")
-            if not field_type and "enum" in schema:
-                field_type = "enum"
-            if not field_type:
-                field_type = "unknown"
+        return
 
-            if isinstance(field_type, list):
-                field_type = " | ".join(field_type)
-            inventory.fields[payload_kind, current_path] = FieldMetadata(
-                path=current_path, type=field_type, is_required=is_required, description=schema.get("description", "")
-            )
+    for union_keyword in ("anyOf", "allOf", "oneOf"):
+        if union_keyword in schema:
+            for sub_schema in schema[union_keyword]:
+                _extract_fields(
+                    schema_dir,
+                    sub_schema,
+                    root_schema,
+                    payload_kind,
+                    current_path,
+                    inventory,
+                    is_required=is_required,
+                    visited=refs_seen,
+                )
+            return
+
+    if current_path:
+        field_type: str | list[str] | None = schema.get("type")
+        if field_type is None and "enum" in schema:
+            field_type = "enum"
+        if field_type is None:
+            field_type = "unknown"
+        if isinstance(field_type, list):
+            field_type = " | ".join(str(item) for item in field_type)
+        inventory.fields[payload_kind, current_path] = FieldMetadata(
+            path=current_path,
+            type=str(field_type),
+            is_required=is_required,
+            description=str(schema.get("description", "")),
+        )
 
 
-def generate_inventory(schema_dir: Path) -> CapabilityInventory:
+def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
+    resolved_schema_dir = resolve_messages_schema_dir(schema_dir)
+    envelope_schema, _ = _resolve_schema(resolved_schema_dir, "Envelope.json", {})
+
     inventory = CapabilityInventory()
-    
-    target_path = schema_dir / "Envelope.json"
-    if not target_path.exists():
-        target_path = Path.cwd() / "messages" / "jsonschema" / "src" / "Envelope.json"
-        
-    envelope_schema, _ = _resolve_schema(target_path.parent, "Envelope.json", {})
-
-    properties = envelope_schema.get("properties", {})
-    for payload_kind, prop_schema in properties.items():
+    for payload_kind, payload_schema in envelope_schema.get("properties", {}).items():
         inventory.payload_kinds.append(payload_kind)
-        _extract_fields(schema_dir, prop_schema, envelope_schema, payload_kind, "", inventory)
-
+        _extract_fields(
+            resolved_schema_dir,
+            payload_schema,
+            envelope_schema,
+            payload_kind,
+            "",
+            inventory,
+        )
     return inventory
 
 
+def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for payload_kind, path in sorted(inventory.fields):
+        capability_id = f"{payload_kind}.{path}" if path else payload_kind
+        field_meta = inventory.fields[payload_kind, path]
+        payload.append(
+            {
+                "capability_id": capability_id,
+                "baseline_release": baseline_release,
+                "name": capability_id,
+                "description": field_meta.description or field_meta.path,
+                "category": "core",
+                "affects": ["emitted_envelope_payload"],
+                "source_reference": "messages/jsonschema/src/Envelope.json",
+                "explicit_relevance": "relevant",
+            }
+        )
+    return payload
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate Capability Inventory from messages schema")
-    parser.add_argument("--schema-dir", required=True, type=Path, help="Path to the JSON schema directory")
+    parser = argparse.ArgumentParser(description="Generate capability inventory from messages schema.")
+    parser.add_argument(
+        "--schema-dir",
+        type=Path,
+        default=None,
+        help="Path to schema directory containing Envelope.json. Defaults to canonical resolver policy.",
+    )
+    parser.add_argument(
+        "--baseline-release",
+        type=str,
+        default="unknown",
+        help="Baseline release label to embed in generated capability payload output.",
+    )
+    parser.add_argument("--output", type=Path, default=None, help="Optional output file for generated JSON payload.")
     args = parser.parse_args()
 
     inventory = generate_inventory(args.schema_dir)
-    # Print removed for ruff T201
+    payload = inventory_to_capability_payload(inventory, baseline_release=args.baseline_release)
+    output = json.dumps(payload, indent=2, sort_keys=True)
+
+    if args.output is None:
+        print(output)  # noqa: T201
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(output + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

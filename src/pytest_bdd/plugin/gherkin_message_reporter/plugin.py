@@ -410,6 +410,7 @@ class GherkinMessageReporter:
         validation_result = validate_message_stream(
             envelopes,
             latest_protocol_version=str(get_distribution_version("cucumber-messages")),
+            track_coverage=getattr(self.config.option, "messages_coverage", False),
         )
         if not validation_result.is_valid:
             logger.error(
@@ -592,7 +593,7 @@ class GherkinMessageReporter:
                 for tag in scenario.tags:
                     mark = Mark(tag.name, args=(), kwargs={})
                     if PYTEST7:
-                        setattr(mark, "_ispytest", True)
+                        mark._ispytest = True
                     scenario_tags.append(mark)
                 return bool(parsed_expression.evaluate(scenario_tags))
         except Exception:  # noqa: BLE001
@@ -624,12 +625,10 @@ class GherkinMessageReporter:
 
                 step_match_arguments = []
                 for i, match in enumerate(matches):
-                    anon_groups = list(step_definition.anonymous_group_names) if step_definition.anonymous_group_names else []
-                    parameter_name = (
-                        anon_groups[i]
-                        if i < len(anon_groups)
-                        else None
+                    anon_groups = (
+                        list(step_definition.anonymous_group_names) if step_definition.anonymous_group_names else []
                     )
+                    parameter_name = anon_groups[i] if i < len(anon_groups) else None
                     step_match_arguments.append(
                         StepMatchArgument(
                             group=build_group(match.group),

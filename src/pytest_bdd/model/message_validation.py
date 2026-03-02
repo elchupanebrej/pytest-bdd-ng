@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Final, Literal, cast
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
-from jsonschema import RefResolver, validators
+from jsonschema import ValidationError, validators
+from referencing import Registry, Resource
 
 from .coverage.tracker import ObservedCoverage
+from .message_capability_inventory import load_envelope_schema
 from .message_extension import (
     REQUIRED_STATUS_PAYLOAD_KINDS,
     STATUS_CAPABLE_PAYLOAD_KINDS,
@@ -22,25 +23,33 @@ from .message_outcome_mapping import (
     OutcomeMappingRule,
     OutcomeScope,
     OutcomeStatus,
+    normalize_outcome_status,
     validate_outcome_mappings,
 )
 from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASES, normalize_capability_status
 
-SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "messages" / "jsonschema" / "src"
-if not (SCHEMA_DIR / "Envelope.json").exists():
-    SCHEMA_DIR = Path.cwd() / "messages" / "jsonschema" / "src"
 
-_validator = None
-try:
-    with Path(SCHEMA_DIR / "Envelope.json").open(encoding="utf-8") as f:
-        ENVELOPE_SCHEMA = json.load(f)
+def _build_schema_validator() -> tuple[object | None, str | None]:
+    try:
+        schema_dir, envelope_schema = load_envelope_schema()
+    except (FileNotFoundError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        return None, f"Unable to load Envelope.json schema: {exc}"
 
-    # Use Draft202012Validator if possible, fallback to Draft7
-    base_uri = f"file://{SCHEMA_DIR.absolute()}/"
-    _schema_resolver = RefResolver(base_uri=base_uri, referrer=ENVELOPE_SCHEMA)
-    _validator = validators.Draft202012Validator(ENVELOPE_SCHEMA, resolver=_schema_resolver)
-except FileNotFoundError:
-    pass
+    registry = Registry()
+    for schema_path in sorted(schema_dir.glob("*.json")):
+        contents = json.loads(schema_path.read_text(encoding="utf-8"))
+        resource = Resource.from_contents(contents)
+        file_uri = schema_path.resolve().as_uri()
+        registry = registry.with_resource(file_uri, resource)
+        registry = registry.with_resource(schema_path.name, resource)
+        registry = registry.with_resource(f"./{schema_path.name}", resource)
+
+    validator_class = validators.validator_for(envelope_schema)
+    validator_class.check_schema(envelope_schema)
+    return validator_class(envelope_schema, registry=registry), None
+
+
+_VALIDATOR, _VALIDATOR_INIT_ERROR = _build_schema_validator()
 
 
 AllowedImplementationStatus = str
@@ -72,6 +81,9 @@ OUTCOME_SCOPE_BY_PAYLOAD_KIND: Final[dict[str, OutcomeScope]] = {
 class MessageValidationViolation:
     code: ValidationCode
     message: str
+    json_path: tuple[str, ...] = ()
+    schema_path: tuple[str, ...] = ()
+    validator: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,19 +110,7 @@ def _payload_id(payload: object) -> str | None:
 
 
 def _normalize_outcome_status(value: object) -> OutcomeStatus | None:
-    if value is None:
-        return None
-    raw = str(value).strip()
-    if not raw:
-        return None
-    normalized = raw.split(".")[-1].lower()
-    if normalized in {"passed", "failed", "skipped", "undefined", "interrupted"}:
-        return cast(OutcomeStatus, normalized)
-    if normalized == "pass":
-        return "passed"
-    if normalized in {"fail", "error"}:
-        return "failed"
-    return None
+    return normalize_outcome_status(value)
 
 
 def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:
@@ -189,11 +189,34 @@ def _track_fields(payload_kind: str, current_path: str, data: object, observed_c
         for k, v in data.items():
             if v is not None and v != "":
                 new_path = f"{current_path}.{k}" if current_path else k
-                observed_coverage.observed_fields.add((payload_kind, new_path))
+                observed_coverage.record_field(payload_kind, new_path)
                 _track_fields(payload_kind, new_path, v, observed_coverage)
     elif isinstance(data, list):
         for item in data:
             _track_fields(payload_kind, current_path, item, observed_coverage)
+
+
+def _payload_object_for_kind(envelope_dict: dict[str, object], payload_kind: str) -> object:
+    if payload_kind in envelope_dict:
+        return envelope_dict[payload_kind]
+    if "_" in payload_kind:
+        parts = payload_kind.split("_")
+        camel_case_key = parts[0] + "".join(part.capitalize() for part in parts[1:])
+        if camel_case_key in envelope_dict:
+            return envelope_dict[camel_case_key]
+    return {}
+
+
+def _schema_violation(error: ValidationError) -> MessageValidationViolation:
+    json_path = tuple(str(part) for part in error.absolute_path)
+    schema_path = tuple(str(part) for part in error.absolute_schema_path)
+    return MessageValidationViolation(
+        code="SCHEMA_VIOLATION",
+        message=f"Schema violation: {error.message}",
+        json_path=json_path,
+        schema_path=schema_path,
+        validator=str(error.validator) if error.validator is not None else None,
+    )
 
 
 def validate_message_stream(  # noqa: C901
@@ -228,24 +251,23 @@ def validate_message_stream(  # noqa: C901
         def _strip_nones(d):
             if isinstance(d, dict):
                 return {k: _strip_nones(v) for k, v in d.items() if v is not None}
-            elif isinstance(d, list):
+            if isinstance(d, list):
                 return [_strip_nones(v) for v in d if v is not None]
             return d
 
         clean_envelope_dict = _strip_nones(envelope_dict)
 
-        if _validator is not None:
-            try:
-                violations.extend(
-                    MessageValidationViolation(
-                        code="SCHEMA_VIOLATION",
-                        message=f"Schema violation: {error.message} at path {list(error.absolute_path)}",
-                    )
-                    for error in _validator.iter_errors(clean_envelope_dict)
+        if _VALIDATOR_INIT_ERROR is not None:
+            violations.append(
+                MessageValidationViolation(
+                    code="SCHEMA_VIOLATION",
+                    message=_VALIDATOR_INIT_ERROR,
                 )
-            except Exception:
-                # Catch ref resolution errors if schema is complex
-                pass
+            )
+        elif _VALIDATOR is not None:
+            violations.extend(
+                _schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict)
+            )
 
         if not has_single_payload(envelope):
             violations.append(
@@ -261,8 +283,13 @@ def validate_message_stream(  # noqa: C901
             continue
 
         if observed_coverage is not None:
-            observed_coverage.observed_fields.add((payload_kind, ""))
-            _track_fields(payload_kind, "", clean_envelope_dict.get(payload_kind, {}), observed_coverage)
+            observed_coverage.record_field(payload_kind, "")
+            _track_fields(
+                payload_kind,
+                "",
+                _payload_object_for_kind(clean_envelope_dict, payload_kind),
+                observed_coverage,
+            )
 
         payload = getattr(envelope, payload_kind)
         payload_id = _payload_id(payload)

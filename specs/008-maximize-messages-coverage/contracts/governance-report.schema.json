@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pytest-bdd-ng.local/contracts/governance-report.schema.json",
+  "title": "Messages Capability Governance Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "generated_at",
+    "baseline_release",
+    "summary",
+    "capabilities"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "baseline_release": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_capabilities",
+        "implemented_capabilities",
+        "blocked_capabilities",
+        "deferred_capabilities",
+        "coverage_percentage"
+      ],
+      "properties": {
+        "total_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "implemented_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deferred_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "capability_id",
+          "status",
+          "disposition"
+        ],
+        "properties": {
+          "capability_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Implemented",
+              "Non-Implementable",
+              "Not-Acceptable",
+              "Not-Applicable",
+              "Pending"
+            ]
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "blocked",
+              "deferred"
+            ]
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "decision_owner": {
+            "type": "string"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "open_risk": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,317 @@
+---
+openapi: 3.1.0
+info:
+  title: Messages Capability Governance Contract
+  version: 1.0.0
+  description: >-
+    Contract for capability inventory synchronization, deterministic outcome mapping validation,
+    weekly baseline diff generation, and governance checklist rendering.
+servers:
+  - url: https://governance.local
+paths:
+  /coverage/capabilities/sync:
+    post:
+      summary: Synchronize relevant capabilities from approved baseline
+      operationId: syncCapabilities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilitySyncRequest'
+      responses:
+        '200':
+          description: Synchronization completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilitySyncResponse'
+  /coverage/mappings/validate:
+    post:
+      summary: Validate deterministic outcome mapping using fixed readiness matrix
+      operationId: validateOutcomeMappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingValidationRequest'
+      responses:
+        '200':
+          description: Mapping validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingValidationResult'
+  /coverage/baseline/diff:
+    post:
+      summary: Compare current baseline against prior approved baseline
+      operationId: diffBaseline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineDiffRequest'
+      responses:
+        '200':
+          description: Baseline diff report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineDiffResponse'
+  /coverage/checklist/render:
+    post:
+      summary: Render release governance checklist for sign-off
+      operationId: renderGovernanceChecklist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistRenderRequest'
+      responses:
+        '200':
+          description: Checklist rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistRenderResponse'
+components:
+  schemas:
+    CapabilityStatus:
+      type: string
+      enum:
+        - Implemented
+        - Non-Implementable
+        - Not-Acceptable
+        - Not-Applicable
+        - Pending
+    MatrixProfile:
+      type: string
+      enum:
+        - fixed_release_readiness_v1
+    BaselineCadence:
+      type: string
+      enum:
+        - weekly
+    MessageCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - baseline_release
+        - name
+        - description
+        - relevance
+        - source_reference
+      properties:
+        capability_id:
+          type: string
+        baseline_release:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        relevance:
+          type: string
+          enum:
+            - relevant
+            - out_of_scope
+        source_reference:
+          type: string
+    CapabilitySyncRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - baseline_release
+        - source_entries
+      properties:
+        baseline_release:
+          type: string
+        source_entries:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+    CapabilitySyncResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - total_relevant
+        - total_out_of_scope
+        - duplicate_capability_ids
+      properties:
+        total_relevant:
+          type: integer
+          minimum: 0
+        total_out_of_scope:
+          type: integer
+          minimum: 0
+        duplicate_capability_ids:
+          type: array
+          items:
+            type: string
+    OutcomeMappingRule:
+      type: object
+      additionalProperties: false
+      required:
+        - mapping_id
+        - outcome_scope
+        - outcome_status
+        - capability_ids
+        - priority
+      properties:
+        mapping_id:
+          type: string
+        outcome_scope:
+          type: string
+          enum:
+            - run
+            - scenario
+            - step
+            - hook
+            - attachment
+        outcome_status:
+          type: string
+          enum:
+            - passed
+            - failed
+            - skipped
+            - undefined
+            - interrupted
+        capability_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        priority:
+          type: integer
+          minimum: 0
+        mapping_rationale:
+          type: string
+    MappingValidationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - matrix_profile
+        - observed_outcomes
+        - mapping_rules
+      properties:
+        matrix_profile:
+          $ref: '#/components/schemas/MatrixProfile'
+        observed_outcomes:
+          type: array
+          items:
+            type: string
+        mapping_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutcomeMappingRule'
+    MappingValidationResult:
+      type: object
+      additionalProperties: false
+      required:
+        - total_outcomes
+        - mapped_outcomes
+        - ambiguous_terms
+        - coverage_ratio
+      properties:
+        total_outcomes:
+          type: integer
+          minimum: 0
+        mapped_outcomes:
+          type: integer
+          minimum: 0
+        ambiguous_terms:
+          type: array
+          items:
+            type: string
+        coverage_ratio:
+          type: number
+          minimum: 0
+          maximum: 1
+    BaselineDiffRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - cadence
+        - previous_release
+        - current_release
+      properties:
+        cadence:
+          $ref: '#/components/schemas/BaselineCadence'
+        previous_release:
+          type: string
+        current_release:
+          type: string
+    BaselineDiffResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - added_capability_ids
+        - changed_capability_ids
+        - removed_capability_ids
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        added_capability_ids:
+          type: array
+          items:
+            type: string
+        changed_capability_ids:
+          type: array
+          items:
+            type: string
+        removed_capability_ids:
+          type: array
+          items:
+            type: string
+    ChecklistRenderRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - release_target
+        - decisions
+      properties:
+        release_target:
+          type: string
+        decisions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - capability_id
+              - status
+            properties:
+              capability_id:
+                type: string
+              status:
+                $ref: '#/components/schemas/CapabilityStatus'
+              open_risk:
+                type: string
+                nullable: true
+    ChecklistRenderResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - release_target
+        - blockers
+        - deferred
+        - approved
+      properties:
+        release_target:
+          type: string
+        blockers:
+          type: integer
+          minimum: 0
+        deferred:
+          type: integer
+          minimum: 0
+        approved:
+          type: integer
+          minimum: 0

@@ -15,6 +15,24 @@ REQUIRED_MATRIX_STATUSES: Final[set[OutcomeStatus]] = {
     "undefined",
     "interrupted",
 }
+OUTCOME_STATUS_ALIASES: Final[dict[str, OutcomeStatus]] = {
+    "pass": "passed",
+    "passed": "passed",
+    "fail": "failed",
+    "failed": "failed",
+    "error": "failed",
+    "skip": "skipped",
+    "skipped": "skipped",
+    "undefined": "undefined",
+    "interrupted": "interrupted",
+}
+OUTCOME_SCOPE_ALIASES: Final[dict[str, OutcomeScope]] = {
+    "run": "run",
+    "scenario": "scenario",
+    "step": "step",
+    "hook": "hook",
+    "attachment": "attachment",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +64,24 @@ class MappingValidationResult:
     @property
     def is_valid(self) -> bool:
         return self.status == "pass"
+
+
+def normalize_outcome_status(value: object) -> OutcomeStatus | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().split(".")[-1].lower()
+    if not normalized:
+        return None
+    return OUTCOME_STATUS_ALIASES.get(normalized)
+
+
+def normalize_outcome_scope(value: object) -> OutcomeScope | None:
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    if not normalized:
+        return None
+    return OUTCOME_SCOPE_ALIASES.get(normalized)
 
 
 def outcome_key(scope: OutcomeScope, status: OutcomeStatus) -> str:

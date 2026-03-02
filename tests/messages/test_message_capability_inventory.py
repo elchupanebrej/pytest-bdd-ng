@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pytest_bdd.model.message_capability import capability_is_relevant, classify_capability_relevance
-from pytest_bdd.model.message_capability_inventory import sync_capability_inventory
+from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir, sync_capability_inventory
 
 from .message_capability_fixtures import make_capability
 
@@ -38,3 +38,8 @@ def test_relevance_classifier_uses_supported_impact_domains() -> None:
 
     assert classify_capability_relevance(out_of_scope_capability) == "out_of_scope"
     assert capability_is_relevant(out_of_scope_capability) is False
+
+
+def test_resolve_messages_schema_dir_finds_envelope_schema() -> None:
+    schema_dir = resolve_messages_schema_dir()
+    assert (schema_dir / "Envelope.json").exists()

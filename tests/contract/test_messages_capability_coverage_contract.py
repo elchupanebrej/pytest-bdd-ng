@@ -1,68 +1,85 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
-CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "specs"
-    / "007-maximize-messages-coverage"
-    / "contracts"
-    / "messages-capability-coverage.openapi.yaml"
-)
+FEATURE_CONTRACT_DIR = Path(__file__).resolve().parents[2] / "specs" / "008-maximize-messages-coverage" / "contracts"
+OPENAPI_CONTRACT_PATH = FEATURE_CONTRACT_DIR / "messages-capability-governance.openapi.yaml"
+GOVERNANCE_SCHEMA_PATH = FEATURE_CONTRACT_DIR / "governance-report.schema.json"
 
 
-def _contract_text() -> str:
-    return CONTRACT_PATH.read_text(encoding="utf-8")
+def _openapi_text() -> str:
+    return OPENAPI_CONTRACT_PATH.read_text(encoding="utf-8")
 
 
-def test_messages_capability_coverage_contract_exists() -> None:
-    assert CONTRACT_PATH.exists()
+def _governance_schema() -> dict[str, Any]:
+    return json.loads(GOVERNANCE_SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
-def test_contract_has_required_paths() -> None:
-    contract_text = _contract_text()
+def test_feature_contract_files_exist() -> None:
+    assert OPENAPI_CONTRACT_PATH.exists()
+    assert GOVERNANCE_SCHEMA_PATH.exists()
+
+
+def test_openapi_contract_has_required_paths() -> None:
+    contract_text = _openapi_text()
     assert "/coverage/capabilities/sync:" in contract_text
-    assert "/coverage/decisions/upsert:" in contract_text
     assert "/coverage/mappings/validate:" in contract_text
     assert "/coverage/baseline/diff:" in contract_text
     assert "/coverage/checklist/render:" in contract_text
 
 
-def test_contract_sync_and_decision_paths_reference_required_schemas() -> None:
-    contract_text = _contract_text()
+def test_openapi_contract_sync_schema_bootstrap() -> None:
+    contract_text = _openapi_text()
     assert "CapabilitySyncRequest:" in contract_text
     assert "CapabilitySyncResponse:" in contract_text
-    assert "CapabilityDecisionRequest:" in contract_text
-    assert "CapabilityDecisionResponse:" in contract_text
+    assert "duplicate_capability_ids" in contract_text
+    assert "total_relevant" in contract_text
+    assert "total_out_of_scope" in contract_text
 
 
-def test_contract_enforces_mandatory_evidence_fields() -> None:
-    contract_text = _contract_text()
-    assert "missing_required_evidence_fields" in contract_text
-    assert "rationale" in contract_text
-    assert "decision_owner" in contract_text
-    assert "evidence_refs" in contract_text
-    assert "reviewed_at" in contract_text
-
-
-def test_contract_mapping_validation_schema_defines_fixed_matrix_profile() -> None:
-    contract_text = _contract_text()
+def test_openapi_contract_mapping_validation_semantics() -> None:
+    contract_text = _openapi_text()
     assert "MappingValidationRequest:" in contract_text
     assert "MappingValidationResult:" in contract_text
     assert "fixed_release_readiness_v1" in contract_text
-    assert "missing_required_matrix_cases" in contract_text
-    assert "ambiguous_outcomes" in contract_text
-    assert "unmapped_outcomes" in contract_text
+    assert "coverage_ratio" in contract_text
+    assert "ambiguous_terms" in contract_text
 
 
-def test_contract_baseline_diff_and_checklist_schemas_include_governance_fields() -> None:
-    contract_text = _contract_text()
-    assert "BaselineDiffRequest:" in contract_text
-    assert "BaselineDiffResponse:" in contract_text
+def test_openapi_contract_checklist_render_semantics() -> None:
+    contract_text = _openapi_text()
     assert "ChecklistRenderRequest:" in contract_text
     assert "ChecklistRenderResponse:" in contract_text
+    assert "blockers" in contract_text
+    assert "deferred" in contract_text
+    assert "approved" in contract_text
+
+
+def test_openapi_contract_baseline_diff_semantics() -> None:
+    contract_text = _openapi_text()
+    assert "BaselineDiffRequest:" in contract_text
+    assert "BaselineDiffResponse:" in contract_text
     assert "added_capability_ids" in contract_text
     assert "changed_capability_ids" in contract_text
     assert "removed_capability_ids" in contract_text
-    assert "release_blocker" in contract_text
-    assert "unresolved_blockers" in contract_text
+
+
+def test_governance_report_schema_bootstrap() -> None:
+    schema = _governance_schema()
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    assert schema["type"] == "object"
+    assert schema["additionalProperties"] is False
+
+    required = set(schema["required"])
+    assert {"version", "generated_at", "baseline_release", "summary", "capabilities"}.issubset(required)
+
+    summary_required = set(schema["properties"]["summary"]["required"])
+    assert {
+        "total_capabilities",
+        "implemented_capabilities",
+        "blocked_capabilities",
+        "deferred_capabilities",
+        "coverage_percentage",
+    }.issubset(summary_required)

@@ -36,6 +36,13 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="cucumber html report at given path.",
     )
+    group.addoption(
+        "--messages-coverage",
+        action="store_true",
+        dest="messages_coverage",
+        default=False,
+        help="Enable dynamic traceability and exhaustive schema validation for message payloads.",
+    )
 
 
 @pytest.hookimpl(trylast=True)

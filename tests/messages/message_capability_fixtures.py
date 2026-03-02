@@ -70,3 +70,53 @@ def make_mapping_rule(
         priority=priority,
         mapping_rationale=mapping_rationale,
     )
+
+
+def make_capability_sync_payload() -> dict[str, object]:
+    return {
+        "baseline_release": "v32.0.1",
+        "source_entries": [
+            {
+                "capability_id": "cap-1",
+                "baseline_release": "legacy",
+                "name": "Capability 1",
+                "description": "desc",
+                "relevance": "relevant",
+                "source_reference": "messages/jsonschema/src/Envelope.json",
+            },
+            {
+                "capability_id": "cap-1",
+                "baseline_release": "legacy",
+                "name": "Capability 1 duplicate",
+                "description": "desc",
+                "relevance": "relevant",
+                "source_reference": "messages/jsonschema/src/Envelope.json",
+            },
+        ],
+    }
+
+
+def make_governance_report_payload() -> dict[str, object]:
+    now = utc_now().isoformat()
+    return {
+        "version": "1.0",
+        "generated_at": now,
+        "baseline_release": "v32.0.1",
+        "summary": {
+            "total_capabilities": 1,
+            "implemented_capabilities": 1,
+            "blocked_capabilities": 0,
+            "deferred_capabilities": 0,
+            "coverage_percentage": 100.0,
+        },
+        "capabilities": [
+            {
+                "capability_id": "testCaseStarted.id",
+                "status": "Implemented",
+                "disposition": "approved",
+                "decision_owner": "Automation",
+                "reviewed_at": now,
+                "evidence_refs": ["tests/messages/test_governance.py"],
+            }
+        ],
+    }

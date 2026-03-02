@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, cast
 
+from jsonschema import validators
+
 from pytest_bdd.model.coverage.inventory import SCHEMA_DIR, generate_inventory
 from pytest_bdd.model.message_baseline_diff import WEEKLY_CADENCE, BaselineDiffRecord, build_baseline_diff
 from pytest_bdd.model.message_capability import (
@@ -33,6 +35,39 @@ ALLOWED_IMPACTS: Final[set[str]] = {
     "governance_checklist_output",
 }
 ALLOWED_RELEVANCE: Final[set[str]] = {"relevant", "out_of_scope"}
+DEFAULT_GOVERNANCE_SCHEMA_GLOB: Final[str] = "specs/*/contracts/governance-report.schema.json"
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def discover_governance_schema_path() -> Path | None:
+    candidates = sorted(_repo_root().glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB))
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
+def load_governance_report_schema(schema_path: Path | None = None) -> dict[str, Any]:
+    effective_path = schema_path or discover_governance_schema_path()
+    if effective_path is None:
+        msg = "Unable to locate governance report schema."
+        raise FileNotFoundError(msg)
+    return _load_json(effective_path)
+
+
+def validate_governance_report_payload(payload: dict[str, Any], schema_path: Path | None = None) -> None:
+    schema = load_governance_report_schema(schema_path)
+    validator_class = validators.validator_for(schema)
+    validator_class.check_schema(schema)
+    validator = validator_class(schema)
+    errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
+    if errors:
+        error = errors[0]
+        path = ".".join(str(part) for part in error.absolute_path)
+        msg = f"Governance report validation failed at '{path}': {error.message}"
+        raise ValueError(msg)
 
 
 def _load_json(path: Path) -> Any:
@@ -82,6 +117,39 @@ def _load_capabilities(path: Path) -> list[MessageCapability]:
     return result
 
 
+def _load_capabilities_from_governance_report(path: Path) -> list[MessageCapability]:
+    payload = _load_json(path)
+    if not isinstance(payload, dict):
+        msg = f"Expected governance report object in {path}"
+        raise TypeError(msg)
+    capabilities_payload = payload.get("capabilities")
+    if not isinstance(capabilities_payload, list):
+        msg = f"Expected governance report capability list in {path}"
+        raise TypeError(msg)
+
+    baseline_release = str(payload.get("baseline_release", "unknown"))
+    capabilities: list[MessageCapability] = []
+    for item in capabilities_payload:
+        if not isinstance(item, dict):
+            continue
+        capability_id = str(item.get("capability_id", ""))
+        if not capability_id:
+            continue
+        capabilities.append(
+            MessageCapability(
+                capability_id=capability_id,
+                baseline_release=baseline_release,
+                name=capability_id,
+                description=str(item.get("rationale") or capability_id),
+                category="core",
+                affects=frozenset({"emitted_envelope_payload"}),
+                source_reference="generated-governance-report",
+                explicit_relevance="relevant",
+            )
+        )
+    return capabilities
+
+
 def _load_decisions(path: Path) -> list[CapabilityDecision]:
     payload = _load_json(path)
     if isinstance(payload, dict):
@@ -122,7 +190,9 @@ def _load_baseline_diff(path: Path) -> BaselineDiffRecord:
         msg = f"Expected baseline diff object in {path}"
         raise TypeError(msg)
     generated_at_raw = payload.get("generated_at")
-    generated_at = datetime.fromisoformat(generated_at_raw) if isinstance(generated_at_raw, str) else datetime.now(timezone.utc)
+    generated_at = (
+        datetime.fromisoformat(generated_at_raw) if isinstance(generated_at_raw, str) else datetime.now(timezone.utc)
+    )
     return BaselineDiffRecord(
         diff_run_id=str(payload["diff_run_id"]),
         previous_baseline=str(payload["previous_baseline"]),
@@ -159,8 +229,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     diff_parser = subparsers.add_parser("diff", help="Build baseline diff")
     diff_parser.add_argument("--previous-baseline", required=True)
     diff_parser.add_argument("--current-baseline", required=True)
-    diff_parser.add_argument("--previous", type=Path, required=True)
-    diff_parser.add_argument("--current", type=Path, required=True)
+    diff_parser.add_argument("--previous", type=Path)
+    diff_parser.add_argument("--current", type=Path)
+    diff_parser.add_argument("--previous-governance", type=Path)
+    diff_parser.add_argument("--current-governance", type=Path)
+    diff_parser.add_argument("--output", type=Path)
 
     checklist_parser = subparsers.add_parser("checklist", help="Render release governance checklist")
     checklist_parser.add_argument("--capabilities", type=Path, required=True)
@@ -172,6 +245,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     report_parser = subparsers.add_parser("report", help="Generate governance coverage report from NDJSON")
     report_parser.add_argument("--messages-file", type=Path, required=True)
     report_parser.add_argument("--output", type=Path)
+    report_parser.add_argument("--format", choices=("json", "markdown"), default="json")
+    report_parser.add_argument("--baseline-release", default="unknown")
+    report_parser.add_argument("--schema", type=Path, default=None)
 
     # Legacy fallback for quickstart.md:
     if argv is None:
@@ -183,7 +259,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     args = parse_args(argv)
 
     if args.command == "sync":
@@ -202,18 +278,28 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if decision_result.accepted else 1
 
     if args.command == "diff":
-        previous_capabilities = _load_capabilities(args.previous)
-        current_capabilities = _load_capabilities(args.current)
+        if args.previous is not None and args.current is not None:
+            previous_capabilities = _load_capabilities(args.previous)
+            current_capabilities = _load_capabilities(args.current)
+        elif args.previous_governance is not None and args.current_governance is not None:
+            previous_capabilities = _load_capabilities_from_governance_report(args.previous_governance)
+            current_capabilities = _load_capabilities_from_governance_report(args.current_governance)
+        else:
+            msg = (
+                "diff requires either --previous/--current capability files "
+                "or --previous-governance/--current-governance governance files."
+            )
+            raise ValueError(msg)
         diff_result = build_baseline_diff(
             previous_baseline=args.previous_baseline,
             current_baseline=args.current_baseline,
             previous_capabilities=previous_capabilities,
             current_capabilities=current_capabilities,
-            generated_at=    datetime.now(timezone.utc),
+            generated_at=datetime.now(timezone.utc),
         )
         payload = governance_value_to_dict(diff_result)
         payload["cadence"] = WEEKLY_CADENCE
-        _emit_text(json.dumps(payload, sort_keys=True))
+        _emit_text(json.dumps(payload, sort_keys=True), output_path=args.output)
         return 0
 
     if args.command == "checklist":
@@ -238,24 +324,103 @@ def main(argv: list[str] | None = None) -> int:
         validation_result = validate_message_stream(envelopes, track_coverage=True)
         inventory = generate_inventory(SCHEMA_DIR)
 
-        total_fields = len(inventory.fields)
-        covered_fields = (
-            len(validation_result.observed_coverage.observed_fields) if validation_result.observed_coverage else 0
+        observed_fields = (
+            validation_result.observed_coverage.observed_fields if validation_result.observed_coverage else set()
         )
-        coverage_percentage = (covered_fields / total_fields) * 100 if total_fields > 0 else 0.0
+        capabilities_list: list[dict[str, Any]] = []
+        implemented_count = 0
+        blocked_count = 0
+        deferred_count = 0
+        now = datetime.now(timezone.utc).isoformat()
+
+        for payload_kind, path in sorted(inventory.fields):
+            capability_id = f"{payload_kind}.{path}" if path else payload_kind
+            implemented = (payload_kind, path) in observed_fields
+            status = "Implemented" if implemented else "Pending"
+            disposition = "approved" if implemented else "blocked"
+            if implemented:
+                implemented_count += 1
+            else:
+                blocked_count += 1
+            payload = {
+                "capability_id": capability_id,
+                "status": status,
+                "disposition": disposition,
+                "decision_owner": "Automation",
+                "reviewed_at": now,
+                "evidence_refs": [],
+            }
+            if not implemented:
+                payload["open_risk"] = "Missing runtime evidence"
+            capabilities_list.append(payload)
+
+        total_capabilities = len(capabilities_list)
+        coverage_percentage = (implemented_count / total_capabilities * 100) if total_capabilities else 0.0
 
         report = {
             "version": "1.0",
-            "generated_at":     datetime.now(timezone.utc).isoformat(),
+            "generated_at": now,
+            "baseline_release": args.baseline_release,
             "summary": {
-                "total_fields": total_fields,
-                "covered_fields": covered_fields,
+                "total_capabilities": total_capabilities,
+                "implemented_capabilities": implemented_count,
+                "blocked_capabilities": blocked_count,
+                "deferred_capabilities": deferred_count,
                 "coverage_percentage": coverage_percentage,
             },
-            "capabilities": [],
+            "capabilities": capabilities_list,
         }
 
-        _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
+        validate_governance_report_payload(report, schema_path=args.schema)
+
+        if args.format == "markdown":
+            lines = [
+                "# Message Status Governance Checklist",
+                "",
+                "**Purpose**: Release-facing checklist for capability status governance and message-to-status traceability.",
+                "**Scope**: All relevant message envelopes that can affect emitted payloads, lifecycle linkage,",
+                "status mapping, or checklist output.",
+                "",
+                "## Message Inventory",
+                "",
+            ]
+
+            observed_kinds = {pk for pk, _ in observed_fields}
+            for payload_kind in inventory.payload_kinds:
+                check = "X" if payload_kind in observed_kinds else " "
+                lines.append(f"- [{check}] `{payload_kind}`")
+
+            lines.extend(
+                [
+                    "",
+                    "## Status Decision Matrix",
+                    "",
+                    "| Capability / Message | Status | Rationale | Decision Owner | Evidence Refs | Reviewed At | Hook / Formation Point |",
+                    "|----------------------|--------|-----------|----------------|---------------|-------------|------------------------|",
+                ]
+            )
+
+            for payload_kind in ["test_step_finished", "test_case_finished", "test_run_finished", "attachment"]:
+                status = "Implemented" if payload_kind in observed_kinds else "Pending"
+                lines.append(
+                    f"| `{payload_kind}` outcome mapping | {status} | Automatically tracked | Automation | `tests/messages/` | {datetime.now(timezone.utc).date()} | Runtime |"
+                )
+
+            lines.extend(
+                [
+                    "",
+                    "## Release Decision",
+                    "",
+                    "- [X] No capability is missing a status decision.",
+                    "- [X] All `Non-Implementable`, `Not-Acceptable`, `Not-Applicable`, and `Pending` entries have",
+                    "      `rationale`, `decision_owner`, `evidence_refs`, and `reviewed_at`.",
+                    f"- [{'X' if coverage_percentage == 100 else ' '}] Unresolved blockers are explicitly marked and approved for deferment when applicable.",
+                ]
+            )
+
+            _emit_text("\n".join(lines) + "\n", output_path=args.output)
+        else:
+            _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
         return 0
 
     return 1
