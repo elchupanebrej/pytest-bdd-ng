@@ -31,7 +31,10 @@
         "implemented_capabilities",
         "blocked_capabilities",
         "deferred_capabilities",
-        "coverage_percentage"
+        "coverage_percentage",
+        "mandatory_capabilities_total",
+        "mandatory_capabilities_implemented",
+        "mandatory_scope_violations"
       ],
       "properties": {
         "total_capabilities": {
@@ -54,6 +57,18 @@
           "type": "number",
           "minimum": 0,
           "maximum": 100
+        },
+        "mandatory_capabilities_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mandatory_capabilities_implemented": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mandatory_scope_violations": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -65,7 +80,8 @@
         "required": [
           "capability_id",
           "status",
-          "disposition"
+          "disposition",
+          "mandatory_scope"
         ],
         "properties": {
           "capability_id": {
@@ -107,6 +123,9 @@
           },
           "open_risk": {
             "type": "string"
+          },
+          "mandatory_scope": {
+            "type": "boolean"
           }
         }
       }

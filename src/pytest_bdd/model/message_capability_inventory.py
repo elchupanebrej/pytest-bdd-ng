@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,66 @@ class CapabilitySyncResult:
     total_out_of_scope: int
     duplicate_capability_ids: tuple[str, ...]
     capabilities: tuple[MessageCapability, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class MandatoryScopeReconciliation:
+    inventory_capability_ids: tuple[str, ...]
+    mandatory_capability_ids: tuple[str, ...]
+    missing_mandatory_capability_ids: tuple[str, ...]
+
+    @property
+    def mandatory_total(self) -> int:
+        return len(self.mandatory_capability_ids)
+
+    @property
+    def inventory_total(self) -> int:
+        return len(self.inventory_capability_ids)
+
+    @property
+    def has_missing_mandatory_capabilities(self) -> bool:
+        return bool(self.missing_mandatory_capability_ids)
+
+
+def _to_camel_case_identifier(value: str) -> str:
+    parts = [part for part in value.split("_") if part]
+    if not parts:
+        return value
+    return parts[0] + "".join(part[:1].upper() + part[1:] for part in parts[1:])
+
+
+def _canonical_payload_kind(payload_kind: str) -> str:
+    payload_kind = payload_kind.strip()
+    if "_" not in payload_kind:
+        return payload_kind
+    return _to_camel_case_identifier(payload_kind)
+
+
+def _canonical_capability_id(capability_id: str) -> str:
+    if "." not in capability_id:
+        return _canonical_payload_kind(capability_id)
+    payload_kind, field_path = capability_id.split(".", 1)
+    return f"{_canonical_payload_kind(payload_kind)}.{field_path}"
+
+
+def normalize_capability_ids(capability_ids: Iterable[str]) -> tuple[str, ...]:
+    return tuple(sorted({_canonical_capability_id(capability_id) for capability_id in capability_ids}))
+
+
+def reconcile_inventory_with_mandatory_scope(
+    inventory_capability_ids: Iterable[str],
+    mandatory_capability_ids: Iterable[str],
+) -> MandatoryScopeReconciliation:
+    normalized_inventory = normalize_capability_ids(inventory_capability_ids)
+    normalized_mandatory = normalize_capability_ids(mandatory_capability_ids)
+    inventory_set = set(normalized_inventory)
+    mandatory_set = set(normalized_mandatory)
+    missing = tuple(sorted(mandatory_set.difference(inventory_set)))
+    return MandatoryScopeReconciliation(
+        inventory_capability_ids=normalized_inventory,
+        mandatory_capability_ids=normalized_mandatory,
+        missing_mandatory_capability_ids=missing,
+    )
 
 
 def _envelope_path(schema_dir: Path) -> Path:

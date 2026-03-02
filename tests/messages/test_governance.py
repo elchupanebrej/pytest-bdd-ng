@@ -227,3 +227,151 @@ def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, mon
                 str(output_file),
             ]
         )
+
+
+def test_governance_report_loads_mandatory_capability_file_with_unique_ids(tmp_path, monkeypatch) -> None:
+    inventory = CapabilityInventory(
+        payload_kinds=["testRunStarted"],
+        fields={("testRunStarted", "id"): FieldMetadata(path="id", type="string", is_required=True)},
+    )
+    monkeypatch.setattr(message_capability_governance, "generate_inventory", lambda _schema_dir: inventory)
+
+    messages_file = tmp_path / "messages.ndjson"
+    messages_file.write_text("", encoding="utf-8")
+    mandatory_file = tmp_path / "mandatory.txt"
+    mandatory_file.write_text(
+        "# comment\ntestRunStarted.id\ntest_run_started.id\n",
+        encoding="utf-8",
+    )
+    output_file = tmp_path / "governance.json"
+
+    exit_code = main(
+        [
+            "report",
+            "--messages-file",
+            str(messages_file),
+            "--baseline-release",
+            "v32.0.1",
+            "--mandatory-capabilities-file",
+            str(mandatory_file),
+            "--output",
+            str(output_file),
+        ]
+    )
+
+    payload = json.loads(output_file.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert payload["summary"]["mandatory_capabilities_total"] == 1
+    assert payload["summary"]["mandatory_capabilities_implemented"] == 0
+    assert payload["summary"]["mandatory_scope_violations"] == 1
+    assert payload["capabilities"][0]["mandatory_scope"] is True
+
+
+def test_governance_report_rejects_unknown_mandatory_capability_ids(tmp_path, monkeypatch) -> None:
+    inventory = CapabilityInventory(
+        payload_kinds=["testRunStarted"],
+        fields={("testRunStarted", "id"): FieldMetadata(path="id", type="string", is_required=True)},
+    )
+    monkeypatch.setattr(message_capability_governance, "generate_inventory", lambda _schema_dir: inventory)
+
+    messages_file = tmp_path / "messages.ndjson"
+    messages_file.write_text("", encoding="utf-8")
+    mandatory_file = tmp_path / "mandatory.txt"
+    mandatory_file.write_text("unknown.capability\n", encoding="utf-8")
+    output_file = tmp_path / "governance.json"
+
+    with pytest.raises(ValueError, match="Mandatory capability file contains unknown capability IDs"):
+        main(
+            [
+                "report",
+                "--messages-file",
+                str(messages_file),
+                "--baseline-release",
+                "v32.0.1",
+                "--mandatory-capabilities-file",
+                str(mandatory_file),
+                "--output",
+                str(output_file),
+            ]
+        )
+
+
+def test_governance_report_rejects_deferred_status_for_mandatory_capability(tmp_path, monkeypatch) -> None:
+    inventory = CapabilityInventory(
+        payload_kinds=["testRunStarted"],
+        fields={("testRunStarted", "id"): FieldMetadata(path="id", type="string", is_required=True)},
+    )
+    monkeypatch.setattr(message_capability_governance, "generate_inventory", lambda _schema_dir: inventory)
+
+    messages_file = tmp_path / "messages.ndjson"
+    messages_file.write_text("", encoding="utf-8")
+    mandatory_file = tmp_path / "mandatory.txt"
+    mandatory_file.write_text("testRunStarted.id\n", encoding="utf-8")
+    decisions_file = tmp_path / "decisions.json"
+    decisions_file.write_text(
+        json.dumps(
+            [
+                {
+                    "capability_id": "testRunStarted.id",
+                    "status": "Not-Applicable",
+                    "rationale": "Deferred",
+                    "decision_owner": "Coverage Governance",
+                    "evidence_refs": ["tests/messages/test_governance.py"],
+                    "reviewed_at": "2026-03-02T00:00:00+00:00",
+                    "release_target": "messages-audit",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    output_file = tmp_path / "governance.json"
+
+    with pytest.raises(ValueError, match="mandatory scope capabilities cannot use deferred statuses"):
+        main(
+            [
+                "report",
+                "--messages-file",
+                str(messages_file),
+                "--baseline-release",
+                "v32.0.1",
+                "--mandatory-capabilities-file",
+                str(mandatory_file),
+                "--decisions",
+                str(decisions_file),
+                "--output",
+                str(output_file),
+            ]
+        )
+
+
+def test_governance_report_strict_mandatory_mode_fails_without_runtime_evidence(tmp_path, monkeypatch) -> None:
+    inventory = CapabilityInventory(
+        payload_kinds=["testRunStarted"],
+        fields={("testRunStarted", "id"): FieldMetadata(path="id", type="string", is_required=True)},
+    )
+    monkeypatch.setattr(message_capability_governance, "generate_inventory", lambda _schema_dir: inventory)
+
+    messages_file = tmp_path / "messages.ndjson"
+    messages_file.write_text("", encoding="utf-8")
+    mandatory_file = tmp_path / "mandatory.txt"
+    mandatory_file.write_text("testRunStarted.id\n", encoding="utf-8")
+    output_file = tmp_path / "governance.json"
+
+    exit_code = main(
+        [
+            "report",
+            "--messages-file",
+            str(messages_file),
+            "--baseline-release",
+            "v32.0.1",
+            "--mandatory-capabilities-file",
+            str(mandatory_file),
+            "--require-mandatory-implemented",
+            "--output",
+            str(output_file),
+        ]
+    )
+
+    payload = json.loads(output_file.read_text(encoding="utf-8"))
+    assert exit_code == 1
+    assert payload["summary"]["mandatory_scope_violations"] == 1

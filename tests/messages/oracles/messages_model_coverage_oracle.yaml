@@ -1,5 +1,7 @@
+---
 version: 1
-description: Required coverage tree for pytest-bdd-ng emitted cucumber-messages payloads.
+description: >-
+  Required coverage tree for pytest-bdd-ng emitted cucumber-messages payloads.
 payloads:
   meta:
     protocol_version: required
@@ -186,7 +188,62 @@ payloads:
   attachment:
     test_case_started_id: required
     test_step_id: required
+    test_run_hook_started_id: required
     media_type: required
     content_encoding: required
     body: required
     file_name: required
+
+  external_attachment:
+    media_type: required
+    url: required
+    test_case_started_id: required
+    test_step_id: required
+    test_run_hook_started_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_run_hook_started:
+    hook_id: required
+    id: required
+    test_run_started_id: required
+    worker_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_run_hook_finished:
+    test_run_hook_started_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+    result:
+      status: required
+      message: required
+      duration:
+        seconds: required
+        nanos: required
+      exception:
+        type: required
+        message: required
+        stack_trace: required
+
+  parse_error:
+    message: required
+    source:
+      uri: required
+      location:
+        line: required
+        column: required
+
+  suggestion:
+    id: required
+    pickle_step_id: required
+    snippets:
+      code: required
+      language: required
+
+  undefined_parameter_type:
+    expression: required
+    name: required

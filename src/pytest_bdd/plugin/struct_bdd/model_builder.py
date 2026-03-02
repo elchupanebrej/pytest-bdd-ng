@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from attr import attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    Comment,
     DataTable,
     DocString,
     Examples,
@@ -44,8 +45,15 @@ class GherkinDocumentBuilder(_ASTBuilder):
     model: StructStep = attrib()
 
     def build(self, id_generator):
+        comments = [
+            Comment(
+                location=Location(column=1, line=index + 1),
+                text=comment,
+            )
+            for index, comment in enumerate(self.model.comments or [])
+        ]
         return GherkinDocument(
-            comments=[],
+            comments=comments,
             uri=None,
             feature=StepToFeatureASTBuilder(self.model).build(id_generator=id_generator),
         )
@@ -79,8 +87,8 @@ class StepToFeatureASTBuilder(_ASTBuilder):
         return Feature(
             children=self._build_children(id_generator=id_generator),
             description=self.model.description or "",
-            language="EN",
-            location=Location(column=0, line=0),
+            language="en",
+            location=Location(column=1, line=1),
             tags=[],
             name=self.model.name or "",
             keyword="Feature",
@@ -104,7 +112,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 keyword=(
                                     step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
                                 ),
-                                location=Location(column=0, line=0),
+                                location=Location(column=1, line=1),
                                 text=step.action,
                                 keyword_type=step_keyword_type.value,
                                 **(
@@ -113,7 +121,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                             {
                                                 "data_table": DataTable(
                                                     rows=rows,
-                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
+                                                    location=Location(column=1, line=1),  # type: ignore[call-arg]
                                                 ),  # type: ignore[call-arg]
                                             }
                                             if rows
@@ -129,7 +137,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                                             lambda cells: (
                                                                 TableRow(
                                                                     id=next(id_generator),
-                                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
+                                                                    location=Location(column=1, line=1),  # type: ignore[call-arg]
                                                                     cells=cells,
                                                                 )  # type: ignore[call-arg]
                                                                 if cells
@@ -140,8 +148,8 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                                                 *(
                                                                     TableCell(
                                                                         location=Location(
-                                                                            column=0,
-                                                                            line=0,
+                                                                            column=1,
+                                                                            line=1,
                                                                         ),
                                                                         value=parameter,
                                                                     )
@@ -161,7 +169,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                         "doc_string": DocString(
                                             content=step.description,
                                             delimiter="\n",
-                                            location=Location(column=0, line=0),
+                                            location=Location(column=1, line=1),
                                         ),
                                     }
                                     if step.description
@@ -182,7 +190,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                             ),
                             id=next(id_generator),
                             keyword="Scenario",
-                            location=Location(column=0, line=0),
+                            location=Location(column=1, line=1),
                             name=next(
                                 filter(bool, map(attrgetter("name"), reversed(route.steps))),
                                 "",
@@ -191,7 +199,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 *(
                                     Tag(
                                         id=next(id_generator),
-                                        location=Location(column=0, line=0),
+                                        location=Location(column=1, line=1),
                                         name=tag_name,
                                     )
                                     for tag_name in route.tags
@@ -213,17 +221,17 @@ class ExampleASTBuilder(_ASTBuilder):
             description=self.model.description,
             id=next(id_generator),
             keyword="Examples",
-            location=Location(column=0, line=0),
+            location=Location(column=1, line=1),
             name=self.model.name,
             table_body=[
                 *(
                     TableRow(
                         id=next(id_generator),
-                        location=Location(column=0, line=0),
+                        location=Location(column=1, line=1),
                         cells=[
                             *(
                                 TableCell(
-                                    location=Location(column=0, line=0),
+                                    location=Location(column=1, line=1),
                                     value=str(parameter),
                                 )
                                 for parameter in row_values
@@ -237,7 +245,7 @@ class ExampleASTBuilder(_ASTBuilder):
                 *(
                     Tag(
                         id=next(id_generator),
-                        location=Location(column=0, line=0),
+                        location=Location(column=1, line=1),
                         name=tag_name,
                     )
                     for tag_name in self.model.tags
@@ -245,11 +253,11 @@ class ExampleASTBuilder(_ASTBuilder):
             ],
             table_header=TableRow(
                 id=next(id_generator),
-                location=Location(column=0, line=0),
+                location=Location(column=1, line=1),
                 cells=[
                     *(
                         TableCell(
-                            location=Location(column=0, line=0),
+                            location=Location(column=1, line=1),
                             value=parameter,
                         )
                         for parameter in self.model.parameters

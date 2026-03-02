@@ -14,6 +14,7 @@ Feature **008** extends this with:
 - Deterministic outcome mapping and governance status vocabulary
 - Governance report schema validation
 - Release-facing checklist and baseline drift workflows
+- Strict mandatory-scope gate for `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
 
 ## Prerequisites
 
@@ -127,15 +128,18 @@ conda run -n pytest-bdd-ng-py314 python -m pytest tests/contract/test_messages_c
 ## Dedicated Coverage Audit Suite
 
 The dedicated audit suite is intentionally separated from the main test suite.
-It enforces this acceptance criterion:
+It enforces this acceptance criterion for feature 008:
 
-- each capability is either observed as `Implemented`, or
-- explicitly governed by a non-implemented decision with required evidence fields.
+- every capability ID in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
+  is observed as `Implemented`,
+- `mandatory_scope_violations == 0`,
+- `blocked_capabilities == 0`.
 
 Run it with:
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+export PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1
 scripts/run_messages_coverage_audit.sh
 ```
 
@@ -150,6 +154,39 @@ Decision baseline used by the suite:
 ```text
 specs/008-maximize-messages-coverage/contracts/capability-decisions.json
 ```
+
+## Mandatory Audit Flow (008)
+
+1. Generate dedicated NDJSON from the audit suite:
+
+```bash
+PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/messages_coverage/test_mandatory_attachments.py -q \
+  -p no:pytest-bdd-gherkin-message-reporter \
+  -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
+  --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
+  --messages-coverage
+```
+
+1. Build strict governance report:
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
+  --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
+  --baseline-release v32.current \
+  --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
+  --decisions specs/008-maximize-messages-coverage/contracts/capability-decisions.json \
+  --mandatory-capabilities-file specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt \
+  --require-mandatory-implemented \
+  --require-fully-governed \
+  --output /tmp/pytest-bdd-ng-messages-audit/governance-governed.json
+```
+
+1. Verify summary:
+- `mandatory_capabilities_total == 323`
+- `mandatory_capabilities_implemented == 323`
+- `mandatory_scope_violations == 0`
+- `blocked_capabilities == 0`
 
 ## Expected Outputs
 

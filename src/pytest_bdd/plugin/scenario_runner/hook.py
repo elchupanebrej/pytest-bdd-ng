@@ -91,5 +91,12 @@ class ScenarioRunnerHookSpec:
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | Any,
         media_type: str | None,
         file_name: str | None,
+        source_data: str | None,
+        source_media_type: str | None,
+        source_uri: str | None,
+        url: str | None,
+        as_external: bool,  # noqa: FBT001
+        test_run_hook_started_id: str | None,
+        test_run_started_id: str | None,
     ):
         """Internal hook to add attachment to a test case"""

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pytest-bdd-ng.local/contracts/message-capability-governance-cli.schema.json",
+  "title": "message_capability_governance report command contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "command",
+    "messages_file",
+    "baseline_release"
+  ],
+  "properties": {
+    "command": {
+      "type": "string",
+      "const": "report"
+    },
+    "messages_file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path to NDJSON message stream."
+    },
+    "baseline_release": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema": {
+      "type": "string",
+      "description": "Optional path to governance-report.schema.json"
+    },
+    "decisions": {
+      "type": "string",
+      "description": "Optional path to capability decision file."
+    },
+    "mandatory_capabilities_file": {
+      "type": "string",
+      "description": "Optional path to newline-delimited mandatory capability IDs."
+    },
+    "require_fully_governed": {
+      "type": "boolean",
+      "default": false
+    },
+    "require_mandatory_implemented": {
+      "type": "boolean",
+      "default": false
+    },
+    "output": {
+      "type": "string",
+      "description": "Optional report output path."
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "json",
+        "markdown"
+      ],
+      "default": "json"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "require_mandatory_implemented": {
+            "const": true
+          }
+        },
+        "required": [
+          "require_mandatory_implemented"
+        ]
+      },
+      "then": {
+        "required": [
+          "mandatory_capabilities_file"
+        ]
+      }
+    }
+  ]
+}

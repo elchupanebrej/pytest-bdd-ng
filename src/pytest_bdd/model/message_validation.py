@@ -8,6 +8,7 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, i
 from jsonschema import ValidationError, validators
 from referencing import Registry, Resource
 
+from .coverage.inventory import canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
 from .message_capability_inventory import load_envelope_schema
 from .message_extension import (
@@ -74,6 +75,9 @@ OUTCOME_SCOPE_BY_PAYLOAD_KIND: Final[dict[str, OutcomeScope]] = {
     "test_run_finished": "run",
     "test_case_finished": "scenario",
     "test_step_finished": "step",
+    "test_run_hook_finished": "hook",
+    "attachment": "attachment",
+    "external_attachment": "attachment",
 }
 
 
@@ -113,7 +117,7 @@ def _normalize_outcome_status(value: object) -> OutcomeStatus | None:
     return normalize_outcome_status(value)
 
 
-def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:
+def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:  # noqa: C901
     if payload_kind == "test_step_finished":
         test_step_result = getattr(payload, "test_step_result", None)
         result_status = getattr(test_step_result, "status", None) if test_step_result is not None else None
@@ -134,6 +138,13 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
         success = getattr(payload, "success", None)
         if isinstance(success, bool):
             return "passed" if success else "failed"
+    if payload_kind == "test_run_hook_finished":
+        result = getattr(payload, "result", None)
+        result_status = getattr(result, "status", None) if result is not None else None
+        normalized = _normalize_outcome_status(result_status)
+        return "passed" if normalized is None else normalized
+    if payload_kind in {"attachment", "external_attachment"}:
+        return "passed"
     return None
 
 
@@ -166,7 +177,7 @@ def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOu
 
 
 def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
-    scopes: tuple[OutcomeScope, ...] = ("run", "scenario", "step")
+    scopes: tuple[OutcomeScope, ...] = ("run", "scenario", "step", "hook", "attachment")
     statuses: tuple[OutcomeStatus, ...] = ("passed", "failed", "skipped", "undefined", "interrupted")
     result: list[OutcomeMappingRule] = []
     for scope_index, scope in enumerate(scopes):
@@ -283,11 +294,12 @@ def validate_message_stream(  # noqa: C901
             continue
 
         if observed_coverage is not None:
-            observed_coverage.record_field(payload_kind, "")
+            coverage_payload_kind = canonical_payload_kind(payload_kind)
+            observed_coverage.record_field(coverage_payload_kind, "")
             _track_fields(
-                payload_kind,
+                coverage_payload_kind,
                 "",
-                _payload_object_for_kind(clean_envelope_dict, payload_kind),
+                _payload_object_for_kind(clean_envelope_dict, coverage_payload_kind),
                 observed_coverage,
             )
 

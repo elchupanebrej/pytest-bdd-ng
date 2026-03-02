@@ -97,12 +97,31 @@ def parameter_type_registry():
 def attach(request: FixtureRequest):
     """Fixture parameter type registry for Cucumber expressions"""
 
-    def add_attachment(attachment, media_type: str | None = None, file_name=None):
+    def add_attachment(
+        attachment,
+        media_type: str | None = None,
+        file_name=None,
+        *,
+        source_data: str | None = None,
+        source_media_type: str | None = None,
+        source_uri: str | None = None,
+        url: str | None = None,
+        as_external: bool = False,
+        test_run_hook_started_id: str | None = None,
+        test_run_started_id: str | None = None,
+    ):
         request.config.hook.pytest_bdd_attach(
             request=request,
             attachment=attachment,
             media_type=media_type,
             file_name=file_name,
+            source_data=source_data,
+            source_media_type=source_media_type,
+            source_uri=source_uri,
+            url=url,
+            as_external=as_external,
+            test_run_hook_started_id=test_run_hook_started_id,
+            test_run_started_id=test_run_started_id,
         )
 
     return add_attachment

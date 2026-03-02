@@ -9,12 +9,12 @@ The feature mandates 100% field-level coverage of the `cucumber-messages` capabi
 
 ## Technical Context
 
-**Language/Version**: Python 3.10-3.14  
+**Language/Version**: Python 3.10-3.14
 **Primary Dependencies**: `pytest`, `cucumber-messages`, `pluggy`, `jsonschema`
-**Storage**: N/A (in-repo json artifacts only)  
+**Storage**: N/A (in-repo json artifacts only)
 **Testing**: `pytest`, `tox>=4.2`
 **Target Platform**: pytest execution environments
-**Project Type**: Python library/plugin  
+**Project Type**: Python library/plugin
 **Performance Goals**: Opt-in dynamic tracing via CLI flag to avoid degrading default test run performance.
 **Constraints**: Relative path resolution based on module location is prohibited. `importlib.resources` or `git` must be used for locating artifacts like the JSON schema.
 **Scale/Scope**: ~130 line schema definition to map accurately to `Envelope` structures.
@@ -34,12 +34,12 @@ The feature mandates 100% field-level coverage of the `cucumber-messages` capabi
 
 ```text
 specs/007-maximize-messages-coverage/
-├── plan.md              
-├── research.md          
-├── data-model.md        
-├── quickstart.md        
-├── contracts/           
-└── tasks.md             
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+└── tasks.md
 ```
 
 ### Source Code (repository root)

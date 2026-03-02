@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from .inventory import canonical_capability_key
+
 
 @dataclass
 class ObservedCoverage:
@@ -17,7 +19,7 @@ class ObservedCoverage:
         *,
         evidence_scenario_id: str | None = None,
     ) -> None:
-        key = (payload_kind, field_path)
+        key = canonical_capability_key(payload_kind, field_path)
         self.observed_fields.add(key)
         if evidence_scenario_id is not None:
             self.evidence_scenarios.setdefault(key, evidence_scenario_id)

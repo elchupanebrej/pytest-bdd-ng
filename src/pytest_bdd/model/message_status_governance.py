@@ -25,6 +25,12 @@ NON_IMPLEMENTED_STATUSES: Final[set[CapabilityStatus]] = {
     "Pending",
 }
 
+MANDATORY_SCOPE_FORBIDDEN_STATUSES: Final[set[CapabilityStatus]] = {
+    "Non-Implementable",
+    "Not-Acceptable",
+    "Not-Applicable",
+}
+
 MANDATORY_EVIDENCE_FIELDS: Final[tuple[str, ...]] = (
     "rationale",
     "decision_owner",
@@ -122,14 +128,32 @@ def validate_capability_decision(decision: CapabilityDecision) -> DecisionValida
     )
 
 
+def validate_mandatory_scope_decision(
+    decision: CapabilityDecision,
+    *,
+    mandatory_capability_ids: set[str],
+) -> tuple[str, ...]:
+    if decision.capability_id not in mandatory_capability_ids:
+        return ()
+    status = normalize_capability_status(decision.status)
+    if status in MANDATORY_SCOPE_FORBIDDEN_STATUSES:
+        return (
+            "mandatory scope capabilities cannot use deferred statuses "
+            f"({', '.join(sorted(MANDATORY_SCOPE_FORBIDDEN_STATUSES))}): "
+            f"{decision.capability_id} -> {status}",
+        )
+    return ()
+
+
 def ensure_single_status_per_capability(decisions: list[CapabilityDecision]) -> StatusUniquenessResult:
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
     duplicates: list[str] = []
     for decision in decisions:
-        if decision.capability_id in seen:
-            duplicates.append(decision.capability_id)
+        uniqueness_key = (decision.capability_id, decision.release_target)
+        if uniqueness_key in seen:
+            duplicates.append(f"{decision.capability_id}@{decision.release_target}")
         else:
-            seen.add(decision.capability_id)
+            seen.add(uniqueness_key)
     return StatusUniquenessResult(is_unique=not duplicates, duplicates=tuple(sorted(set(duplicates))))
 
 

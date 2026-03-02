@@ -25,6 +25,41 @@ class CapabilityInventory:
     fields: dict[tuple[str, str], FieldMetadata] = field(default_factory=dict)
 
 
+def to_camel_case_identifier(value: str) -> str:
+    parts = [part for part in value.split("_") if part]
+    if not parts:
+        return value
+    return parts[0] + "".join(part[:1].upper() + part[1:] for part in parts[1:])
+
+
+def canonical_payload_kind(payload_kind: str) -> str:
+    payload_kind = payload_kind.strip()
+    if "_" not in payload_kind:
+        return payload_kind
+    return to_camel_case_identifier(payload_kind)
+
+
+def canonical_capability_key(payload_kind: str, field_path: str) -> tuple[str, str]:
+    return canonical_payload_kind(payload_kind), field_path.strip(".")
+
+
+def parse_capability_id(capability_id: str) -> tuple[str, str]:
+    if "." not in capability_id:
+        return canonical_payload_kind(capability_id), ""
+    payload_kind, field_path = capability_id.split(".", 1)
+    return canonical_payload_kind(payload_kind), field_path
+
+
+def canonical_capability_id(capability_id: str) -> str:
+    payload_kind, field_path = parse_capability_id(capability_id)
+    return f"{payload_kind}.{field_path}" if field_path else payload_kind
+
+
+def iter_capability_ids(inventory: CapabilityInventory) -> tuple[str, ...]:
+    capability_ids = [f"{payload_kind}.{path}" if path else payload_kind for payload_kind, path in inventory.fields]
+    return tuple(sorted({canonical_capability_id(capability_id) for capability_id in capability_ids}))
+
+
 def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     if "#" in ref:
         file_part, path_part = ref.split("#", 1)
@@ -145,22 +180,25 @@ def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
 
     inventory = CapabilityInventory()
     for payload_kind, payload_schema in envelope_schema.get("properties", {}).items():
-        inventory.payload_kinds.append(payload_kind)
+        canonical_kind = canonical_payload_kind(payload_kind)
+        if canonical_kind not in inventory.payload_kinds:
+            inventory.payload_kinds.append(canonical_kind)
         _extract_fields(
             resolved_schema_dir,
             payload_schema,
             envelope_schema,
-            payload_kind,
+            canonical_kind,
             "",
             inventory,
         )
+    inventory.payload_kinds.sort()
     return inventory
 
 
 def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> list[dict[str, Any]]:
     payload: list[dict[str, Any]] = []
-    for payload_kind, path in sorted(inventory.fields):
-        capability_id = f"{payload_kind}.{path}" if path else payload_kind
+    for capability_id in iter_capability_ids(inventory):
+        payload_kind, path = parse_capability_id(capability_id)
         field_meta = inventory.fields[payload_kind, path]
         payload.append(
             {

@@ -19,6 +19,7 @@ if not os.environ.get("PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT"):
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DECISIONS_FILE = REPO_ROOT / "specs/008-maximize-messages-coverage/contracts/capability-decisions.json"
 GOVERNANCE_SCHEMA = REPO_ROOT / "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json"
+MANDATORY_FILE = REPO_ROOT / "specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt"
 MIN_IMPLEMENTED_CAPABILITIES = 20
 
 
@@ -26,12 +27,15 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
     messages_file = tmp_path / "messages-e2e.ndjson"
     report_file = tmp_path / "governance-e2e.json"
 
+    subprocess_env = dict(os.environ)
+    subprocess_env["PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT"] = "1"
+
     result = subprocess.run(  # noqa: S603
         [
             sys.executable,
             "-m",
             "pytest",
-            "tests/e2e/test_e2e.py",
+            "tests/messages_coverage/test_mandatory_attachments.py",
             "-q",
             "-p",
             "no:pytest-bdd-gherkin-message-reporter",
@@ -41,6 +45,7 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
             str(messages_file),
             "--messages-coverage",
         ],
+        env=subprocess_env,
         cwd=REPO_ROOT,
         text=True,
         capture_output=True,
@@ -61,6 +66,9 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
             str(GOVERNANCE_SCHEMA),
             "--decisions",
             str(DECISIONS_FILE),
+            "--mandatory-capabilities-file",
+            str(MANDATORY_FILE),
+            "--require-mandatory-implemented",
             "--require-fully-governed",
             "--output",
             str(report_file),
@@ -71,4 +79,7 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
     assert exit_code == 0
     assert payload["summary"]["blocked_capabilities"] == 0
     assert payload["summary"]["implemented_capabilities"] >= MIN_IMPLEMENTED_CAPABILITIES
+    assert payload["summary"]["mandatory_capabilities_total"] == 323
+    assert payload["summary"]["mandatory_capabilities_implemented"] == 323
+    assert payload["summary"]["mandatory_scope_violations"] == 0
     assert all(capability["status"] != "Pending" for capability in payload["capabilities"])

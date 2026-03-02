@@ -57,7 +57,19 @@ def test_status_uniqueness_detects_duplicate_capability_decisions() -> None:
     result = ensure_single_status_per_capability(decisions)
 
     assert result.is_unique is False
-    assert result.duplicates == ("cap-1",)
+    assert result.duplicates == ("cap-1@r1",)
+
+
+def test_status_uniqueness_allows_same_capability_across_distinct_release_targets() -> None:
+    decisions = [
+        CapabilityDecision(capability_id="cap-1", status="Implemented", release_target="r1"),
+        CapabilityDecision(capability_id="cap-1", status="Pending", release_target="r2"),
+    ]
+
+    result = ensure_single_status_per_capability(decisions)
+
+    assert result.is_unique is True
+    assert result.duplicates == ()
 
 
 def test_evaluate_release_blockers_flags_pending_and_missing_decisions() -> None:

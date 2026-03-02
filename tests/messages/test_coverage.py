@@ -33,9 +33,9 @@ def test_observed_coverage_records_state_dependent_fields() -> None:
 
     assert result.observed_coverage is not None
     observed = result.observed_coverage.observed_fields
-    assert ("test_case_started", "") in observed
-    assert ("test_case_started", "id") in observed
-    assert ("test_case_started", "testCaseId") in observed
+    assert ("testCaseStarted", "") in observed
+    assert ("testCaseStarted", "id") in observed
+    assert ("testCaseStarted", "testCaseId") in observed
 
 
 def test_observed_coverage_records_first_evidence_only() -> None:
@@ -43,5 +43,5 @@ def test_observed_coverage_records_first_evidence_only() -> None:
     coverage.record_field("test_case_finished", "implementation_status", evidence_scenario_id="scenario-A")
     coverage.record_field("test_case_finished", "implementation_status", evidence_scenario_id="scenario-B")
 
-    assert ("test_case_finished", "implementation_status") in coverage.observed_fields
-    assert coverage.evidence_scenarios["test_case_finished", "implementation_status"] == "scenario-A"
+    assert ("testCaseFinished", "implementation_status") in coverage.observed_fields
+    assert coverage.evidence_scenarios["testCaseFinished", "implementation_status"] == "scenario-A"

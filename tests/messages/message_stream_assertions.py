@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 UNFOLDABLE_ATTRS: tuple[str, ...] = (
     "attachment",
+    "external_attachment",
     "gherkin_document",
     "hook",
     "meta",
@@ -25,10 +26,13 @@ UNFOLDABLE_ATTRS: tuple[str, ...] = (
     "pickle",
     "source",
     "step_definition",
+    "suggestion",
     "test_case",
     "test_case_finished",
     "test_case_started",
     "test_run_finished",
+    "test_run_hook_finished",
+    "test_run_hook_started",
     "test_run_started",
     "test_step_finished",
     "test_step_started",

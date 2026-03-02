@@ -30,40 +30,52 @@ class StepDefinitionPattern(_BaseStepDefinitionPattern):
 
 PayloadKind: TypeAlias = Literal[
     "attachment",
+    "external_attachment",
     "gherkin_document",
     "hook",
     "meta",
     "parameter_type",
+    "parse_error",
     "pickle",
     "source",
     "step_definition",
+    "suggestion",
     "test_case",
     "test_case_finished",
     "test_case_started",
     "test_run_finished",
+    "test_run_hook_finished",
+    "test_run_hook_started",
     "test_run_started",
     "test_step_finished",
     "test_step_started",
+    "undefined_parameter_type",
 ]
 
 EventEnvelope: TypeAlias = _BaseEnvelope
 
 PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
     "attachment",
+    "external_attachment",
     "gherkin_document",
     "hook",
     "meta",
     "parameter_type",
+    "parse_error",
     "pickle",
     "source",
     "step_definition",
+    "suggestion",
     "test_case",
     "test_case_finished",
     "test_case_started",
     "test_run_finished",
+    "test_run_hook_finished",
+    "test_run_hook_started",
     "test_run_started",
     "test_step_finished",
     "test_step_started",
+    "undefined_parameter_type",
 )
 
 STATUS_CAPABLE_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (

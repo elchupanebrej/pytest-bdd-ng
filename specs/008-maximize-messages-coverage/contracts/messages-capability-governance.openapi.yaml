@@ -4,8 +4,10 @@ info:
   title: Messages Capability Governance Contract
   version: 1.0.0
   description: >-
-    Contract for capability inventory synchronization, deterministic outcome mapping validation,
-    weekly baseline diff generation, and governance checklist rendering.
+    Contract for capability inventory synchronization, deterministic
+    outcome mapping validation, weekly baseline diff generation,
+    governance checklist rendering, and strict mandatory capability
+    coverage enforcement.
 servers:
   - url: https://governance.local
 paths:
@@ -28,7 +30,8 @@ paths:
                 $ref: '#/components/schemas/CapabilitySyncResponse'
   /coverage/mappings/validate:
     post:
-      summary: Validate deterministic outcome mapping using fixed readiness matrix
+      summary: >-
+        Validate deterministic outcome mapping using fixed readiness matrix
       operationId: validateOutcomeMappings
       requestBody:
         required: true
@@ -77,6 +80,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChecklistRenderResponse'
+  /coverage/governance/report:
+    post:
+      summary: >-
+        Generate governance coverage report with optional mandatory scope
+        enforcement
+      operationId: generateGovernanceReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GovernanceReportRequest'
+      responses:
+        '200':
+          description: Governance report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernanceReportResponse'
 components:
   schemas:
     CapabilityStatus:
@@ -315,3 +337,136 @@ components:
         approved:
           type: integer
           minimum: 0
+    GovernanceReportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - baseline_release
+        - messages_file
+      properties:
+        baseline_release:
+          type: string
+        messages_file:
+          type: string
+          description: Absolute path to NDJSON envelope stream.
+        schema_file:
+          type: string
+          description: Optional governance report schema path.
+        decisions_file:
+          type: string
+          description: Optional decisions JSON path.
+        mandatory_capabilities_file:
+          type: string
+          description: >-
+            Optional path to newline-delimited mandatory capability IDs.
+        require_fully_governed:
+          type: boolean
+          default: false
+        require_mandatory_implemented:
+          type: boolean
+          default: false
+      allOf:
+        - if:
+            properties:
+              require_mandatory_implemented:
+                const: true
+            required:
+              - require_mandatory_implemented
+          then:
+            required:
+              - mandatory_capabilities_file
+    GovernanceReportSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - total_capabilities
+        - implemented_capabilities
+        - blocked_capabilities
+        - deferred_capabilities
+        - coverage_percentage
+        - mandatory_capabilities_total
+        - mandatory_capabilities_implemented
+        - mandatory_scope_violations
+      properties:
+        total_capabilities:
+          type: integer
+          minimum: 0
+        implemented_capabilities:
+          type: integer
+          minimum: 0
+        blocked_capabilities:
+          type: integer
+          minimum: 0
+        deferred_capabilities:
+          type: integer
+          minimum: 0
+        coverage_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        mandatory_capabilities_total:
+          type: integer
+          minimum: 0
+        mandatory_capabilities_implemented:
+          type: integer
+          minimum: 0
+        mandatory_scope_violations:
+          type: integer
+          minimum: 0
+    GovernanceCapabilityRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - status
+        - disposition
+        - mandatory_scope
+      properties:
+        capability_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/CapabilityStatus'
+        disposition:
+          type: string
+          enum:
+            - approved
+            - blocked
+            - deferred
+        rationale:
+          type: string
+        decision_owner:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        open_risk:
+          type: string
+        mandatory_scope:
+          type: boolean
+    GovernanceReportResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - generated_at
+        - baseline_release
+        - summary
+        - capabilities
+      properties:
+        version:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        baseline_release:
+          type: string
+        summary:
+          $ref: '#/components/schemas/GovernanceReportSummary'
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/GovernanceCapabilityRecord'

@@ -4,12 +4,18 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+from itertools import starmap
 from pathlib import Path
 from typing import Any, Final, cast
 
 from jsonschema import validators
 
-from pytest_bdd.model.coverage.inventory import SCHEMA_DIR, generate_inventory
+from pytest_bdd.model.coverage.inventory import (
+    SCHEMA_DIR,
+    canonical_capability_id,
+    canonical_capability_key,
+    generate_inventory,
+)
 from pytest_bdd.model.message_baseline_diff import WEEKLY_CADENCE, BaselineDiffRecord, build_baseline_diff
 from pytest_bdd.model.message_capability import (
     CapabilityCategory,
@@ -17,7 +23,10 @@ from pytest_bdd.model.message_capability import (
     CapabilityRelevance,
     MessageCapability,
 )
-from pytest_bdd.model.message_capability_inventory import sync_capability_inventory
+from pytest_bdd.model.message_capability_inventory import (
+    reconcile_inventory_with_mandatory_scope,
+    sync_capability_inventory,
+)
 from pytest_bdd.model.message_converter import envelope_from_dict, governance_value_to_dict
 from pytest_bdd.model.message_governance_checklist import build_governance_checklist, render_checklist_markdown
 from pytest_bdd.model.message_status_governance import (
@@ -25,6 +34,7 @@ from pytest_bdd.model.message_status_governance import (
     ensure_single_status_per_capability,
     normalize_capability_status,
     validate_capability_decision,
+    validate_mandatory_scope_decision,
 )
 from pytest_bdd.model.message_validation import validate_message_stream
 
@@ -185,12 +195,17 @@ def _load_decisions(path: Path) -> list[CapabilityDecision]:
     return result
 
 
-def _validate_decisions(decisions: list[CapabilityDecision]) -> dict[str, CapabilityDecision]:
+def _validate_decisions(
+    decisions: list[CapabilityDecision],
+    *,
+    mandatory_capability_ids: set[str] | None = None,
+) -> dict[str, CapabilityDecision]:
     uniqueness = ensure_single_status_per_capability(decisions)
     if not uniqueness.is_unique:
         msg = f"Duplicate capability decisions found for: {', '.join(uniqueness.duplicates)}"
         raise ValueError(msg)
 
+    mandatory_ids = mandatory_capability_ids or set()
     validated: dict[str, CapabilityDecision] = {}
     for decision in decisions:
         validation = validate_capability_decision(decision)
@@ -205,9 +220,41 @@ def _validate_decisions(decisions: list[CapabilityDecision]) -> dict[str, Capabi
             details = "; ".join(parts) if parts else "invalid decision"
             msg = f"Invalid decision for '{decision.capability_id}': {details}"
             raise ValueError(msg)
+        mandatory_violations = validate_mandatory_scope_decision(
+            decision,
+            mandatory_capability_ids=mandatory_ids,
+        )
+        if mandatory_violations:
+            msg = "; ".join(mandatory_violations)
+            raise ValueError(msg)
         validated[decision.capability_id] = decision
 
     return validated
+
+
+def _load_mandatory_capability_ids(path: Path) -> set[str]:
+    capability_ids: set[str] = set()
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        capability_ids.add(canonical_capability_id(line))
+    return capability_ids
+
+
+def _validate_mandatory_capabilities(
+    mandatory_capability_ids: set[str],
+    inventory_capability_ids: set[str],
+) -> None:
+    reconciliation = reconcile_inventory_with_mandatory_scope(
+        inventory_capability_ids=inventory_capability_ids,
+        mandatory_capability_ids=mandatory_capability_ids,
+    )
+    unknown_ids = list(reconciliation.missing_mandatory_capability_ids)
+    if unknown_ids:
+        sample = ", ".join(unknown_ids[:10])
+        msg = f"Mandatory capability file contains unknown capability IDs (first 10): {sample}"
+        raise ValueError(msg)
 
 
 def _load_baseline_diff(path: Path) -> BaselineDiffRecord:
@@ -281,10 +328,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Optional JSON decisions file that classifies uncovered capabilities.",
     )
     report_parser.add_argument(
+        "--mandatory-capabilities-file",
+        type=Path,
+        default=None,
+        help="Optional newline-delimited capability list that must be implemented for readiness.",
+    )
+    report_parser.add_argument(
         "--require-fully-governed",
         action="store_true",
         default=False,
         help="Fail if report contains blocked or pending capabilities after decision merge.",
+    )
+    report_parser.add_argument(
+        "--require-mandatory-implemented",
+        action="store_true",
+        default=False,
+        help="Fail if any capability from --mandatory-capabilities-file is not Implemented.",
     )
 
     # Legacy fallback for quickstart.md:
@@ -352,6 +411,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         return 0 if checklist.unresolved_blockers == 0 else 1
 
     if args.command == "report":
+        if args.require_mandatory_implemented and args.mandatory_capabilities_file is None:
+            msg = "--require-mandatory-implemented requires --mandatory-capabilities-file"
+            raise ValueError(msg)
+
         envelopes = []
         with Path(args.messages_file).open(encoding="utf-8") as f:
             for line in f:
@@ -361,39 +424,70 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
         validation_result = validate_message_stream(envelopes, track_coverage=True)
         inventory = generate_inventory(SCHEMA_DIR)
+        mandatory_capability_ids: set[str] = set()
+        if args.mandatory_capabilities_file is not None:
+            mandatory_capability_ids = _load_mandatory_capability_ids(args.mandatory_capabilities_file)
         decisions_by_capability: dict[str, CapabilityDecision] = {}
         if args.decisions is not None:
-            decisions_by_capability = _validate_decisions(_load_decisions(args.decisions))
+            decisions_by_capability = _validate_decisions(
+                _load_decisions(args.decisions),
+                mandatory_capability_ids=mandatory_capability_ids,
+            )
+            canonical_decisions_by_capability: dict[str, CapabilityDecision] = {}
+            for capability_id, decision in decisions_by_capability.items():
+                canonical_capability = canonical_capability_id(capability_id)
+                if canonical_capability in canonical_decisions_by_capability:
+                    msg = (
+                        "Decision file contains duplicate canonical capability IDs after normalization: "
+                        f"{canonical_capability}"
+                    )
+                    raise ValueError(msg)
+                canonical_decisions_by_capability[canonical_capability] = decision
+            decisions_by_capability = canonical_decisions_by_capability
 
         observed_fields = (
             validation_result.observed_coverage.observed_fields if validation_result.observed_coverage else set()
         )
+        observed_fields = set(starmap(canonical_capability_key, observed_fields))
         capabilities_list: list[dict[str, Any]] = []
         implemented_count = 0
         blocked_count = 0
         deferred_count = 0
+        mandatory_implemented_count = 0
+        mandatory_scope_violations: list[str] = []
         now = datetime.now(timezone.utc).isoformat()
 
         inventory_capability_ids = {
-            f"{payload_kind}.{path}" if path else payload_kind for payload_kind, path in inventory.fields
+            f"{canonical_payload_kind}.{path}" if path else canonical_payload_kind
+            for payload_kind, path in inventory.fields
+            for canonical_payload_kind, _canonical_path in (canonical_capability_key(payload_kind, path),)
         }
         unknown_decision_ids = sorted(set(decisions_by_capability).difference(inventory_capability_ids))
         if unknown_decision_ids:
             sample = ", ".join(unknown_decision_ids[:10])
             msg = f"Decision file contains unknown capability IDs (first 10): {sample}"
             raise ValueError(msg)
+        if mandatory_capability_ids:
+            _validate_mandatory_capabilities(mandatory_capability_ids, inventory_capability_ids)
 
         for payload_kind, path in sorted(inventory.fields):
-            capability_id = f"{payload_kind}.{path}" if path else payload_kind
-            implemented = (payload_kind, path) in observed_fields
+            canonical_payload_kind, canonical_path = canonical_capability_key(payload_kind, path)
+            capability_id = f"{canonical_payload_kind}.{canonical_path}" if canonical_path else canonical_payload_kind
+            implemented = (canonical_payload_kind, canonical_path) in observed_fields
+            mandatory_scope = capability_id in mandatory_capability_ids
             decision = decisions_by_capability.get(capability_id)
             if implemented:
                 status = "Implemented"
                 disposition = "approved"
                 implemented_count += 1
+                if mandatory_scope:
+                    mandatory_implemented_count += 1
             elif decision is not None:
                 status = normalize_capability_status(decision.status) or "Pending"
-                if status in {"Non-Implementable", "Not-Applicable"}:
+                if mandatory_scope and status != "Implemented":
+                    disposition = "blocked"
+                    blocked_count += 1
+                elif status in {"Non-Implementable", "Not-Applicable"}:
                     disposition = "deferred"
                     deferred_count += 1
                 else:
@@ -414,6 +508,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     else now
                 ),
                 "evidence_refs": list(decision.evidence_refs) if decision is not None else [],
+                "mandatory_scope": mandatory_scope,
             }
             if decision is not None and decision.rationale is not None:
                 payload["rationale"] = decision.rationale
@@ -428,6 +523,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     if decision is not None and decision.rationale
                     else "Unresolved governance decision"
                 )
+
+            if mandatory_scope and not implemented:
+                mandatory_scope_violations.append(capability_id)
             capabilities_list.append(payload)
 
         total_capabilities = len(capabilities_list)
@@ -443,6 +541,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 "blocked_capabilities": blocked_count,
                 "deferred_capabilities": deferred_count,
                 "coverage_percentage": coverage_percentage,
+                "mandatory_capabilities_total": len(mandatory_capability_ids),
+                "mandatory_capabilities_implemented": mandatory_implemented_count,
+                "mandatory_scope_violations": len(mandatory_scope_violations),
             },
             "capabilities": capabilities_list,
         }
@@ -458,6 +559,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             if unresolved:
                 _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
                 return 1
+
+        if args.require_mandatory_implemented and mandatory_scope_violations:
+            _emit_text(json.dumps(report, indent=2, sort_keys=True), output_path=args.output)
+            return 1
 
         if args.format == "markdown":
             lines = [

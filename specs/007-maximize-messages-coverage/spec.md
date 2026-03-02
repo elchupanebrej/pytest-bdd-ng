@@ -1,9 +1,9 @@
 # Feature Specification: Maximize Messages Capability Coverage
 
-**Feature Branch**: `[007-maximize-messages-coverage]`  
-**Created**: 2026-02-25  
-**Status**: Draft  
-**Language**: English  
+**Feature Branch**: `[007-maximize-messages-coverage]`
+**Created**: 2026-02-25
+**Status**: Draft
+**Language**: English
 **Input**: User description: "мне нужно чтоб возможности библиотеки messages использовались в pytest-bdd-ng максимально полно, по возможности без белых пятен."
 
 ## Clarifications

@@ -34,6 +34,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - N/A (in-repo json artifacts only) (007-maximize-messages-coverage)
 - Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema` (008-maximize-messages-coverage)
 - In-repo NDJSON + JSON artifacts (no persistent database) (008-maximize-messages-coverage)
+- Python 3.10-3.14 + `pytest>=6.2.5`, `cucumber-messages`, `pluggy`, `jsonschema`, `tox>=4.2`, `pre-commit` (008-maximize-messages-coverage)
+- In-memory runtime state + NDJSON artifacts + repository governance artifacts under `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/008-maximize-messages-coverage/` (008-maximize-messages-coverage)
 
 ## Project Structure
 
@@ -57,9 +59,9 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 008-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest>=6.2.5`, `cucumber-messages`, `pluggy`, `jsonschema`, `tox>=4.2`, `pre-commit`
 - 008-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema`
 - 007-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest`, `cucumber-messages`, `pluggy`, `jsonschema`
-- 007-maximize-messages-coverage: Added Python 3.10-3.14 + pytest>=6.2.5, pluggy hook system, cucumber-messages (upstream baseline pinned per release cycle), pytest-bdd runtime/reporter plugins, mypy, tox>=4.2, pre-commi
   pytest-bdd parser/runtime layers, gherkin markdown token matcher,
   pre-commit, tox>=4.2
   pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commit.

@@ -23,6 +23,27 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
 
 
 class BaseParser(ParserProtocol):
+    @staticmethod
+    def normalize_gherkin_document_payload(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
+        gherkin_document_raw_dict.setdefault("comments", [])
+
+        def _normalize(node):
+            if isinstance(node, dict):
+                location = node.get("location")
+                if isinstance(location, dict):
+                    if "line" not in location:
+                        location["line"] = 1
+                    if "column" not in location:
+                        location["column"] = 1
+                for value in node.values():
+                    _normalize(value)
+            elif isinstance(node, list):
+                for value in node:
+                    _normalize(value)
+
+        _normalize(gherkin_document_raw_dict)
+        return gherkin_document_raw_dict
+
     def build_feature(self, gherkin_document_raw_dict, filename: str) -> Feature:
         gherkin_document = Feature.load_gherkin_document(gherkin_document_raw_dict)
 
@@ -62,6 +83,7 @@ class GherkinParser(BaseParser):
             ) from e
 
         gherkin_document_raw_dict["uri"] = uri  # type:ignore[]
+        gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(
             gherkin_document_raw_dict,
@@ -99,6 +121,7 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict["uri"] = uri
         # TODO create a defect for a gherkin parser repo
         gherkin_document_raw_dict["feature"].setdefault("keyword", "")
+        gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(
             gherkin_document_raw_dict,

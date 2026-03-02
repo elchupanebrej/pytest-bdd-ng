@@ -39,6 +39,7 @@ from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, S
 from contextlib import suppress
 from functools import partial
 from inspect import getfile, getsourcelines
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import uuid4
 from warnings import warn
@@ -48,6 +49,8 @@ from _pytest.fixtures import FixtureRequest
 from attr import Factory, attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
     Feature,
+    JavaMethod,
+    JavaStackTraceElement,
     Location,
     Pickle,
     PickleStepType,
@@ -435,7 +438,17 @@ class StepDefinitionManager:
                             getfile(self.func),
                             str(get_config_root_path(cast(Config, config))),
                         ),
-                        location=Location(line=getsourcelines(self.func)[1]),
+                        location=Location(line=getsourcelines(self.func)[1], column=1),
+                        java_method=JavaMethod(
+                            class_name="pytest_bdd.steps.StepDefinition",
+                            method_name=str(self.func.__name__),
+                            method_parameter_types=[],
+                        ),
+                        java_stack_trace_element=JavaStackTraceElement(
+                            class_name="pytest_bdd.steps.StepDefinition",
+                            file_name=Path(getfile(self.func)).name,
+                            method_name=str(self.func.__name__),
+                        ),
                     ),
                 )
             return message

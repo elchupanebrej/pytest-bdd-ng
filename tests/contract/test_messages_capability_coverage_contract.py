@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 from typing import Any
 
+from pytest_bdd.model.coverage.inventory import generate_inventory, inventory_to_capability_payload
+from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
+
 FEATURE_CONTRACT_DIR = Path(__file__).resolve().parents[2] / "specs" / "008-maximize-messages-coverage" / "contracts"
 OPENAPI_CONTRACT_PATH = FEATURE_CONTRACT_DIR / "messages-capability-governance.openapi.yaml"
 GOVERNANCE_SCHEMA_PATH = FEATURE_CONTRACT_DIR / "governance-report.schema.json"
@@ -82,4 +85,27 @@ def test_governance_report_schema_bootstrap() -> None:
         "blocked_capabilities",
         "deferred_capabilities",
         "coverage_percentage",
+        "mandatory_capabilities_total",
+        "mandatory_capabilities_implemented",
+        "mandatory_scope_violations",
     }.issubset(summary_required)
+
+    capability_required = set(schema["properties"]["capabilities"]["items"]["required"])
+    assert {"capability_id", "status", "disposition", "mandatory_scope"}.issubset(capability_required)
+
+
+def test_openapi_contract_includes_mandatory_governance_report_flags() -> None:
+    contract_text = _openapi_text()
+    assert "/coverage/governance/report:" in contract_text
+    assert "mandatory_capabilities_file" in contract_text
+    assert "require_mandatory_implemented" in contract_text
+    assert "mandatory_scope_violations" in contract_text
+
+
+def test_inventory_export_emits_unique_canonical_capability_ids() -> None:
+    inventory = generate_inventory(resolve_messages_schema_dir())
+    payload = inventory_to_capability_payload(inventory, baseline_release="v32.0.1")
+    capability_ids = [entry["capability_id"] for entry in payload]
+
+    assert len(capability_ids) == len(set(capability_ids))
+    assert all("_" not in capability_id.split(".", 1)[0] for capability_id in capability_ids)

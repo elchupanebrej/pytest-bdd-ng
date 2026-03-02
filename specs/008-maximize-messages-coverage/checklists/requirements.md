@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Maximize Messages Capability Coverage
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-03-01  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-03-01
 **Feature**: [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/008-maximize-messages-coverage/spec.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/008-maximize-messages-coverage/spec.md)
 
 ## Content Quality

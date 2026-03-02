@@ -51,6 +51,7 @@ def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
 def unfold_message(message: Message):
     unfoldable_attrs = [
         "attachment",
+        "external_attachment",
         "gherkin_document",
         "hook",
         "meta",
@@ -59,10 +60,13 @@ def unfold_message(message: Message):
         "pickle",
         "source",
         "step_definition",
+        "suggestion",
         "test_case",
         "test_case_finished",
         "test_case_started",
         "test_run_finished",
+        "test_run_hook_finished",
+        "test_run_hook_started",
         "test_run_started",
         "test_step_finished",
         "test_step_started",
@@ -664,3 +668,150 @@ def test_message_converter_rejects_multi_payload_envelope_shape():
                 "test_run_finished": {"timestamp": {"seconds": 2, "nanos": 2}, "success": True},
             }
         )
+
+
+def test_gherkin_document_emits_rule_background_comment_examples_docstring_and_tables(testdir: "Testdir", tmp_path):
+    testdir.makefile(
+        ".ini",
+        # language=ini
+        pytest="""\
+        [pytest]
+        markers =
+            feature_tag
+            rule_tag
+            scenario_tag
+            top_scenario_tag
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        mandatory="""\
+        # comment for gherkin document coverage
+        @feature_tag
+        Feature: Mandatory coverage feature
+          Feature description line for coverage.
+
+          Background: Base context
+            Given a background value "from background"
+            And a background table:
+              | key   | value |
+              | alpha | one   |
+
+          @rule_tag
+          Rule: Rule level validation
+
+            Background: Rule background context
+              Given a rule background value "rule background"
+
+            @scenario_tag
+            Scenario Outline: Rule scenario outline
+              Given a number <number>
+              Then result should be "<result>"
+
+              Examples: Rule examples
+                | number | result |
+                | 1      | pass   |
+                | 2      | pass   |
+
+          @top_scenario_tag
+          Scenario: Top level scenario with doc string and table
+            Given a payload doc string:
+              \"\"\"json
+              {
+                "message": "hello"
+              }
+              \"\"\"
+            And a payload table:
+              | left  | right |
+              | one   | two   |
+            Then result should be "pass"
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given, then, parsers
+
+        @given(parsers.parse('a background value "{value}"'))
+        def background_value(value):
+            return value
+
+        @given(parsers.parse('a rule background value "{value}"'))
+        def rule_background_value(value):
+            return value
+
+        @given("a background table:")
+        def background_table(step):
+            assert step.data_table is not None
+
+        @given(parsers.parse("a number {number:d}"))
+        def number(number):
+            return number
+
+        @given("a payload doc string:")
+        def payload_doc_string(step):
+            assert step.doc_string is not None
+
+        @given("a payload table:")
+        def payload_table(step):
+            assert step.data_table is not None
+
+        @then(parsers.parse('result should be "{result}"'))
+        def result(result):
+            assert result == "pass"
+        """,
+    )
+
+    ndjson_path = tmp_path / "gherkin-structure.ndjson"
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(passed=3)
+
+    payloads = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+    gherkin_documents = list_filter_by_type(GherkinDocument, payloads)
+    assert len(gherkin_documents) == 1
+
+    gherkin_document = gherkin_documents[0]
+    assert gherkin_document.comments
+    assert gherkin_document.comments[0].text.startswith("# comment")
+    assert gherkin_document.comments[0].location.line >= 1
+    assert gherkin_document.comments[0].location.column >= 1
+
+    feature = gherkin_document.feature
+    assert feature is not None
+    assert feature.tags
+    assert feature.location.line >= 1
+
+    backgrounds = [child.background for child in feature.children if child.background is not None]
+    assert backgrounds
+    background = backgrounds[0]
+    assert background.steps
+    assert any(step.data_table is not None for step in background.steps)
+
+    rules = [child.rule for child in feature.children if child.rule is not None]
+    assert rules
+    rule = rules[0]
+    assert rule.tags
+
+    rule_backgrounds = [child.background for child in rule.children if child.background is not None]
+    assert rule_backgrounds
+    assert rule_backgrounds[0].steps
+
+    rule_scenarios = [child.scenario for child in rule.children if child.scenario is not None]
+    assert rule_scenarios
+    outline_scenario = rule_scenarios[0]
+    assert outline_scenario.examples
+    examples = outline_scenario.examples[0]
+    assert examples.table_header is not None
+    assert examples.table_body
+
+    all_feature_level_scenarios = [child.scenario for child in feature.children if child.scenario is not None]
+    top_scenarios = [
+        scenario
+        for scenario in [*rule_scenarios, *all_feature_level_scenarios]
+        if any(step.doc_string is not None or step.data_table is not None for step in scenario.steps)
+    ]
+    assert top_scenarios
+    top_scenario = top_scenarios[0]
+    assert any(step.doc_string is not None for step in top_scenario.steps)
+    assert any(step.data_table is not None for step in top_scenario.steps)

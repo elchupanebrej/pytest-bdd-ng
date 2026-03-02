@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from pytest_bdd.model.coverage.inventory import generate_inventory, iter_capability_ids
 from pytest_bdd.model.message_capability import capability_is_relevant, classify_capability_relevance
-from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir, sync_capability_inventory
+from pytest_bdd.model.message_capability_inventory import (
+    reconcile_inventory_with_mandatory_scope,
+    resolve_messages_schema_dir,
+    sync_capability_inventory,
+)
 
 from .message_capability_fixtures import make_capability
 
@@ -43,3 +50,37 @@ def test_relevance_classifier_uses_supported_impact_domains() -> None:
 def test_resolve_messages_schema_dir_finds_envelope_schema() -> None:
     schema_dir = resolve_messages_schema_dir()
     assert (schema_dir / "Envelope.json").exists()
+
+
+def test_generated_inventory_capability_ids_are_unique_and_canonical() -> None:
+    inventory = generate_inventory(resolve_messages_schema_dir())
+    capability_ids = iter_capability_ids(inventory)
+
+    assert capability_ids == tuple(sorted(capability_ids))
+    assert len(capability_ids) == len(set(capability_ids))
+    assert all("_" not in capability_id.split(".", 1)[0] for capability_id in capability_ids)
+
+
+def test_reconcile_inventory_with_mandatory_scope_has_zero_missing() -> None:
+    inventory = generate_inventory(resolve_messages_schema_dir())
+    inventory_capability_ids = iter_capability_ids(inventory)
+    mandatory_scope_path = (
+        Path(__file__).resolve().parents[2]
+        / "specs"
+        / "008-maximize-messages-coverage"
+        / "mandatory-hook-capability-ids.txt"
+    )
+    mandatory_scope_ids = [
+        line.strip()
+        for line in mandatory_scope_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+    reconciliation = reconcile_inventory_with_mandatory_scope(
+        inventory_capability_ids=inventory_capability_ids,
+        mandatory_capability_ids=mandatory_scope_ids,
+    )
+
+    assert reconciliation.mandatory_total == 323
+    assert reconciliation.has_missing_mandatory_capabilities is False
+    assert reconciliation.missing_mandatory_capability_ids == ()
