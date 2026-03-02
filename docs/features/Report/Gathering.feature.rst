@@ -33,11 +33,22 @@ report `Messages <https://github.com/cucumber/messages>`__
 
 -  When run pytest
 
-   ========== ================= ==========
-   cli_args   --messages-ndjson out.ndjson
-   ========== ================= ==========
-   subprocess true              
-   ========== ================= ==========
+   .. raw:: html
+
+        <!-- markdownlint-disable-next-line MD013 -->
+
+   +----------+------+----------+----+----------+----------+----------+
+   | cli_args | -p   | no:pyt   | -p | pytes    | -        | ou       |
+   |          |      | est-bdd- |    | t_bdd.pl | -message | t.ndjson |
+   |          |      | gherkin- |    | ugin.ghe | s-ndjson |          |
+   |          |      | message- |    | rkin_mes |          |          |
+   |          |      | reporter |    | sage_rep |          |          |
+   |          |      |          |    | orter.en |          |          |
+   |          |      |          |    | trypoint |          |          |
+   +==========+======+==========+====+==========+==========+==========+
+   | su       | true |          |    |          |          |          |
+   | bprocess |      |          |    |          |          |          |
+   +----------+------+----------+----+----------+----------+----------+
 
 -  Then File "out.ndjson" has "15" lines
 
@@ -58,10 +69,21 @@ Dummy reporter based on
 
 -  When run pytest
 
-   ========== =============== ========
-   cli_args   --cucumber-html out.html
-   ========== =============== ========
-   subprocess true            
-   ========== =============== ========
+   .. raw:: html
+
+        <!-- markdownlint-disable-next-line MD013 -->
+
+   +----------+------+----------+----+----------+----------+----------+
+   | cli_args | -p   | no:pyt   | -p | pytes    | --cucum  | out.html |
+   |          |      | est-bdd- |    | t_bdd.pl | ber-html |          |
+   |          |      | gherkin- |    | ugin.ghe |          |          |
+   |          |      | message- |    | rkin_mes |          |          |
+   |          |      | reporter |    | sage_rep |          |          |
+   |          |      |          |    | orter.en |          |          |
+   |          |      |          |    | trypoint |          |          |
+   +==========+======+==========+====+==========+==========+==========+
+   | su       | true |          |    |          |          |          |
+   | bprocess |      |          |    |          |          |          |
+   +----------+------+----------+----+----------+----------+----------+
 
 -  Then File "out.html" is not empty

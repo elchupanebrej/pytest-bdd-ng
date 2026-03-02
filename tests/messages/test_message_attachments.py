@@ -5,7 +5,7 @@ from cucumber_messages import TestCaseStarted as _TestCaseStarted  # type:ignore
 from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 
-from .test_messages import list_filter_by_type, parse_and_unfold_messages
+from .test_messages import list_filter_by_type, parse_and_unfold_messages, runpytest_with_message_reporter
 
 
 def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
@@ -31,7 +31,7 @@ def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
     )
 
     ndjson_path = tmp_path / "attachments.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
     result.assert_outcomes(passed=1)
 
     payloads = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())

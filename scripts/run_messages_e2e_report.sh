@@ -7,6 +7,8 @@ mkdir -p "${REPORT_DIR}"
 
 cd "${ROOT_DIR}"
 conda run -n pytest-bdd-ng-py314 python -m pytest tests/e2e/test_e2e.py \
+  -p no:pytest-bdd-gherkin-message-reporter \
+  -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
   --messages-ndjson=.tmp/messages.ndjson \
   --cucumber-html=.tmp/reports/messages-e2e.html
 

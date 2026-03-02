@@ -27,9 +27,10 @@ Output file could be fed into other @cucumber tools for more verbose report
 
 * When run pytest
 
-    | cli_args   | --messages-ndjson | out.ndjson |
-    |------------|-------------------|------------|
-    | subprocess | true              |            |
+    <!-- markdownlint-disable-next-line MD013 -->
+    | cli_args   | -p | no:pytest-bdd-gherkin-message-reporter | -p | pytest_bdd.plugin.gherkin_message_reporter.entrypoint | --messages-ndjson | out.ndjson |
+    |------------|----|-----------------------------------------|----|--------------------------------------------------------|-------------------|------------|
+    | subprocess | true | | | | | |
 
 * Then File "out.ndjson" has "15" lines
 * Then Report "out.ndjson" parsable into messages
@@ -45,8 +46,9 @@ Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/h
 
 * When run pytest
 
-    | cli_args   | --cucumber-html | out.html |
-    |------------|-----------------|----------|
-    | subprocess | true            |          |
+    <!-- markdownlint-disable-next-line MD013 -->
+    | cli_args   | -p | no:pytest-bdd-gherkin-message-reporter | -p | pytest_bdd.plugin.gherkin_message_reporter.entrypoint | --cucumber-html | out.html |
+    |------------|----|-----------------------------------------|----|--------------------------------------------------------|-----------------|----------|
+    | subprocess | true | | | | | |
 
 * Then File "out.html" is not empty

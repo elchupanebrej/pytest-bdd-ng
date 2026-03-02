@@ -28,6 +28,8 @@ if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Testdir
 
 ORACLE_PATH = Path(__file__).with_name("oracles") / "messages_model_coverage_oracle.yaml"
+MESSAGE_REPORTER_PLUGIN = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
+MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
 
 
 def _is_populated(value: object) -> bool:
@@ -184,7 +186,14 @@ def _build_feature_suite(testdir: Testdir, tmp_path: Path) -> dict[str, list[obj
     )
 
     ndjson_path = tmp_path / "messages-feature-suite.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest(
+        "-p",
+        f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
+        "-p",
+        MESSAGE_REPORTER_PLUGIN,
+        "--messages-ndjson",
+        str(ndjson_path),
+    )
     result.assert_outcomes(passed=2, failed=1)
 
     messages = parse_ndjson_messages(ndjson_path)

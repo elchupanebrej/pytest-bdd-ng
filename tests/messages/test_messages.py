@@ -34,6 +34,18 @@ if TYPE_CHECKING:  # pragma: nocover
     from pytest_bdd.compatibility.pytest import Testdir
 
 samples_path = Path(__file__).parent.parent.parent / "compatibility-kit/devkit/samples"
+MESSAGE_REPORTER_PLUGIN = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
+MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
+
+
+def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
+    return testdir.runpytest(
+        "-p",
+        f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
+        "-p",
+        MESSAGE_REPORTER_PLUGIN,
+        *args,
+    )
 
 
 def unfold_message(message: Message):
@@ -111,7 +123,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -265,7 +277,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -303,7 +315,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -345,7 +357,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -387,7 +399,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -433,7 +445,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -479,7 +491,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -570,7 +582,7 @@ def test_hook_type_messages(testdir, tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -626,7 +638,7 @@ def test_lifecycle_count_and_order_for_pass_and_fail(testdir: "Testdir", tmp_pat
     )
 
     ndjson_path = tmp_path / "lifecycle.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
     result.assert_outcomes(passed=1, failed=1)
 
     unfold_messages = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())

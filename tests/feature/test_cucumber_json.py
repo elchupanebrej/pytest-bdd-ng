@@ -15,6 +15,9 @@ from pytest_bdd.util.toolz_test import InstanceOfType
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
 
+MESSAGE_REPORTER_PLUGIN = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
+MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
+
 
 def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, Any]]]:
     """Run tests in testdir and parse json output."""
@@ -265,7 +268,16 @@ def test_cucumber_json_step_status_parity_with_canonical_messages(testdir, tmp_p
         """,
     )
 
-    result = testdir.runpytest(f"--cucumberjson={resultpath}", "--messages-ndjson", str(ndjson_path), "-s")
+    result = testdir.runpytest(
+        "-p",
+        f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
+        "-p",
+        MESSAGE_REPORTER_PLUGIN,
+        f"--cucumberjson={resultpath}",
+        "--messages-ndjson",
+        str(ndjson_path),
+        "-s",
+    )
     result.assert_outcomes(passed=1, failed=1)
 
     with resultpath.open() as file:
