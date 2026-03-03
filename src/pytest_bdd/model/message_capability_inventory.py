@@ -38,6 +38,48 @@ class MandatoryScopeReconciliation:
         return bool(self.missing_mandatory_capability_ids)
 
 
+@dataclass(frozen=True, slots=True)
+class CoverageScopeReconciliation:
+    inventory_capability_ids: tuple[str, ...]
+    runtime_required_capability_ids: tuple[str, ...]
+    observed_capability_ids: tuple[str, ...]
+    classified_capability_ids: tuple[str, ...]
+    missing_runtime_required_capability_ids: tuple[str, ...]
+    uncovered_non_runtime_unclassified_capability_ids: tuple[str, ...]
+
+    @property
+    def runtime_required_total(self) -> int:
+        return len(self.runtime_required_capability_ids)
+
+    @property
+    def runtime_required_covered(self) -> int:
+        return self.runtime_required_total - len(self.missing_runtime_required_capability_ids)
+
+    @property
+    def runtime_required_missing(self) -> int:
+        return len(self.missing_runtime_required_capability_ids)
+
+    @property
+    def non_runtime_required_total(self) -> int:
+        return len(tuple(set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)))
+
+    @property
+    def non_runtime_covered(self) -> int:
+        non_runtime_set = set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)
+        observed_set = set(self.observed_capability_ids)
+        return len(non_runtime_set.intersection(observed_set))
+
+    @property
+    def non_runtime_classified(self) -> int:
+        non_runtime_set = set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)
+        classified_set = set(self.classified_capability_ids)
+        return len(non_runtime_set.intersection(classified_set))
+
+    @property
+    def has_unclassified_non_runtime_gaps(self) -> bool:
+        return bool(self.uncovered_non_runtime_unclassified_capability_ids)
+
+
 def _to_camel_case_identifier(value: str) -> str:
     parts = [part for part in value.split("_") if part]
     if not parts:
@@ -76,6 +118,38 @@ def reconcile_inventory_with_mandatory_scope(
         inventory_capability_ids=normalized_inventory,
         mandatory_capability_ids=normalized_mandatory,
         missing_mandatory_capability_ids=missing,
+    )
+
+
+def reconcile_runtime_scope_coverage(
+    *,
+    inventory_capability_ids: Iterable[str],
+    runtime_required_capability_ids: Iterable[str],
+    observed_capability_ids: Iterable[str],
+    classified_capability_ids: Iterable[str],
+) -> CoverageScopeReconciliation:
+    inventory_ids = normalize_capability_ids(inventory_capability_ids)
+    runtime_required_ids = normalize_capability_ids(runtime_required_capability_ids)
+    observed_ids = normalize_capability_ids(observed_capability_ids)
+    classified_ids = normalize_capability_ids(classified_capability_ids)
+
+    inventory_set = set(inventory_ids)
+    runtime_required_set = set(runtime_required_ids)
+    observed_set = set(observed_ids)
+    classified_set = set(classified_ids)
+
+    missing_runtime_required = tuple(sorted(runtime_required_set.difference(observed_set)))
+    non_runtime_ids = inventory_set.difference(runtime_required_set)
+    uncovered_non_runtime = non_runtime_ids.difference(observed_set)
+    uncovered_non_runtime_unclassified = tuple(sorted(uncovered_non_runtime.difference(classified_set)))
+
+    return CoverageScopeReconciliation(
+        inventory_capability_ids=inventory_ids,
+        runtime_required_capability_ids=runtime_required_ids,
+        observed_capability_ids=observed_ids,
+        classified_capability_ids=classified_ids,
+        missing_runtime_required_capability_ids=missing_runtime_required,
+        uncovered_non_runtime_unclassified_capability_ids=uncovered_non_runtime_unclassified,
     )
 
 

@@ -1,206 +1,98 @@
 # User Guide: Messages Coverage and Governance (Features 007/008)
 
-This guide explains how to use the `messages` coverage and governance capabilities introduced by
-features **007** and **008**.
+This guide describes the runtime-pure reporting and post-factum governance flow.
 
-## What 007 and 008 Provide
+## Feature split
 
-Feature **007** focuses on:
-- Schema-driven capability inventory generation from `messages/jsonschema/src/Envelope.json`
-- Runtime field coverage tracking (opt-in)
-- Hard-fail validation for invalid message stream structure
+- Feature 007: canonical capability inventory, baseline diffing, and governance primitives.
+- Feature 008: runtime-pure reporter behavior (real events only), dedicated coverage suite, runtime-required gate, and non-runtime classification gate.
 
-Feature **008** extends this with:
-- Deterministic outcome mapping and governance status vocabulary
-- Governance report schema validation
-- Release-facing checklist and baseline drift workflows
-- Strict mandatory-scope gate for `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
+## Principles
+
+- Reporter emits only real runtime events.
+- No synthetic probe payloads.
+- No test-only substitutions in normal plugin flow.
+- Coverage and governance are computed from NDJSON after test execution.
 
 ## Prerequisites
-
-Run from repository root:
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
 ```
 
-Use the project environment:
-
-```bash
-conda run -n pytest-bdd-ng-py314 tox -l
-```
-
-## Important: Message Reporter Plugin Is Explicit
-
-The gherkin message reporter is not auto-loaded via `pytest11`.
-Load it explicitly when you need `--messages-ndjson`, `--cucumber-html`, or `--messages-coverage`:
-
-```bash
--p pytest_bdd.plugin.gherkin_message_reporter.entrypoint
-```
-
-If your local environment still has old entry-point metadata and you get duplicate plugin registration
-errors, use:
+Plugin is loaded explicitly when `--messages-ndjson` or `--cucumber-html` is used:
 
 ```bash
 -p no:pytest-bdd-gherkin-message-reporter -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint
 ```
 
-## Workflow A (007): Coverage Validation
-
-### 1) Generate capability inventory
+## 1. Generate runtime evidence NDJSON
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.model.coverage.inventory \
-  --schema-dir messages/jsonschema/src \
-  --baseline-release v32.current \
-  --output /tmp/messages-capabilities.json
-```
-
-### 2) Run message-producing tests with coverage enabled
-
-```bash
-conda run -n pytest-bdd-ng-py314 pytest tests/messages -q \
-  -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
-  --messages-ndjson=/tmp/messages.ndjson \
-  --messages-coverage
-```
-
-### 3) Generate governance report from runtime evidence
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
-  --messages-file /tmp/messages.ndjson \
-  --baseline-release v32.current \
-  --output /tmp/governance.json \
-  --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json
-```
-
-## Workflow B (008): Release Governance and Drift
-
-### 1) Produce checklist-style governance output
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance checklist \
-  --capabilities /tmp/messages-capabilities.json \
-  --decisions /tmp/decisions.json \
-  --format markdown \
-  --output /tmp/governance-checklist.md
-```
-
-### 2) Compare baseline snapshots (diff)
-
-From capability snapshots:
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance diff \
-  --previous-baseline v32.previous \
-  --current-baseline v32.current \
-  --previous /tmp/capabilities-prev.json \
-  --current /tmp/capabilities-current.json \
-  --output /tmp/baseline-diff.json
-```
-
-From governance reports:
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance diff \
-  --previous-baseline v32.previous \
-  --current-baseline v32.current \
-  --previous-governance /tmp/governance-prev.json \
-  --current-governance /tmp/governance-current.json \
-  --output /tmp/baseline-diff.json
-```
-
-## Recommended Validation Slice
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest tests/contract/test_messages_capability_coverage_contract.py \
-  tests/messages/test_message_capability_inventory.py \
-  tests/messages/test_coverage.py \
-  tests/messages/test_message_outcome_mapping.py \
-  tests/messages/test_message_validation.py \
-  tests/messages/test_governance.py \
-  tests/messages/test_message_governance_checklist.py \
-  tests/messages/test_message_baseline_diff.py -q
-```
-
-## Dedicated Coverage Audit Suite
-
-The dedicated audit suite is intentionally separated from the main test suite.
-It enforces this acceptance criterion for feature 008:
-
-- every capability ID in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
-  is observed as `Implemented`,
-- `mandatory_scope_violations == 0`,
-- `blocked_capabilities == 0`.
-
-Run it with:
-
-```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-export PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1
-scripts/run_messages_coverage_audit.sh
-```
-
-The suite entry point is:
-
-```text
-tests/messages_coverage/test_full_capability_governance.py
-```
-
-Decision baseline used by the suite:
-
-```text
-specs/008-maximize-messages-coverage/contracts/capability-decisions.json
-```
-
-## Mandatory Audit Flow (008)
-
-1. Generate dedicated NDJSON from the audit suite:
-
-```bash
+mkdir -p /tmp/pytest-bdd-ng-messages-audit
 PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
   tests/messages_coverage/test_mandatory_attachments.py -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
-  --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
-  --messages-coverage
+  --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson
 ```
 
-1. Build strict governance report:
+## 2. Build governance report from NDJSON
 
 ```bash
 conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
-  --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
+  --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson \
   --baseline-release v32.current \
   --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
   --decisions specs/008-maximize-messages-coverage/contracts/capability-decisions.json \
   --mandatory-capabilities-file specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt \
-  --require-mandatory-implemented \
+  --runtime-required-capabilities-file specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt \
+  --require-runtime-required-covered \
+  --require-non-runtime-classified \
   --require-fully-governed \
-  --output /tmp/pytest-bdd-ng-messages-audit/governance-governed.json
+  --output /tmp/pytest-bdd-ng-messages-audit/governance-runtime.json
 ```
 
-1. Verify summary:
-- `mandatory_capabilities_total == 323`
-- `mandatory_capabilities_implemented == 323`
-- `mandatory_scope_violations == 0`
-- `blocked_capabilities == 0`
+## 3. Read report summary
 
-## Expected Outputs
+Important summary keys:
 
-- `/tmp/messages-capabilities.json`: schema-derived capability inventory
-- `/tmp/messages.ndjson`: runtime message stream
-- `/tmp/governance.json`: governance report with summary + capability decisions
-- `/tmp/governance-checklist.md`: reviewer-facing checklist
-- `/tmp/baseline-diff.json`: added/changed/removed capability IDs
+- `runtime_required_total`
+- `runtime_required_covered`
+- `runtime_required_missing`
+- `non_runtime_required_total`
+- `non_runtime_covered`
+- `non_runtime_classified`
+- `blocked_capabilities`
+- `mandatory_scope_violations`
+
+Gate expectations:
+
+- Runtime-required capabilities must be covered by real runtime evidence.
+- Non-runtime-required capabilities must be covered or explicitly classified.
+- Release gate fails when blockers remain.
+
+## 4. One-command audit
+
+```bash
+scripts/run_messages_coverage_audit.sh
+```
+
+This script runs the dedicated runtime-evidence suite and then executes governance report gating.
+
+## 5. CI workflow
+
+CI uses the same dedicated suite and governance gates in:
+
+```text
+.github/workflows/messages-baseline-drift.yml
+```
 
 ## Troubleshooting
 
 - `unrecognized arguments: --messages-ndjson`:
-  load plugin with `-p pytest_bdd.plugin.gherkin_message_reporter.entrypoint`.
-- Duplicate plugin registration error:
-  add `-p no:pytest-bdd-gherkin-message-reporter` before explicit plugin load.
-- Governance report schema validation failure:
-  use `--schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json`.
+  load the reporter plugin explicitly.
+- Duplicate reporter registration:
+  use `-p no:pytest-bdd-gherkin-message-reporter` before explicit plugin load.
+- Governance schema validation errors:
+  ensure `--schema` points to `specs/008-maximize-messages-coverage/contracts/governance-report.schema.json`.

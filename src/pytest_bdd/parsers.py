@@ -20,6 +20,10 @@ from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.util.other import StringRepresentable, normalize_to_string
 
+UNDEFINED_PARAMETER_TYPE_PATTERN = re_compile(
+    r"Undefined parameter type ['{]?(?P<name>[^'}.\n]+)['}]?\.?",
+)
+
 
 class ParserBuildValueError(ValueError):
     def __init__(self, format_):
@@ -286,11 +290,24 @@ class _CucumberExpression(StepParser):
     expression_type: type[CucumberExpression | CucumberRegularExpression]
     parameter_type_registry_like: ParameterTypeRegistry | Any
     parameter_type_registry = ParameterTypeRegistry()  # default registry
+    last_undefined_parameter_type: tuple[str, str] | None = None
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         try:
+            self.last_undefined_parameter_type = None
             return bool(self.rebuild_expression_in_test_context(request).tree_regexp.match(name))
-        except (UndefinedParameterTypeError, CantEscape):
+        except UndefinedParameterTypeError as exc:
+            expression = self.pattern
+            undefined_name = ""
+            for arg in exc.args:
+                matched_name = UNDEFINED_PARAMETER_TYPE_PATTERN.search(str(arg))
+                if matched_name:
+                    undefined_name = matched_name.group("name")
+                    break
+            self.last_undefined_parameter_type = (expression, undefined_name)
+            return False
+        except CantEscape:
+            self.last_undefined_parameter_type = None
             return False
 
     def parse_arguments(

@@ -40,11 +40,13 @@ def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
     payloads = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
 
     attachments = list_filter_by_type(Attachment, payloads)
+    external_attachments = list_filter_by_type(ExternalAttachment, payloads)
     test_case_started_messages = list_filter_by_type(_TestCaseStarted, payloads)
     test_step_started_messages = list_filter_by_type(_TestStepStarted, payloads)
     test_step_finished_messages = list_filter_by_type(_TestStepFinished, payloads)
 
     assert len(attachments) == 1
+    assert len(external_attachments) == 0
     assert len(test_case_started_messages) == 1
     assert len(test_step_started_messages) == 1
     assert len(test_step_finished_messages) == 1
@@ -53,6 +55,8 @@ def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
     assert attachment.test_case_started_id == test_case_started_messages[0].id
     assert attachment.test_step_id == test_step_started_messages[0].test_step_id
     assert attachment.test_step_id == test_step_finished_messages[0].test_step_id
+    assert attachment.source is None
+    assert attachment.url is None
 
 
 def test_attachment_messages_populate_mandatory_metadata_fields(testdir, tmp_path):
@@ -93,7 +97,6 @@ def test_attachment_messages_populate_mandatory_metadata_fields(testdir, tmp_pat
         testdir,
         "--messages-ndjson",
         str(ndjson_path),
-        "--messages-coverage",
     )
     result.assert_outcomes(passed=1)
 

@@ -130,6 +130,16 @@ def _(file_path: Path, line_count: int):
 
 
 @then(
+    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has at least \"(?P<line_count>(\w|\\|.)+)\" lines"),
+    converters={"line_count": int, "file_path": Path},
+)
+def _(file_path: Path, line_count: int):
+    with file_path.open("r") as fp:
+        real_line_count = reduce(lambda _, last: last, map(itemgetter(0), enumerate(fp, start=1)), 0)  # type: ignore[no-any-return]
+    assert real_line_count >= line_count
+
+
+@then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
     converters={"file_path": Path},
 )

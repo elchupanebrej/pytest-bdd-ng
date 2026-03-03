@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from functools import partial
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, cast
@@ -401,4 +401,19 @@ class ScenarioRunner:
                 previous_step=previous_step,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
-            raise exceptions.StepDefinitionNotFoundError(self.feature, self.scenario, step) from exception
+            step_lookup_exception = exceptions.StepDefinitionNotFoundError(self.feature, self.scenario, step)
+            with suppress(Exception):
+                step_registry = self.request.getfixturevalue("step_registry")
+                undefined_info = None
+                while step_registry is not None:
+                    for step_definition in step_registry:
+                        candidate = getattr(step_definition.parser, "last_undefined_parameter_type", None)
+                        if isinstance(candidate, tuple) and len(candidate) == 2 and candidate[1]:
+                            undefined_info = (str(candidate[0]), str(candidate[1]))
+                            break
+                    if undefined_info is not None:
+                        break
+                    step_registry = step_registry.parent
+                if undefined_info is not None:
+                    step_lookup_exception.undefined_parameter_type = undefined_info
+            raise step_lookup_exception from exception

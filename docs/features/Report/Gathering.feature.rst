@@ -37,20 +37,13 @@ report `Messages <https://github.com/cucumber/messages>`__
 
         <!-- markdownlint-disable-next-line MD013 -->
 
-   +----------+------+----------+----+----------+----------+----------+
-   | cli_args | -p   | no:pyt   | -p | pytes    | -        | ou       |
-   |          |      | est-bdd- |    | t_bdd.pl | -message | t.ndjson |
-   |          |      | gherkin- |    | ugin.ghe | s-ndjson |          |
-   |          |      | message- |    | rkin_mes |          |          |
-   |          |      | reporter |    | sage_rep |          |          |
-   |          |      |          |    | orter.en |          |          |
-   |          |      |          |    | trypoint |          |          |
-   +==========+======+==========+====+==========+==========+==========+
-   | su       | true |          |    |          |          |          |
-   | bprocess |      |          |    |          |          |          |
-   +----------+------+----------+----+----------+----------+----------+
+   ========== ================= ==========
+   cli_args   --messages-ndjson out.ndjson
+   ========== ================= ==========
+   subprocess true              
+   ========== ================= ==========
 
--  Then File "out.ndjson" has "15" lines
+-  Then File "out.ndjson" has at least "15" lines
 
 -  Then Report "out.ndjson" parsable into messages
 

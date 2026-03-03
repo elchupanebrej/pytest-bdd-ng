@@ -14,7 +14,16 @@
 - Q: What deterministic mapping target should the readiness matrix enforce? → A: 100% of observed outcomes in the fixed readiness matrix must map deterministically to capability entries.
 - Q: What recency rule should apply to `reviewed_at` for release readiness? → A: `reviewed_at` must be within the current release cycle; otherwise the capability is treated as `Pending` until re-reviewed.
 - Q: How should conflicting decisions for the same `capability_id` in one release cycle be handled? → A: They are forbidden and treated as validation errors and release blockers.
-- Q: Which capability fields are mandatory for hook-based reporting population in this release? → A: The full list provided by stakeholders is in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`, and every listed capability is in scope for implementation.
+- Q: Which capability fields are mandatory for hook-based reporting population in this release? → A: The full list provided by stakeholders is in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`, and every listed capability is in scope for governance evaluation.
+
+### Session 2026-03-03
+
+- Q: Should reporter runtime include synthetic probe payloads or test-only field substitutions? → A: No. Reporter emits only real runtime events and does not inject synthetic probe payloads or test-only substitutions into the normal plugin flow.
+- Q: Where should capability coverage and governance evaluation occur? → A: In a separate coverage/governance layer that analyzes emitted NDJSON post-factum.
+- Q: How should fields that are objectively unreachable in Python runtime be handled? → A: They must be explicitly classified as `Non-Implementable` with a documented reason, owner, evidence reference, and review date.
+- Q: What CI gate policy applies to runtime-required vs non-runtime-required capabilities? → A: Runtime-required capabilities must be covered by real tests; all other capabilities must be either covered or explicitly classified.
+- Q: What should `runtime-required` include and when is `Non-Implementable` valid? → A: `runtime-required` must include all capabilities realistically extractable from real Python runtime events/hooks; `Non-Implementable` is valid only for objectively unreachable capabilities with hard technical justification.
+- Q: What evidence is mandatory for `Non-Implementable` decisions? → A: A strict proof bundle is required: hard technical limitation, reproducible runtime evidence, decision owner, and `recheck_trigger`.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -88,14 +97,18 @@ As a release reviewer, I need a governance checklist that summarizes capability 
 - **FR-011**: The specification MUST treat capabilities listed in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt` as explicitly in scope for this release.
 - **FR-012**: The system MUST keep capability status terminology consistent across specification, planning, and governance artifacts.
 - **FR-013**: The system MUST treat multiple decisions for the same `capability_id` within one release cycle as a validation error and a release blocker.
-- **FR-014**: Reporting hooks MUST populate every capability identifier listed in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt` when executing the dedicated coverage audit suite.
-- **FR-015**: Any capability listed in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt` MUST NOT be classified as `Non-Implementable`, `Not-Applicable`, or `Not-Acceptable` for release readiness.
+- **FR-014**: Reporter emission MUST contain only real runtime events and MUST NOT add synthetic probe payloads or test-only substitutions in normal plugin execution.
+- **FR-015**: Coverage and governance evaluation MUST run as a post-factum analysis layer over emitted NDJSON artifacts rather than as synthetic runtime event injection.
+- **FR-016**: The system MUST define and maintain a `runtime-required` subset of capability identifiers for release gating; this subset MUST include all capabilities realistically extractable from real Python runtime events/hooks and MUST be covered by real runtime tests.
+- **FR-017**: Capabilities outside the `runtime-required` subset MUST be either covered by real runtime evidence or explicitly classified with one current status and complete governance metadata.
+- **FR-018**: Any capability objectively unreachable in Python runtime MUST be classified as `Non-Implementable` with explicit rationale, decision owner, evidence reference, review date, hard technical justification describing why extraction is impossible in current runtime/hook surfaces, and a `recheck_trigger`.
+- **FR-019**: Each `Non-Implementable` decision MUST include a reproducible proof bundle linking runtime suite evidence to the technical limitation claim; missing proof bundle fields are release-blocking validation errors.
 
 ### Mandatory Hook-Populated Capability Set
 
 - Normative source: `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
 - Cardinality: 323 capability identifiers.
-- Rule: each listed identifier is mandatory implementation scope for hook-based reporting emission and governance coverage in this release.
+- Rule: each listed identifier is mandatory governance scope in this release. Runtime gating applies to the explicitly defined `runtime-required` subset; non-runtime-required identifiers still require either real coverage evidence or explicit classification.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -121,4 +134,6 @@ As a release reviewer, I need a governance checklist that summarizes capability 
 - **SC-003**: In the fixed readiness matrix, 100% of observed outcomes are automatically and deterministically mapped to cataloged capabilities with no ambiguous status terms.
 - **SC-004**: Release reviewers can determine go/no-go status using only the governance artifact in 10 minutes or less.
 - **SC-005**: Pre-release review finds zero undocumented capability gaps in two consecutive release cycles.
-- **SC-006**: In dedicated coverage audit runs, 100% of capability identifiers listed in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt` are reported as `Implemented`.
+- **SC-006**: In dedicated coverage audit runs, 100% of `runtime-required` capability identifiers are covered by real runtime evidence.
+- **SC-007**: In dedicated governance evaluation, 100% of non-runtime-required capability identifiers are either covered by real evidence or explicitly classified with complete decision metadata.
+- **SC-008**: 100% of `Non-Implementable` decisions include a complete proof bundle (technical limitation, reproducible evidence reference, owner, review date, and `recheck_trigger`) with zero missing fields at gate evaluation time.

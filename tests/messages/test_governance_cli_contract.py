@@ -31,7 +31,11 @@ def test_governance_cli_contract_accepts_valid_report_payload(tmp_path: Path) ->
         "messages_file": str(tmp_path / "messages.ndjson"),
         "baseline_release": "v32.current",
         "mandatory_capabilities_file": "specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt",
-        "require_mandatory_implemented": True,
+        "runtime_required_capabilities_file": (
+            "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt"
+        ),
+        "require_runtime_required_covered": True,
+        "require_non_runtime_classified": True,
         "require_fully_governed": True,
         "format": "json",
         "output": str(tmp_path / "governance.json"),
@@ -42,15 +46,15 @@ def test_governance_cli_contract_accepts_valid_report_payload(tmp_path: Path) ->
     assert errors == []
 
 
-def test_governance_cli_contract_requires_mandatory_file_when_flag_enabled(tmp_path: Path) -> None:
+def test_governance_cli_contract_requires_runtime_required_file_when_flag_enabled(tmp_path: Path) -> None:
     payload = {
         "command": "report",
         "messages_file": str(tmp_path / "messages.ndjson"),
         "baseline_release": "v32.current",
-        "require_mandatory_implemented": True,
+        "require_runtime_required_covered": True,
     }
 
     errors = list(_validator().iter_errors(payload))
 
     assert errors
-    assert any("mandatory_capabilities_file" in error.message for error in errors)
+    assert any("runtime_required_capabilities_file" in error.message for error in errors)

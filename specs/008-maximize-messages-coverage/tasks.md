@@ -7,8 +7,7 @@ description: "Task list for Maximize Messages Capability Coverage implementation
 **Input**: Design documents from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/008-maximize-messages-coverage/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Test tasks are included because the specification defines
-independent test criteria for each story and requires validation-first delivery.
+**Tests**: Test tasks are included because the specification defines independent test criteria for each story and requires validation-first delivery.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing.
 
@@ -20,123 +19,120 @@ independent test criteria for each story and requires validation-first delivery.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Prepare dedicated audit inputs and shared scaffolding before core implementation.
+**Purpose**: Prepare feature artifacts and dedicated runtime-evidence harness.
 
-- [X] T001 Create dedicated audit fixture package in `tests/messages_coverage/__init__.py`
-- [X] T002 Create mandatory Gherkin fixture with comments/background/rule/examples/docstring/datatable in `tests/messages_coverage/fixtures/mandatory_coverage.feature`
-- [X] T003 [P] Create attachment-driven audit scenarios in `tests/messages_coverage/test_mandatory_attachments.py`
-- [X] T004 [P] Add shared mandatory-scope fixtures in `tests/messages_coverage/conftest.py`
+- [X] T001 Refresh mandatory governance scope source in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
+- [X] T002 [P] Refresh runtime-required scope source in `specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt`
+- [X] T003 [P] Refresh Non-Implementable clarification contract in `specs/008-maximize-messages-coverage/contracts/caps.yaml`
+- [X] T004 [P] Refresh dedicated runtime coverage fixture in `tests/messages_coverage/fixtures/mandatory_coverage.feature`
+- [X] T005 Wire dedicated audit helper command flow in `scripts/run_messages_coverage_audit.sh`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Implement shared primitives required by all user stories.
+**Purpose**: Shared governance/runtime primitives that must exist before user story work.
 
 **⚠️ CRITICAL**: No user story work starts until this phase is complete.
 
-- [X] T005 Implement canonical capability ID normalization helpers in `src/pytest_bdd/model/coverage/inventory.py`
-- [X] T006 [P] Integrate normalized capability IDs in coverage tracking outputs in `src/pytest_bdd/model/coverage/tracker.py`
-- [X] T007 [P] Integrate normalized capability IDs in message validation coverage extraction in `src/pytest_bdd/model/message_validation.py`
-- [X] T008 Implement mandatory capability list loader and parser in `src/pytest_bdd/script/message_capability_governance.py`
-- [X] T009 Implement mandatory summary metric aggregation scaffolding in `src/pytest_bdd/script/message_capability_governance.py`
-- [X] T010 [P] Add normalization unit tests in `tests/messages/test_capability_id_normalization.py`
-- [X] T011 Add mandatory list loading and uniqueness tests in `tests/messages/test_governance.py`
+- [X] T006 Implement `hard_limitation` and strict decision metadata model in `src/pytest_bdd/model/message_status_governance.py`
+- [X] T007 [P] Implement extraction feasibility and runtime-scope reconciliation helpers in `src/pytest_bdd/model/message_capability_inventory.py`
+- [X] T008 [P] Extend canonical observed-field extraction and path normalization in `src/pytest_bdd/model/message_validation.py`
+- [X] T009 Implement deterministic governance gate pipeline (`I`, `R`, `O`, `D`) in `src/pytest_bdd/script/message_capability_governance.py`
+- [X] T010 [P] Update governance report schema and OpenAPI components in `specs/008-maximize-messages-coverage/contracts/governance-report.schema.json` and `specs/008-maximize-messages-coverage/contracts/messages-capability-governance.openapi.yaml`
+- [X] T011 [P] Add foundational status-governance tests in `tests/messages/test_message_status_governance.py`
+- [X] T012 [P] Add foundational inventory/scope tests in `tests/messages/test_message_capability_inventory.py`
+- [X] T013 [P] Add foundational CLI and contract schema tests in `tests/messages/test_governance_cli_contract.py` and `tests/contract/test_messages_capability_coverage_contract.py`
 
-**Checkpoint**: Foundation complete, user stories can proceed.
+**Checkpoint**: Foundation complete, user stories can begin.
 
 ---
 
 ## Phase 3: User Story 1 - Complete capability inventory (Priority: P1) 🎯 MVP
 
-**Goal**: Ensure canonical inventory and decision model are deterministic and mandatory-scope aware.
+**Goal**: Deliver canonical capability inventory with deterministic status governance and single active decision per capability per release.
 
-**Independent Test**: Generate inventory and verify each relevant capability
-appears once with one status, and non-implemented non-mandatory entries require
-evidence fields.
+**Independent Test**: Generate inventory and decision view and verify each relevant capability appears once with exactly one current status and required metadata for non-implemented statuses.
 
 ### Tests for User Story 1
 
-- [X] T012 [P] [US1] Add contract assertions for canonical inventory uniqueness in `tests/contract/test_messages_capability_coverage_contract.py`
-- [X] T013 [P] [US1] Add inventory cardinality and mandatory-scope inclusion tests in `tests/messages/test_message_capability_inventory.py`
-- [X] T014 [P] [US1] Add decision lifecycle invariants tests for one-decision-per-release-cycle in `tests/messages/test_message_status_governance.py`
+- [X] T014 [P] [US1] Add inventory uniqueness and status vocabulary contract test in `tests/contract/test_messages_capability_coverage_contract.py`
+- [X] T015 [P] [US1] Add duplicate-decision and release-cycle review recency tests in `tests/messages/test_governance.py`
 
 ### Implementation for User Story 1
 
-- [X] T015 [US1] Implement canonical inventory export and stable capability ID generation in `src/pytest_bdd/model/coverage/inventory.py`
-- [X] T016 [US1] Implement inventory reconciliation against mandatory scope in `src/pytest_bdd/model/message_capability_inventory.py`
-- [X] T017 [US1] Enforce exactly one active decision per capability and release target in `src/pytest_bdd/model/message_status_governance.py`
-- [X] T018 [US1] Update mandatory scope source artifact for deterministic ordering and comments in `specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt`
+- [X] T016 [US1] Implement canonical capability ID normalization and export consistency in `src/pytest_bdd/model/coverage/inventory.py`
+- [X] T017 [US1] Enforce one active decision per (`capability_id`, `release_target`) in `src/pytest_bdd/model/message_status_governance.py`
+- [X] T018 [US1] Implement runtime-required and mandatory-scope input loading in `src/pytest_bdd/script/message_capability_governance.py`
+- [X] T019 [US1] Align decision records with required metadata fields in `specs/008-maximize-messages-coverage/contracts/capability-decisions.json`
+- [X] T020 [US1] Document inventory and decision governance invariants in `specs/008-maximize-messages-coverage/research.md`
 
-**Checkpoint**: US1 delivers canonical, deterministic capability inventory for MVP governance.
+**Checkpoint**: US1 is independently testable with deterministic inventory and decision integrity.
 
 ---
 
 ## Phase 4: User Story 2 - Make coverage gaps visible (Priority: P2)
 
-**Goal**: Populate mandatory hook fields at runtime and expose any coverage gap deterministically.
+**Goal**: Emit only real runtime events while surfacing coverage gaps through deterministic post-factum NDJSON analysis.
 
-**Independent Test**: Dedicated readiness matrix emits mandatory payload paths
-and maps all observed outcomes to canonical capability IDs with no ambiguity.
+**Independent Test**: Run dedicated runtime suite and verify emitted NDJSON contains real runtime/hook-derived fields, with deterministic mapping and no synthetic/test-only substitutions.
 
 ### Tests for User Story 2
 
-- [X] T019 [P] [US2] Add attachment mandatory-field formation tests in `tests/messages/test_message_attachments.py`
-- [X] T020 [P] [US2] Add deep gherkin document branch coverage tests in `tests/messages/test_messages.py`
-- [X] T021 [P] [US2] Add external attachment payload coverage tests in `tests/messages/test_message_validation.py`
-- [X] T022 [P] [US2] Upgrade dedicated audit assertions for mandatory observed IDs in `tests/messages_coverage/test_full_capability_governance.py`
+- [X] T021 [P] [US2] Add reporter emission tests for hook metadata and test-case linkage in `tests/messages/test_messages.py`
+- [X] T022 [P] [US2] Add attachment and externalAttachment field population tests in `tests/messages/test_message_attachments.py`
+- [X] T023 [P] [US2] Add dedicated runtime-evidence assertions for parse/suggestion/undefined-parameter flows in `tests/messages_coverage/test_mandatory_attachments.py`
 
 ### Implementation for User Story 2
 
-- [X] T023 [US2] Extend reporter attachment emission to populate timestamp/url/source/linkage fields in `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
-- [X] T024 [US2] Extend scenario runner attach hook contract for source/url metadata in `src/pytest_bdd/plugin/scenario_runner/hook.py`
-- [X] T025 [US2] Pass attachment metadata through attach fixture entrypoint in `src/pytest_bdd/plugin/scenario_runner/entrypoint.py`
-- [X] T026 [US2] Add external attachment payload-kind support and envelope unfolding in `src/pytest_bdd/model/message_extension.py`
-- [X] T027 [US2] Extend message validation payload-kind recognition for external attachments in `src/pytest_bdd/model/message_validation.py`
-- [X] T028 [US2] Expand struct-bdd and parser AST formation for rule/background/comments depth in `src/pytest_bdd/plugin/struct_bdd/model_builder.py`
-- [X] T029 [US2] Complete parser-driven gherkin document field propagation for mandatory nested paths in `src/pytest_bdd/parser.py`
-- [X] T030 [US2] Add mandatory audit feature inputs invoking attachment and gherkin branches in `tests/messages_coverage/fixtures/mandatory_coverage.feature`
+- [X] T024 [US2] Emit hook type and richer source reference fields in `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- [X] T025 [US2] Emit test-case-to-run linkage fields in `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- [X] T026 [US2] Implement parseError and undefinedParameterType message emission in `src/pytest_bdd/parser.py` and `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- [X] T027 [US2] Implement suggestion emission from step lookup errors in `src/pytest_bdd/plugin/scenario_runner/plugin.py` and `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- [X] T028 [US2] Remove synthetic/test-only substitution branches from normal runtime flow in `src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py` and `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- [X] T029 [US2] Extend observed-field tracking for newly emitted runtime paths in `src/pytest_bdd/model/message_validation.py`
+- [X] T030 [US2] Add e2e deterministic mapping assertions for runtime-only flow in `tests/e2e/conftest.py`
 
-**Checkpoint**: US2 provides deterministic runtime coverage visibility for mandatory hook-populated fields.
+**Checkpoint**: US2 is independently testable with runtime-pure emission and explicit coverage visibility.
 
 ---
 
 ## Phase 5: User Story 3 - Govern release readiness (Priority: P3)
 
-**Goal**: Enforce release-governance gates so mandatory IDs cannot be deferred and readiness fails on violations.
+**Goal**: Enforce release gates where runtime-required capabilities must be runtime-covered and all other capabilities must be covered or explicitly classified.
 
-**Independent Test**: Governance report alone shows all mandatory IDs as
-`Implemented`, zero mandatory-scope violations, and deterministic
-blocker/deferred/approved disposition.
+**Independent Test**: Build governance report from dedicated NDJSON evidence and verify strict pass/fail behavior for runtime-required misses, non-runtime classification gaps, and invalid Non-Implementable decisions.
 
 ### Tests for User Story 3
 
-- [X] T031 [P] [US3] Add contract tests for governance report mandatory flags and failure modes in `tests/contract/test_messages_capability_coverage_contract.py`
-- [X] T032 [P] [US3] Add governance report mandatory-scope enforcement tests in `tests/messages/test_governance.py`
-- [X] T033 [P] [US3] Add CLI contract schema validation tests for report command in `tests/messages/test_governance_cli_contract.py`
+- [X] T031 [P] [US3] Add runtime-required gate behavior tests in `tests/messages/test_governance.py`
+- [X] T032 [P] [US3] Add non-runtime classified-or-covered gate tests in `tests/messages/test_governance.py`
+- [X] T033 [P] [US3] Add dedicated end-to-end governance gate test in `tests/messages_coverage/test_full_capability_governance.py`
 
 ### Implementation for User Story 3
 
-- [X] T034 [US3] Implement `--mandatory-capabilities-file` and `--require-mandatory-implemented` report options in `src/pytest_bdd/script/message_capability_governance.py`
-- [X] T035 [US3] Enforce mandatory-scope status restrictions during decision merge in `src/pytest_bdd/model/message_status_governance.py`
-- [X] T036 [US3] Add mandatory summary fields and capability-level scope marker in `specs/008-maximize-messages-coverage/contracts/governance-report.schema.json`
-- [X] T037 [US3] Update governance OpenAPI report contract for mandatory enforcement semantics in `specs/008-maximize-messages-coverage/contracts/messages-capability-governance.openapi.yaml`
-- [X] T038 [US3] Implement CLI command contract for mandatory enforcement options in `specs/008-maximize-messages-coverage/contracts/message-capability-governance-cli.schema.json`
-- [X] T039 [US3] Replace non-implemented mandatory decisions with compliant governance baseline in `specs/008-maximize-messages-coverage/contracts/capability-decisions.json`
+- [X] T034 [US3] Implement runtime-required and non-runtime classification gate evaluation in `src/pytest_bdd/script/message_capability_governance.py`
+- [X] T035 [US3] Enforce hard technical limitation policy for `Non-Implementable` in `src/pytest_bdd/model/message_status_governance.py`
+- [X] T036 [US3] Implement conflict validation for runtime-observed capabilities marked `Non-Implementable` in `src/pytest_bdd/script/message_capability_governance.py`
+- [X] T037 [US3] Emit governance report fields for `hard_limitation` and runtime/non-runtime counters in `src/pytest_bdd/script/message_capability_governance.py`
+- [X] T038 [US3] Require `hard_limitation` for `Non-Implementable` in `specs/008-maximize-messages-coverage/contracts/governance-report.schema.json` and `specs/008-maximize-messages-coverage/contracts/messages-capability-governance.openapi.yaml`
+- [X] T039 [US3] Align CLI report contract flags and strict requirements in `specs/008-maximize-messages-coverage/contracts/message-capability-governance-cli.schema.json`
+- [X] T040 [US3] Refresh governed decision dataset with hard-issue-only exceptions in `specs/008-maximize-messages-coverage/contracts/capability-decisions.json`
 
-**Checkpoint**: US3 enables release go/no-go governance with mandatory-scope enforcement.
+**Checkpoint**: US3 is independently testable with strict, deterministic release-governance gates.
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: Final quality gates, docs, and release-ready validation.
+**Purpose**: Finalize documentation, CI wiring, and validation evidence.
 
-- [X] T040 [P] Update user-facing 007/008 guide with mandatory audit flow in `docs/messages-coverage-user-guide.md`
-- [X] T041 Update command walkthrough and expected strict outcomes in `specs/008-maximize-messages-coverage/quickstart.md`
-- [X] T042 [P] Add explicit CI gate for dedicated mandatory coverage audit in `.github/workflows/messages-baseline-drift.yml`
-- [X] T043 Execute mandatory coverage regression slice and document commands in `specs/008-maximize-messages-coverage/quickstart.md`
-- [X] T044 Run pre-commit for touched files and resolve all hook issues via `.pre-commit-config.yaml`
+- [X] T041 [P] Update user guide for runtime-pure coverage/governance workflow in `docs/messages-coverage-user-guide.md`
+- [X] T042 [P] Update quickstart execution and validation instructions in `specs/008-maximize-messages-coverage/quickstart.md`
+- [X] T043 [P] Update CI gate orchestration for dedicated audit runs in `.github/workflows/messages-baseline-drift.yml`
+- [X] T044 Run contract and governance unit test slices in `tests/contract/test_messages_capability_coverage_contract.py`, `tests/messages/test_governance.py`, and `tests/messages/test_governance_cli_contract.py`
+- [X] T045 Run dedicated messages coverage suite and full e2e suite with HTML report in `tests/messages_coverage/test_full_capability_governance.py` and `tests/e2e/`
+- [X] T046 Run pre-commit hooks for touched files via `.pre-commit-config.yaml`
 
 ---
 
@@ -145,11 +141,11 @@ blocker/deferred/approved disposition.
 ### Phase Dependencies
 
 - **Phase 1 (Setup)**: No dependencies.
-- **Phase 2 (Foundational)**: Depends on Phase 1; blocks all user stories.
+- **Phase 2 (Foundational)**: Depends on Phase 1 and blocks all user stories.
 - **Phase 3 (US1)**: Depends on Phase 2.
-- **Phase 4 (US2)**: Depends on Phase 2 and reuses US1 canonical inventory/ID normalization.
-- **Phase 5 (US3)**: Depends on Phase 2 and consumes US1+US2 outputs for readiness enforcement.
-- **Phase 6 (Polish)**: Depends on completion of US1, US2, US3.
+- **Phase 4 (US2)**: Depends on Phase 2; consumes canonical scope outputs from US1.
+- **Phase 5 (US3)**: Depends on Phase 2 and requires US1 + US2 outputs for final governance gates.
+- **Phase 6 (Polish)**: Depends on completion of US1, US2, and US3.
 
 ### User Story Dependency Graph
 
@@ -157,42 +153,35 @@ blocker/deferred/approved disposition.
 US1 (P1) -> US2 (P2) -> US3 (P3)
 ```
 
-Rationale:
-- US1 establishes deterministic inventory and decision constraints.
-- US2 depends on canonical IDs and inventory semantics from US1.
-- US3 enforces governance using runtime evidence produced by US2.
-
 ### Within Each User Story
 
-- Test tasks precede implementation tasks.
-- Model/rule updates precede plugin/CLI wiring.
-- Story checkpoint must pass before moving to next priority.
+- Tests are written before implementation tasks.
+- Model/contract changes precede CLI/report integration.
+- Each story must pass its independent test checkpoint before moving to the next priority.
 
 ## Parallel Execution Examples
 
 ### User Story 1
 
 ```bash
-Task: "T012 [US1] Add contract assertions in tests/contract/test_messages_capability_coverage_contract.py"
-Task: "T013 [US1] Add inventory tests in tests/messages/test_message_capability_inventory.py"
-Task: "T014 [US1] Add decision lifecycle tests in tests/messages/test_message_status_governance.py"
+Task: "T014 [US1] Add inventory uniqueness contract test in tests/contract/test_messages_capability_coverage_contract.py"
+Task: "T015 [US1] Add duplicate-decision and recency tests in tests/messages/test_governance.py"
 ```
 
 ### User Story 2
 
 ```bash
-Task: "T019 [US2] Add attachment formation tests in tests/messages/test_message_attachments.py"
-Task: "T020 [US2] Add deep gherkin coverage tests in tests/messages/test_messages.py"
-Task: "T021 [US2] Add external attachment coverage tests in tests/messages/test_message_validation.py"
-Task: "T022 [US2] Upgrade dedicated audit assertions in tests/messages_coverage/test_full_capability_governance.py"
+Task: "T021 [US2] Add reporter emission tests in tests/messages/test_messages.py"
+Task: "T022 [US2] Add attachment field population tests in tests/messages/test_message_attachments.py"
+Task: "T023 [US2] Add runtime-evidence assertions in tests/messages_coverage/test_mandatory_attachments.py"
 ```
 
 ### User Story 3
 
 ```bash
-Task: "T031 [US3] Add report-flag contract tests in tests/contract/test_messages_capability_coverage_contract.py"
-Task: "T032 [US3] Add governance mandatory-scope tests in tests/messages/test_governance.py"
-Task: "T033 [US3] Add CLI contract schema tests in tests/messages/test_governance_cli_contract.py"
+Task: "T031 [US3] Add runtime-required gate tests in tests/messages/test_governance.py"
+Task: "T032 [US3] Add non-runtime classification gate tests in tests/messages/test_governance.py"
+Task: "T033 [US3] Add full governance gate e2e test in tests/messages_coverage/test_full_capability_governance.py"
 ```
 
 ## Implementation Strategy
@@ -201,25 +190,26 @@ Task: "T033 [US3] Add CLI contract schema tests in tests/messages/test_governanc
 
 1. Complete Phase 1 and Phase 2.
 2. Complete Phase 3 (US1).
-3. Validate canonical inventory + decision invariants before broader runtime changes.
+3. Validate deterministic inventory and decision integrity.
+4. Demo/review before runtime reporter expansion.
 
 ### Incremental Delivery
 
-1. Deliver US1 for deterministic inventory baseline.
-2. Deliver US2 for mandatory runtime field population and visibility.
-3. Deliver US3 for hard governance gates and release enforcement.
-4. Finish Phase 6 polish and validation.
+1. Deliver US1 for canonical inventory and status governance baseline.
+2. Deliver US2 for runtime-pure event emission and coverage visibility.
+3. Deliver US3 for strict release readiness gates.
+4. Finish Polish phase for CI/docs/final validation.
 
 ### Parallel Team Strategy
 
-1. Team finishes Setup + Foundational together.
+1. Team completes Setup + Foundational together.
 2. After Phase 2:
-   - Engineer A drives US1 inventory/decision model.
-   - Engineer B prepares US2 runtime hook coverage tests.
-3. US2 and US3 proceed after US1 normalization is merged.
+   - Engineer A drives US1 inventory and decision integrity.
+   - Engineer B drives US2 runtime emission and coverage mapping.
+3. Engineer C begins US3 gate logic after US1 and US2 checkpoints pass.
 
 ## Notes
 
 - All tasks follow strict checklist format: checkbox + Task ID + optional `[P]` + optional `[US#]` + file path.
-- `[P]` tasks are parallel-safe only when file overlap and dependency ordering permit.
-- MVP scope recommendation: complete through **Phase 3 (US1)** first.
+- `[P]` tasks are parallel-safe only when dependency ordering and file overlap allow.
+- Suggested MVP scope: complete through **Phase 3 (US1)** first.

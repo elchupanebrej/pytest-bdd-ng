@@ -18,6 +18,12 @@ from cucumber_messages import (  # type:ignore[attr-defined]  # type:ignore[attr
     StepDefinition,
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
+from cucumber_messages import (
+    ParseError as _ParseError,
+)
+from cucumber_messages import (
+    Suggestion as _Suggestion,
+)
 from cucumber_messages import TestCase as _TestCase  # type:ignore[attr-defined]
 from cucumber_messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
 from cucumber_messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
@@ -25,6 +31,9 @@ from cucumber_messages import TestRunFinished as _TestRunFinished  # type:ignore
 from cucumber_messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
 from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
+from cucumber_messages import (
+    UndefinedParameterType as _UndefinedParameterType,
+)
 from pydantic import ValidationError
 
 from pytest_bdd.model.message_converter import envelope_from_dict, message_converter
@@ -160,6 +169,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
 
     test_case_messages = messages = list_filter_by_type(_TestCase, unfold_messages)
     assert len(test_case_messages) == 1, f"Messages: {pformat(messages)}"
+    assert test_case_messages[0].test_run_started_id == test_run_started_messages[0].id
 
     test_case_started_messages = messages = list_filter_by_type(_TestCaseStarted, unfold_messages)
     assert len(test_case_started_messages) == 1, f"Messages: {pformat(messages)}"
@@ -175,6 +185,9 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
 
     test_run_finished_messages = messages = list_filter_by_type(_TestRunFinished, unfold_messages)
     assert len(test_run_finished_messages) == 1, f"Messages: {pformat(messages)}"
+    assert list_filter_by_type(_ParseError, unfold_messages) == []
+    assert list_filter_by_type(_Suggestion, unfold_messages) == []
+    assert list_filter_by_type(_UndefinedParameterType, unfold_messages) == []
 
     messages_ids = [m.id for m in unfold_messages if hasattr(m, "id")]
     assert len(messages_ids) == len(list(set(messages_ids)))
@@ -610,6 +623,74 @@ def test_hook_type_messages(testdir, tmp_path):
 
     # after_tag hook
     assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)
+    assert all(message.type is not None for message in attachment_messages)
+
+
+def test_lookup_error_emits_suggestion_and_undefined_parameter_type(testdir: "Testdir", tmp_path):
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given, parsers
+
+        @given(parsers.cucumber_expression("value is {unknownParameter}"))
+        def value_is_unknown_parameter():
+            pass
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        undefined_parameter="""
+        Feature: undefined parameter type emission
+
+          Scenario: unknown parameter type in expression
+            Given value is 10
+        """,
+    )
+
+    ndjson_path = tmp_path / "undefined-parameter.ndjson"
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(failed=1)
+
+    unfold_messages = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    suggestions = list_filter_by_type(_Suggestion, unfold_messages)
+    undefined_parameter_types = list_filter_by_type(_UndefinedParameterType, unfold_messages)
+
+    assert suggestions, "Expected suggestion payload for step lookup failure"
+    assert suggestions[0].pickle_step_id
+    assert suggestions[0].snippets
+    assert suggestions[0].snippets[0].language == "python"
+    assert "NotImplementedError" in suggestions[0].snippets[0].code
+
+    assert undefined_parameter_types, "Expected undefinedParameterType payload for undefined cucumber parameter type"
+    assert undefined_parameter_types[0].name == "unknownParameter"
+    assert "unknownParameter" in undefined_parameter_types[0].expression
+
+
+def test_feature_parse_error_emits_parse_error_message(testdir: "Testdir", tmp_path):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        broken="""
+        Feature broken feature
+
+          Scenario: malformed step
+            Given regular step
+        """,
+    )
+
+    ndjson_path = tmp_path / "parse-error.ndjson"
+    result = runpytest_with_message_reporter(testdir, "--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(errors=1)
+
+    unfold_messages = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+    parse_errors = list_filter_by_type(_ParseError, unfold_messages)
+
+    assert parse_errors, "Expected parseError payload on feature parse failure"
+    assert parse_errors[0].source is not None
+    assert parse_errors[0].source.location is not None
+    assert parse_errors[0].source.location.line >= 1
 
 
 def test_lifecycle_count_and_order_for_pass_and_fail(testdir: "Testdir", tmp_path):

@@ -8,7 +8,7 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, i
 from jsonschema import ValidationError, validators
 from referencing import Registry, Resource
 
-from .coverage.inventory import canonical_payload_kind
+from .coverage.inventory import canonical_capability_id, canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
 from .message_capability_inventory import load_envelope_schema
 from .message_extension import (
@@ -128,7 +128,7 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
             normalized = normalize_capability_status(str(implementation_status))
             if normalized == "Not-Acceptable":
                 return "failed"
-            if normalized in {"Implemented", "Not-Applicable", "Non-Implementable"}:
+            if normalized in {"Implemented", "Partly-Applicable", "Not-Applicable", "Non-Implementable"}:
                 return "passed"
         will_be_retried = getattr(payload, "will_be_retried", None)
         if isinstance(will_be_retried, bool) and will_be_retried:
@@ -174,6 +174,17 @@ def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOu
         if outcome is not None:
             outcomes.append(outcome)
     return outcomes
+
+
+def collect_observed_capability_ids(envelopes: list[EventEnvelope]) -> tuple[str, ...]:
+    validation_result = validate_message_stream(envelopes, track_coverage=True)
+    if validation_result.observed_coverage is None:
+        return ()
+    observed_ids = {
+        canonical_capability_id(f"{payload_kind}.{path}" if path else payload_kind)
+        for payload_kind, path in validation_result.observed_coverage.observed_fields
+    }
+    return tuple(sorted(observed_ids))
 
 
 def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
@@ -411,6 +422,7 @@ def validate_message_stream(  # noqa: C901
                     )
                 )
             if normalized_implementation_status in {
+                "Partly-Applicable",
                 "Non-Implementable",
                 "Not-Acceptable",
                 "Not-Applicable",

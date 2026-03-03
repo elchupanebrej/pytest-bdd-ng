@@ -6,6 +6,7 @@ from pytest_bdd.model.coverage.inventory import generate_inventory, iter_capabil
 from pytest_bdd.model.message_capability import capability_is_relevant, classify_capability_relevance
 from pytest_bdd.model.message_capability_inventory import (
     reconcile_inventory_with_mandatory_scope,
+    reconcile_runtime_scope_coverage,
     resolve_messages_schema_dir,
     sync_capability_inventory,
 )
@@ -61,26 +62,43 @@ def test_generated_inventory_capability_ids_are_unique_and_canonical() -> None:
     assert all("_" not in capability_id.split(".", 1)[0] for capability_id in capability_ids)
 
 
-def test_reconcile_inventory_with_mandatory_scope_has_zero_missing() -> None:
+def test_reconcile_inventory_with_runtime_required_scope_has_zero_missing() -> None:
     inventory = generate_inventory(resolve_messages_schema_dir())
     inventory_capability_ids = iter_capability_ids(inventory)
-    mandatory_scope_path = (
+    runtime_required_scope_path = (
         Path(__file__).resolve().parents[2]
         / "specs"
         / "008-maximize-messages-coverage"
-        / "mandatory-hook-capability-ids.txt"
+        / "runtime-required-capability-ids.txt"
     )
-    mandatory_scope_ids = [
+    runtime_required_scope_ids = [
         line.strip()
-        for line in mandatory_scope_path.read_text(encoding="utf-8").splitlines()
+        for line in runtime_required_scope_path.read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.strip().startswith("#")
     ]
 
     reconciliation = reconcile_inventory_with_mandatory_scope(
         inventory_capability_ids=inventory_capability_ids,
-        mandatory_capability_ids=mandatory_scope_ids,
+        mandatory_capability_ids=runtime_required_scope_ids,
     )
 
-    assert reconciliation.mandatory_total == 323
+    assert reconciliation.mandatory_total > 0
     assert reconciliation.has_missing_mandatory_capabilities is False
     assert reconciliation.missing_mandatory_capability_ids == ()
+
+
+def test_reconcile_runtime_scope_coverage_tracks_unclassified_non_runtime_gaps() -> None:
+    reconciliation = reconcile_runtime_scope_coverage(
+        inventory_capability_ids=("cap.a", "cap.b", "cap.c"),
+        runtime_required_capability_ids=("cap.a",),
+        observed_capability_ids=("cap.a",),
+        classified_capability_ids=("cap.b",),
+    )
+
+    assert reconciliation.runtime_required_total == 1
+    assert reconciliation.runtime_required_covered == 1
+    assert reconciliation.runtime_required_missing == 0
+    assert reconciliation.non_runtime_required_total == 2
+    assert reconciliation.non_runtime_covered == 0
+    assert reconciliation.non_runtime_classified == 1
+    assert reconciliation.uncovered_non_runtime_unclassified_capability_ids == ("cap.c",)

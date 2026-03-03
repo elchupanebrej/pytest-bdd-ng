@@ -14,7 +14,9 @@
   "properties": {
     "version": {
       "type": "string",
-      "enum": ["1.0"]
+      "enum": [
+        "1.1"
+      ]
     },
     "generated_at": {
       "type": "string",
@@ -32,8 +34,12 @@
         "blocked_capabilities",
         "deferred_capabilities",
         "coverage_percentage",
-        "mandatory_capabilities_total",
-        "mandatory_capabilities_implemented",
+        "runtime_required_total",
+        "runtime_required_covered",
+        "runtime_required_missing",
+        "non_runtime_required_total",
+        "non_runtime_covered",
+        "non_runtime_classified",
         "mandatory_scope_violations"
       ],
       "properties": {
@@ -58,11 +64,27 @@
           "minimum": 0,
           "maximum": 100
         },
-        "mandatory_capabilities_total": {
+        "runtime_required_total": {
           "type": "integer",
           "minimum": 0
         },
-        "mandatory_capabilities_implemented": {
+        "runtime_required_covered": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runtime_required_missing": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "non_runtime_required_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "non_runtime_covered": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "non_runtime_classified": {
           "type": "integer",
           "minimum": 0
         },
@@ -81,7 +103,9 @@
           "capability_id",
           "status",
           "disposition",
-          "mandatory_scope"
+          "mandatory_scope",
+          "runtime_required",
+          "observed_runtime"
         ],
         "properties": {
           "capability_id": {
@@ -91,10 +115,11 @@
             "type": "string",
             "enum": [
               "Implemented",
+              "Partly-Applicable",
+              "Pending",
               "Non-Implementable",
-              "Not-Acceptable",
               "Not-Applicable",
-              "Pending"
+              "Not-Acceptable"
             ]
           },
           "disposition": {
@@ -105,8 +130,22 @@
               "deferred"
             ]
           },
+          "mandatory_scope": {
+            "type": "boolean"
+          },
+          "runtime_required": {
+            "type": "boolean"
+          },
+          "observed_runtime": {
+            "type": "boolean"
+          },
           "rationale": {
-            "type": "string"
+            "type": "string",
+            "description": "Decision rationale. For Partly-Applicable this must explain language/runtime model mismatch. For Non-Implementable this must describe an objective hard technical limitation."
+          },
+          "hard_limitation": {
+            "type": "string",
+            "description": "Explicit hard technical limitation statement for objectively unreachable runtime capabilities."
           },
           "decision_owner": {
             "type": "string"
@@ -119,15 +158,56 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "minItems": 1
           },
           "open_risk": {
             "type": "string"
           },
-          "mandatory_scope": {
-            "type": "boolean"
+          "recheck_trigger": {
+            "type": "string"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "Partly-Applicable",
+                    "Pending",
+                    "Non-Implementable",
+                    "Not-Applicable",
+                    "Not-Acceptable"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "rationale",
+                "decision_owner",
+                "reviewed_at",
+                "evidence_refs"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "Non-Implementable"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "hard_limitation",
+                "recheck_trigger"
+              ]
+            }
+          }
+        ]
       }
     }
   }

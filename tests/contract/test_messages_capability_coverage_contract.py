@@ -85,21 +85,47 @@ def test_governance_report_schema_bootstrap() -> None:
         "blocked_capabilities",
         "deferred_capabilities",
         "coverage_percentage",
-        "mandatory_capabilities_total",
-        "mandatory_capabilities_implemented",
+        "runtime_required_total",
+        "runtime_required_covered",
+        "runtime_required_missing",
+        "non_runtime_required_total",
+        "non_runtime_covered",
+        "non_runtime_classified",
         "mandatory_scope_violations",
     }.issubset(summary_required)
 
     capability_required = set(schema["properties"]["capabilities"]["items"]["required"])
-    assert {"capability_id", "status", "disposition", "mandatory_scope"}.issubset(capability_required)
+    assert {
+        "capability_id",
+        "status",
+        "disposition",
+        "mandatory_scope",
+        "runtime_required",
+        "observed_runtime",
+    }.issubset(capability_required)
+
+    capability_item = schema["properties"]["capabilities"]["items"]
+    status_enum = set(capability_item["properties"]["status"]["enum"])
+    assert "Partly-Applicable" in status_enum
+    non_impl_requirements = [
+        clause["then"]["required"]
+        for clause in capability_item.get("allOf", [])
+        if clause.get("if", {}).get("properties", {}).get("status", {}).get("const") == "Non-Implementable"
+    ]
+    assert non_impl_requirements
+    assert any("hard_limitation" in required for required in non_impl_requirements)
+    assert any("recheck_trigger" in required for required in non_impl_requirements)
 
 
 def test_openapi_contract_includes_mandatory_governance_report_flags() -> None:
     contract_text = _openapi_text()
     assert "/coverage/governance/report:" in contract_text
     assert "mandatory_capabilities_file" in contract_text
-    assert "require_mandatory_implemented" in contract_text
+    assert "runtime_required_capabilities_file" in contract_text
+    assert "require_runtime_required_covered" in contract_text
+    assert "require_non_runtime_classified" in contract_text
     assert "mandatory_scope_violations" in contract_text
+    assert "hard_limitation" in contract_text
 
 
 def test_inventory_export_emits_unique_canonical_capability_ids() -> None:

@@ -9,7 +9,7 @@ from cucumber_messages import (  # type:ignore[attr-defined]
 )
 from cucumber_messages import TestRunFinished as CucumberTestRunFinished  # type:ignore[attr-defined]
 
-from pytest_bdd.model.message_validation import validate_message_stream
+from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
 
 
 def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
@@ -74,3 +74,24 @@ def test_validate_message_stream_tracks_external_attachment_fields() -> None:
     assert ("externalAttachment", "testRunHookStartedId") in observed
     assert ("externalAttachment", "timestamp.seconds") in observed
     assert ("externalAttachment", "timestamp.nanos") in observed
+
+
+def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
+    envelopes = [
+        Message(
+            external_attachment=ExternalAttachment(
+                media_type="application/octet-stream",
+                url="https://example.invalid/external.bin",
+                test_case_started_id="case-started-id",
+                test_step_id="step-id",
+                test_run_hook_started_id="run-hook-id",
+                timestamp=Timestamp(seconds=1, nanos=1),
+            )
+        )
+    ]
+
+    observed_ids = collect_observed_capability_ids(envelopes)
+
+    assert "externalAttachment.mediaType" in observed_ids
+    assert "externalAttachment.testCaseStartedId" in observed_ids
+    assert "externalAttachment.timestamp.seconds" in observed_ids

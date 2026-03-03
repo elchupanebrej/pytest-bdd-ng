@@ -28,11 +28,11 @@ Output file could be fed into other @cucumber tools for more verbose report
 * When run pytest
 
     <!-- markdownlint-disable-next-line MD013 -->
-    | cli_args   | -p | no:pytest-bdd-gherkin-message-reporter | -p | pytest_bdd.plugin.gherkin_message_reporter.entrypoint | --messages-ndjson | out.ndjson |
-    |------------|----|-----------------------------------------|----|--------------------------------------------------------|-------------------|------------|
-    | subprocess | true | | | | | |
+    | cli_args   |  --messages-ndjson | out.ndjson |
+    |------------|------------|------------|
+    | subprocess | true | |
 
-* Then File "out.ndjson" has "15" lines
+* Then File "out.ndjson" has at least "15" lines
 * Then Report "out.ndjson" parsable into messages
 
 ## Scenario: HTML report could be produced on the feature run

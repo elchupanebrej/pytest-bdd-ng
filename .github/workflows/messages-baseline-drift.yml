@@ -24,13 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .
 
-      - name: Run dedicated mandatory coverage audit gate
+      - name: Run dedicated runtime-required coverage audit gate
         env:
           PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT: "1"
         run: |
-          python -m pytest \
-            tests/messages_coverage/test_full_capability_governance.py \
-            -q
+          bash scripts/run_messages_coverage_audit.sh
 
       - name: Verify baseline snapshot exists
         run: |

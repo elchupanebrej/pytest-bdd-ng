@@ -1,1 +1,2094 @@
-[]
+[
+  {
+    "capability_id": "gherkinDocument.feature.children.background.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "tests/messages_coverage/test_mandatory_attachments.py",
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt"
+    ],
+    "rationale": "Top-level background description is emitted from parsed Gherkin AST and can be covered by runtime fixtures with explicit background descriptions.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.content",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.delimiter",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.background.steps.docString.mediaType",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "tests/messages_coverage/test_mandatory_attachments.py",
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt"
+    ],
+    "rationale": "Rule background description is emitted from parsed Gherkin AST and can be covered by runtime fixtures with explicit rule background descriptions.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.value",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.content",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.delimiter",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.background.steps.docString.mediaType",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.children.scenario.examples.tags.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.rule.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.description",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.keyword",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.cells.value",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableBody.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.cells.value",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tableHeader.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.examples.tags.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.keyword",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.value",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.content",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.delimiter",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.docString.mediaType",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.keyword",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.keywordType",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.steps.text",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "gherkinDocument.feature.children.scenario.tags.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaMethod.methodParameterTypes",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.fileName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.javaStackTraceElement.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.sourceReference.uri",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.tagExpression",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "hook.type",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.buildNumber",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.git.branch",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.git.remote",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.git.revision",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.git.tag",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "meta.ci.url",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.preferForRegularExpressionMatch",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.regularExpressions",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaMethod.methodParameterTypes",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.fileName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.javaStackTraceElement.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.sourceReference.uri",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parameterType.useForSnippets",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.message",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaMethod.methodParameterTypes",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.className",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.fileName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.javaStackTraceElement.methodName",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.location.column",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.location.line",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "parseError.source.uri",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "suggestion.id",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "suggestion.pickleStepId",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "suggestion.snippets.code",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "suggestion.snippets.language",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testCase.testRunStartedId",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "tests/messages_coverage/test_mandatory_attachments.py",
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt"
+    ],
+    "rationale": "Runtime signal is available from emitted test case lifecycle and is populated by the reporter.",
+    "rationale": "Runtime signal is available from emitted test case lifecycle and is populated by the reporter.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testCase.testSteps.hookId",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunFinished.exception.message",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunFinished.exception.stackTrace",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunFinished.exception.type",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.message",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.stackTrace",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testRunHookFinished.result.exception.type",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.message",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.stackTrace",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.exception.type",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "testStepFinished.testStepResult.message",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "undefinedParameterType.expression",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  },
+  {
+    "capability_id": "undefinedParameterType.name",
+    "decision_owner": "pytest-bdd-ng-maintainers",
+    "evidence_refs": [
+      "specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt",
+      "tests/messages_coverage/probes/test_failing_step_runtime.py",
+      "tests/messages_coverage/probes/test_parse_error_runtime.py",
+      "tests/messages_coverage/probes/test_undefined_parameter_runtime.py",
+      "tests/messages_coverage/test_mandatory_attachments.py"
+    ],
+    "rationale": "Observed in real runtime coverage audit and emitted by reporter from real pytest-bdd execution flow.",
+    "release_target": "v32.current",
+    "reviewed_at": "2026-03-03T00:00:00+00:00",
+    "status": "Implemented"
+  }
+]

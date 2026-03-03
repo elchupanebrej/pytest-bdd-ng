@@ -1,4 +1,4 @@
-# Quickstart: Maximize Messages Capability Coverage
+# Quickstart: Runtime-Pure Messages Coverage Governance
 
 ## 1. Prepare environment
 
@@ -7,17 +7,10 @@ cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
 conda run -n pytest-bdd-ng-py314 tox -l
 ```
 
-## 2. Verify mandatory scope list
-
-```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-wc -l specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt
-```
-
 Expected outcome:
-- The mandatory scope file exists and lists `323` capability IDs.
+- Toolchain and tox environments are available.
 
-## 3. Generate capability inventory from approved baseline
+## 2. Generate canonical capability inventory
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
@@ -28,10 +21,10 @@ conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.model.coverage.inventory \
 ```
 
 Expected outcome:
-- Inventory output contains one entry per relevant capability.
-- No duplicate capability IDs.
+- Canonical inventory is generated.
+- Capability IDs are unique and normalized.
 
-## 4. Run dedicated mandatory audit suite and emit NDJSON
+## 3. Execute dedicated real-runtime evidence suite
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
@@ -40,37 +33,49 @@ PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python
   tests/messages_coverage/test_mandatory_attachments.py -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
-  --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
-  --messages-coverage
+  --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson
 ```
 
 Expected outcome:
-- Dedicated suite executes independently from the main suite.
-- `/tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson` is created.
-- Run summary is `3 passed`.
+- Dedicated suite runs separately from the main suite.
+- NDJSON contains only real emitted runtime events.
+- No synthetic probe payloads are injected.
 
-## 5. Generate governance report with strict mandatory enforcement
+## 4. Produce post-factum governance report
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
 conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
-  --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-mandatory.ndjson \
+  --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson \
   --baseline-release v32.current \
   --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
   --decisions specs/008-maximize-messages-coverage/contracts/capability-decisions.json \
   --mandatory-capabilities-file specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt \
-  --require-mandatory-implemented \
+  --runtime-required-capabilities-file specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt \
+  --require-runtime-required-covered \
+  --require-non-runtime-classified \
   --require-fully-governed \
-  --output /tmp/pytest-bdd-ng-messages-audit/governance-governed.json
+  --output /tmp/pytest-bdd-ng-messages-audit/governance-runtime.json
 ```
 
 Expected outcome:
-- Report conforms to governance schema.
-- `blocked_capabilities == 0`.
-- `mandatory_scope_violations == 0`.
-- Every ID from `mandatory-hook-capability-ids.txt` is reported as `Implemented`.
+- Report schema validation succeeds.
+- Runtime-required coverage is complete.
+- Non-runtime capabilities are either runtime-covered or explicitly classified.
 
-## 6. Dedicated regression slice (executed)
+## 5. Validate hard-limit exception quality
+
+Review `specs/008-maximize-messages-coverage/contracts/capability-decisions.json` and verify every `Non-Implementable` entry has:
+- hard technical impossibility rationale (not implementation backlog),
+- reproducible evidence references,
+- decision owner,
+- review timestamp for current release cycle,
+- `recheck_trigger`.
+
+Expected outcome:
+- Every exception is auditable and technically justified.
+
+## 6. Run governance-focused suites
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
@@ -78,15 +83,26 @@ PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python
   tests/messages_coverage -q
 ```
 
-Observed result during feature implementation:
-- `4 passed`
-- strict governance summary values:
-  - `mandatory_capabilities_total = 323`
-  - `mandatory_capabilities_implemented = 323`
-  - `mandatory_scope_violations = 0`
-  - `blocked_capabilities = 0`
+Expected outcome:
+- Dedicated audit suite passes.
+- Failures point to missing runtime-required evidence or invalid governance decisions.
 
-## 7. Execute baseline drift check
+## 7. Run complete end-to-end regression and HTML report
+
+```bash
+cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/e2e -q \
+  -p no:pytest-bdd-gherkin-message-reporter \
+  -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
+  --cucumber-html /tmp/pytest-bdd-ng-e2e-report.html
+```
+
+Expected outcome:
+- E2E suite passes.
+- HTML report is generated at `/tmp/pytest-bdd-ng-e2e-report.html`.
+
+## 8. Baseline drift check (weekly cadence)
 
 ```bash
 cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
@@ -94,10 +110,10 @@ conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_
   --previous-baseline v32.previous \
   --current-baseline v32.current \
   --previous-governance /tmp/governance-prev.json \
-  --current-governance /tmp/pytest-bdd-ng-messages-audit/governance-governed.json \
+  --current-governance /tmp/pytest-bdd-ng-messages-audit/governance-runtime.json \
   --output /tmp/baseline-diff.json
 ```
 
 Expected outcome:
-- `baseline-diff.json` lists added/changed/removed capability IDs.
-- Non-empty deltas trigger governance review before release sign-off.
+- Added/changed/removed capability IDs are explicit.
+- Any drift is routed through governance review before release sign-off.

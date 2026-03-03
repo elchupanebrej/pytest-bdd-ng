@@ -6,12 +6,28 @@ from typing import TYPE_CHECKING, Final, Literal, cast
 if TYPE_CHECKING:
     from datetime import datetime
 
-CapabilityStatus = Literal["Implemented", "Non-Implementable", "Not-Acceptable", "Not-Applicable", "Pending"]
-LegacyCapabilityStatus = Literal["done", "non-implementable", "not-acceptable", "not-applicable", "pending"]
+CapabilityStatus = Literal[
+    "Implemented",
+    "Partly-Applicable",
+    "Non-Implementable",
+    "Not-Acceptable",
+    "Not-Applicable",
+    "Pending",
+]
+LegacyCapabilityStatus = Literal[
+    "done",
+    "partly-applicable",
+    "partially-applicable",
+    "non-implementable",
+    "not-acceptable",
+    "not-applicable",
+    "pending",
+]
 CapabilityStatusLike = CapabilityStatus | LegacyCapabilityStatus | str
 
 CAPABILITY_STATUSES: Final[tuple[CapabilityStatus, ...]] = (
     "Implemented",
+    "Partly-Applicable",
     "Non-Implementable",
     "Not-Acceptable",
     "Not-Applicable",
@@ -19,6 +35,7 @@ CAPABILITY_STATUSES: Final[tuple[CapabilityStatus, ...]] = (
 )
 
 NON_IMPLEMENTED_STATUSES: Final[set[CapabilityStatus]] = {
+    "Partly-Applicable",
     "Non-Implementable",
     "Not-Acceptable",
     "Not-Applicable",
@@ -26,6 +43,7 @@ NON_IMPLEMENTED_STATUSES: Final[set[CapabilityStatus]] = {
 }
 
 MANDATORY_SCOPE_FORBIDDEN_STATUSES: Final[set[CapabilityStatus]] = {
+    "Partly-Applicable",
     "Non-Implementable",
     "Not-Acceptable",
     "Not-Applicable",
@@ -38,6 +56,17 @@ MANDATORY_EVIDENCE_FIELDS: Final[tuple[str, ...]] = (
     "reviewed_at",
 )
 
+NON_IMPLEMENTABLE_REQUIRED_FIELDS: Final[tuple[str, ...]] = (
+    "recheck_trigger",
+    "hard_limitation",
+)
+
+FORBIDDEN_NON_IMPLEMENTABLE_PATTERNS: Final[tuple[str, ...]] = (
+    "not implemented yet",
+    "future work",
+    "not observed in this test only",
+)
+
 RELEASE_BLOCKER_STATUSES: Final[set[CapabilityStatus]] = {
     "Pending",
     "Not-Acceptable",
@@ -45,6 +74,8 @@ RELEASE_BLOCKER_STATUSES: Final[set[CapabilityStatus]] = {
 
 LEGACY_STATUS_ALIASES: Final[dict[str, CapabilityStatus]] = {
     "done": "Implemented",
+    "partly-applicable": "Partly-Applicable",
+    "partially-applicable": "Partly-Applicable",
     "non-implementable": "Non-Implementable",
     "not-acceptable": "Not-Acceptable",
     "not-applicable": "Not-Applicable",
@@ -58,9 +89,11 @@ class CapabilityDecision:
     status: CapabilityStatus
     release_target: str
     rationale: str | None = None
+    hard_limitation: str | None = None
     decision_owner: str | None = None
     evidence_refs: tuple[str, ...] = ()
     reviewed_at: datetime | None = None
+    recheck_trigger: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +144,42 @@ def missing_required_evidence_fields(decision: CapabilityDecision) -> tuple[str,
         missing.append("evidence_refs")
     if decision.reviewed_at is None:
         missing.append("reviewed_at")
+    if status == "Non-Implementable":
+        if not _is_non_empty_text(decision.recheck_trigger):
+            missing.append("recheck_trigger")
+        if not _is_non_empty_text(decision.hard_limitation):
+            missing.append("hard_limitation")
     return tuple(missing)
+
+
+def validate_non_implementable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
+    status = normalize_capability_status(decision.status)
+    if status != "Non-Implementable":
+        return ()
+
+    rationale = decision.rationale or ""
+    hard_limitation = decision.hard_limitation or ""
+    combined_text = f"{rationale}\n{hard_limitation}".lower()
+
+    return tuple(
+        f"non-implementable rationale uses forbidden phrase: '{pattern}'"
+        for pattern in FORBIDDEN_NON_IMPLEMENTABLE_PATTERNS
+        if pattern in combined_text
+    )
+
+
+def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
+    status = normalize_capability_status(decision.status)
+    if status != "Partly-Applicable":
+        return ()
+
+    rationale = (decision.rationale or "").lower()
+    if "language" in rationale and ("model" in rationale or "runtime" in rationale):
+        return ()
+    return (
+        "partly-applicable rationale must explain language/runtime model mismatch "
+        "(for example: no native language-equivalent model in current runtime)",
+    )
 
 
 def validate_capability_decision(decision: CapabilityDecision) -> DecisionValidationResult:
@@ -119,6 +187,8 @@ def validate_capability_decision(decision: CapabilityDecision) -> DecisionValida
     status = normalize_capability_status(decision.status)
     if status is None:
         violations.append(f"Unknown status: {decision.status}")
+    violations.extend(validate_non_implementable_policy(decision))
+    violations.extend(validate_partly_applicable_policy(decision))
     missing = missing_required_evidence_fields(decision)
     accepted = not violations and not missing
     return DecisionValidationResult(
@@ -137,11 +207,11 @@ def validate_mandatory_scope_decision(
         return ()
     status = normalize_capability_status(decision.status)
     if status in MANDATORY_SCOPE_FORBIDDEN_STATUSES:
-        return (
+        message = (
             "mandatory scope capabilities cannot use deferred statuses "
-            f"({', '.join(sorted(MANDATORY_SCOPE_FORBIDDEN_STATUSES))}): "
-            f"{decision.capability_id} -> {status}",
+            f"({', '.join(sorted(MANDATORY_SCOPE_FORBIDDEN_STATUSES))}): {decision.capability_id} -> {status}"
         )
+        return (message,)
     return ()
 
 
@@ -178,7 +248,7 @@ def evaluate_release_blockers(
             continue
         if is_release_blocker_status(status):
             blocker_ids.add(decision.capability_id)
-        elif status in {"Non-Implementable", "Not-Applicable"}:
+        elif status in {"Partly-Applicable", "Non-Implementable", "Not-Applicable"}:
             deferred_ids.add(decision.capability_id)
 
     for capability_id in relevant_capability_ids:

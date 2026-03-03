@@ -2,12 +2,11 @@
 openapi: 3.1.0
 info:
   title: Messages Capability Governance Contract
-  version: 1.0.0
+  version: 1.1.0
   description: >-
-    Contract for capability inventory synchronization, deterministic
-    outcome mapping validation, weekly baseline diff generation,
-    governance checklist rendering, and strict mandatory capability
-    coverage enforcement.
+    Contract for capability inventory synchronization, deterministic mapping
+    validation, baseline drift comparison, and post-factum governance reports
+    over real NDJSON runtime evidence.
 servers:
   - url: https://governance.local
 paths:
@@ -30,8 +29,7 @@ paths:
                 $ref: '#/components/schemas/CapabilitySyncResponse'
   /coverage/mappings/validate:
     post:
-      summary: >-
-        Validate deterministic outcome mapping using fixed readiness matrix
+      summary: Validate deterministic outcome mapping for fixed readiness matrix
       operationId: validateOutcomeMappings
       requestBody:
         required: true
@@ -82,9 +80,7 @@ paths:
                 $ref: '#/components/schemas/ChecklistRenderResponse'
   /coverage/governance/report:
     post:
-      summary: >-
-        Generate governance coverage report with optional mandatory scope
-        enforcement
+      summary: Generate governance report from real NDJSON evidence
       operationId: generateGovernanceReport
       requestBody:
         required: true
@@ -99,24 +95,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GovernanceReportResponse'
+
 components:
   schemas:
     CapabilityStatus:
       type: string
       enum:
         - Implemented
-        - Non-Implementable
-        - Not-Acceptable
-        - Not-Applicable
+        - Partly-Applicable
         - Pending
+        - Non-Implementable
+        - Not-Applicable
+        - Not-Acceptable
+
     MatrixProfile:
       type: string
       enum:
         - fixed_release_readiness_v1
+
     BaselineCadence:
       type: string
       enum:
         - weekly
+
     MessageCapability:
       type: object
       additionalProperties: false
@@ -143,6 +144,7 @@ components:
             - out_of_scope
         source_reference:
           type: string
+
     CapabilitySyncRequest:
       type: object
       additionalProperties: false
@@ -157,6 +159,7 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/MessageCapability'
+
     CapabilitySyncResponse:
       type: object
       additionalProperties: false
@@ -175,6 +178,7 @@ components:
           type: array
           items:
             type: string
+
     OutcomeMappingRule:
       type: object
       additionalProperties: false
@@ -203,6 +207,7 @@ components:
             - skipped
             - undefined
             - interrupted
+            - retry
         capability_ids:
           type: array
           minItems: 1
@@ -213,6 +218,7 @@ components:
           minimum: 0
         mapping_rationale:
           type: string
+
     MappingValidationRequest:
       type: object
       additionalProperties: false
@@ -231,6 +237,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OutcomeMappingRule'
+
     MappingValidationResult:
       type: object
       additionalProperties: false
@@ -254,6 +261,7 @@ components:
           type: number
           minimum: 0
           maximum: 1
+
     BaselineDiffRequest:
       type: object
       additionalProperties: false
@@ -268,6 +276,7 @@ components:
           type: string
         current_release:
           type: string
+
     BaselineDiffResponse:
       type: object
       additionalProperties: false
@@ -292,6 +301,7 @@ components:
           type: array
           items:
             type: string
+
     ChecklistRenderRequest:
       type: object
       additionalProperties: false
@@ -317,6 +327,7 @@ components:
               open_risk:
                 type: string
                 nullable: true
+
     ChecklistRenderResponse:
       type: object
       additionalProperties: false
@@ -337,6 +348,7 @@ components:
         approved:
           type: integer
           minimum: 0
+
     GovernanceReportRequest:
       type: object
       additionalProperties: false
@@ -357,24 +369,20 @@ components:
           description: Optional decisions JSON path.
         mandatory_capabilities_file:
           type: string
-          description: >-
-            Optional path to newline-delimited mandatory capability IDs.
+          description: Optional path to governance-scope capability IDs.
+        runtime_required_capabilities_file:
+          type: string
+          description: Optional path to runtime-required capability IDs.
         require_fully_governed:
           type: boolean
           default: false
-        require_mandatory_implemented:
+        require_runtime_required_covered:
           type: boolean
           default: false
-      allOf:
-        - if:
-            properties:
-              require_mandatory_implemented:
-                const: true
-            required:
-              - require_mandatory_implemented
-          then:
-            required:
-              - mandatory_capabilities_file
+        require_non_runtime_classified:
+          type: boolean
+          default: false
+
     GovernanceReportSummary:
       type: object
       additionalProperties: false
@@ -384,8 +392,12 @@ components:
         - blocked_capabilities
         - deferred_capabilities
         - coverage_percentage
-        - mandatory_capabilities_total
-        - mandatory_capabilities_implemented
+        - runtime_required_total
+        - runtime_required_covered
+        - runtime_required_missing
+        - non_runtime_required_total
+        - non_runtime_covered
+        - non_runtime_classified
         - mandatory_scope_violations
       properties:
         total_capabilities:
@@ -404,15 +416,28 @@ components:
           type: number
           minimum: 0
           maximum: 100
-        mandatory_capabilities_total:
+        runtime_required_total:
           type: integer
           minimum: 0
-        mandatory_capabilities_implemented:
+        runtime_required_covered:
+          type: integer
+          minimum: 0
+        runtime_required_missing:
+          type: integer
+          minimum: 0
+        non_runtime_required_total:
+          type: integer
+          minimum: 0
+        non_runtime_covered:
+          type: integer
+          minimum: 0
+        non_runtime_classified:
           type: integer
           minimum: 0
         mandatory_scope_violations:
           type: integer
           minimum: 0
+
     GovernanceCapabilityRecord:
       type: object
       additionalProperties: false
@@ -421,6 +446,8 @@ components:
         - status
         - disposition
         - mandatory_scope
+        - runtime_required
+        - observed_runtime
       properties:
         capability_id:
           type: string
@@ -432,8 +459,23 @@ components:
             - approved
             - blocked
             - deferred
+        mandatory_scope:
+          type: boolean
+        runtime_required:
+          type: boolean
+        observed_runtime:
+          type: boolean
         rationale:
           type: string
+          description: >-
+            Decision rationale. For Partly-Applicable this must explain
+            language/runtime model mismatch. For Non-Implementable this must
+            describe an objective hard technical limitation.
+        hard_limitation:
+          type: string
+          description: >-
+            Explicit hard technical limitation statement for objectively
+            unreachable runtime capabilities.
         decision_owner:
           type: string
         reviewed_at:
@@ -443,10 +485,36 @@ components:
           type: array
           items:
             type: string
+          minItems: 1
         open_risk:
           type: string
-        mandatory_scope:
-          type: boolean
+        recheck_trigger:
+          type: string
+      allOf:
+        - if:
+            properties:
+              status:
+                enum:
+                  - Partly-Applicable
+                  - Pending
+                  - Non-Implementable
+                  - Not-Applicable
+                  - Not-Acceptable
+          then:
+            required:
+              - rationale
+              - decision_owner
+              - reviewed_at
+              - evidence_refs
+        - if:
+            properties:
+              status:
+                const: Non-Implementable
+          then:
+            required:
+              - hard_limitation
+              - recheck_trigger
+
     GovernanceReportResponse:
       type: object
       additionalProperties: false
@@ -459,6 +527,8 @@ components:
       properties:
         version:
           type: string
+          enum:
+            - '1.1'
         generated_at:
           type: string
           format: date-time

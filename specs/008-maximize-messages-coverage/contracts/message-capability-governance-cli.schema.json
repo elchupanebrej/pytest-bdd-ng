@@ -29,17 +29,25 @@
     },
     "decisions": {
       "type": "string",
-      "description": "Optional path to capability decision file."
+      "description": "Optional path to capability decision file. Non-Implementable entries must carry hard technical limitation rationale; Partly-Applicable entries must explain language/runtime model mismatch."
     },
     "mandatory_capabilities_file": {
       "type": "string",
-      "description": "Optional path to newline-delimited mandatory capability IDs."
+      "description": "Optional path to newline-delimited governance-scope IDs."
+    },
+    "runtime_required_capabilities_file": {
+      "type": "string",
+      "description": "Optional path to newline-delimited runtime-required IDs."
     },
     "require_fully_governed": {
       "type": "boolean",
       "default": false
     },
-    "require_mandatory_implemented": {
+    "require_runtime_required_covered": {
+      "type": "boolean",
+      "default": false
+    },
+    "require_non_runtime_classified": {
       "type": "boolean",
       "default": false
     },
@@ -60,17 +68,17 @@
     {
       "if": {
         "properties": {
-          "require_mandatory_implemented": {
+          "require_runtime_required_covered": {
             "const": true
           }
         },
         "required": [
-          "require_mandatory_implemented"
+          "require_runtime_required_covered"
         ]
       },
       "then": {
         "required": [
-          "mandatory_capabilities_file"
+          "runtime_required_capabilities_file"
         ]
       }
     }

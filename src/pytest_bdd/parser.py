@@ -1,8 +1,17 @@
 import linecache
+from inspect import getfile, getsourcelines
 from pathlib import Path
 from typing import cast
 
 from attr import attrs
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    JavaMethod,
+    JavaStackTraceElement,
+    Location,
+    ParseError,
+    SourceReference,
+)
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
@@ -23,6 +32,55 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
 
 
 class BaseParser(ParserProtocol):
+    @staticmethod
+    def _build_parse_error_source(*, uri: str, line: int, column: int) -> SourceReference:
+        source_kwargs = {
+            "uri": uri,
+            "location": Location(line=max(1, int(line)), column=max(1, int(column))),
+        }
+        with_suppress = (OSError, TypeError, ValueError)
+        try:
+            source_file = getfile(BaseParser)
+            source_line = getsourcelines(BaseParser.emit_parse_error)[1]
+        except with_suppress:
+            source_file = None
+            source_line = None
+
+        if source_file is not None and source_line is not None:
+            source_kwargs.update(
+                {
+                    "java_method": JavaMethod(
+                        class_name=f"{BaseParser.__module__}.{BaseParser.__name__}",
+                        method_name="emit_parse_error",
+                        method_parameter_types=["message", "line", "column", "uri"],
+                    ),
+                    "java_stack_trace_element": JavaStackTraceElement(
+                        class_name=f"{BaseParser.__module__}.{BaseParser.__name__}",
+                        file_name=Path(source_file).name,
+                        method_name="emit_parse_error",
+                    ),
+                }
+            )
+        return SourceReference(**source_kwargs)
+
+    @staticmethod
+    def emit_parse_error(config: Config | HasPytestBDDIdGenerator, *, message: str, line: int, column: int, uri: str):
+        hook_handler = getattr(config, "hook", None)
+        if hook_handler is None:
+            return
+        try:
+            hook_handler.pytest_bdd_message(
+                config=config,
+                message=Message(
+                    parse_error=ParseError(
+                        message=message,
+                        source=BaseParser._build_parse_error_source(uri=uri, line=line, column=column),
+                    )
+                ),
+            )
+        except (AttributeError, TypeError, ValueError, RuntimeError):  # pragma: no cover
+            return
+
     @staticmethod
     def normalize_gherkin_document_payload(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
         gherkin_document_raw_dict.setdefault("comments", [])
@@ -62,7 +120,7 @@ class BaseParser(ParserProtocol):
 class GherkinParser(BaseParser):
     def parse(
         self,
-        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 overload
+        config: Config | HasPytestBDDIdGenerator,
         path: Path,
         uri: str,
         *args,
@@ -75,6 +133,14 @@ class GherkinParser(BaseParser):
         try:
             gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(feature_file_data, *args, **kwargs))
         except CompositeParserException as e:
+            error_location = e.errors[0].location
+            self.emit_parse_error(
+                config,
+                message=str(e.args[0]),
+                line=int(error_location.get("line", 1)),
+                column=int(error_location.get("column", 1)),
+                uri=uri,
+            )
             raise FeatureConcreteParseError(
                 e.args[0],
                 e.errors[0].location["line"],
@@ -96,7 +162,7 @@ class GherkinParser(BaseParser):
 class MarkdownGherkinParser(BaseParser):
     def parse(
         self,
-        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 overload
+        config: Config | HasPytestBDDIdGenerator,
         path: Path,
         uri: str,
         *args,  # noqa: ARG002 overload
@@ -111,6 +177,14 @@ class MarkdownGherkinParser(BaseParser):
         try:
             gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(token_scanner, matcher))
         except CompositeParserException as e:
+            error_location = e.errors[0].location
+            self.emit_parse_error(
+                config,
+                message=str(e.args[0]),
+                line=int(error_location.get("line", 1)),
+                column=int(error_location.get("column", 1)),
+                uri=uri,
+            )
             raise FeatureConcreteParseError(
                 e.args[0],
                 e.errors[0].location["line"],
