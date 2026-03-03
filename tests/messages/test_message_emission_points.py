@@ -26,16 +26,69 @@ EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
     "pytest_bdd_attach": {"attachment"},
 }
 
+# parse_error envelopes are emitted by parser layer (`BaseParser.emit_parse_error`)
+# before reporter plugin hooks are entered.
+EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error"}
+
+
+PAYLOAD_HINTS: dict[str, str] = {
+    "feature_source": "source",
+    "gherkin_document": "gherkin_document",
+    "pickle": "pickle",
+    "hook_message": "hook",
+    "current_test_case": "test_case",
+    "current_test_case_start": "test_case_started",
+    "test_step_started": "test_step_started",
+    "suggestion": "suggestion",
+}
+
+
+def _camel_to_snake(value: str) -> str:
+    chars: list[str] = []
+    for index, char in enumerate(value):
+        if char.isupper() and index > 0 and (not value[index - 1].isupper()):
+            chars.append("_")
+        chars.append(char.lower())
+    return "".join(chars)
+
+
+def _payload_kind_from_type_name(type_name: str) -> str | None:
+    candidate = _camel_to_snake(type_name)
+    return candidate if candidate in PAYLOAD_KINDS else None
+
+
+def _infer_payload_kinds_from_expression(expression: ast.expr) -> set[str]:
+    if isinstance(expression, ast.Call):
+        func = expression.func
+        if isinstance(func, ast.Name):
+            inferred = _payload_kind_from_type_name(func.id)
+            return {inferred} if inferred is not None else set()
+        if isinstance(func, ast.Attribute) and func.attr == "as_message":
+            return {"step_definition"}
+        return set()
+
+    if isinstance(expression, ast.Name):
+        if expression.id in PAYLOAD_HINTS:
+            return {PAYLOAD_HINTS[expression.id]}
+        inferred = _payload_kind_from_type_name(expression.id)
+        return {inferred} if inferred is not None else set()
+
+    if isinstance(expression, ast.Attribute):
+        if expression.attr in PAYLOAD_HINTS:
+            return {PAYLOAD_HINTS[expression.attr]}
+        inferred = _payload_kind_from_type_name(expression.attr)
+        return {inferred} if inferred is not None else set()
+
+    return set()
+
 
 def _payloads_from_lifecycle_call(node: ast.Call) -> set[str]:
     if not (isinstance(node.func, ast.Attribute) and node.func.attr == "_emit_lifecycle"):
         return set()
     if len(node.args) < 2:
         return set()
-    payload_kind = node.args[1]
-    if not (isinstance(payload_kind, ast.Constant) and isinstance(payload_kind.value, str)):
-        return set()
-    return {payload_kind.value}
+    payload_expression = node.args[1]
+    return _infer_payload_kinds_from_expression(payload_expression)
 
 
 def _payloads_from_envelope_call(node: ast.Call) -> set[str]:
@@ -97,6 +150,6 @@ def test_message_emission_points_cover_expected_methods_and_payloads() -> None:
 
 def test_message_emission_points_cover_all_supported_payload_kinds() -> None:
     emissions_by_method = _collect_message_payload_emissions_by_method()
-    emitted_payloads = set().union(*emissions_by_method.values())
+    emitted_payloads = set().union(*emissions_by_method.values(), EMITTED_OUTSIDE_REPORTER_PLUGIN)
     missing_payloads = sorted(set(PAYLOAD_KINDS).difference(emitted_payloads))
     assert not missing_payloads, f"Supported payload kinds without emission point: {missing_payloads}"

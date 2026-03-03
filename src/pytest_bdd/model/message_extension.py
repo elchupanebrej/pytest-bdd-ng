@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Final, Literal, TypeAlias
+from typing import Final, TypeAlias, get_args, get_type_hints
 
 from cucumber_messages import *  # type:ignore[import-untyped]  # noqa: F403 This module patches the cucumber_messages module to extend it with pytest_bdd specific types
 from cucumber_messages import Envelope as _BaseEnvelope
@@ -28,71 +28,64 @@ class StepDefinitionPattern(_BaseStepDefinitionPattern):
     type: StepDefinitionPatternType
 
 
-PayloadKind: TypeAlias = Literal[
-    "attachment",
-    "external_attachment",
-    "gherkin_document",
-    "hook",
-    "meta",
-    "parameter_type",
-    "parse_error",
-    "pickle",
-    "source",
-    "step_definition",
-    "suggestion",
-    "test_case",
-    "test_case_finished",
-    "test_case_started",
-    "test_run_finished",
-    "test_run_hook_finished",
-    "test_run_hook_started",
-    "test_run_started",
-    "test_step_finished",
-    "test_step_started",
-    "undefined_parameter_type",
-]
-
 EventEnvelope: TypeAlias = _BaseEnvelope
 
-PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
-    "attachment",
-    "external_attachment",
-    "gherkin_document",
-    "hook",
-    "meta",
-    "parameter_type",
-    "parse_error",
-    "pickle",
-    "source",
-    "step_definition",
-    "suggestion",
-    "test_case",
-    "test_case_finished",
-    "test_case_started",
-    "test_run_finished",
-    "test_run_hook_finished",
-    "test_run_hook_started",
-    "test_run_started",
-    "test_step_finished",
-    "test_step_started",
-    "undefined_parameter_type",
+# Keep payload kinds auto-synced with cucumber-messages Envelope schema to
+# avoid manual maintenance on library upgrades.
+PAYLOAD_KINDS: Final[tuple[str, ...]] = tuple(_BaseEnvelope.__annotations__.keys())
+PayloadKind: TypeAlias = str
+
+_GOVERNANCE_STATUS_FIELDS: Final[tuple[str, ...]] = (
+    "implementation_status",
+    "implementation_comment",
+    "hook_origin",
 )
 
-STATUS_CAPABLE_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
-    "test_step_finished",
-    "test_case_finished",
-    "test_run_finished",
-    "attachment",
+_ENVELOPE_HINTS: Final[dict[str, object]] = get_type_hints(_BaseEnvelope, globalns=globals())
+
+
+def _is_optional_type(value: object) -> bool:
+    return any(option is type(None) for option in get_args(value))
+
+
+def _unwrap_optional(value: object) -> object:
+    args = tuple(option for option in get_args(value) if option is not type(None))
+    if len(args) == 1:
+        return args[0]
+    return value
+
+
+def _payload_field_hints(payload_kind: PayloadKind) -> dict[str, object]:
+    payload_annotation = _ENVELOPE_HINTS.get(payload_kind)
+    if payload_annotation is None:
+        return {}
+    payload_type = _unwrap_optional(payload_annotation)
+    if not isinstance(payload_type, type):
+        return {}
+    return get_type_hints(payload_type, globalns=globals())
+
+
+_PAYLOAD_HINTS_BY_KIND: Final[dict[PayloadKind, dict[str, object]]] = {
+    payload_kind: _payload_field_hints(payload_kind) for payload_kind in PAYLOAD_KINDS
+}
+
+STATUS_CAPABLE_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
+    payload_kind
+    for payload_kind in PAYLOAD_KINDS
+    if any(field_name in _PAYLOAD_HINTS_BY_KIND[payload_kind] for field_name in _GOVERNANCE_STATUS_FIELDS)
 )
 
-REQUIRED_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
-    "test_step_finished",
-    "test_case_finished",
+REQUIRED_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
+    payload_kind
+    for payload_kind in STATUS_CAPABLE_PAYLOAD_KINDS
+    if (
+        "implementation_status" in _PAYLOAD_HINTS_BY_KIND[payload_kind]
+        and not _is_optional_type(_PAYLOAD_HINTS_BY_KIND[payload_kind]["implementation_status"])
+    )
 )
 
-OPTIONAL_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
-    "test_run_finished",
-    "attachment",
+OPTIONAL_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
+    payload_kind for payload_kind in STATUS_CAPABLE_PAYLOAD_KINDS if payload_kind not in REQUIRED_STATUS_PAYLOAD_KINDS
 )
 
 NOT_APPLICABLE_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(

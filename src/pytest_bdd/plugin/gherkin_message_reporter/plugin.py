@@ -5,9 +5,10 @@ import re
 import sys
 import tempfile
 from base64 import b64encode
+from collections.abc import Mapping
 from contextlib import suppress
 from dataclasses import dataclass
-from inspect import getfile, getsourcelines
+from inspect import getfile, getsourcelines, signature
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from platform import machine, processor, system, version
@@ -30,12 +31,12 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     ExternalAttachment,
     Group,
     Hook,
+    HookType,
     JavaMethod,
     JavaStackTraceElement,
     Location,
     Meta,
     ParameterType,
-    ParseError,
     Product,
     Snippet,
     Source,
@@ -109,8 +110,6 @@ class HookRegistration:
 @attrs(eq=False)
 class GherkinMessageReporter:
     config: Config = attrib()
-    current_test_case: TestCase | None = attrib(default=None)
-    current_test_case_step_id_to_step_mapping: dict[int, TestStep] | None = attrib(default=None)
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
     hook_registration_registry: ClassVar[dict[int, HookRegistration]] = {}
@@ -133,6 +132,8 @@ class GherkinMessageReporter:
     _run_id: str | None
     _outcome_mapping_rules: list[OutcomeMappingRule]
     _mapping_diagnostics_count: int
+    current_test_case: TestCase | None = attrib(default=None)
+    current_test_case_step_id_to_step_mapping: dict[int, TestStep] | None = attrib(default=None)
 
     def __attrs_post_init__(self):
         self._disabled_warning_emitted = False
@@ -232,9 +233,6 @@ class GherkinMessageReporter:
                 )
         config.hook.pytest_bdd_message(config=config, message=message)
 
-    def _emit_lifecycle(self, config: Config, payload_kind: str, payload: object) -> None:
-        self._emit_envelope(config, Message(**{payload_kind: payload}))
-
     @staticmethod
     def _check_derived_output_consistency(envelopes: list[Message]) -> bool:
         payload_kinds = [get_payload_kind(envelope) for envelope in envelopes]
@@ -286,199 +284,6 @@ class GherkinMessageReporter:
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
         return Timestamp(seconds=test_run_started_seconds, nanos=test_run_started_nanos)
-
-    @staticmethod
-    def _coverage_source_reference(uri: str = "messages-coverage://probe") -> SourceReference:
-        return SourceReference(
-            uri=uri,
-            location=Location(line=1, column=1),
-            java_method=JavaMethod(
-                class_name="pytest_bdd.messages.CoverageProbe",
-                method_name="emit",
-                method_parameter_types=["str"],
-            ),
-            java_stack_trace_element=JavaStackTraceElement(
-                class_name="pytest_bdd.messages.CoverageProbe",
-                file_name="coverage_probe.py",
-                method_name="emit",
-            ),
-        )
-
-    @classmethod
-    def _schema_probe_value(  # noqa: C901
-        cls,
-        schema_dir: Path,
-        schema: dict[str, Any],
-        *,
-        root_schema: dict[str, Any] | None = None,
-        visited: set[str] | None = None,
-    ) -> Any:
-        effective_root = schema if root_schema is None else root_schema
-        if "$ref" in schema:
-            ref = str(schema["$ref"])
-            refs_seen = visited or set()
-            if ref in refs_seen:
-                return None
-            if "#" in ref:
-                file_part, path_part = ref.split("#", 1)
-            else:
-                file_part, path_part = ref, ""
-
-            target_schema: dict[str, Any]
-            if file_part:
-                target_path = (schema_dir / file_part.removeprefix("./")).resolve()
-                target_schema = json.loads(target_path.read_text(encoding="utf-8"))
-                target_root = target_schema
-            else:
-                target_schema = effective_root
-                target_root = effective_root
-
-            resolved: Any = target_schema
-            if path_part:
-                for part in (segment for segment in path_part.split("/") if segment):
-                    resolved = resolved[part]
-            if not isinstance(resolved, dict):
-                return None
-            return cls._schema_probe_value(
-                schema_dir,
-                resolved,
-                root_schema=target_root,
-                visited=refs_seen | {ref},
-            )
-
-        if "enum" in schema and isinstance(schema["enum"], list) and schema["enum"]:
-            return schema["enum"][0]
-
-        schema_type = schema.get("type")
-        if isinstance(schema_type, list):
-            schema_type = next((candidate for candidate in schema_type if candidate != "null"), schema_type[0])
-
-        if schema_type == "object" or "properties" in schema:
-            result: dict[str, Any] = {}
-            for key, property_schema in schema.get("properties", {}).items():
-                if isinstance(property_schema, dict):
-                    value = cls._schema_probe_value(
-                        schema_dir,
-                        property_schema,
-                        root_schema=effective_root,
-                        visited=visited,
-                    )
-                    if value is not None:
-                        result[key] = value
-            return result
-
-        if schema_type == "array":
-            items_schema = schema.get("items")
-            if isinstance(items_schema, dict):
-                item_value = cls._schema_probe_value(
-                    schema_dir,
-                    items_schema,
-                    root_schema=effective_root,
-                    visited=visited,
-                )
-                return [] if item_value is None else [item_value]
-            return []
-
-        if schema_type == "string":
-            return "coverage-probe"
-        if schema_type == "integer":
-            return 1
-        if schema_type == "number":
-            return 1.0
-        if schema_type == "boolean":
-            return True
-
-        for union_keyword in ("anyOf", "allOf", "oneOf"):
-            options = schema.get(union_keyword)
-            if isinstance(options, list) and options:
-                first = options[0]
-                if isinstance(first, dict):
-                    return cls._schema_probe_value(
-                        schema_dir,
-                        first,
-                        root_schema=effective_root,
-                        visited=visited,
-                    )
-        return None
-
-    def _emit_schema_probe_messages(self, config: Config) -> None:  # noqa: C901
-        schema_dir = Path(__file__).resolve().parents[4] / "messages" / "jsonschema" / "src"
-        envelope_schema = json.loads((schema_dir / "Envelope.json").read_text(encoding="utf-8"))
-        for payload_kind, payload_schema in envelope_schema.get("properties", {}).items():
-            if not isinstance(payload_schema, dict):
-                continue
-            payload = self._schema_probe_value(schema_dir, payload_schema, root_schema=envelope_schema)
-            if not isinstance(payload, dict):
-                continue
-
-            # Keep probe payloads deterministic and linkable to run-level lifecycle.
-            if payload_kind == "testRunStarted":
-                payload["id"] = self._run_id
-                payload["timestamp"] = {"seconds": 1, "nanos": 1}
-            elif payload_kind == "testRunFinished":
-                payload["testRunStartedId"] = self._run_id
-                payload["success"] = True
-                payload["message"] = "coverage-probe"
-            elif payload_kind == "attachment":
-                payload["testRunStartedId"] = self._run_id
-                payload["testRunHookStartedId"] = self.current_test_run_hook_started_id
-                payload["testCaseStartedId"] = payload.get("testCaseStartedId") or "coverage-case-started"
-                payload["testStepId"] = payload.get("testStepId") or "coverage-test-step"
-                payload["source"] = payload.get("source") or {
-                    "data": "Feature: coverage probe",
-                    "mediaType": "text/x.cucumber.gherkin+plain",
-                    "uri": "features/coverage_probe.feature",
-                }
-                payload["timestamp"] = {"seconds": 1, "nanos": 1}
-                payload["url"] = payload.get("url") or "https://example.invalid/attachment"
-            elif payload_kind == "externalAttachment":
-                payload["testRunHookStartedId"] = self.current_test_run_hook_started_id
-                payload["testCaseStartedId"] = payload.get("testCaseStartedId") or "coverage-case-started"
-                payload["testStepId"] = payload.get("testStepId") or "coverage-test-step"
-                payload["timestamp"] = {"seconds": 1, "nanos": 1}
-                payload["url"] = payload.get("url") or "https://example.invalid/external-attachment"
-            elif payload_kind in {"hook", "parameterType", "stepDefinition", "parseError"}:
-                source_reference = {
-                    "uri": "messages-coverage://probe",
-                    "location": {"line": 1, "column": 1},
-                    "javaMethod": {
-                        "className": "pytest_bdd.messages.CoverageProbe",
-                        "methodName": "emit",
-                        "methodParameterTypes": ["str"],
-                    },
-                    "javaStackTraceElement": {
-                        "className": "pytest_bdd.messages.CoverageProbe",
-                        "fileName": "coverage_probe.py",
-                        "methodName": "emit",
-                    },
-                }
-                if payload_kind == "hook" or payload_kind == "parameterType" or payload_kind == "stepDefinition":
-                    payload["sourceReference"] = source_reference
-                elif payload_kind == "parseError":
-                    payload["source"] = source_reference
-            elif payload_kind == "testRunHookStarted":
-                payload["id"] = self.current_test_run_hook_started_id
-                payload["testRunStartedId"] = self._run_id
-                payload["hookId"] = payload.get("hookId") or "coverage-hook-id"
-                payload["workerId"] = payload.get("workerId") or "master"
-                payload["timestamp"] = {"seconds": 1, "nanos": 1}
-            elif payload_kind == "testRunHookFinished":
-                payload["testRunHookStartedId"] = self.current_test_run_hook_started_id
-                payload["timestamp"] = {"seconds": 1, "nanos": 1}
-                payload.setdefault("result", {})
-                if isinstance(payload["result"], dict):
-                    payload["result"]["status"] = payload["result"].get("status") or "PASSED"
-                    payload["result"]["message"] = payload["result"].get("message") or "coverage-probe"
-                    payload["result"]["duration"] = payload["result"].get("duration") or {"seconds": 1, "nanos": 1}
-                    payload["result"]["exception"] = payload["result"].get("exception") or {
-                        "type": "CoverageProbeException",
-                        "message": "coverage-probe",
-                        "stackTrace": "coverage-probe",
-                    }
-            elif payload_kind == "testCase":
-                payload["testRunStartedId"] = self._run_id
-
-            self._emit_envelope(config, envelope_from_dict({payload_kind: payload}))
 
     def generate_html_report(self):
         if self.is_disabled:
@@ -534,7 +339,10 @@ class GherkinMessageReporter:
                     feature_registry.add(feature_source.uri)
                     self._emit_envelope(cast(Config, config), Message(source=feature_source))
 
-                    self._emit_envelope(cast(Config, config), Message(gherkin_document=feature.gherkin_document))
+                    self._emit_envelope(
+                        cast(Config, config),
+                        Message(gherkin_document=feature.gherkin_document),
+                    )
                 if is_set(pickle) and id(pickle) not in pickle_registry:
                     self._emit_envelope(cast(Config, config), Message(pickle=pickle))
 
@@ -563,76 +371,33 @@ class GherkinMessageReporter:
             return
         config = session.config
         self._run_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
-        self._emit_lifecycle(
-            config, "test_run_started", TestRunStarted(id=self._run_id, timestamp=self.get_timestamp())
-        )
+        self._emit_envelope(config, Message(test_run_started=TestRunStarted(id=self._run_id, timestamp=self.get_timestamp())))
 
         self.current_test_run_hook_started_id = cast(
             HasPytestBDDIdGenerator, config
         ).pytest_bdd_id_generator.get_next_id()
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "test_run_hook_started",
-            TestRunHookStarted(
+            Message(test_run_hook_started=TestRunHookStarted(
                 hook_id="pytest-bdd-ng.before-test-run",
                 id=self.current_test_run_hook_started_id,
                 test_run_started_id=self._run_id,
                 timestamp=self.get_timestamp(),
                 worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
-            ),
+            )),
         )
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "test_run_hook_finished",
-            TestRunHookFinished(
+            Message(test_run_hook_finished=TestRunHookFinished(
                 test_run_hook_started_id=self.current_test_run_hook_started_id,
                 timestamp=self.get_timestamp(),
                 result=TestStepResult(
                     duration=Duration(seconds=0, nanos=0),
                     status=TestStepResultStatus.passed,
                     message="before-test-run hook completed",
-                    exception=CucumberException(
-                        type="CoverageProbeException",
-                        message="coverage-probe",
-                        stack_trace="coverage-probe",
-                    ),
                 ),
-            ),
+            )),
         )
-
-        self._emit_lifecycle(
-            config,
-            "parse_error",
-            ParseError(
-                message="coverage-probe parse error",
-                source=self._coverage_source_reference(),
-            ),
-        )
-        self._emit_lifecycle(
-            config,
-            "undefined_parameter_type",
-            UndefinedParameterType(
-                expression="{coverage}",
-                name="coverage",
-            ),
-        )
-        self._emit_lifecycle(
-            config,
-            "suggestion",
-            Suggestion(
-                id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
-                pickle_step_id="coverage-pickle-step",
-                snippets=[
-                    Snippet(
-                        code="def step_impl():\n    pass",
-                        language="python",
-                    )
-                ],
-            ),
-        )
-
-        if getattr(self.config.option, "messages_coverage", False):
-            self._emit_schema_probe_messages(config)
 
     def pytest_sessionstart(self, session):
         if self.is_disabled:
@@ -643,24 +408,104 @@ class GherkinMessageReporter:
 
         config = session.config
 
-        ci = message_converter.from_dict(obj, Ci) if (obj := detect_ci_environment(os.environ)) is not None else None
+        ci = self._build_ci_message(os.environ)
 
         self._emit_envelope(
             config,
-            Message(
-                meta=Meta(
-                    protocol_version=str(get_distribution_version("cucumber-messages")),
-                    implementation=Product(
-                        name="pytest-bdd-ng",
-                        version=str(get_distribution_version("pytest-bdd-ng")),
-                    ),
-                    runtime=Product(name="Python", version=sys.version),
-                    os=Product(name=system(), version=version()),
-                    cpu=Product(name=machine(), version=processor()),
-                    ci=ci,
+            Message(meta=Meta(
+                protocol_version=str(get_distribution_version("cucumber-messages")),
+                implementation=Product(
+                    name="pytest-bdd-ng",
+                    version=str(get_distribution_version("pytest-bdd-ng")),
                 ),
-            ),
+                runtime=Product(name="Python", version=sys.version),
+                os=Product(name=system(), version=version()),
+                cpu=Product(name=machine(), version=processor()),
+                ci=ci,
+            )),
         )
+
+    @staticmethod
+    def _build_ci_message(env: Mapping[str, str]) -> Ci | None:
+        ci_payload = detect_ci_environment(env)
+        if ci_payload is None:
+            return None
+        enriched_payload = GherkinMessageReporter._enrich_ci_payload(ci_payload, env)
+        return message_converter.from_dict(enriched_payload, Ci)
+
+    @staticmethod
+    def _enrich_ci_payload(ci_payload: dict[str, Any], env: Mapping[str, str]) -> dict[str, Any]:
+        """Patch CI payload with branch when detector omits it for PR-style builds.
+
+        `ci_environment` provides a solid baseline payload, but some providers
+        expose branch only via platform-specific env vars in merge-request
+        pipelines. We enrich only the missing branch field to keep emitted
+        metadata stable without overriding detector-provided values.
+        """
+        payload = dict(ci_payload)
+        git_payload_raw = payload.get("git")
+        git_payload = dict(git_payload_raw) if isinstance(git_payload_raw, dict) else {}
+        if not git_payload.get("branch"):
+            branch = GherkinMessageReporter._resolve_ci_branch(env)
+            if branch:
+                git_payload["branch"] = branch
+        if git_payload:
+            payload["git"] = git_payload
+        return payload
+
+    @staticmethod
+    def _resolve_ci_branch(env: Mapping[str, str]) -> str | None:
+        """Resolve VCS branch name from common CI env var conventions."""
+        github_ref_type = (env.get("GITHUB_REF_TYPE") or "").strip().lower()
+        github_ref = (env.get("GITHUB_REF") or "").strip()
+        github_ref_name = (env.get("GITHUB_REF_NAME") or "").strip()
+        github_head_ref = (env.get("GITHUB_HEAD_REF") or "").strip()
+        if github_ref_type == "branch" and github_ref_name:
+            return github_ref_name
+        if github_ref.startswith("refs/heads/"):
+            return github_ref.removeprefix("refs/heads/")
+        if github_head_ref:
+            return github_head_ref
+
+        for name in (
+            "CI_COMMIT_BRANCH",
+            "CI_COMMIT_REF_NAME",
+            "GIT_BRANCH",
+            "BRANCH_NAME",
+            "BUILD_SOURCEBRANCHNAME",
+        ):
+            value = (env.get(name) or "").strip()
+            if value:
+                return value.removeprefix("refs/heads/")
+        return None
+
+    def _resolve_test_step_for_runtime_step(self, step: object) -> TestStep | None:
+        mapping = self.current_test_case_step_id_to_step_mapping
+        if mapping is None:
+            return None
+
+        resolved = mapping.get(id(step))
+        if resolved is not None:
+            return resolved
+
+        runtime_pickle_step_id = getattr(step, "id", None)
+        if runtime_pickle_step_id is not None:
+            runtime_pickle_step_id_text = str(runtime_pickle_step_id)
+            for candidate in mapping.values():
+                if str(getattr(candidate, "pickle_step_id", "")) == runtime_pickle_step_id_text:
+                    mapping[id(step)] = candidate
+                    return candidate
+
+        if self.current_active_test_step_id is not None:
+            active_step = next(
+                (candidate for candidate in mapping.values() if candidate.id == self.current_active_test_step_id),
+                None,
+            )
+            if active_step is not None:
+                return active_step
+
+        logger.warning("Unable to resolve cucumber TestStep for runtime step object: %r", step)
+        return None
 
     def pytest_sessionfinish(self, session, exitstatus):
         if self.is_disabled:
@@ -669,19 +514,42 @@ class GherkinMessageReporter:
         run_success = is_testrun_success(exitstatus)
         run_exception = (
             CucumberException(type="PytestExitCode", message=str(exitstatus), stack_trace=str(exitstatus))
-            if not run_success or getattr(self.config.option, "messages_coverage", False)
+            if not run_success
             else None
         )
-        self._emit_lifecycle(
+        after_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+        self._emit_envelope(
             config,
-            "test_run_finished",
-            TestRunFinished(
+            Message(test_run_hook_started=TestRunHookStarted(
+                hook_id="pytest-bdd-ng.after-test-run",
+                id=after_test_run_hook_started_id,
+                test_run_started_id=self._run_id,
+                timestamp=self.get_timestamp(),
+                worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+            )),
+        )
+        self._emit_envelope(
+            config,
+            Message(test_run_hook_finished=TestRunHookFinished(
+                test_run_hook_started_id=after_test_run_hook_started_id,
+                timestamp=self.get_timestamp(),
+                result=TestStepResult(
+                    duration=Duration(seconds=0, nanos=0),
+                    status=TestStepResultStatus.passed if run_success else TestStepResultStatus.failed,
+                    message="after-test-run hook completed",
+                    **({"exception": run_exception} if run_exception is not None else {}),
+                ),
+            )),
+        )
+        self._emit_envelope(
+            config,
+            Message(test_run_finished=TestRunFinished(
                 timestamp=self.get_timestamp(),
                 success=run_success,
                 test_run_started_id=self._run_id,
                 message=f"pytest session exit status: {exitstatus}",
                 **({"exception": run_exception} if run_exception is not None else {}),
-            ),
+            )),
         )
 
         self.finish_process_messages_thread()
@@ -695,7 +563,7 @@ class GherkinMessageReporter:
         validation_result = validate_message_stream(
             envelopes,
             latest_protocol_version=str(get_distribution_version("cucumber-messages")),
-            track_coverage=getattr(self.config.option, "messages_coverage", False),
+            track_coverage=False,
         )
         if not validation_result.is_valid:
             logger.error(
@@ -734,6 +602,15 @@ class GherkinMessageReporter:
             hook_name = getattr(func, "__pytest_bdd_hook_name__", None)
             hook_expression = getattr(func, "__pytest_bdd_hook_expression__", None)
             hook_kind = getattr(func, "__pytest_bdd_hook_kind__", "tag")
+            hook_conjunction = getattr(func, "__pytest_bdd_hook_conjunction__", "before")
+            hook_type = {
+                "before": HookType.before_test_case,
+                "after": HookType.after_test_case,
+                "around": HookType.before_test_case,
+            }.get(str(hook_conjunction))
+            parameter_types = list(signature(func).parameters.keys())
+            source_file = getfile(func)
+            source_line = getsourcelines(func)[1]
 
             hook_message_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
             hook_message = Hook(
@@ -741,28 +618,23 @@ class GherkinMessageReporter:
                 **({"name": hook_name} if hook_name is not None else {}),
                 source_reference=SourceReference(
                     uri=relpath(
-                        getfile(func),
+                        source_file,
                         str(get_config_root_path(cast(Config, config))),
                     ),
-                    location=Location(line=getsourcelines(func)[1], column=1),
-                    **(
-                        {
-                            "java_method": JavaMethod(
-                                class_name="pytest_bdd.hooks.HookRegistration",
-                                method_name=str(getattr(func, "__name__", "hook")),
-                                method_parameter_types=[],
-                            ),
-                            "java_stack_trace_element": JavaStackTraceElement(
-                                class_name="pytest_bdd.hooks.HookRegistration",
-                                file_name=Path(getfile(func)).name,
-                                method_name=str(getattr(func, "__name__", "hook")),
-                            ),
-                        }
-                        if getattr(self.config.option, "messages_coverage", False)
-                        else {}
+                    location=Location(line=source_line, column=1),
+                    java_method=JavaMethod(
+                        class_name=str(getattr(func, "__module__", "pytest_bdd.hook")),
+                        method_name=str(getattr(func, "__name__", "hook")),
+                        method_parameter_types=parameter_types,
+                    ),
+                    java_stack_trace_element=JavaStackTraceElement(
+                        class_name=str(getattr(func, "__module__", "pytest_bdd.hook")),
+                        file_name=Path(source_file).name,
+                        method_name=str(getattr(func, "__name__", "hook")),
                     ),
                 ),
                 **({"tag_expression": hook_expression} if hook_expression is not None else {}),
+                **({"type": hook_type} if hook_type is not None else {}),
             )
             type(self).hook_registration_registry[func_id] = HookRegistration(
                 hook_message_id=hook_message_id,
@@ -770,12 +642,7 @@ class GherkinMessageReporter:
                 kind=str(hook_kind),
             )
 
-            self._emit_envelope(
-                config,
-                Message(
-                    hook=hook_message,
-                ),
-            )
+            self._emit_envelope(config, Message(hook=hook_message))
 
         yield
 
@@ -849,9 +716,10 @@ class GherkinMessageReporter:
             id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
             pickle_id=scenario.id,
             test_steps=test_steps,
+            **({"test_run_started_id": self._run_id} if self._run_id is not None else {}),
         )
 
-        self._emit_lifecycle(cast(Config, config), "test_case", self.current_test_case)
+        self._emit_envelope(cast(Config, config), Message(test_case=self.current_test_case))
 
     def _report_step_definitions(self, config, request):
         step_registry = request.getfixturevalue("step_registry")
@@ -860,7 +728,10 @@ class GherkinMessageReporter:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
-                    self._emit_envelope(config, Message(step_definition=step_definition.as_message(config=config)))
+                    self._emit_envelope(
+                        config,
+                        Message(step_definition=step_definition.as_message(config=config)),
+                    )
             step_registry = step_registry.parent
 
     def _iter_matching_hook_registrations(self, request: FixtureRequest, scenario: Any):
@@ -970,30 +841,25 @@ class GherkinMessageReporter:
         if transformer is None:
             return None
 
-        with suppress(OSError, TypeError):
+        with suppress(OSError, TypeError, ValueError):
             source_file = getfile(transformer)
             source_line = getsourcelines(transformer)[1]
+            parameter_types = list(signature(transformer).parameters.keys())
             return SourceReference(
                 uri=relpath(
                     source_file,
                     str(get_config_root_path(cast(Config, config))),
                 ),
                 location=Location(line=source_line, column=1),
-                **(
-                    {
-                        "java_method": JavaMethod(
-                            class_name="pytest_bdd.parameter_types.Registry",
-                            method_name=str(getattr(transformer, "__name__", "transformer")),
-                            method_parameter_types=[],
-                        ),
-                        "java_stack_trace_element": JavaStackTraceElement(
-                            class_name="pytest_bdd.parameter_types.Registry",
-                            file_name=Path(source_file).name,
-                            method_name=str(getattr(transformer, "__name__", "transformer")),
-                        ),
-                    }
-                    if getattr(self.config.option, "messages_coverage", False)
-                    else {}
+                java_method=JavaMethod(
+                    class_name=str(getattr(transformer, "__module__", "pytest_bdd.parameter_type")),
+                    method_name=str(getattr(transformer, "__name__", "transformer")),
+                    method_parameter_types=parameter_types,
+                ),
+                java_stack_trace_element=JavaStackTraceElement(
+                    class_name=str(getattr(transformer, "__module__", "pytest_bdd.parameter_type")),
+                    file_name=Path(source_file).name,
+                    method_name=str(getattr(transformer, "__name__", "transformer")),
                 ),
             )
         return None
@@ -1031,23 +897,91 @@ class GherkinMessageReporter:
                         )
                         self._emit_envelope(
                             config,
-                            Message(
-                                parameter_type=ParameterType(
-                                    name=parameter_type.name,
-                                    regular_expressions=parameter_type.regexps,
-                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
-                                    use_for_snippets=parameter_type._use_for_snippets,
-                                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
-                                    **(
-                                        {"source_reference": parameter_type_source_reference}
-                                        if parameter_type_source_reference is not None
-                                        else {}
-                                    ),
+                            Message(parameter_type=ParameterType(
+                                name=parameter_type.name,
+                                regular_expressions=parameter_type.regexps,
+                                prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
+                                use_for_snippets=parameter_type._use_for_snippets,
+                                id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                                **(
+                                    {"source_reference": parameter_type_source_reference}
+                                    if parameter_type_source_reference is not None
+                                    else {}
                                 ),
-                            ),
+                            )),
                         )
                     type(self).parameter_type_registry |= not_yet_registered_parameter_types.keys()
             step_registry = step_registry.parent
+
+    @staticmethod
+    def _step_keyword_to_decorator(keyword: str | None) -> str:
+        normalized = (keyword or "").strip().lower()
+        if normalized.startswith("when"):
+            return "when"
+        if normalized.startswith("then"):
+            return "then"
+        return "given"
+
+    def _build_suggestion_snippet(self, step: Any) -> str:
+        decorator = self._step_keyword_to_decorator(getattr(step, "keyword", None))
+        step_text = str(getattr(step, "text", "")).replace('"', '\\"')
+        return f'@{decorator}("{step_text}")\ndef step_impl():\n    raise NotImplementedError\n'
+
+    @staticmethod
+    def _extract_undefined_parameter_type(
+        *,
+        exception: Exception,
+        fallback_expression: str,
+    ) -> tuple[str, str] | None:
+        from cucumber_expressions.errors import UndefinedParameterTypeError
+
+        explicit = getattr(exception, "undefined_parameter_type", None)
+        if isinstance(explicit, tuple) and len(explicit) == 2:
+            return str(explicit[0]), str(explicit[1])
+
+        for candidate in (exception, getattr(exception, "__cause__", None)):
+            if isinstance(candidate, UndefinedParameterTypeError):
+                expression = str(candidate.args[1]) if len(candidate.args) > 1 else fallback_expression
+                parameter_name = str(candidate.args[2]) if len(candidate.args) > 2 else ""
+                if parameter_name:
+                    return expression, parameter_name
+
+            message = str(candidate or "")
+            matched_name = re.search(r"Undefined parameter type \\{([^}]+)\\}", message)
+            if matched_name:
+                return fallback_expression, matched_name.group(1)
+
+        return None
+
+    def pytest_bdd_step_func_lookup_error(self, request, feature, scenario, step, exception):  # noqa: ARG002 hookspec
+        if self.is_disabled:
+            return
+        config = request.config
+        pickle_step_id = getattr(step, "id", None)
+        if pickle_step_id is None:
+            return
+
+        suggestion_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+        suggestion = Suggestion(
+            id=suggestion_id,
+            pickle_step_id=str(pickle_step_id),
+            snippets=[Snippet(code=self._build_suggestion_snippet(step), language="python")],
+        )
+        self._emit_envelope(config, Message(suggestion=suggestion))
+
+        undefined_parameter = self._extract_undefined_parameter_type(
+            exception=exception,
+            fallback_expression=str(getattr(step, "text", "")),
+        )
+        if undefined_parameter is not None:
+            expression, parameter_name = undefined_parameter
+            self._emit_envelope(
+                config,
+                Message(undefined_parameter_type=UndefinedParameterType(
+                    expression=expression,
+                    name=parameter_name,
+                )),
+            )
 
     def pytest_bdd_before_scenario(
         self,
@@ -1074,7 +1008,7 @@ class GherkinMessageReporter:
             "attempt_index": attempt_index,
             "worker_id": worker_id,
         }
-        self._emit_lifecycle(config, "test_case_started", self.current_test_case_start)
+        self._emit_envelope(config, Message(test_case_started=self.current_test_case_start))
 
     def pytest_bdd_after_scenario(
         self,
@@ -1088,14 +1022,13 @@ class GherkinMessageReporter:
             return
         config = request.config
         test_case_start = self.current_test_case_start
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "test_case_finished",
-            TestCaseFinished(
+            Message(test_case_finished=TestCaseFinished(
                 test_case_started_id=test_case_start.id,
                 timestamp=self.get_timestamp(),
                 will_be_retried=False,
-            ),
+            )),
         )
         self.current_test_case = None
         self.current_test_case_start = None
@@ -1116,20 +1049,21 @@ class GherkinMessageReporter:
             return
         config = request.config
 
-        # TODO check behaviour if missing
-        step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_step = self._resolve_test_step_for_runtime_step(step)
+        if test_step is None:
+            return
         test_case_start = self.current_test_case_start
 
         self.current_test_case_step_start_timestamp = self.get_timestamp()
         test_step_started = TestStepStarted(
             test_case_started_id=test_case_start.id,
             timestamp=self.current_test_case_step_start_timestamp,
-            test_step_id=step_definition.id,
+            test_step_id=test_step.id,
         )
-        self.current_step_started_ids[step_definition.id] = step_definition.id
-        self.current_active_test_step_id = step_definition.id
+        self.current_step_started_ids[test_step.id] = test_step.id
+        self.current_active_test_step_id = test_step.id
 
-        self._emit_lifecycle(config, "test_step_started", test_step_started)
+        self._emit_envelope(config, Message(test_step_started=test_step_started))
 
     def pytest_bdd_after_step(
         self,
@@ -1145,8 +1079,9 @@ class GherkinMessageReporter:
             return
         config = request.config
 
-        # TODO check behaviour if missing
-        step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_step = self._resolve_test_step_for_runtime_step(step)
+        if test_step is None:
+            return
         test_case_start = self.current_test_case_start
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
@@ -1166,17 +1101,16 @@ class GherkinMessageReporter:
             nanos=current_test_case_step_duration_nanos,
         )
 
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "test_step_finished",
-            TestStepFinished(
+            Message(test_step_finished=TestStepFinished(
                 test_case_started_id=test_case_start.id,
                 timestamp=self.current_test_case_step_finish_timestamp,
-                test_step_id=step_definition.id,
+                test_step_id=test_step.id,
                 test_step_result=TestStepResult(
                     duration=current_test_case_step_duration, status=TestStepResultStatus.passed
                 ),
-            ),
+            )),
         )
         self.current_active_test_step_id = None
 
@@ -1189,7 +1123,7 @@ class GherkinMessageReporter:
         step_func,  # noqa: ARG002 hookspec
         step_func_args,  # noqa: ARG002 hookspec
         exception,
-        step_definition,
+        step_definition,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
@@ -1197,8 +1131,9 @@ class GherkinMessageReporter:
             return
         config = request.config
 
-        # TODO check behaviour if missing
-        step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
+        test_step = self._resolve_test_step_for_runtime_step(step)
+        if test_step is None:
+            return
         test_case_start = self.current_test_case_start
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
@@ -1218,13 +1153,12 @@ class GherkinMessageReporter:
             nanos=current_test_case_step_duration_nanos,
         )
 
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "test_step_finished",
-            TestStepFinished(
+            Message(test_step_finished=TestStepFinished(
                 test_case_started_id=test_case_start.id,
                 timestamp=self.current_test_case_step_finish_timestamp,
-                test_step_id=step_definition.id,
+                test_step_id=test_step.id,
                 test_step_result=TestStepResult(
                     duration=current_test_case_step_duration,
                     status=TestStepResultStatus.failed,
@@ -1235,11 +1169,11 @@ class GherkinMessageReporter:
                         stack_trace=repr(exception),
                     ),
                 ),
-            ),
+            )),
         )
         self.current_active_test_step_id = None
 
-    def pytest_bdd_attach(
+    def pytest_bdd_attach(  # noqa: C901
         self,
         request,
         attachment,
@@ -1289,37 +1223,18 @@ class GherkinMessageReporter:
         else:
             body = str(attachment)
 
-        source = (
-            Source(
+        source = None
+        if source_data is not None and source_media_type is not None and source_uri is not None:
+            source = Source(
                 data=str(source_data),
-                media_type=source_media_type or "text/x.cucumber.gherkin+plain",
-                uri=source_uri or "features/attachment_source.feature",
+                media_type=source_media_type,
+                uri=source_uri,
             )
-            if source_data is not None or source_media_type is not None or source_uri is not None
-            else (
-                Source(
-                    data="Feature: attachment source",
-                    media_type="text/x.cucumber.gherkin+plain",
-                    uri="features/attachment_source.feature",
-                )
-                if getattr(self.config.option, "messages_coverage", False)
-                else None
-            )
-        )
-        attachment_url = (
-            url
-            if url is not None
-            else (
-                f"https://example.invalid/attachments/{self.current_active_test_step_id or 'scenario'}"
-                if getattr(self.config.option, "messages_coverage", False)
-                else None
-            )
-        )
+        attachment_url = url
 
-        self._emit_lifecycle(
+        self._emit_envelope(
             config,
-            "attachment",
-            Attachment(
+            Message(attachment=Attachment(
                 **(
                     {"test_step_id": self.current_active_test_step_id}
                     if self.current_active_test_step_id is not None
@@ -1343,35 +1258,30 @@ class GherkinMessageReporter:
                 timestamp=attachment_timestamp,
                 content_encoding=content_encoding,
                 body=body,
-            ),
+            )),
         )
 
-        external_media_type = media_type_ or "application/octet-stream"
-        external_url = attachment_url or (
-            f"https://example.invalid/external/{self.current_active_test_step_id or 'scenario'}"
-            if as_external
-            else "https://example.invalid/external-attachment"
-        )
-        self._emit_lifecycle(
-            config,
-            "external_attachment",
-            ExternalAttachment(
-                media_type=external_media_type,
-                url=external_url,
-                **({"test_case_started_id": test_case_start.id} if test_case_start is not None else {}),
-                **(
-                    {"test_step_id": self.current_active_test_step_id}
-                    if self.current_active_test_step_id is not None
-                    else {}
-                ),
-                **(
-                    {"test_run_hook_started_id": effective_test_run_hook_started_id}
-                    if effective_test_run_hook_started_id is not None
-                    else {}
-                ),
-                timestamp=attachment_timestamp,
-            ),
-        )
+        if as_external and attachment_url is not None:
+            external_media_type = media_type_ or "application/octet-stream"
+            self._emit_envelope(
+                config,
+                Message(external_attachment=ExternalAttachment(
+                    media_type=external_media_type,
+                    url=attachment_url,
+                    **({"test_case_started_id": test_case_start.id} if test_case_start is not None else {}),
+                    **(
+                        {"test_step_id": self.current_active_test_step_id}
+                        if self.current_active_test_step_id is not None
+                        else {}
+                    ),
+                    **(
+                        {"test_run_hook_started_id": effective_test_run_hook_started_id}
+                        if effective_test_run_hook_started_id is not None
+                        else {}
+                    ),
+                    timestamp=attachment_timestamp,
+                )),
+            )
 
     def check_npm_and_cucumber_packages(self):
         if not check_npm():

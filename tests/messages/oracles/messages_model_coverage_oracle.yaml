@@ -194,15 +194,7 @@ payloads:
     body: required
     file_name: required
 
-  external_attachment:
-    media_type: required
-    url: required
-    test_case_started_id: required
-    test_step_id: required
-    test_run_hook_started_id: required
-    timestamp:
-      seconds: required
-      nanos: required
+  external_attachment: optional
 
   test_run_hook_started:
     hook_id: required
@@ -229,21 +221,8 @@ payloads:
         message: required
         stack_trace: required
 
-  parse_error:
-    message: required
-    source:
-      uri: required
-      location:
-        line: required
-        column: required
+  parse_error: optional
 
-  suggestion:
-    id: required
-    pickle_step_id: required
-    snippets:
-      code: required
-      language: required
+  suggestion: optional
 
-  undefined_parameter_type:
-    expression: required
-    name: required
+  undefined_parameter_type: optional
