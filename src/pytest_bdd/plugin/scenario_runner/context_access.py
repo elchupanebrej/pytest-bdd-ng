@@ -98,6 +98,22 @@ def resolve_request_execution_context(request: Any) -> ExecutionContext | None:
     return ExecutionContextStore().get(request)
 
 
+def resolve_feature_object(execution_context: ExecutionContext) -> Any | None:
+    return execution_context.feature_object
+
+
+def resolve_pickle_object(execution_context: ExecutionContext) -> Any | None:
+    return execution_context.scenario_object
+
+
+def resolve_step_object(execution_context: ExecutionContext) -> Any | None:
+    return execution_context.step_object
+
+
+def resolve_previous_step_object(execution_context: ExecutionContext) -> Any | None:
+    return execution_context.previous_step_object
+
+
 def resolve_execution_context(
     request: Any,
     *,

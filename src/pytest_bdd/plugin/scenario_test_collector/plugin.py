@@ -26,6 +26,12 @@ from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
 from pytest_bdd.model.gherkin_document.core import Feature as FeatureModel
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
+from pytest_bdd.plugin.scenario_runner.context_access import (
+    resolve_feature_object,
+    resolve_pickle_object,
+    resolve_previous_step_object,
+    resolve_step_object,
+)
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
@@ -168,11 +174,15 @@ class ScenarioTestCollector(BaseCollector):
     def pytest_bdd_match_step_definition_to_step(
         self,
         request,
-        gherkin_document,
-        pickle,
-        step,
-        previous_step,
+        execution_context,
     ) -> StepDefinitionManager.Definition:
+        gherkin_document = resolve_feature_object(execution_context)
+        pickle = resolve_pickle_object(execution_context)
+        step = resolve_step_object(execution_context)
+        previous_step = resolve_previous_step_object(execution_context)
+        if gherkin_document is None or pickle is None or step is None:
+            msg = "Execution context does not provide required objects for step matching"
+            raise RuntimeError(msg)
         step_registry: StepDefinitionManager.Registry = request.getfixturevalue("step_registry")
         step_matcher: StepDefinitionManager.Matcher = request.getfixturevalue("step_matcher")
 

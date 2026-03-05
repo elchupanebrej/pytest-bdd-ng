@@ -2,37 +2,32 @@ from io import BufferedIOBase, TextIOBase
 from typing import Any
 
 import pytest
-from cucumber_messages import GherkinDocument, Pickle  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
+from pytest_bdd.model.execution_context import ExecutionContext
 
 
 class ScenarioRunnerHookSpec:
-    def pytest_bdd_before_scenario(self, request: FixtureRequest, gherkin_document: GherkinDocument, pickle: Pickle):
+    def pytest_bdd_before_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
         """Called before scenario is executed."""
 
-    def pytest_bdd_run_scenario(self, request: FixtureRequest, gherkin_document: GherkinDocument, pickle: Pickle):
+    def pytest_bdd_run_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
         """Execution scenario protocol"""
 
-    def pytest_bdd_after_scenario(self, request: FixtureRequest, gherkin_document: GherkinDocument, pickle: Pickle):
+    def pytest_bdd_after_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
         """Called after scenario is executed."""
 
     def pytest_bdd_run_step(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
-        previous_step,
+        execution_context: ExecutionContext,
     ):
         """Execution of run step protocol"""
 
     def pytest_bdd_before_step(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         step_func,
     ):
         """Called before step function is set up."""
@@ -40,9 +35,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_before_step_call(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         step_func,
         step_func_args,
         step_definition,
@@ -52,9 +45,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_after_step(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         step_func,
         step_func_args,
         step_definition,
@@ -64,9 +55,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_step_error(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         step_func,
         step_func_args,
         exception,
@@ -77,9 +66,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_step_func_lookup_error(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         exception,
     ):
         """Called when step lookup failed."""
@@ -88,10 +75,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_match_step_definition_to_step(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
-        previous_step,
+        execution_context: ExecutionContext,
     ):
         """Find match between scenario step and user defined step function"""
 
@@ -99,9 +83,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_get_step_caller(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
-        step,
+        execution_context: ExecutionContext,
         step_func,
         step_func_args,
         step_definition,
@@ -112,8 +94,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_get_step_dispatcher(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
+        execution_context: ExecutionContext,
     ):
         """Provide alternative approach to execute scenario steps"""
 

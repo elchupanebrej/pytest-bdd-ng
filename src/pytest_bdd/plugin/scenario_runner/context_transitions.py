@@ -203,8 +203,6 @@ def apply_transition(
             context.feature_node.close(context.transition_index)
 
         context.stage = ExecutionStage.finished
-        context.feature_object = None
-        context.scenario_object = None
         context.step_object = None
         context.previous_step_object = None
         context.set_active_set(

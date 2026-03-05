@@ -9,6 +9,11 @@ from pluggy import HookimplMarker
 from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+from pytest_bdd.plugin.scenario_runner.context_access import (
+    resolve_feature_object,
+    resolve_pickle_object,
+    resolve_step_object,
+)
 
 if ALLURE_INSTALLED:
     from allure_commons import hookimpl as allure_hookimpl
@@ -71,18 +76,23 @@ class AllureLogger:
     def pytest_bdd_before_step_call(
         self,
         request,  # noqa: ARG002 hookspec
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
-        step,
+        execution_context,
         step_func,
         step_func_args,
         step_definition,
     ):
         """Called before step function is set up."""
+        step = resolve_step_object(execution_context)
+        if step is None:
+            return
         step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 
     @pytest.hookimpl
-    def pytest_bdd_before_scenario(self, request, gherkin_document, pickle):
+    def pytest_bdd_before_scenario(self, request, execution_context):
+        gherkin_document = resolve_feature_object(execution_context)
+        pickle = resolve_pickle_object(execution_context)
+        if gherkin_document is None or pickle is None:
+            return
         scenario_result_uuid = self._cache.get(pickle)
         test_result_uuid = self._cache.get(request.node.nodeid)
 
@@ -111,9 +121,11 @@ class AllureLogger:
     def pytest_bdd_after_scenario(
         self,
         request,  # noqa: ARG002 hookspec
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,
+        execution_context,
     ):
+        pickle = resolve_pickle_object(execution_context)
+        if pickle is None:
+            return
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.stop = now()
@@ -123,11 +135,12 @@ class AllureLogger:
     def pytest_bdd_step_func_lookup_error(
         self,
         request,  # noqa: ARG002 hookspec
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,
-        step,  # noqa: ARG002 hookspec
+        execution_context,
         exception,
     ):
+        pickle = resolve_pickle_object(execution_context)
+        if pickle is None:
+            return
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.status = Status.BROKEN

@@ -26,7 +26,7 @@ def test_each_scenario_gets_isolated_execution_context(testdir):
         """
         from pytest_bdd import given, scenario
 
-        def pytest_bdd_before_scenario(request, gherkin_document, pickle):
+        def pytest_bdd_before_scenario(request, execution_context):
             context = request.execution_context
             assert context is not None
             request.config.session_context_ids = getattr(request.config, "session_context_ids", [])

@@ -17,6 +17,7 @@ from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import chain_map
@@ -149,15 +150,20 @@ def process_pickle_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
     """Process pickle steps to gather unmatched steps."""
+    context_store = ExecutionContextStore()
+    execution_context = context_store.get_or_create(
+        item_request,
+        feature=feature.gherkin_document,
+        scenario=pickle,
+    )
     previous_step: PickleStep | None = None
     for step in pickle.steps:
         try:
+            execution_context.step_object = step
+            execution_context.previous_step_object = previous_step
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
                 request=item_request,
-                gherkin_document=feature.gherkin_document,
-                pickle=pickle,
-                step=step,
-                previous_step=previous_step,
+                execution_context=execution_context,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
             non_matched_feature_pickle_steps.append(((feature, pickle), step))

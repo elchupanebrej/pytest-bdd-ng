@@ -77,6 +77,7 @@ from pytest_bdd.compatibility.pytest import (
     get_config_root_path,
     is_testrun_success,
 )
+from pytest_bdd.model.execution_context import ExecutionContext
 from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
@@ -88,6 +89,7 @@ from pytest_bdd.model.message_validation import (
 from pytest_bdd.plugin.scenario_runner.context_access import (
     map_runtime_step_to_test_step_id,
     resolve_request_execution_context,
+    resolve_step_object,
     resolve_test_step_id_for_runtime_step,
 )
 from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
@@ -668,12 +670,11 @@ class GherkinMessageReporter:
 
         for step in pickle.steps:
             try:
+                execution_context.step_object = step
+                execution_context.previous_step_object = previous_step
                 step_definition = hook_handler.pytest_bdd_match_step_definition_to_step(
                     request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
+                    execution_context=execution_context,
                 )
             except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
                 pass
@@ -955,12 +956,13 @@ class GherkinMessageReporter:
     def pytest_bdd_step_func_lookup_error(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
-        step,
+        execution_context: ExecutionContext,
         exception,
     ):
         if self.is_disabled:
+            return
+        step = resolve_step_object(execution_context)
+        if step is None:
             return
         config = request.config
         pickle_step_id = getattr(step, "id", None)
@@ -992,18 +994,11 @@ class GherkinMessageReporter:
     def pytest_bdd_before_scenario(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
+        execution_context: ExecutionContext,
     ):
         if self.is_disabled:
             return
         config = request.config
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
-            logger.warning(
-                "Execution context unavailable during pytest_bdd_before_scenario; skipping context-dependent lifecycle."
-            )
-            return
         reporting_state = execution_context.reporting_state
         test_case_id = reporting_state.active_test_case_id
         if test_case_id is None:
@@ -1035,13 +1030,9 @@ class GherkinMessageReporter:
     def pytest_bdd_after_scenario(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
+        execution_context: ExecutionContext,
     ):
         if self.is_disabled:
-            return
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
             return
         reporting_state = execution_context.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
@@ -1075,15 +1066,13 @@ class GherkinMessageReporter:
     def pytest_bdd_before_step(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
-        step,
+        execution_context: ExecutionContext,
         step_func,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
+        step = resolve_step_object(execution_context)
+        if step is None:
             return
         reporting_state = execution_context.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
@@ -1112,15 +1101,13 @@ class GherkinMessageReporter:
     def pytest_bdd_after_step(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
-        step,
+        execution_context: ExecutionContext,
         step_func,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
+        step = resolve_step_object(execution_context)
+        if step is None:
             return
         reporting_state = execution_context.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
@@ -1152,9 +1139,7 @@ class GherkinMessageReporter:
     def pytest_bdd_step_error(
         self,
         request,
-        gherkin_document,  # noqa: ARG002 hookspec
-        pickle,  # noqa: ARG002 hookspec
-        step,
+        execution_context: ExecutionContext,
         step_func,  # noqa: ARG002 hookspec
         step_func_args,  # noqa: ARG002 hookspec
         exception,
@@ -1162,8 +1147,8 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
+        step = resolve_step_object(execution_context)
+        if step is None:
             return
         reporting_state = execution_context.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id

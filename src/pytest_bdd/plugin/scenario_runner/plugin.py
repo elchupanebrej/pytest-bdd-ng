@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 from cucumber_messages import (
     GherkinDocument,  # type:ignore[attr-defined, import-untyped]
+    Pickle,  # type:ignore[import-untyped]
     PickleStep,  # type:ignore[attr-defined, import-untyped]
 )
-from cucumber_messages import Pickle  # type:ignore[import-untyped]
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
@@ -21,11 +21,16 @@ from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
+
 from .context_access import (
     bind_hook_parameter_model,
     clear_hook_parameter_model,
     resolve_execution_context,
+    resolve_feature_object,
+    resolve_pickle_object,
+    resolve_previous_step_object,
     resolve_scenario_description,
+    resolve_step_object,
     resolve_step_runtime_enrichment,
 )
 from .context_store import ExecutionContextStore
@@ -174,13 +179,8 @@ class ScenarioRunner:
 
         hook_kwargs: dict[str, Any] = {
             "request": request,
-            "gherkin_document": gherkin_document,
-            "pickle": pickle,
+            "execution_context": context,
         }
-        if step is not UNSET:
-            hook_kwargs["step"] = step
-        if previous_step is not UNSET:
-            hook_kwargs["previous_step"] = previous_step
         hook_kwargs.update(extra_kwargs)
         try:
             return getattr(request.config.hook, hook_name)(**hook_kwargs)
@@ -190,17 +190,19 @@ class ScenarioRunner:
     def pytest_bdd_run_scenario(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
+        execution_context: ExecutionContext,
     ):
         """Execute scenarios via step dispatcher."""
         __tracebackhide__ = True
+        gherkin_document = resolve_feature_object(execution_context)
+        pickle = resolve_pickle_object(execution_context)
+        if gherkin_document is None or pickle is None:
+            return None
         steps: deque = request.getfixturevalue("steps_left")
         steps.extend(pickle.steps)
         step_dispatcher = request.config.hook.pytest_bdd_get_step_dispatcher(
             request=request,
-            gherkin_document=gherkin_document,
-            pickle=pickle,
+            execution_context=execution_context,
         )
         return step_dispatcher(steps)
 
@@ -208,8 +210,7 @@ class ScenarioRunner:
     def pytest_bdd_get_step_dispatcher(
         self,
         request: FixtureRequest,
-        gherkin_document: GherkinDocument,
-        pickle: Pickle,
+        execution_context: ExecutionContext,
     ):
         """Provide alternative approach to execute steps."""
         __tracebackhide__ = True
@@ -217,6 +218,10 @@ class ScenarioRunner:
         def dispatcher(left_steps):
             __tracebackhide__ = True
             previous_step = None
+            gherkin_document = resolve_feature_object(execution_context)
+            pickle = resolve_pickle_object(execution_context)
+            if gherkin_document is None or pickle is None:
+                return
             while left_steps:
                 step = left_steps.popleft()
                 self._invoke_bdd_hook(
@@ -232,50 +237,31 @@ class ScenarioRunner:
         return dispatcher
 
     @contextmanager
-    def extended_step_context(self, gherkin_document: GherkinDocument, pickle, step):
+    def extended_step_context(self, execution_context: ExecutionContext):
         """Attach rich step metadata for hook consumers during step execution."""
+        gherkin_document = resolve_feature_object(execution_context)
+        pickle = resolve_pickle_object(execution_context)
+        step = resolve_step_object(execution_context)
+        if gherkin_document is None or pickle is None:
+            yield
+            return
+
         config = getattr(gherkin_document, "_pytest_bdd_config", None)
         if self.request is not None:
             config = getattr(self.request, "config", None)
 
-        execution_context = None
-        if self.request is not None:
-            execution_context = resolve_execution_context(
-                self.request,
-                context_store=self.context_store,
-                feature=gherkin_document,
-                scenario=pickle,
-            )
-        else:
-            context_view = getattr(gherkin_document, "execution_context", None)
-            node_context = getattr(context_view, "node_context", None)
-            if isinstance(node_context, ExecutionContext):
-                execution_context = node_context
-
         try:
             if isinstance(step, PickleStep):
-                if execution_context is not None:
-                    step_runtime_enrichment = resolve_step_runtime_enrichment(
-                        feature=gherkin_document,
-                        step=step,
-                        execution_context=execution_context,
-                        config=config,
-                    )
-                    step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
-                    step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
-                    step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
-                    step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
-                else:
-                    step_runtime_enrichment = resolve_step_runtime_enrichment(
-                        feature=gherkin_document,
-                        step=step,
-                        execution_context=None,
-                        config=config,
-                    )
-                    step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
-                    step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
-                    step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
-                    step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
+                step_runtime_enrichment = resolve_step_runtime_enrichment(
+                    feature=gherkin_document,
+                    step=step,
+                    execution_context=execution_context,
+                    config=config,
+                )
+                step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
+                step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
+                step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
+                step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
 
             scenario_description = (
                 resolve_scenario_description(
@@ -298,31 +284,25 @@ class ScenarioRunner:
     def pytest_bdd_run_step(
         self,
         request,
-        gherkin_document: GherkinDocument,
-        pickle,
-        step,
-        previous_step,
+        execution_context: ExecutionContext,
     ):
         __tracebackhide__ = True
-        context = resolve_execution_context(
-            request,
-            context_store=self.context_store,
-            feature=gherkin_document,
-            scenario=pickle,
-        )
+        context = execution_context
+        gherkin_document = resolve_feature_object(context)
+        pickle = resolve_pickle_object(context)
+        step = resolve_step_object(context)
+        previous_step = resolve_previous_step_object(context)
+        if gherkin_document is None or pickle is None or step is None:
+            return
 
-        with self.extended_step_context(gherkin_document, pickle, step):
+        with self.extended_step_context(context):
             hook_kwargs = {
                 "request": request,
-                "gherkin_document": gherkin_document,
-                "pickle": pickle,
-                "step": step,
-                "previous_step": previous_step,
                 "execution_context": context,
             }
 
             try:
-                step_definition = self._match_to_step(step, previous_step)
+                step_definition = self._match_to_step(context)
             except exceptions.StepDefinitionNotFoundError as exception:
                 self._invoke_bdd_hook(
                     hook_name="pytest_bdd_step_func_lookup_error",
@@ -330,6 +310,7 @@ class ScenarioRunner:
                     gherkin_document=gherkin_document,
                     pickle=pickle,
                     step=step,
+                    previous_step=previous_step,
                     execution_context=context,
                     status=ExecutionStatus.failed,
                     exception=exception,
@@ -345,6 +326,7 @@ class ScenarioRunner:
                 gherkin_document=gherkin_document,
                 pickle=pickle,
                 step=step,
+                previous_step=previous_step,
                 execution_context=context,
                 step_func=step_definition.func,
             )
@@ -366,6 +348,7 @@ class ScenarioRunner:
                     gherkin_document=gherkin_document,
                     pickle=pickle,
                     step=step,
+                    previous_step=previous_step,
                     execution_context=context,
                     step_func=step_definition.func,
                     step_func_args=step_function_kwargs,
@@ -378,6 +361,7 @@ class ScenarioRunner:
                     gherkin_document=gherkin_document,
                     pickle=pickle,
                     step=step,
+                    previous_step=previous_step,
                     execution_context=context,
                     step_func=step_definition.func,
                     step_func_args=step_function_kwargs,
@@ -392,6 +376,7 @@ class ScenarioRunner:
                     gherkin_document=gherkin_document,
                     pickle=pickle,
                     step=step,
+                    previous_step=previous_step,
                     execution_context=context,
                     step_func=step_definition.func,
                     step_func_args=step_function_kwargs,
@@ -404,6 +389,7 @@ class ScenarioRunner:
                     gherkin_document=gherkin_document,
                     pickle=pickle,
                     step=step,
+                    previous_step=previous_step,
                     execution_context=context,
                     status=ExecutionStatus.failed,
                     step_func=step_definition.func,
@@ -417,9 +403,7 @@ class ScenarioRunner:
     def pytest_bdd_get_step_caller(
         self,
         request,
-        gherkin_document,  # noqa: ARG002
-        pickle,  # noqa: ARG002
-        step,  # noqa: ARG002
+        execution_context,  # noqa: ARG002
         step_func,  # noqa: ARG002
         step_func_args,
         step_definition,
@@ -474,16 +458,16 @@ class ScenarioRunner:
 
     def _match_to_step(
         self,
-        step,
-        previous_step,
+        execution_context: ExecutionContext,
     ):
+        step = resolve_step_object(execution_context)
+        if step is None:
+            msg = "Execution context does not provide active step for matching"
+            raise RuntimeError(msg)
         try:
             return self.request.config.hook.pytest_bdd_match_step_definition_to_step(
                 request=self.request,
-                gherkin_document=self.gherkin_document,
-                pickle=self.scenario,
-                step=step,
-                previous_step=previous_step,
+                execution_context=execution_context,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(self.gherkin_document, self.scenario, step)

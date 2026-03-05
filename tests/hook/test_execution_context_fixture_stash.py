@@ -29,7 +29,7 @@ def test_session_execution_context_is_available_via_fixture_and_stash(testdir):
             assert session_context is not None
             session.config._session_context_id = id(session_context)
 
-        def pytest_bdd_before_scenario(request, gherkin_document, pickle):
+        def pytest_bdd_before_scenario(request, execution_context):
             session_context = request.getfixturevalue('session_execution_context')
             stash_context = request.config.stash[ExecutionContextStore.SESSION_CONTEXT_STASH_KEY]
             assert session_context is stash_context

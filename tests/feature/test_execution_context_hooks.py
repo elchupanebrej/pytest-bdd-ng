@@ -22,28 +22,30 @@ def test_hook_callbacks_share_same_execution_context_reference(testdir):
 
     testdir.makeconftest(
         """
-        def pytest_bdd_before_scenario(request, gherkin_document, pickle):
+        def pytest_bdd_before_scenario(request, execution_context):
             assert request.execution_context is not None
+            gherkin_document = execution_context.feature_object
+            pickle = execution_context.scenario_object
             assert gherkin_document.execution_context is not None
             assert pickle.execution_context is not None
             request.config.execution_context_ids = [id(request.execution_context)]
 
-        def pytest_bdd_before_step(request, gherkin_document, pickle, step, step_func):
+        def pytest_bdd_before_step(request, execution_context, step_func):
+            step = execution_context.step_object
+            assert step is not None
             assert step.execution_context is not None
             request.config.execution_context_ids.append(id(request.execution_context))
 
         def pytest_bdd_after_step(
             request,
-            gherkin_document,
-            pickle,
-            step,
+            execution_context,
             step_func,
             step_func_args,
             step_definition,
         ):
             request.config.execution_context_ids.append(id(request.execution_context))
 
-        def pytest_bdd_after_scenario(request, gherkin_document, pickle):
+        def pytest_bdd_after_scenario(request, execution_context):
             request.config.execution_context_ids.append(id(request.execution_context))
             assert len(set(request.config.execution_context_ids)) == 1
         """
