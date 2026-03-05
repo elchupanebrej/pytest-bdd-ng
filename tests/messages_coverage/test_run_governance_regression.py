@@ -136,7 +136,7 @@ def test_non_runtime_capability_can_be_classified_partly_applicable(tmp_path, mo
                     "release_target": "v32.current",
                     "rationale": "Python runtime uses Java model projection due to language/runtime mismatch.",
                     "decision_owner": "pytest-bdd-ng-maintainers",
-                    "evidence_refs": ["tests/messages_coverage/test_execution_context_governance_regression.py"],
+                    "evidence_refs": ["tests/messages_coverage/test_run_governance_regression.py"],
                     "reviewed_at": "2026-03-03T00:00:00+00:00",
                 }
             ]

@@ -18,7 +18,7 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
 from .const import Steps
-from .context_store import ExecutionContextStore
+from .run_store import RunStore
 from .plugin import ScenarioRunner
 
 
@@ -144,9 +144,9 @@ def feature(
 
 
 @pytest.fixture(scope="session")
-def session_execution_context(request: FixtureRequest):
-    """Session-scoped fixture exposing canonical SessionExecutionContext."""
-    return ExecutionContextStore.ensure_session_root_for_session(
+def run_context(request: FixtureRequest):
+    """Session-scoped fixture exposing canonical Run."""
+    return RunStore.ensure_run_for_session(
         config=request.config,
         session=request.session,
     )

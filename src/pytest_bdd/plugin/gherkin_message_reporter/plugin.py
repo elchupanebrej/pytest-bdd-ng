@@ -77,7 +77,6 @@ from pytest_bdd.compatibility.pytest import (
     get_config_root_path,
     is_testrun_success,
 )
-from pytest_bdd.model.execution_context import ExecutionContext
 from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
@@ -86,13 +85,14 @@ from pytest_bdd.model.message_validation import (
     observed_outcome_from_envelope,
     validate_message_stream,
 )
-from pytest_bdd.plugin.scenario_runner.context_access import (
+from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.plugin.scenario_runner.run_access import (
     map_runtime_step_to_test_step_id,
-    resolve_request_execution_context,
+    resolve_request_run,
     resolve_step_object,
     resolve_test_step_id_for_runtime_step,
 )
-from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
@@ -310,7 +310,7 @@ class GherkinMessageReporter:
             message_text = "Cannot emit envelope with zero or multiple payloads"
             raise TypeError(message_text)
 
-        ExecutionContextStore.register_envelope_in_config(config, message)
+        RunStore.register_envelope_in_config(config, message)
         if self.is_disabled:
             return
 
@@ -346,9 +346,9 @@ class GherkinMessageReporter:
         )
 
         before_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
-        session_root = ExecutionContextStore.get_session_root_from_config(config)
-        if session_root is not None:
-            session_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
+        run_root = RunStore.get_run_from_config(config)
+        if run_root is not None:
+            run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
         self._emit_envelope(
             config,
             Message(test_run_hook_started=TestRunHookStarted(
@@ -455,10 +455,10 @@ class GherkinMessageReporter:
 
     @staticmethod
     def _resolve_run_started_id(*, config: Config) -> str | None:
-        session_root = ExecutionContextStore.get_session_root_from_config(config)
-        if session_root is None:
+        run_root = RunStore.get_run_from_config(config)
+        if run_root is None:
             return None
-        return session_root.reporting_state.run_started_id
+        return run_root.reporting_state.run_started_id
 
     def _require_run_started_id(self, *, config: Config) -> str:
         run_started_id = self._resolve_run_started_id(config=config)
@@ -471,16 +471,19 @@ class GherkinMessageReporter:
         return run_started_id
 
     @staticmethod
-    def _resolve_gherkin_document_and_pickle(*, execution_context: Any) -> tuple[Any | None, Any | None]:
-        gherkin_document = getattr(execution_context, "feature_object", None)
-        pickle = getattr(execution_context, "scenario_object", None)
+    def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[Any | None, Any | None]:
+        scenario_run = run.active_scenario_run
+        if scenario_run is None:
+            return None, None
+        gherkin_document = getattr(scenario_run, "feature_object", None)
+        pickle = getattr(scenario_run, "scenario_object", None)
         return gherkin_document, pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
-        context = resolve_request_execution_context(request)
-        if context is None:
+        run = resolve_request_run(request)
+        if run is None:
             return None
-        test_step_id = resolve_test_step_id_for_runtime_step(execution_context=context, runtime_step=step)
+        test_step_id = resolve_test_step_id_for_runtime_step(run=run, runtime_step=step)
         if test_step_id is None:
             logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
         return test_step_id
@@ -637,13 +640,14 @@ class GherkinMessageReporter:
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        execution_context = resolve_request_execution_context(request)
-        if execution_context is None:
+        run = resolve_request_run(request)
+        scenario_run = run.active_scenario_run if run is not None else None
+        if run is None or scenario_run is None:
             logger.warning(
                 "Execution context unavailable during pytest_runtest_setup; skipping context-backed correlation writes."
             )
             return
-        gherkin_document, pickle = self._resolve_gherkin_document_and_pickle(execution_context=execution_context)
+        gherkin_document, pickle = self._resolve_gherkin_document_and_pickle(run=run)
         if gherkin_document is None or pickle is None:
             logger.warning(
                 "Execution context does not carry runtime feature/scenario during pytest_runtest_setup."
@@ -652,7 +656,7 @@ class GherkinMessageReporter:
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
 
         test_steps = []
         previous_step = None
@@ -670,11 +674,11 @@ class GherkinMessageReporter:
 
         for step in pickle.steps:
             try:
-                execution_context.step_object = step
-                execution_context.previous_step_object = previous_step
+                scenario_run.step_object = step
+                scenario_run.previous_step_object = previous_step
                 step_definition = hook_handler.pytest_bdd_match_step_definition_to_step(
                     request=request,
-                    execution_context=execution_context,
+                    run=run,
                 )
             except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa:PERF203
                 pass
@@ -694,7 +698,7 @@ class GherkinMessageReporter:
                 )
                 test_steps.append(test_step)
                 map_runtime_step_to_test_step_id(
-                    execution_context=execution_context,
+                    run=run,
                     runtime_step=step,
                     test_step_id=test_step.id,
                 )
@@ -956,12 +960,12 @@ class GherkinMessageReporter:
     def pytest_bdd_step_func_lookup_error(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
         exception,
     ):
         if self.is_disabled:
             return
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
         config = request.config
@@ -994,12 +998,12 @@ class GherkinMessageReporter:
     def pytest_bdd_before_scenario(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
     ):
         if self.is_disabled:
             return
         config = request.config
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
         test_case_id = reporting_state.active_test_case_id
         if test_case_id is None:
             return
@@ -1018,10 +1022,6 @@ class GherkinMessageReporter:
             "attempt_index": attempt_index,
             "worker_id": worker_id,
         }
-        if execution_context.session_context is not None:
-            execution_context.session_context.reporting_state.scenario_attempt_context = dict(
-                reporting_state.scenario_attempt_context
-            )
         self._emit_envelope(
             config,
             Message(test_case_started=test_case_start),
@@ -1030,11 +1030,11 @@ class GherkinMessageReporter:
     def pytest_bdd_after_scenario(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
     ):
         if self.is_disabled:
             return
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
             return
@@ -1048,8 +1048,6 @@ class GherkinMessageReporter:
             )),
         )
         reporting_state.reset_scenario_scope()
-        if execution_context.session_context is not None:
-            execution_context.session_context.reporting_state.reset_scenario_scope()
 
     @staticmethod
     def _duration_between(start_timestamp: Timestamp | None, finish_timestamp: Timestamp) -> Duration:
@@ -1066,15 +1064,15 @@ class GherkinMessageReporter:
     def pytest_bdd_before_step(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
             return
@@ -1101,15 +1099,15 @@ class GherkinMessageReporter:
     def pytest_bdd_after_step(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
             return
@@ -1139,7 +1137,7 @@ class GherkinMessageReporter:
     def pytest_bdd_step_error(
         self,
         request,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,  # noqa: ARG002 hookspec
         step_func_args,  # noqa: ARG002 hookspec
         exception,
@@ -1147,10 +1145,10 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
-        reporting_state = execution_context.reporting_state
+        reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
             return
@@ -1203,23 +1201,23 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        execution_context = resolve_request_execution_context(request)
-        reporting_state = execution_context.reporting_state if execution_context is not None else None
+        run = resolve_request_run(request)
+        reporting_state = run.reporting_state if run is not None else None
         test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
         active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None
-        session_root = ExecutionContextStore.get_session_root_from_config(config)
+        run_root = RunStore.get_run_from_config(config)
         attachment_timestamp = self.get_timestamp()
         effective_test_run_hook_started_id = (
             test_run_hook_started_id
             or (
-                session_root.reporting_state.test_run_hook_started_id
-                if session_root is not None
+                run_root.reporting_state.test_run_hook_started_id
+                if run_root is not None
                 else None
             )
         )
         effective_test_run_started_id = (
             test_run_started_id
-            or (session_root.reporting_state.run_started_id if session_root is not None else None)
+            or (run_root.reporting_state.run_started_id if run_root is not None else None)
         )
 
         if isinstance(attachment, (str, TextIOBase)):

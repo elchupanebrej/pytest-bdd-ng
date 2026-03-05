@@ -2,35 +2,34 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from pytest_bdd.model.execution_context import (
+from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    ExecutionContext,
-    ExecutionStage,
-    ExecutionStatus,
+    RunStage,
+    RunStatus,
     HookPhase,
     LifecycleObjectRef,
-    SessionExecutionContext,
+    Run,
+    ScenarioRun,
 )
-from pytest_bdd.model.hook_parameter_model import ExecutionContextView
-from pytest_bdd.plugin.scenario_runner.context_access import build_reporting_context_snapshot
-from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+from pytest_bdd.plugin.scenario_runner.run_access import build_reporting_context_snapshot
+from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 
 
-def _build_execution_context(*, stage: ExecutionStage) -> ExecutionContext:
+def _build_scenario_run(*, stage: RunStage) -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
-    session_root = SessionExecutionContext(
-        session_context_id="session-1",
+    run_root = Run(
+        run_context_id="run-1",
         run_ref=run_ref,
-        status=ExecutionStatus.ok,
+        status=RunStatus.ok,
     )
-    return ExecutionContext(
+    return ScenarioRun(
         context_id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.before_scenario,
         stage=stage,
-        status=ExecutionStatus.ok,
+        status=RunStatus.ok,
         active_set=ActiveObjectSet(run=run_ref, captured_at_stage=stage),
-        session_context=session_root,
+        run=run_root,
     )
 
 
@@ -42,57 +41,50 @@ def _build_request(*, config: SimpleNamespace | None = None, session: SimpleName
     return SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::test"))
 
 
-def test_snapshot_uses_direct_execution_context_argument() -> None:
+def test_snapshot_uses_direct_run_argument() -> None:
     request = _build_request()
-    context = _build_execution_context(stage=ExecutionStage.step_running)
+    context = _build_scenario_run(stage=RunStage.step_running)
+    context.run.active_scenario_run = context
 
-    snapshot = build_reporting_context_snapshot(request=request, execution_context=context)
+    snapshot = build_reporting_context_snapshot(request=request, run=context.run)
 
     assert snapshot is not None
     assert snapshot.resolved_from_hierarchy is True
     assert snapshot.fallback_reason is None
-    assert snapshot.session_context_id == "session-1"
-    assert snapshot.stage == ExecutionStage.step_running
+    assert snapshot.run_context_id == "run-1"
+    assert snapshot.stage == RunStage.step_running
 
 
-def test_snapshot_uses_request_execution_context_view_node_context() -> None:
+def test_snapshot_uses_request_run_attribute() -> None:
     request = _build_request()
-    context = _build_execution_context(stage=ExecutionStage.scenario_running)
-    request.execution_context = ExecutionContextView(
-        session=context.session_context,
-        context_id=context.context_id,
-        active_set=context.active_set,
-        active_hook=context.active_hook,
-        stage=context.stage,
-        status=context.status,
-        transition_index=context.transition_index,
-        node_context=context,
-    )
+    context = _build_scenario_run(stage=RunStage.scenario_running)
+    context.run.active_scenario_run = context
+    request.run = context.run
 
     snapshot = build_reporting_context_snapshot(request=request)
 
     assert snapshot is not None
     assert snapshot.resolved_from_hierarchy is True
     assert snapshot.fallback_reason is None
-    assert snapshot.stage == ExecutionStage.scenario_running
+    assert snapshot.stage == RunStage.scenario_running
 
 
-def test_snapshot_falls_back_to_session_root_from_stash() -> None:
+def test_snapshot_falls_back_to_run_root_from_stash() -> None:
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="run-session")
     request = _build_request(config=config, session=session)
-    stash_root = SessionExecutionContext(
-        session_context_id="session-stash",
+    stash_root = Run(
+        run_context_id="run-stash",
         run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
-        status=ExecutionStatus.ok,
+        status=RunStatus.ok,
     )
-    ExecutionContextStore.set_session_root_in_config(config, stash_root)
+    RunStore.set_run_in_config(config, stash_root)
 
     snapshot = build_reporting_context_snapshot(request=request, fallback_reason="hierarchy-missing")
 
     assert snapshot is not None
-    assert snapshot.resolved_from_hierarchy is False
-    assert snapshot.session_context_id == "session-stash"
+    assert snapshot.resolved_from_hierarchy is True
+    assert snapshot.run_context_id == "run-stash"
     assert snapshot.active_set.run.object_id == "run-stash"
     assert snapshot.fallback_reason == "hierarchy-missing"
 
@@ -109,4 +101,4 @@ def test_snapshot_builds_synthetic_fallback_without_stash_context() -> None:
     assert snapshot.fallback_reason == "hierarchy_not_available"
     assert snapshot.active_set.run.kind == "run"
     assert snapshot.active_set.run.object_id == "run-session"
-    assert snapshot.session_context_id.startswith("session-")
+    assert snapshot.run_context_id.startswith("run-")

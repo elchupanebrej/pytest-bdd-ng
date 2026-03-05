@@ -15,7 +15,7 @@ from cucumber_messages import (
 
 from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.model.gherkin_document import core as core_module
-from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 
 
 def _build_feature() -> Feature:
@@ -61,7 +61,7 @@ def test_feature_does_not_expose_registry_attribute() -> None:
 def test_resolver_uses_stash_envelope_registry_as_primary_source() -> None:
     feature = _build_feature()
     config = SimpleNamespace(stash={})
-    envelope_registry = ExecutionContextStore.ensure_envelope_registry_in_config(config)
+    envelope_registry = RunStore.ensure_envelope_registry_in_config(config)
     ast_node = SimpleNamespace(id="ast-id", description="from-stash-registry")
     envelope_registry.identifiable.objects_by_id["ast-id"] = ast_node
 

@@ -4,30 +4,30 @@ from typing import Any
 import pytest
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
-from pytest_bdd.model.execution_context import ExecutionContext
+from pytest_bdd.model.scenario_run import Run
 
 
 class ScenarioRunnerHookSpec:
-    def pytest_bdd_before_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
+    def pytest_bdd_before_scenario(self, request: FixtureRequest, run: Run):
         """Called before scenario is executed."""
 
-    def pytest_bdd_run_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
+    def pytest_bdd_run_scenario(self, request: FixtureRequest, run: Run):
         """Execution scenario protocol"""
 
-    def pytest_bdd_after_scenario(self, request: FixtureRequest, execution_context: ExecutionContext):
+    def pytest_bdd_after_scenario(self, request: FixtureRequest, run: Run):
         """Called after scenario is executed."""
 
     def pytest_bdd_run_step(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
     ):
         """Execution of run step protocol"""
 
     def pytest_bdd_before_step(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,
     ):
         """Called before step function is set up."""
@@ -35,7 +35,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_before_step_call(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,
         step_func_args,
         step_definition,
@@ -45,7 +45,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_after_step(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,
         step_func_args,
         step_definition,
@@ -55,7 +55,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_step_error(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,
         step_func_args,
         exception,
@@ -66,7 +66,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_step_func_lookup_error(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         exception,
     ):
         """Called when step lookup failed."""
@@ -75,7 +75,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_match_step_definition_to_step(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
     ):
         """Find match between scenario step and user defined step function"""
 
@@ -83,7 +83,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_get_step_caller(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
         step_func,
         step_func_args,
         step_definition,
@@ -94,7 +94,7 @@ class ScenarioRunnerHookSpec:
     def pytest_bdd_get_step_dispatcher(
         self,
         request: FixtureRequest,
-        execution_context: ExecutionContext,
+        run: Run,
     ):
         """Provide alternative approach to execute scenario steps"""
 

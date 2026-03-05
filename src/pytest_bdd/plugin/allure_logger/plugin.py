@@ -9,7 +9,7 @@ from pluggy import HookimplMarker
 from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-from pytest_bdd.plugin.scenario_runner.context_access import (
+from pytest_bdd.plugin.scenario_runner.run_access import (
     resolve_feature_object,
     resolve_pickle_object,
     resolve_step_object,
@@ -76,21 +76,21 @@ class AllureLogger:
     def pytest_bdd_before_step_call(
         self,
         request,  # noqa: ARG002 hookspec
-        execution_context,
+        run,
         step_func,
         step_func_args,
         step_definition,
     ):
         """Called before step function is set up."""
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
         step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 
     @pytest.hookimpl
-    def pytest_bdd_before_scenario(self, request, execution_context):
-        gherkin_document = resolve_feature_object(execution_context)
-        pickle = resolve_pickle_object(execution_context)
+    def pytest_bdd_before_scenario(self, request, run):
+        gherkin_document = resolve_feature_object(run)
+        pickle = resolve_pickle_object(run)
         if gherkin_document is None or pickle is None:
             return
         scenario_result_uuid = self._cache.get(pickle)
@@ -121,9 +121,9 @@ class AllureLogger:
     def pytest_bdd_after_scenario(
         self,
         request,  # noqa: ARG002 hookspec
-        execution_context,
+        run,
     ):
-        pickle = resolve_pickle_object(execution_context)
+        pickle = resolve_pickle_object(run)
         if pickle is None:
             return
         scenario_result_uuid = self._cache.get(pickle)
@@ -135,10 +135,10 @@ class AllureLogger:
     def pytest_bdd_step_func_lookup_error(
         self,
         request,  # noqa: ARG002 hookspec
-        execution_context,
+        run,
         exception,
     ):
-        pickle = resolve_pickle_object(execution_context)
+        pickle = resolve_pickle_object(run)
         if pickle is None:
             return
         scenario_result_uuid = self._cache.get(pickle)

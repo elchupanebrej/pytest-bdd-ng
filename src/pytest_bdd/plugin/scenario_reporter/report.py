@@ -4,7 +4,7 @@ from typing import Any, Final, Literal
 from attr import Factory, attrib, attrs
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
-from pytest_bdd.model.execution_context import ReportingContextSnapshot
+from pytest_bdd.model.scenario_run import ReportingContextSnapshot
 from pytest_bdd.model.gherkin_document import Feature
 
 RuntimeStepStatus = Literal["passed", "failed"]

@@ -11,11 +11,11 @@ CONTRACT_PATH = (
 )
 
 
-def test_execution_context_contract_exists() -> None:
+def test_run_contract_exists() -> None:
     assert CONTRACT_PATH.exists()
 
 
-def test_execution_context_contract_has_required_paths() -> None:
+def test_run_contract_has_required_paths() -> None:
     contract_text = CONTRACT_PATH.read_text()
     assert "/execution-context/session-root:" in contract_text
     assert "/execution-context/session-fixture:" in contract_text
@@ -27,7 +27,7 @@ def test_execution_context_contract_has_required_paths() -> None:
     assert "/compatibility/external-api:" in contract_text
 
 
-def test_execution_context_contract_has_minimal_change_constraints() -> None:
+def test_run_contract_has_minimal_change_constraints() -> None:
     contract_text = CONTRACT_PATH.read_text()
     assert "consumerMigrationRequired:" in contract_text
     assert "- false" in contract_text

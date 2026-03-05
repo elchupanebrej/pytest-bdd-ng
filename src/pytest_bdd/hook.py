@@ -64,38 +64,38 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
 
 
 def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureRequest) -> tuple[tuple, dict]:
-    execution_context = getattr(request, "execution_context", None)
-    if execution_context is None:
-        execution_context = getattr(request.node, "_pytest_bdd_execution_context", None)
-    if execution_context is None and "execution_context" in func_sig.parameters:
+    run = getattr(request, "run", None)
+    if run is None:
+        run = getattr(request.node, "_pytest_bdd_run", None)
+    if run is None and "run" in func_sig.parameters:
         try:
-            from pytest_bdd.plugin.scenario_runner.context_access import resolve_execution_context
-            from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+            from pytest_bdd.plugin.scenario_runner.run_access import resolve_request_run, resolve_scenario_run
+            from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 
             feature = request.getfixturevalue("gherkin_document")
             scenario = request.getfixturevalue("scenario")
-            execution_context = resolve_execution_context(
+            scenario_run = resolve_scenario_run(
                 request,
-                context_store=ExecutionContextStore(),
+                run_store=RunStore(),
                 feature=feature,
                 scenario=scenario,
             )
-            execution_context = getattr(request, "execution_context", execution_context)
+            run = resolve_request_run(request)
+            if run is None:
+                run = getattr(scenario_run, "run", None)
         except FixtureLookupError:  # pragma: no cover - non-bdd test nodes don't expose these fixtures
-            execution_context = None
+            run = None
 
-    # Keep backward compatibility for mark/tag hooks that access
-    # request.execution_context directly instead of hook argument.
-    if execution_context is not None:
+    if run is not None:
         with suppress(AttributeError):
-            request.execution_context = execution_context
+            request.run = run
 
     return (
         args,
         {
             **kwargs,
             **({"request": request} if "request" in func_sig.parameters else {}),
-            **({"execution_context": execution_context} if "execution_context" in func_sig.parameters else {}),
+            **({"run": run} if "run" in func_sig.parameters else {}),
         },
     )
 

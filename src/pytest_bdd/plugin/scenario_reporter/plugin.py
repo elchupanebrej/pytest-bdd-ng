@@ -13,7 +13,7 @@ from pytest_bdd.compatibility.pytest import CallInfo, FixtureLookupError, Fixtur
 from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.model.gherkin_document.core import build_feature_adapter
 from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
-from pytest_bdd.plugin.scenario_runner.context_access import (
+from pytest_bdd.plugin.scenario_runner.run_access import (
     build_reporting_context_snapshot,
     resolve_feature_object,
     resolve_pickle_object,
@@ -70,11 +70,11 @@ class ScenarioReporter:
     def pytest_bdd_before_scenario(
         self,
         request: FixtureRequest,
-        execution_context,
+        run,
     ) -> None:
         """Create scenario report for the item."""
-        gherkin_document = resolve_feature_object(execution_context)
-        pickle = resolve_pickle_object(execution_context)
+        gherkin_document = resolve_feature_object(run)
+        pickle = resolve_pickle_object(run)
         if gherkin_document is None or pickle is None:
             return
         feature_adapter = self._coerce_feature_adapter(
@@ -98,7 +98,7 @@ class ScenarioReporter:
     def pytest_bdd_step_error(
         self,
         request: FixtureRequest,
-        execution_context,  # noqa: ARG002 hookspec
+        run,  # noqa: ARG002 hookspec
         step_func: Callable,  # noqa: ARG002 hookspec
         step_func_args: dict,  # noqa: ARG002 hookspec
         exception: Exception,  # noqa: ARG002 hookspec
@@ -116,11 +116,11 @@ class ScenarioReporter:
     def pytest_bdd_before_step(
         self,
         request: FixtureRequest,
-        execution_context,
+        run,
         step_func: Callable,  # noqa: ARG002 hookspec
     ) -> None:
         """Store step start time."""
-        step = resolve_step_object(execution_context)
+        step = resolve_step_object(run)
         if step is None:
             return
         self.current_report.set_context_snapshot(
@@ -135,7 +135,7 @@ class ScenarioReporter:
     def pytest_bdd_after_step(
         self,
         request: FixtureRequest,
-        execution_context,  # noqa: ARG002 hookspec
+        run,  # noqa: ARG002 hookspec
         step_func: Callable,  # noqa: ARG002 hookspec
         step_func_args: dict,  # noqa: ARG002 hookspec
     ) -> None:
@@ -152,7 +152,7 @@ class ScenarioReporter:
     def pytest_bdd_after_scenario(
         self,
         request: FixtureRequest,
-        execution_context,  # noqa: ARG002 hookspec
+        run,  # noqa: ARG002 hookspec
     ) -> None:
         self.current_report.set_context_snapshot(
             build_reporting_context_snapshot(

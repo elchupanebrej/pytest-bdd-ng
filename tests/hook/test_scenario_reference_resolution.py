@@ -4,62 +4,64 @@ from types import SimpleNamespace
 
 from cucumber_messages import DataTable, DocString, Location, PickleStep, Step, TableCell, TableRow
 
-from pytest_bdd.model.execution_context import (
+from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    ExecutionContext,
-    ExecutionStage,
-    ExecutionStatus,
+    RunStage,
+    RunStatus,
     HookPhase,
     LifecycleObjectRef,
-    SessionExecutionContext,
+    Run,
+    ScenarioRun,
 )
-from pytest_bdd.plugin.scenario_runner.context_access import resolve_step_runtime_enrichment
-from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
+from pytest_bdd.plugin.scenario_runner.run_access import resolve_step_runtime_enrichment
+from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 from pytest_bdd.plugin.scenario_runner.plugin import ScenarioRunner
 
 
-def _build_execution_context() -> ExecutionContext:
+def _build_scenario_run() -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
-    session = SessionExecutionContext(
-        session_context_id="session-1",
+    session = Run(
+        run_context_id="run-1",
         run_ref=run_ref,
-        status=ExecutionStatus.ok,
+        status=RunStatus.ok,
     )
-    active_set = ActiveObjectSet(run=run_ref, captured_at_stage=ExecutionStage.scenario_running)
-    return ExecutionContext(
+    active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.scenario_running)
+    return ScenarioRun(
         context_id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.run_scenario,
-        stage=ExecutionStage.scenario_running,
-        status=ExecutionStatus.ok,
+        stage=RunStage.scenario_running,
+        status=RunStatus.ok,
         active_set=active_set,
-        session_context=session,
+        run=session,
     )
 
 
 def _build_config_with_registry(entries: dict[str, object]) -> SimpleNamespace:
     config = SimpleNamespace(stash={})
-    envelope_registry = ExecutionContextStore.ensure_envelope_registry_in_config(config)
+    envelope_registry = RunStore.ensure_envelope_registry_in_config(config)
     envelope_registry.identifiable.objects_by_id.update(entries)
     return config
 
 
 def test_extended_step_context_resolves_scenario_description_from_context_registry() -> None:
     runner = ScenarioRunner()
-    execution_context = _build_execution_context()
+    scenario_run = _build_scenario_run()
+    scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry({"scenario-1": SimpleNamespace(id="scenario-1", description="Scenario from context")})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["scenario-1"])
-    execution_context.feature_object = feature
-    execution_context.scenario_object = scenario
+    scenario_run.feature_object = feature
+    scenario_run.scenario_object = scenario
 
-    with runner.extended_step_context(execution_context):
+    with runner.extended_step_context(scenario_run.run):
         assert scenario.description == "Scenario from context"
 
 
 def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> None:
     runner = ScenarioRunner()
-    execution_context = _build_execution_context()
+    scenario_run = _build_scenario_run()
+    scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry(
         {
             "rule-scenario-id": SimpleNamespace(id="rule-scenario-id", description="Nested scenario description"),
@@ -68,26 +70,27 @@ def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> N
     )
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["rule-scenario-id", "fallback-id"])
-    execution_context.feature_object = feature
-    execution_context.scenario_object = scenario
+    scenario_run.feature_object = feature
+    scenario_run.scenario_object = scenario
 
-    with runner.extended_step_context(execution_context):
+    with runner.extended_step_context(scenario_run.run):
         assert scenario.description == "Nested scenario description"
 
 
 def test_extended_step_context_records_missing_scenario_reference_in_context_diagnostics() -> None:
     runner = ScenarioRunner()
-    execution_context = _build_execution_context()
+    scenario_run = _build_scenario_run()
+    scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry({})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["missing-scenario-id"])
-    execution_context.feature_object = feature
-    execution_context.scenario_object = scenario
+    scenario_run.feature_object = feature
+    scenario_run.scenario_object = scenario
 
-    with runner.extended_step_context(execution_context):
+    with runner.extended_step_context(scenario_run.run):
         assert scenario.description is None
 
-    assert execution_context.reference_resolver.missing_reference_diagnostics == [
+    assert scenario_run.reference_resolver.missing_reference_diagnostics == [
         "Missing AST node id: missing-scenario-id"
     ]
 
@@ -115,14 +118,14 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
             ],
         ),
     )
-    execution_context = _build_execution_context()
+    scenario_run = _build_scenario_run()
     config = _build_config_with_registry({"rule-background-step-id": model_step})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     pickle_step = PickleStep(ast_node_ids=["rule-background-step-id"], id="pickle-step-id", text="a rule background step")
 
     payload = resolve_step_runtime_enrichment(
         feature=feature,
-        execution_context=execution_context,
+        scenario_run=scenario_run,
         step=pickle_step,
         config=config,
     )
@@ -132,18 +135,18 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
     assert payload["line_number"] == 11
     assert payload["doc_string"] is model_step.doc_string
     assert payload["data_table"] is model_step.data_table
-    assert execution_context.reference_resolver.missing_reference_diagnostics == []
+    assert scenario_run.reference_resolver.missing_reference_diagnostics == []
 
 
 def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> None:
-    execution_context = _build_execution_context()
+    scenario_run = _build_scenario_run()
     config = _build_config_with_registry({})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     pickle_step = PickleStep(ast_node_ids=["missing-step-id"], id="pickle-step-id", text="missing")
 
     payload = resolve_step_runtime_enrichment(
         feature=feature,
-        execution_context=execution_context,
+        scenario_run=scenario_run,
         step=pickle_step,
         config=config,
     )
@@ -155,6 +158,6 @@ def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> N
         "doc_string": None,
         "data_table": None,
     }
-    assert execution_context.reference_resolver.missing_reference_diagnostics == [
+    assert scenario_run.reference_resolver.missing_reference_diagnostics == [
         "Missing pickle step mapping: pickle-step-id"
     ]

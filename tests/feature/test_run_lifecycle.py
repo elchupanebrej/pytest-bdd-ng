@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def test_each_scenario_gets_isolated_execution_context(testdir):
+def test_each_scenario_gets_isolated_scenario_run(testdir):
     testdir.makefile(
         ".ini",
         pytest="""
@@ -26,18 +26,18 @@ def test_each_scenario_gets_isolated_execution_context(testdir):
         """
         from pytest_bdd import given, scenario
 
-        def pytest_bdd_before_scenario(request, execution_context):
-            context = request.execution_context
+        def pytest_bdd_before_scenario(request, run):
+            context = run.active_scenario_run
             assert context is not None
-            request.config.session_context_ids = getattr(request.config, "session_context_ids", [])
+            request.config.run_context_ids = getattr(request.config, "run_context_ids", [])
             request.config.node_context_ids = getattr(request.config, "node_context_ids", [])
-            request.config.session_context_ids.append(context.session.session_context_id)
+            request.config.run_context_ids.append(context.run.run_context_id)
             request.config.node_context_ids.append(context.context_id)
 
         def pytest_sessionfinish(session, exitstatus):
-            session_ids = getattr(session.config, "session_context_ids", [])
+            run_ids = getattr(session.config, "run_context_ids", [])
             node_ids = getattr(session.config, "node_context_ids", [])
-            assert len(set(session_ids)) == 1
+            assert len(set(run_ids)) == 1
             assert len(set(node_ids)) == 2
 
         @scenario('test.feature', 'First scenario')

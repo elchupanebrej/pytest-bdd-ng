@@ -21,7 +21,7 @@ class HookPhase(StrEnum):
     step_lookup_error = "step_lookup_error"
 
 
-class ExecutionStage(StrEnum):
+class RunStage(StrEnum):
     idle = "idle"
     scenario_setup = "scenario_setup"
     scenario_running = "scenario_running"
@@ -30,7 +30,7 @@ class ExecutionStage(StrEnum):
     finished = "finished"
 
 
-class ExecutionStatus(StrEnum):
+class RunStatus(StrEnum):
     ok = "ok"
     failed = "failed"
     interrupted = "interrupted"
@@ -57,7 +57,7 @@ class LifecycleObjectRef:
 @dataclass(slots=True)
 class ActiveObjectSet:
     run: LifecycleObjectRef
-    captured_at_stage: ExecutionStage
+    captured_at_stage: RunStage
     feature: LifecycleObjectRef | None = None
     scenario: LifecycleObjectRef | None = None
     step: LifecycleObjectRef | None = None
@@ -130,7 +130,7 @@ class ContextErrorState:
     code: Literal["object_inactive", "transition_order_violation", "context_not_initialized"]
     message: str
     hook_name: str
-    stage: ExecutionStage
+    stage: RunStage
     requested_kind: LifecycleKind | None = None
 
     def as_dict(self) -> dict[str, Any]:
@@ -144,14 +144,15 @@ class ContextErrorState:
 
 
 @dataclass(slots=True)
-class SessionExecutionContext:
-    session_context_id: str
+class Run:
+    run_context_id: str
     run_ref: LifecycleObjectRef
-    status: ExecutionStatus
+    status: RunStatus
     transition_index: int = 0
     active_feature_context_id: str | None = None
     active_scenario_context_id: str | None = None
     active_step_context_id: str | None = None
+    active_scenario_run: ScenarioRun | None = field(default=None, repr=False)
     last_error: ContextErrorState | None = None
     reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
 
@@ -160,7 +161,7 @@ class SessionExecutionContext:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "session_context_id": self.session_context_id,
+            "run_context_id": self.run_context_id,
             "run_ref": self.run_ref.as_dict(),
             "status": self.status.value,
             "transition_index": self.transition_index,
@@ -173,7 +174,7 @@ class SessionExecutionContext:
 
 
 @dataclass(slots=True)
-class ExecutionContextNode:
+class RunNode:
     context_id: str
     parent_context_id: str
     kind: NodeKind
@@ -199,12 +200,12 @@ class ExecutionContextNode:
 
 
 @dataclass(slots=True)
-class ExecutionContext:
+class ScenarioRun:
     context_id: str
     run_ref: LifecycleObjectRef
     active_hook: HookPhase
-    stage: ExecutionStage
-    status: ExecutionStatus
+    stage: RunStage
+    status: RunStatus
     active_set: ActiveObjectSet
     transition_index: int = 0
     feature_ref: LifecycleObjectRef | None = None
@@ -212,15 +213,14 @@ class ExecutionContext:
     step_ref: LifecycleObjectRef | None = None
     previous_step_ref: LifecycleObjectRef | None = None
     last_error: ContextErrorState | None = None
-    session_context: SessionExecutionContext | None = None
-    feature_node: ExecutionContextNode | None = None
-    scenario_node: ExecutionContextNode | None = None
-    step_node: ExecutionContextNode | None = None
+    run: Run | None = None
+    feature_node: RunNode | None = None
+    scenario_node: RunNode | None = None
+    step_node: RunNode | None = None
     feature_object: Any | None = None
     scenario_object: Any | None = None
     step_object: Any | None = None
     previous_step_object: Any | None = None
-    reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
     reference_resolver: ReferenceResolverState = field(default_factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
 
@@ -266,11 +266,10 @@ class ExecutionContext:
             "active_set": self.active_set.as_dict(),
             "transition_index": self.transition_index,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
-            "session_context": self.session_context.as_dict() if self.session_context is not None else None,
+            "run": self.run.as_dict() if self.run is not None else None,
             "feature_node": self.feature_node.as_dict() if self.feature_node is not None else None,
             "scenario_node": self.scenario_node.as_dict() if self.scenario_node is not None else None,
             "step_node": self.step_node.as_dict() if self.step_node is not None else None,
-            "reporting_state": self.reporting_state.as_dict(),
             "reference_resolver": self.reference_resolver.as_dict(),
         }
 
@@ -279,7 +278,7 @@ class ExecutionContext:
 class HookInvocationContext:
     hook_name: str
     hook_phase: HookPhase
-    execution_context_ref: ExecutionContext
+    scenario_run_ref: ScenarioRun
     request_ref: str
     resolved_objects: ActiveObjectSet
 
@@ -287,7 +286,7 @@ class HookInvocationContext:
         return {
             "hook_name": self.hook_name,
             "hook_phase": self.hook_phase.value,
-            "execution_context_ref": self.execution_context_ref.as_dict(),
+            "scenario_run_ref": self.scenario_run_ref.as_dict(),
             "request_ref": self.request_ref,
             "resolved_objects": self.resolved_objects.as_dict(),
         }
@@ -295,15 +294,15 @@ class HookInvocationContext:
 
 @dataclass(slots=True)
 class ReportingContextSnapshot:
-    session_context_id: str
+    run_context_id: str
     active_set: ActiveObjectSet
-    stage: ExecutionStage
+    stage: RunStage
     resolved_from_hierarchy: bool
     fallback_reason: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "session_context_id": self.session_context_id,
+            "run_context_id": self.run_context_id,
             "active_set": self.active_set.as_dict(),
             "stage": self.stage.value,
             "resolved_from_hierarchy": self.resolved_from_hierarchy,

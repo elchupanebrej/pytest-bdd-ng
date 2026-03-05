@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def test_mark_hooks_can_read_optional_execution_context_without_breaking_existing_usage(testdir):
+def test_mark_hooks_can_read_optional_run_without_breaking_existing_usage(testdir):
     testdir.makefile(
         ".feature",
         test="""
@@ -26,10 +26,10 @@ def test_mark_hooks_can_read_optional_execution_context_without_breaking_existin
         from pytest_bdd.hook import before_mark
 
         @before_mark('tag')
-        def validate_execution_context(request, execution_context=None):
+        def validate_run(request, run=None):
             assert request is not None
-            assert request.execution_context is not None
-            assert execution_context is request.execution_context
+            assert request.run is not None
+            assert run is request.run
 
         @when('do work')
         def do_work():

@@ -4,29 +4,29 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pytest_bdd.model.execution_context import (
+    from pytest_bdd.model.scenario_run import (
         ActiveObjectSet,
-        ExecutionStage,
-        ExecutionStatus,
+        RunStage,
+        RunStatus,
         HookPhase,
-        SessionExecutionContext,
+        Run,
     )
 
 
 @dataclass(slots=True)
-class ExecutionContextView:
-    session: SessionExecutionContext
+class ScenarioRunView:
+    run: Run
     context_id: str
     active_set: ActiveObjectSet
     active_hook: HookPhase
-    stage: ExecutionStage
-    status: ExecutionStatus
+    stage: RunStage
+    status: RunStatus
     transition_index: int
     node_context: Any | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "session": self.session.as_dict(),
+            "run": self.run.as_dict(),
             "context_id": self.context_id,
             "active_set": self.active_set.as_dict(),
             "active_hook": self.active_hook.value,
@@ -43,7 +43,7 @@ class HookParameterModel:
     scenario: Any | None
     step: Any | None
     previous_step: Any | None
-    execution_context: ExecutionContextView
+    scenario_run_view: ScenarioRunView
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -51,5 +51,5 @@ class HookParameterModel:
             "feature_ref": getattr(self.feature, "name", None),
             "scenario_ref": getattr(self.scenario, "name", None),
             "step_ref": getattr(self.step, "text", None),
-            "execution_context": self.execution_context.as_dict(),
+            "scenario_run_view": self.scenario_run_view.as_dict(),
         }

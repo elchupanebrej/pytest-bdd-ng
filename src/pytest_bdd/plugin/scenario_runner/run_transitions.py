@@ -3,30 +3,30 @@ from __future__ import annotations
 from itertools import count
 from typing import Any
 
-from pytest_bdd.model.execution_context import (
+from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    ExecutionContext,
-    ExecutionContextNode,
-    ExecutionStage,
-    ExecutionStatus,
+    RunNode,
+    RunStage,
+    RunStatus,
     HookPhase,
     LifecycleKind,
     LifecycleObjectRef,
+    ScenarioRun,
 )
 
 _context_index = count(1)
 
 
-PHASE_TO_STAGE: dict[HookPhase, ExecutionStage] = {
-    HookPhase.before_scenario: ExecutionStage.scenario_setup,
-    HookPhase.run_scenario: ExecutionStage.scenario_running,
-    HookPhase.after_scenario: ExecutionStage.scenario_teardown,
-    HookPhase.run_step: ExecutionStage.step_running,
-    HookPhase.before_step: ExecutionStage.step_running,
-    HookPhase.before_step_call: ExecutionStage.step_running,
-    HookPhase.after_step: ExecutionStage.scenario_running,
-    HookPhase.step_error: ExecutionStage.scenario_running,
-    HookPhase.step_lookup_error: ExecutionStage.scenario_running,
+PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
+    HookPhase.before_scenario: RunStage.scenario_setup,
+    HookPhase.run_scenario: RunStage.scenario_running,
+    HookPhase.after_scenario: RunStage.scenario_teardown,
+    HookPhase.run_step: RunStage.step_running,
+    HookPhase.before_step: RunStage.step_running,
+    HookPhase.before_step_call: RunStage.step_running,
+    HookPhase.after_step: RunStage.scenario_running,
+    HookPhase.step_error: RunStage.scenario_running,
+    HookPhase.step_lookup_error: RunStage.scenario_running,
 }
 
 
@@ -75,7 +75,7 @@ def build_lifecycle_ref(kind: LifecycleKind, value: Any, *, is_active: bool) -> 
     )
 
 
-def initial_execution_context_id(request: Any) -> str:
+def initial_scenario_run_id(request: Any) -> str:
     node_id = getattr(getattr(request, "node", None), "nodeid", None)
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"
@@ -83,7 +83,7 @@ def initial_execution_context_id(request: Any) -> str:
 
 def build_active_object_set(
     *,
-    stage: ExecutionStage,
+    stage: RunStage,
     run_ref: LifecycleObjectRef,
     feature_ref: LifecycleObjectRef | None,
     scenario_ref: LifecycleObjectRef | None,
@@ -101,7 +101,7 @@ def build_active_object_set(
 
 
 def apply_transition(
-    context: ExecutionContext,
+    context: ScenarioRun,
     *,
     hook_phase: HookPhase,
     run: Any | None = None,
@@ -109,18 +109,18 @@ def apply_transition(
     scenario: Any | None = None,
     step: Any | None = None,
     previous_step: Any | None = None,
-    status: ExecutionStatus | None = None,
-) -> ExecutionContext:
+    status: RunStatus | None = None,
+) -> ScenarioRun:
     stage = PHASE_TO_STAGE[hook_phase]
-    session_root = context.session_context
+    run_root = context.run
 
     run_ref = context.run_ref if run is None else build_lifecycle_ref("run", run, is_active=True)
     if run_ref is None:
         run_ref = context.run_ref
 
-    scenario_is_active = stage not in {ExecutionStage.idle, ExecutionStage.finished}
+    scenario_is_active = stage not in {RunStage.idle, RunStage.finished}
     feature_is_active = scenario_is_active
-    step_is_active = stage is ExecutionStage.step_running
+    step_is_active = stage is RunStage.step_running
 
     feature_ref = build_lifecycle_ref("feature", feature, is_active=feature_is_active) if feature is not None else None
     scenario_ref = (
@@ -142,7 +142,7 @@ def apply_transition(
             parent_context_id = (
                 context.scenario_node.context_id if context.scenario_node is not None else context.context_id
             )
-            context.step_node = ExecutionContextNode(
+            context.step_node = RunNode(
                 context_id=f"step-{step_ref.object_id}-{context.transition_index + 1}",
                 parent_context_id=parent_context_id,
                 kind="step",
@@ -157,7 +157,7 @@ def apply_transition(
     context.stage = stage
     context.status = status or context.status
     if hook_phase in {HookPhase.step_error, HookPhase.step_lookup_error} and status is None:
-        context.status = ExecutionStatus.failed
+        context.status = RunStatus.failed
 
     context.feature_ref = feature_ref
     context.scenario_ref = scenario_ref
@@ -179,20 +179,21 @@ def apply_transition(
         )
     )
     context.advance_transition()
-    if session_root is not None:
-        session_root.advance_transition()
-        session_root.status = context.status
-        session_root.active_feature_context_id = (
+    if run_root is not None:
+        run_root.active_scenario_run = context
+        run_root.advance_transition()
+        run_root.status = context.status
+        run_root.active_feature_context_id = (
             context.feature_node.context_id
             if context.feature_node is not None and context.feature_node.is_active
             else None
         )
-        session_root.active_scenario_context_id = (
+        run_root.active_scenario_context_id = (
             context.scenario_node.context_id
             if context.scenario_node is not None and context.scenario_node.is_active
             else None
         )
-        session_root.active_step_context_id = (
+        run_root.active_step_context_id = (
             context.step_node.context_id if context.step_node is not None and context.step_node.is_active else None
         )
 
@@ -202,12 +203,12 @@ def apply_transition(
         if context.feature_node is not None:
             context.feature_node.close(context.transition_index)
 
-        context.stage = ExecutionStage.finished
+        context.stage = RunStage.finished
         context.step_object = None
         context.previous_step_object = None
         context.set_active_set(
             build_active_object_set(
-                stage=ExecutionStage.finished,
+                stage=RunStage.finished,
                 run_ref=run_ref,
                 feature_ref=None,
                 scenario_ref=None,
@@ -215,8 +216,9 @@ def apply_transition(
                 previous_step_ref=None,
             )
         )
-        if session_root is not None:
-            session_root.active_scenario_context_id = None
-            session_root.active_step_context_id = None
+        if run_root is not None:
+            run_root.active_scenario_context_id = None
+            run_root.active_step_context_id = None
+            run_root.active_scenario_run = None
 
     return context
