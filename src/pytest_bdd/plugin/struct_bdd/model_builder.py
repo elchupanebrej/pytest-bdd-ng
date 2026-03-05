@@ -1,6 +1,4 @@
-import json
 from itertools import filterfalse
-from json import loads as json_loads
 from operator import attrgetter
 from typing import Any, cast
 
@@ -22,10 +20,8 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
     Tag,
 )
-from gherkin.pickles.compiler import Compiler
 
 from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
-from pytest_bdd.model.message_converter import message_converter
 
 from .model import Join as StructJoin
 from .model import StepPrototype as StructStep
@@ -62,21 +58,11 @@ class GherkinDocumentBuilder(_ASTBuilder):
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
 
-        gherkin_document_serialized = json.dumps(message_converter.to_dict(gherkin_document))
-
-        scenarios_data = Compiler().compile(json_loads(gherkin_document_serialized))
-        pickles = GherkinDocumentFeature.load_pickles(scenarios_data)
-
-        feature = GherkinDocumentFeature(  # type: ignore[call-arg]
+        return GherkinDocumentFeature(  # type: ignore[call-arg]
             gherkin_document=gherkin_document,
             uri=uri,
-            pickles=pickles,
             filename=filename,
         )
-
-        feature.fill_registry()
-
-        return feature
 
 
 @attrs

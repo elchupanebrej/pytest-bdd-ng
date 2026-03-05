@@ -17,6 +17,9 @@ import aiohttp
 import certifi
 from attr import Factory, attrib, attrs
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    Envelope as Message,
+)
+from cucumber_messages import (
     Pickle,
     Source,
 )
@@ -70,9 +73,46 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
             if self.filter_ is None or self.filter_(config, feature, pickle)
         )
 
+    @staticmethod
+    def _emit_message(
+        *,
+        config: Config | HasPytestBDDIdGenerator,
+        message: Message,
+    ) -> None:
+        hook_handler = getattr(config, "hook", None)
+        if hook_handler is None:
+            return
+        hook_handler.pytest_bdd_message(config=config, message=message)
+
+    @staticmethod
+    def _materialize_feature_pickles(feature: Feature, config: Config | HasPytestBDDIdGenerator) -> None:
+        feature.materialize_pickles(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+
+    @staticmethod
+    def _register_feature_messages(
+        *,
+        config: Config | HasPytestBDDIdGenerator,
+        feature: Feature,
+        feature_data: Source | None,
+    ) -> None:
+        if feature_data is not None:
+            ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(source=feature_data))
+        ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(gherkin_document=feature.gherkin_document))
+
+    @staticmethod
+    def _register_pickle_message(
+        *,
+        config: Config | HasPytestBDDIdGenerator,
+        pickle: Pickle,
+    ) -> None:
+        ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(pickle=pickle))
+
     def resolve(self, config):
         for feature, feature_data in self.resolve_features(config):
+            self._register_feature_messages(config=config, feature=feature, feature_data=feature_data)
+            self._materialize_feature_pickles(feature, config)
             for _, pickle in self.filter_scenarios(feature, config):
+                self._register_pickle_message(config=config, pickle=pickle)
                 yield feature, pickle, feature_data
 
 

@@ -15,7 +15,6 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import]
-from gherkin.pickles.compiler import Compiler as PicklesCompiler
 from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
 from gherkin.token_scanner import TokenScanner
 
@@ -102,16 +101,17 @@ class BaseParser(ParserProtocol):
         _normalize(gherkin_document_raw_dict)
         return gherkin_document_raw_dict
 
-    def build_feature(self, gherkin_document_raw_dict, filename: str) -> Feature:
+    def build_feature(
+        self,
+        _config: Config | HasPytestBDDIdGenerator,
+        gherkin_document_raw_dict,
+        filename: str,
+    ) -> Feature:
         gherkin_document = Feature.load_gherkin_document(gherkin_document_raw_dict)
-
-        pickles_data = PicklesCompiler(id_generator=self.id_generator).compile(gherkin_document_raw_dict)
-        pickles = Feature.load_pickles(pickles_data)
 
         return Feature(  # type: ignore[call-arg]
             gherkin_document=gherkin_document,
             uri=gherkin_document.uri,
-            pickles=pickles,
             filename=filename,
         )
 
@@ -152,6 +152,7 @@ class GherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(
+            config,
             gherkin_document_raw_dict,
             filename=str(path.as_posix()),
         )
@@ -198,6 +199,7 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(
+            config,
             gherkin_document_raw_dict,
             filename=str(path.as_posix()),
         )

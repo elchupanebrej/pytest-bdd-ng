@@ -35,7 +35,7 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 hookspec
+        _config: Config | HasPytestBDDIdGenerator,
         path: Path,
         uri: str,
         *args,
@@ -48,7 +48,8 @@ class StructBDDParser(ParserProtocol):
         filename = str(path.as_posix())
         raw_step = self.loader(content, *args, **kwargs)
         step = Step.model_validate(raw_step)
-        return GherkinDocumentBuilder(model=step).build_feature(filename, uri, self.id_generator), content  # type: ignore[call-arg]
+        feature = GherkinDocumentBuilder(model=step).build_feature(filename, uri, self.id_generator)  # type: ignore[call-arg]
+        return feature, content
 
     # TODO make loaders part of public API
     def build_loader(self):

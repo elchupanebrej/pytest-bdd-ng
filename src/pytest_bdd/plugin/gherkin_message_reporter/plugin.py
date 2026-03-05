@@ -73,8 +73,6 @@ from pytest_bdd.compatibility.pytest import (
     FixtureLookupError,
     FixtureRequest,
     get_config_root_path,
-    get_metafunc_call_arg,
-    is_set,
     is_testrun_success,
 )
 from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
@@ -85,6 +83,12 @@ from pytest_bdd.model.message_validation import (
     observed_outcome_from_envelope,
     validate_message_stream,
 )
+from pytest_bdd.plugin.scenario_runner.context_access import (
+    map_runtime_step_to_test_step_id,
+    resolve_request_execution_context,
+    resolve_test_step_id_for_runtime_step,
+)
+from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
@@ -121,29 +125,12 @@ class GherkinMessageReporter:
     process_messages_thread: Thread
     messages_file_path: Path
     is_messages_file_temp: bool
-    current_test_case_start: TestCaseStarted | None
-    current_active_test_step_id: str | None
-    current_step_started_ids: dict[str, str]
-    current_attempt_context: dict[str, str | int] | None
-    current_test_run_hook_started_id: str | None
-    current_test_case_step_start_timestamp: Timestamp
-    current_test_case_step_finish_timestamp: Timestamp
     _disabled_warning_emitted: bool
-    _run_id: str | None
     _outcome_mapping_rules: list[OutcomeMappingRule]
     _mapping_diagnostics_count: int
-    current_test_case: TestCase | None = attrib(default=None)
-    current_test_case_step_id_to_step_mapping: dict[int, TestStep] | None = attrib(default=None)
 
     def __attrs_post_init__(self):
         self._disabled_warning_emitted = False
-        self._run_id = None
-        self.current_test_case_start = None
-        self.current_active_test_step_id = None
-        self.current_step_started_ids = {}
-        self.current_attempt_context = None
-        self.current_test_run_hook_started_id = None
-        self.current_test_case_step_id_to_step_mapping = None
         self._outcome_mapping_rules = default_outcome_mapping_rules()
         self._mapping_diagnostics_count = 0
 
@@ -312,51 +299,18 @@ class GherkinMessageReporter:
             encoding="utf-8",
         )
 
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_generate_tests(self, metafunc):
-        yield
-        if self.is_disabled:
-            return
-
-        if all(
-            [
-                "feature" in metafunc.fixturenames,
-                "scenario" in metafunc.fixturenames,
-                "feature_source" in metafunc.fixturenames,
-                metafunc._calls,
-            ],
-        ):
-            config = metafunc.config
-
-            feature_registry = set()
-            pickle_registry = set()
-            for call in metafunc._calls:
-                feature = get_metafunc_call_arg(call, "feature")
-                pickle = get_metafunc_call_arg(call, "scenario")
-                feature_source: Source = get_metafunc_call_arg(call, "feature_source")
-
-                if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
-                    feature_registry.add(feature_source.uri)
-                    self._emit_envelope(cast(Config, config), Message(source=feature_source))
-
-                    self._emit_envelope(
-                        cast(Config, config),
-                        Message(gherkin_document=feature.gherkin_document),
-                    )
-                if is_set(pickle) and id(pickle) not in pickle_registry:
-                    self._emit_envelope(cast(Config, config), Message(pickle=pickle))
-
     def pytest_bdd_message(
         self,
-        config: Config,  # noqa: ARG002 hookspec
+        config: Config,
         message: Message,
     ):
-        if self.is_disabled:
-            return
-
         if not has_single_payload(message):
             message_text = "Cannot emit envelope with zero or multiple payloads"
             raise TypeError(message_text)
+
+        ExecutionContextStore.register_envelope_in_config(config, message)
+        if self.is_disabled:
+            return
 
         try:
             message_json = json.dumps(envelope_to_dict(message))
@@ -366,30 +320,37 @@ class GherkinMessageReporter:
 
         self.process_messages_io_queue.put_nowait(message_json)
 
+    @pytest.hookimpl(hookwrapper=True)
     def pytest_runtestloop(self, session: pytest.Session):
         if self.is_disabled:
+            yield
             return
         config = session.config
-        self._run_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
-        self._emit_envelope(config, Message(test_run_started=TestRunStarted(id=self._run_id, timestamp=self.get_timestamp())))
+        run_started_id = self._require_run_started_id(config=cast(Config, config))
+        self._emit_envelope(
+            config,
+            Message(test_run_started=TestRunStarted(id=run_started_id, timestamp=self.get_timestamp())),
+        )
 
-        self.current_test_run_hook_started_id = cast(
-            HasPytestBDDIdGenerator, config
-        ).pytest_bdd_id_generator.get_next_id()
+        before_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+        session_root = ExecutionContextStore.get_session_root_from_config(config)
+        if session_root is not None:
+            session_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
         self._emit_envelope(
             config,
             Message(test_run_hook_started=TestRunHookStarted(
                 hook_id="pytest-bdd-ng.before-test-run",
-                id=self.current_test_run_hook_started_id,
-                test_run_started_id=self._run_id,
+                id=before_test_run_hook_started_id,
+                test_run_started_id=run_started_id,
                 timestamp=self.get_timestamp(),
                 worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             )),
         )
+        yield
         self._emit_envelope(
             config,
             Message(test_run_hook_finished=TestRunHookFinished(
-                test_run_hook_started_id=self.current_test_run_hook_started_id,
+                test_run_hook_started_id=before_test_run_hook_started_id,
                 timestamp=self.get_timestamp(),
                 result=TestStepResult(
                     duration=Duration(seconds=0, nanos=0),
@@ -479,38 +440,43 @@ class GherkinMessageReporter:
                 return value.removeprefix("refs/heads/")
         return None
 
-    def _resolve_test_step_for_runtime_step(self, step: object) -> TestStep | None:
-        mapping = self.current_test_case_step_id_to_step_mapping
-        if mapping is None:
+    @staticmethod
+    def _resolve_run_started_id(*, config: Config) -> str | None:
+        session_root = ExecutionContextStore.get_session_root_from_config(config)
+        if session_root is None:
             return None
+        return session_root.reporting_state.run_started_id
 
-        resolved = mapping.get(id(step))
-        if resolved is not None:
-            return resolved
-
-        runtime_pickle_step_id = getattr(step, "id", None)
-        if runtime_pickle_step_id is not None:
-            runtime_pickle_step_id_text = str(runtime_pickle_step_id)
-            for candidate in mapping.values():
-                if str(getattr(candidate, "pickle_step_id", "")) == runtime_pickle_step_id_text:
-                    mapping[id(step)] = candidate
-                    return candidate
-
-        if self.current_active_test_step_id is not None:
-            active_step = next(
-                (candidate for candidate in mapping.values() if candidate.id == self.current_active_test_step_id),
-                None,
+    def _require_run_started_id(self, *, config: Config) -> str:
+        run_started_id = self._resolve_run_started_id(config=config)
+        if run_started_id is None:
+            msg = (
+                "Execution context run_started_id is unavailable in config.stash. "
+                "Execution plugins must initialize session root state before reporter lifecycle emission."
             )
-            if active_step is not None:
-                return active_step
+            raise RuntimeError(msg)
+        return run_started_id
 
-        logger.warning("Unable to resolve cucumber TestStep for runtime step object: %r", step)
-        return None
+    @staticmethod
+    def _resolve_feature_and_scenario(*, execution_context: Any) -> tuple[Any | None, Any | None]:
+        feature = getattr(execution_context, "feature_object", None)
+        scenario = getattr(execution_context, "scenario_object", None)
+        return feature, scenario
+
+    def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
+        context = resolve_request_execution_context(request)
+        if context is None:
+            return None
+        test_step_id = resolve_test_step_id_for_runtime_step(execution_context=context, runtime_step=step)
+        if test_step_id is None:
+            logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
+        return test_step_id
 
     def pytest_sessionfinish(self, session, exitstatus):
         if self.is_disabled:
             return
         config = session.config
+        run_started_id = self._require_run_started_id(config=cast(Config, config))
         run_success = is_testrun_success(exitstatus)
         run_exception = (
             CucumberException(type="PytestExitCode", message=str(exitstatus), stack_trace=str(exitstatus))
@@ -523,7 +489,7 @@ class GherkinMessageReporter:
             Message(test_run_hook_started=TestRunHookStarted(
                 hook_id="pytest-bdd-ng.after-test-run",
                 id=after_test_run_hook_started_id,
-                test_run_started_id=self._run_id,
+                test_run_started_id=run_started_id,
                 timestamp=self.get_timestamp(),
                 worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             )),
@@ -546,7 +512,7 @@ class GherkinMessageReporter:
             Message(test_run_finished=TestRunFinished(
                 timestamp=self.get_timestamp(),
                 success=run_success,
-                test_run_started_id=self._run_id,
+                test_run_started_id=run_started_id,
                 message=f"pytest session exit status: {exitstatus}",
                 **({"exception": run_exception} if run_exception is not None else {}),
             )),
@@ -658,19 +624,26 @@ class GherkinMessageReporter:
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        try:
-            scenario = request.getfixturevalue("scenario")
-            feature = request.getfixturevalue("feature")
-        except FixtureLookupError:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            logger.warning(
+                "Execution context unavailable during pytest_runtest_setup; skipping context-backed correlation writes."
+            )
+            return
+        feature, scenario = self._resolve_feature_and_scenario(execution_context=execution_context)
+        if feature is None or scenario is None:
+            logger.warning(
+                "Execution context does not carry runtime feature/scenario during pytest_runtest_setup."
+            )
             return
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)
+        reporting_state = execution_context.reporting_state
 
         test_steps = []
         previous_step = None
-
-        self.current_test_case_step_id_to_step_mapping = {}
+        reporting_state.runtime_step_to_test_step_id.clear()
 
         test_steps.extend(
             [
@@ -708,21 +681,33 @@ class GherkinMessageReporter:
                     ),
                 )
                 test_steps.append(test_step)
-                self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
+                map_runtime_step_to_test_step_id(
+                    execution_context=execution_context,
+                    runtime_step=step,
+                    test_step_id=test_step.id,
+                )
             finally:
                 previous_step = step
 
-        self.current_test_case = TestCase(
+        resolved_run_started_id = self._resolve_run_started_id(config=cast(Config, config))
+        test_case = TestCase(
             id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
             pickle_id=scenario.id,
             test_steps=test_steps,
-            **({"test_run_started_id": self._run_id} if self._run_id is not None else {}),
+            **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
+        )
+        reporting_state.active_test_case_id = test_case.id
+
+        self._emit_envelope(
+            cast(Config, config),
+            Message(test_case=test_case),
         )
 
-        self._emit_envelope(cast(Config, config), Message(test_case=self.current_test_case))
-
     def _report_step_definitions(self, config, request):
-        step_registry = request.getfixturevalue("step_registry")
+        try:
+            step_registry = request.getfixturevalue("step_registry")
+        except (FixtureLookupError, AssertionError):
+            return
         seen_steps = set()
         while step_registry is not None:
             for step_definition in step_registry:
@@ -865,7 +850,10 @@ class GherkinMessageReporter:
         return None
 
     def _register_parameter_types(self, config, request):
-        step_registry = request.getfixturevalue("step_registry")
+        try:
+            step_registry = request.getfixturevalue("step_registry")
+        except (FixtureLookupError, AssertionError):
+            return
         seen_steps = set()
         while step_registry is not None:
             for step_definition in step_registry:
@@ -992,23 +980,39 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        if self.current_test_case is None:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            logger.warning(
+                "Execution context unavailable during pytest_bdd_before_scenario; skipping context-dependent lifecycle."
+            )
+            return
+        reporting_state = execution_context.reporting_state
+        test_case_id = reporting_state.active_test_case_id
+        if test_case_id is None:
             return
         attempt_index = getattr(request.node, "execution_count", 0)
         worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
-        self.current_test_case_start = TestCaseStarted(
+        test_case_start = TestCaseStarted(
             attempt=attempt_index,
             id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
-            test_case_id=self.current_test_case.id,
+            test_case_id=test_case_id,
             worker_id=worker_id,
             timestamp=self.get_timestamp(),
         )
-        self.current_attempt_context = {
-            "scenario_attempt_id": self.current_test_case_start.id,
+        reporting_state.active_test_case_started_id = test_case_start.id
+        reporting_state.scenario_attempt_context = {
+            "scenario_attempt_id": test_case_start.id,
             "attempt_index": attempt_index,
             "worker_id": worker_id,
         }
-        self._emit_envelope(config, Message(test_case_started=self.current_test_case_start))
+        if execution_context.session_context is not None:
+            execution_context.session_context.reporting_state.scenario_attempt_context = dict(
+                reporting_state.scenario_attempt_context
+            )
+        self._emit_envelope(
+            config,
+            Message(test_case_started=test_case_start),
+        )
 
     def pytest_bdd_after_scenario(
         self,
@@ -1018,22 +1022,37 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        if self.current_test_case_start is None:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            return
+        reporting_state = execution_context.reporting_state
+        test_case_started_id = reporting_state.active_test_case_started_id
+        if test_case_started_id is None:
             return
         config = request.config
-        test_case_start = self.current_test_case_start
         self._emit_envelope(
             config,
             Message(test_case_finished=TestCaseFinished(
-                test_case_started_id=test_case_start.id,
+                test_case_started_id=test_case_started_id,
                 timestamp=self.get_timestamp(),
                 will_be_retried=False,
             )),
         )
-        self.current_test_case = None
-        self.current_test_case_start = None
-        self.current_active_test_step_id = None
-        self.current_step_started_ids = {}
+        reporting_state.reset_scenario_scope()
+        if execution_context.session_context is not None:
+            execution_context.session_context.reporting_state.reset_scenario_scope()
+
+    @staticmethod
+    def _duration_between(start_timestamp: Timestamp | None, finish_timestamp: Timestamp) -> Duration:
+        if start_timestamp is None:
+            return Duration(seconds=0, nanos=0)
+
+        duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
+            start_timestamp.seconds * 10**9 + start_timestamp.nanos
+        )
+        duration_seconds = duration_total_nanos // 10**9
+        duration_nanos = duration_total_nanos - duration_seconds * 10**9
+        return Duration(seconds=duration_seconds, nanos=duration_nanos)
 
     def pytest_bdd_before_step(
         self,
@@ -1045,25 +1064,32 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            return
+        reporting_state = execution_context.reporting_state
+        test_case_started_id = reporting_state.active_test_case_started_id
+        if test_case_started_id is None:
             return
         config = request.config
 
-        test_step = self._resolve_test_step_for_runtime_step(step)
-        if test_step is None:
+        test_step_id = self._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        if test_step_id is None:
             return
-        test_case_start = self.current_test_case_start
 
-        self.current_test_case_step_start_timestamp = self.get_timestamp()
+        step_start_timestamp = self.get_timestamp()
+        reporting_state.step_started_timestamp = step_start_timestamp
+        reporting_state.active_test_step_id = test_step_id
         test_step_started = TestStepStarted(
-            test_case_started_id=test_case_start.id,
-            timestamp=self.current_test_case_step_start_timestamp,
-            test_step_id=test_step.id,
+            test_case_started_id=test_case_started_id,
+            timestamp=step_start_timestamp,
+            test_step_id=test_step_id,
         )
-        self.current_step_started_ids[test_step.id] = test_step.id
-        self.current_active_test_step_id = test_step.id
 
-        self._emit_envelope(config, Message(test_step_started=test_step_started))
+        self._emit_envelope(
+            config,
+            Message(test_step_started=test_step_started),
+        )
 
     def pytest_bdd_after_step(
         self,
@@ -1075,44 +1101,35 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            return
+        reporting_state = execution_context.reporting_state
+        test_case_started_id = reporting_state.active_test_case_started_id
+        if test_case_started_id is None:
             return
         config = request.config
 
-        test_step = self._resolve_test_step_for_runtime_step(step)
-        if test_step is None:
+        test_step_id = self._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        if test_step_id is None:
             return
-        test_case_start = self.current_test_case_start
-        self.current_test_case_step_finish_timestamp = self.get_timestamp()
-
-        current_test_case_step_duration_total_nanos = (
-            self.current_test_case_step_finish_timestamp.seconds * 10**9
-            + self.current_test_case_step_finish_timestamp.nanos
-        ) - (
-            self.current_test_case_step_start_timestamp.seconds * 10**9
-            + self.current_test_case_step_start_timestamp.nanos
-        )
-        current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
-        current_test_case_step_duration_nanos = (
-            current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
-        )
-        current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds,
-            nanos=current_test_case_step_duration_nanos,
+        step_finish_timestamp = self.get_timestamp()
+        reporting_state.step_finished_timestamp = step_finish_timestamp
+        step_duration = self._duration_between(
+            start_timestamp=cast(Timestamp | None, reporting_state.step_started_timestamp),
+            finish_timestamp=step_finish_timestamp,
         )
 
         self._emit_envelope(
             config,
             Message(test_step_finished=TestStepFinished(
-                test_case_started_id=test_case_start.id,
-                timestamp=self.current_test_case_step_finish_timestamp,
-                test_step_id=test_step.id,
-                test_step_result=TestStepResult(
-                    duration=current_test_case_step_duration, status=TestStepResultStatus.passed
-                ),
+                test_case_started_id=test_case_started_id,
+                timestamp=step_finish_timestamp,
+                test_step_id=test_step_id,
+                test_step_result=TestStepResult(duration=step_duration, status=TestStepResultStatus.passed),
             )),
         )
-        self.current_active_test_step_id = None
+        reporting_state.active_test_step_id = None
 
     def pytest_bdd_step_error(
         self,
@@ -1127,40 +1144,33 @@ class GherkinMessageReporter:
     ):
         if self.is_disabled:
             return
-        if self.current_test_case_step_id_to_step_mapping is None or self.current_test_case_start is None:
+        execution_context = resolve_request_execution_context(request)
+        if execution_context is None:
+            return
+        reporting_state = execution_context.reporting_state
+        test_case_started_id = reporting_state.active_test_case_started_id
+        if test_case_started_id is None:
             return
         config = request.config
 
-        test_step = self._resolve_test_step_for_runtime_step(step)
-        if test_step is None:
+        test_step_id = self._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        if test_step_id is None:
             return
-        test_case_start = self.current_test_case_start
-        self.current_test_case_step_finish_timestamp = self.get_timestamp()
-
-        current_test_case_step_duration_total_nanos = (
-            self.current_test_case_step_finish_timestamp.seconds * 10**9
-            + self.current_test_case_step_finish_timestamp.nanos
-        ) - (
-            self.current_test_case_step_start_timestamp.seconds * 10**9
-            + self.current_test_case_step_start_timestamp.nanos
-        )
-        current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
-        current_test_case_step_duration_nanos = (
-            current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
-        )
-        current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds,
-            nanos=current_test_case_step_duration_nanos,
+        step_finish_timestamp = self.get_timestamp()
+        reporting_state.step_finished_timestamp = step_finish_timestamp
+        step_duration = self._duration_between(
+            start_timestamp=cast(Timestamp | None, reporting_state.step_started_timestamp),
+            finish_timestamp=step_finish_timestamp,
         )
 
         self._emit_envelope(
             config,
             Message(test_step_finished=TestStepFinished(
-                test_case_started_id=test_case_start.id,
-                timestamp=self.current_test_case_step_finish_timestamp,
-                test_step_id=test_step.id,
+                test_case_started_id=test_case_started_id,
+                timestamp=step_finish_timestamp,
+                test_step_id=test_step_id,
                 test_step_result=TestStepResult(
-                    duration=current_test_case_step_duration,
+                    duration=step_duration,
                     status=TestStepResultStatus.failed,
                     message=str(exception),
                     exception=CucumberException(
@@ -1171,7 +1181,7 @@ class GherkinMessageReporter:
                 ),
             )),
         )
-        self.current_active_test_step_id = None
+        reporting_state.active_test_step_id = None
 
     def pytest_bdd_attach(  # noqa: C901
         self,
@@ -1190,10 +1200,24 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        test_case_start = self.current_test_case_start
+        execution_context = resolve_request_execution_context(request)
+        reporting_state = execution_context.reporting_state if execution_context is not None else None
+        test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
+        active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None
+        session_root = ExecutionContextStore.get_session_root_from_config(config)
         attachment_timestamp = self.get_timestamp()
-        effective_test_run_hook_started_id = test_run_hook_started_id or self.current_test_run_hook_started_id
-        effective_test_run_started_id = test_run_started_id or self._run_id
+        effective_test_run_hook_started_id = (
+            test_run_hook_started_id
+            or (
+                session_root.reporting_state.test_run_hook_started_id
+                if session_root is not None
+                else None
+            )
+        )
+        effective_test_run_started_id = (
+            test_run_started_id
+            or (session_root.reporting_state.run_started_id if session_root is not None else None)
+        )
 
         if isinstance(attachment, (str, TextIOBase)):
             content_encoding = AttachmentContentEncoding.identity
@@ -1236,11 +1260,9 @@ class GherkinMessageReporter:
             config,
             Message(attachment=Attachment(
                 **(
-                    {"test_step_id": self.current_active_test_step_id}
-                    if self.current_active_test_step_id is not None
-                    else {}
+                    {"test_step_id": active_test_step_id} if active_test_step_id is not None else {}
                 ),
-                **({"test_case_started_id": test_case_start.id} if test_case_start is not None else {}),
+                **({"test_case_started_id": test_case_started_id} if test_case_started_id is not None else {}),
                 **(
                     {"test_run_hook_started_id": effective_test_run_hook_started_id}
                     if effective_test_run_hook_started_id is not None
@@ -1268,11 +1290,9 @@ class GherkinMessageReporter:
                 Message(external_attachment=ExternalAttachment(
                     media_type=external_media_type,
                     url=attachment_url,
-                    **({"test_case_started_id": test_case_start.id} if test_case_start is not None else {}),
+                    **({"test_case_started_id": test_case_started_id} if test_case_started_id is not None else {}),
                     **(
-                        {"test_step_id": self.current_active_test_step_id}
-                        if self.current_active_test_step_id is not None
-                        else {}
+                        {"test_step_id": active_test_step_id} if active_test_step_id is not None else {}
                     ),
                     **(
                         {"test_run_hook_started_id": effective_test_run_hook_started_id}

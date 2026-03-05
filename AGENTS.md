@@ -40,6 +40,10 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 - File-based artifacts only (NDJSON message streams, JSON governance reports, Markdown checklist/docs) (008-maximize-messages-coverage)
 - Python 3.10-3.14 + `pytest>=6.2.5`, `pluggy`, `cucumber-messages`, `jsonschema`, `PyYAML` (008-maximize-messages-coverage)
 - N/A (in-memory runtime state + file artifacts: NDJSON/JSON/YAML under repository and temporary paths) (008-maximize-messages-coverage)
+- Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema`, pytest-bdd runtime/reporter plugin layers (009-execution-context-reporting)
+- In-memory execution context state + NDJSON artifacts under `artifacts/` and governance files under `specs/008-maximize-messages-coverage/` (009-execution-context-reporting)
+- Python 3.10-3.14 + `pytest>=6.2.5`, `pluggy`, `cucumber-messages`, `jsonschema`, existing `message_converter` (009-execution-context-reporting)
+- In-memory runtime context state (`ExecutionContext`, `SessionExecutionContext`) + file artifacts (NDJSON, JSON governance reports under `artifacts/` and `specs/`) (009-execution-context-reporting)
 
 ## Project Structure
 
@@ -63,9 +67,9 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 009-execution-context-reporting: Added Python 3.10-3.14 + `pytest>=6.2.5`, `pluggy`, `cucumber-messages`, `jsonschema`, existing `message_converter`
+- 009-execution-context-reporting: Added Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema`, pytest-bdd runtime/reporter plugin layers
 - 008-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest>=6.2.5`, `pluggy`, `cucumber-messages`, `jsonschema`, `PyYAML`
-- 008-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema`, internal `pytest_bdd` governance/reporting modules
-- 008-maximize-messages-coverage: Added Python 3.10-3.14 + `pytest>=6.2.5`, `cucumber-messages`, `pluggy`, `jsonschema`, `tox>=4.2`, `pre-commit`
   pytest-bdd parser/runtime layers, gherkin markdown token matcher,
   pre-commit, tox>=4.2
   pytest-bdd plugins, Jinja2, packaging metadata (`setup.cfg`), pre-commit.

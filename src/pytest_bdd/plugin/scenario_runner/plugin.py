@@ -14,11 +14,18 @@ from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_f
 from pytest_bdd.model.execution_context import ExecutionContext, ExecutionStatus
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
 
-from .context_access import bind_hook_parameter_model, clear_hook_parameter_model, resolve_execution_context
+from .context_access import (
+    bind_hook_parameter_model,
+    clear_hook_parameter_model,
+    resolve_execution_context,
+    resolve_scenario_description,
+    resolve_step_runtime_enrichment,
+)
 from .context_store import ExecutionContextStore
 from .context_transitions import apply_transition, phase_from_hook_name
 
@@ -40,9 +47,42 @@ class ScenarioRunner:
         self.scenario: Scenario | None = None
         self.context_store = ExecutionContextStore()
 
+    @staticmethod
+    def _resolve_feature_and_scenario(item: Item, request: FixtureRequest) -> tuple[Any | None, Any | None]:
+        _ = request
+        callspec = getattr(item, "callspec", None)
+        params = getattr(callspec, "params", None)
+        if isinstance(params, dict):
+            feature = params.get("feature")
+            scenario = params.get("scenario")
+            if feature is not None and scenario is not None:
+                return feature, scenario
+        return None, None
+
     @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session) -> None:
-        self.context_store.initialize_session_root(session=session)
+        session_root = self.context_store.initialize_session_root(session=session)
+        if session_root.reporting_state.run_started_id is None:
+            config = cast(HasPytestBDDIdGenerator, session.config)
+            session_root.reporting_state.run_started_id = config.pytest_bdd_id_generator.get_next_id()
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_runtest_setup(self, item: Item) -> None:
+        __tracebackhide__ = True
+        mark_names = [mark.name for mark in item.iter_markers()]
+        if PYTEST_BDD_MARK not in mark_names:
+            return
+
+        request = item._request
+        feature, scenario = self._resolve_feature_and_scenario(item=item, request=request)
+        if feature is None or scenario is None:
+            return
+
+        self.context_store.get_or_create(
+            request,
+            feature=feature,
+            scenario=scenario,
+        )
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item):
@@ -194,13 +234,59 @@ class ScenarioRunner:
     @contextmanager
     def extended_step_context(self, feature: Feature, scenario, step):
         """Attach rich step metadata for hook consumers during step execution."""
+        config = None
+        if self.request is not None:
+            config = getattr(self.request, "config", None)
+        else:
+            config = getattr(feature, "_pytest_bdd_config", None)
+
+        execution_context = None
+        if self.request is not None:
+            execution_context = resolve_execution_context(
+                self.request,
+                context_store=self.context_store,
+                feature=feature,
+                scenario=scenario,
+            )
+        else:
+            context_view = getattr(feature, "execution_context", None)
+            node_context = getattr(context_view, "node_context", None)
+            if isinstance(node_context, ExecutionContext):
+                execution_context = node_context
+
         try:
             if isinstance(step, PickleStep):
-                step.__dict__["doc_string"] = feature._get_step_doc_string(step)
-                step.__dict__["data_table"] = feature._get_step_data_table(step)
-                step.__dict__["keyword"] = feature._get_step_keyword(step)
-                step.__dict__["line_number"] = feature._get_step_line_number(step)
-            scenario.__dict__["description"] = feature.registry[scenario.ast_node_ids[0]].description
+                if execution_context is not None:
+                    step_runtime_enrichment = resolve_step_runtime_enrichment(
+                        feature=feature,
+                        step=step,
+                        execution_context=execution_context,
+                        config=config,
+                    )
+                    step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
+                    step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
+                    step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
+                    step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
+                else:
+                    step.__dict__["doc_string"] = feature._get_step_doc_string(step, config=config)
+                    step.__dict__["data_table"] = feature._get_step_data_table(step, config=config)
+                    step.__dict__["keyword"] = feature._get_step_keyword(step, config=config)
+                    step.__dict__["line_number"] = feature._get_step_line_number(step, config=config)
+
+            scenario_description = (
+                resolve_scenario_description(
+                    feature=feature,
+                    scenario=scenario,
+                    execution_context=execution_context,
+                    config=config,
+                )
+                if execution_context is not None
+                else feature._get_scenario_description(
+                    scenario,
+                    config=config,
+                )
+            )
+            scenario.__dict__["description"] = scenario_description
             yield
         finally:
             if isinstance(step, PickleStep):

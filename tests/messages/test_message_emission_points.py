@@ -11,7 +11,6 @@ PLUGIN_PATH = (
 
 EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
     "pytest_sessionstart": {"meta"},
-    "pytest_generate_tests": {"source", "gherkin_document", "pickle"},
     "pytest_runtestloop": {"test_run_started"},
     "pytest_runtest_setup": {"test_case"},
     "_report_step_definitions": {"step_definition"},
@@ -28,7 +27,7 @@ EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
 
 # parse_error envelopes are emitted by parser layer (`BaseParser.emit_parse_error`)
 # before reporter plugin hooks are entered.
-EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error"}
+EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error", "source", "gherkin_document", "pickle"}
 
 
 PAYLOAD_HINTS: dict[str, str] = {
@@ -36,8 +35,7 @@ PAYLOAD_HINTS: dict[str, str] = {
     "gherkin_document": "gherkin_document",
     "pickle": "pickle",
     "hook_message": "hook",
-    "current_test_case": "test_case",
-    "current_test_case_start": "test_case_started",
+    "test_case_start": "test_case_started",
     "test_step_started": "test_step_started",
     "suggestion": "suggestion",
 }
@@ -153,3 +151,8 @@ def test_message_emission_points_cover_all_supported_payload_kinds() -> None:
     emitted_payloads = set().union(*emissions_by_method.values(), EMITTED_OUTSIDE_REPORTER_PLUGIN)
     missing_payloads = sorted(set(PAYLOAD_KINDS).difference(emitted_payloads))
     assert not missing_payloads, f"Supported payload kinds without emission point: {missing_payloads}"
+
+
+def test_payload_hints_do_not_reference_current_prefixed_reporter_state() -> None:
+    current_prefixed = sorted(hint for hint in PAYLOAD_HINTS if hint.startswith("current_"))
+    assert current_prefixed == []

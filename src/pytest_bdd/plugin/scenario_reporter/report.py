@@ -32,17 +32,24 @@ class StepReport:
         self.step = step
         self.started = time.perf_counter()
 
-    def serialize(self, feature: Feature) -> dict[str, Any]:
+    def serialize(self, feature: Feature, *, config: Any | None = None) -> dict[str, Any]:
         """Serialize the step execution report.
 
         :return: Serialized step execution report.
         :rtype: dict
         """
+        keyword = getattr(self.step, "keyword", None) or feature._get_step_keyword(self.step, config=config)
+        line_number = getattr(self.step, "line_number", None)
+        if line_number is None:
+            line_number = feature._get_step_line_number(self.step, config=config)
+        step_prefix = getattr(self.step, "prefix", None)
+        if step_prefix is None:
+            step_prefix = feature._get_step_prefix(self.step, config=config)
         return {
             "name": self.step.text,
-            "type": feature._get_step_prefix(self.step),
-            "keyword": feature._get_step_keyword(self.step),
-            "line_number": feature._get_step_line_number(self.step),
+            "type": step_prefix,
+            "keyword": keyword,
+            "line_number": line_number,
             "failed": self.failed,
             "status": normalize_runtime_step_status(None, failed_fallback=self.failed),
             "duration": self.duration,
@@ -75,6 +82,7 @@ class ScenarioReport:
 
     feature: Feature = attrib()
     scenario: Pickle = attrib()
+    config: Any | None = attrib(default=None)
     step_reports: list[StepReport] = attrib(default=Factory(list))
     context_snapshot: ReportingContextSnapshot | None = attrib(default=None)
 
@@ -108,10 +116,10 @@ class ScenarioReport:
         feature: Feature = self.feature
 
         return {
-            "steps": [step_report.serialize(self.feature) for step_report in self.step_reports],
+            "steps": [step_report.serialize(self.feature, config=self.config) for step_report in self.step_reports],
             "name": pickle.name,
-            "line_number": feature._get_pickle_line_number(pickle),
-            "tags": sorted(set(feature._get_pickle_tag_names(pickle)).difference(feature.tag_names)),
+            "line_number": feature._get_pickle_line_number(pickle, config=self.config),
+            "tags": sorted(set(feature.get_pickle_tag_names(pickle)).difference(feature.tag_names)),
             "feature": {
                 "name": feature.name,
                 "filename": feature.filename,

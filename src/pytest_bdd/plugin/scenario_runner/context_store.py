@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pytest_bdd.model.execution_context import (
     ExecutionContext,
@@ -11,6 +11,7 @@ from pytest_bdd.model.execution_context import (
     LifecycleObjectRef,
     SessionExecutionContext,
 )
+from pytest_bdd.model.message_registry import EnvelopeRegistry
 
 from .context_transitions import (
     build_active_object_set,
@@ -19,12 +20,17 @@ from .context_transitions import (
     runtime_object_id,
 )
 
+if TYPE_CHECKING:
+    from pytest_bdd.model.message_extension import EventEnvelope
+
 
 class ExecutionContextStore:
     """Store execution contexts per pytest node while keeping one session root."""
 
     CONTEXT_ATTR = "_pytest_bdd_execution_context"
     SESSION_CONTEXT_STASH_KEY = "_pytest_bdd_session_execution_context"
+    CONTEXTS_STASH_KEY = "_pytest_bdd_execution_contexts_by_request"
+    ENVELOPE_REGISTRY_STASH_KEY = "_pytest_bdd_envelope_registry"
 
     def __init__(self) -> None:
         self._contexts: dict[str, ExecutionContext] = {}
@@ -53,7 +59,52 @@ class ExecutionContextStore:
         stash[cls.SESSION_CONTEXT_STASH_KEY] = session_root
 
     @classmethod
+    def get_contexts_from_config(cls, config: Any) -> dict[str, ExecutionContext] | None:
+        stash = cls._get_config_stash(config)
+        if cls.CONTEXTS_STASH_KEY in stash:
+            contexts = stash[cls.CONTEXTS_STASH_KEY]
+            if isinstance(contexts, dict):
+                return contexts
+        return None
+
+    @classmethod
+    def get_envelope_registry_from_config(cls, config: Any) -> EnvelopeRegistry | None:
+        stash = cls._get_config_stash(config)
+        if cls.ENVELOPE_REGISTRY_STASH_KEY in stash:
+            envelope_registry = stash[cls.ENVELOPE_REGISTRY_STASH_KEY]
+            if isinstance(envelope_registry, EnvelopeRegistry):
+                return envelope_registry
+        return None
+
+    @classmethod
+    def ensure_envelope_registry_in_config(cls, config: Any) -> EnvelopeRegistry:
+        existing = cls.get_envelope_registry_from_config(config)
+        if existing is not None:
+            return existing
+        stash = cls._get_config_stash(config)
+        envelope_registry = EnvelopeRegistry()
+        stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = envelope_registry
+        return envelope_registry
+
+    @classmethod
+    def register_envelope_in_config(cls, config: Any, envelope: EventEnvelope) -> EnvelopeRegistry:
+        envelope_registry = cls.ensure_envelope_registry_in_config(config)
+        envelope_registry.add_envelope(envelope)
+        return envelope_registry
+
+    @classmethod
+    def ensure_contexts_in_config(cls, config: Any) -> dict[str, ExecutionContext]:
+        existing = cls.get_contexts_from_config(config)
+        if existing is not None:
+            return existing
+        stash = cls._get_config_stash(config)
+        contexts: dict[str, ExecutionContext] = {}
+        stash[cls.CONTEXTS_STASH_KEY] = contexts
+        return contexts
+
+    @classmethod
     def ensure_session_root_for_session(cls, *, config: Any, session: Any) -> SessionExecutionContext:
+        cls.ensure_envelope_registry_in_config(config)
         existing = cls.get_session_root_from_config(config)
         if existing is not None:
             return existing
@@ -92,15 +143,31 @@ class ExecutionContextStore:
         if context is not None:
             return context
 
+        config = getattr(request, "config", None)
+        if config is not None:
+            contexts = self.get_contexts_from_config(config)
+            if contexts is not None:
+                context = contexts.get(key)
+                if isinstance(context, ExecutionContext):
+                    self._contexts[key] = context
+                    setattr(request.node, self.CONTEXT_ATTR, context)
+                    return context
+
         node_context = getattr(request.node, self.CONTEXT_ATTR, None)
         if isinstance(node_context, ExecutionContext):
             self._contexts[key] = node_context
+            if config is not None:
+                self.ensure_contexts_in_config(config)[key] = node_context
             return node_context
         return None
 
     def set(self, request: Any, context: ExecutionContext) -> None:
-        self._contexts[self._request_key(request)] = context
+        key = self._request_key(request)
+        self._contexts[key] = context
         setattr(request.node, self.CONTEXT_ATTR, context)
+        config = getattr(request, "config", None)
+        if config is not None:
+            self.ensure_contexts_in_config(config)[key] = context
 
     def get_session_root(self, request: Any) -> SessionExecutionContext | None:
         config = getattr(request, "config", None)
@@ -142,9 +209,16 @@ class ExecutionContextStore:
             self.set_session_root_in_config(config, root)
         return root
 
-    def pop(self, request: Any) -> ExecutionContext | None:
+    def pop(self, request: Any) -> ExecutionContext | None:  # noqa: C901
         key = self._request_key(request)
         context = self._contexts.pop(key, None)
+        config = getattr(request, "config", None)
+        if config is not None:
+            contexts = self.get_contexts_from_config(config)
+            if contexts is not None:
+                stash_context = contexts.pop(key, None)
+                if context is None and isinstance(stash_context, ExecutionContext):
+                    context = stash_context
         if context is None:
             return None
 
@@ -164,6 +238,10 @@ class ExecutionContextStore:
                 session_root.active_scenario_context_id = None
             if session_root.active_step_context_id is not None:
                 session_root.active_step_context_id = None
+            session_root.reporting_state.reset_scenario_scope()
+
+        context.reporting_state.reset_scenario_scope()
+        context.reference_resolver.clear()
 
         return context
 
@@ -234,6 +312,12 @@ class ExecutionContextStore:
             feature_node=feature_node,
             scenario_node=scenario_node,
             step_node=None,
+            feature_object=feature,
+            scenario_object=scenario,
+            step_object=None,
+            previous_step_object=None,
         )
+        context.reporting_state.run_started_id = session_root.reporting_state.run_started_id
+        context.reporting_state.test_run_hook_started_id = session_root.reporting_state.test_run_hook_started_id
         self.set(request, context)
         return context

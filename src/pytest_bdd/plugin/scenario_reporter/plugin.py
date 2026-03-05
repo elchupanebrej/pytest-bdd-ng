@@ -46,7 +46,7 @@ class ScenarioReporter:
         scenario: Pickle,
     ) -> None:
         """Create scenario report for the item."""
-        self.current_report = ScenarioReport(feature=feature, scenario=scenario)  # type: ignore[call-arg]
+        self.current_report = ScenarioReport(feature=feature, scenario=scenario, config=request.config)  # type: ignore[call-arg]
         self.current_report.set_context_snapshot(
             build_reporting_context_snapshot(
                 request=request,

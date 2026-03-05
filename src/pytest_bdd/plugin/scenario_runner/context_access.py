@@ -11,7 +11,17 @@ from pytest_bdd.model.execution_context import (
     LifecycleKind,
     LifecycleObjectRef,
     ReportingContextSnapshot,
+    ReportingLifecycleState,
     SessionExecutionContext,
+)
+from pytest_bdd.model.gherkin_document.core import _resolve_registry_for_feature
+from pytest_bdd.model.gherkin_document.lookup import (
+    get_pickle_step_model_step,
+    get_step_data_table,
+    get_step_doc_string,
+    get_step_keyword,
+    get_step_line_number,
+    get_step_prefix,
 )
 from pytest_bdd.model.hook_parameter_model import ExecutionContextView, HookParameterModel
 
@@ -85,10 +95,7 @@ def bind_request_execution_context(request: Any, execution_context: ExecutionCon
 
 
 def resolve_request_execution_context(request: Any) -> ExecutionContext | None:
-    node_context = getattr(request.node, ExecutionContextStore.CONTEXT_ATTR, None)
-    if isinstance(node_context, ExecutionContext):
-        return node_context
-    return None
+    return ExecutionContextStore().get(request)
 
 
 def resolve_execution_context(
@@ -279,3 +286,110 @@ def build_reporting_context_snapshot(
         )
 
     return _fallback_reporting_snapshot(request, fallback_reason=fallback_reason)
+
+
+def get_reporting_state(execution_context: ExecutionContext) -> ReportingLifecycleState:
+    return execution_context.reporting_state
+
+
+def get_session_reporting_state(execution_context: ExecutionContext) -> ReportingLifecycleState:
+    session = execution_context.session_context
+    if session is None:
+        return execution_context.reporting_state
+    return session.reporting_state
+
+
+def map_runtime_step_to_test_step_id(
+    *,
+    execution_context: ExecutionContext,
+    runtime_step: Any,
+    test_step_id: str,
+) -> None:
+    execution_context.reporting_state.runtime_step_to_test_step_id[id(runtime_step)] = test_step_id
+
+
+def resolve_test_step_id_for_runtime_step(
+    *,
+    execution_context: ExecutionContext,
+    runtime_step: Any,
+) -> str | None:
+    mapped = execution_context.reporting_state.runtime_step_to_test_step_id.get(id(runtime_step))
+    if mapped is not None:
+        return mapped
+    runtime_step_id = getattr(runtime_step, "id", None)
+    if runtime_step_id is not None:
+        runtime_step_id_text = str(runtime_step_id)
+        for candidate in execution_context.reporting_state.runtime_step_to_test_step_id.values():
+            if candidate == runtime_step_id_text:
+                return candidate
+    return execution_context.reporting_state.active_test_step_id
+
+
+def _registry_from_feature(feature: Any, *, config: Any | None = None) -> dict[str, Any]:
+    return _resolve_registry_for_feature(feature, config=config)
+
+
+def resolve_registry_node(
+    *,
+    registry: dict[str, Any],
+    ast_node_id: str,
+    execution_context: ExecutionContext | None = None,
+) -> Any | None:
+    node = registry.get(ast_node_id)
+    if node is None and execution_context is not None:
+        execution_context.reference_resolver.add_missing_reference(f"Missing AST node id: {ast_node_id}")
+    return node
+
+
+def resolve_scenario_description(
+    *,
+    feature: Any,
+    scenario: Any,
+    execution_context: ExecutionContext | None = None,
+    config: Any | None = None,
+) -> str | None:
+    ast_node_ids = getattr(scenario, "ast_node_ids", None) or ()
+    if not ast_node_ids:
+        if execution_context is not None:
+            execution_context.reference_resolver.add_missing_reference("Scenario has no ast_node_ids")
+        return None
+    ast_node_id = str(ast_node_ids[0])
+    node = resolve_registry_node(
+        registry=_registry_from_feature(feature, config=config),
+        ast_node_id=ast_node_id,
+        execution_context=execution_context,
+    )
+    if node is None:
+        return None
+    description = getattr(node, "description", None)
+    return str(description) if description is not None else None
+
+
+def resolve_step_runtime_enrichment(
+    *,
+    feature: Any,
+    step: Any,
+    execution_context: ExecutionContext | None = None,
+    config: Any | None = None,
+) -> dict[str, Any]:
+    registry = _registry_from_feature(feature, config=config)
+    model_step = get_pickle_step_model_step(registry, step)
+    if model_step is None:
+        if execution_context is not None:
+            execution_context.reference_resolver.add_missing_reference(
+                f"Missing pickle step mapping: {getattr(step, 'id', 'unknown')}"
+            )
+        return {
+            "keyword": None,
+            "prefix": None,
+            "line_number": None,
+            "doc_string": None,
+            "data_table": None,
+        }
+    return {
+        "keyword": get_step_keyword(registry, step),
+        "prefix": get_step_prefix(registry, step),
+        "line_number": get_step_line_number(registry, step),
+        "doc_string": get_step_doc_string(registry, step),
+        "data_table": get_step_data_table(registry, step),
+    }

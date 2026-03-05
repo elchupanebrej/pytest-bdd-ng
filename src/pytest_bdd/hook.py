@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from enum import Enum
 from inspect import signature
 from itertools import count, product, starmap
@@ -83,6 +83,12 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
             execution_context = getattr(request, "execution_context", execution_context)
         except FixtureLookupError:  # pragma: no cover - non-bdd test nodes don't expose these fixtures
             execution_context = None
+
+    # Keep backward compatibility for mark/tag hooks that access
+    # request.execution_context directly instead of hook argument.
+    if execution_context is not None:
+        with suppress(AttributeError):
+            request.execution_context = execution_context
 
     return (
         args,

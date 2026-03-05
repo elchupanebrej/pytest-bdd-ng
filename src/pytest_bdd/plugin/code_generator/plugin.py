@@ -95,6 +95,7 @@ def generate_and_print_missing_code_callback(config: Config, session: Session) -
     unique_non_matched_feature_pickle_steps = find_unique_non_matched_steps(non_matched_feature_pickle_steps)
 
     print_missing_code(
+        config,
         non_seen_features,
         non_seen_feature_pickles,  # type: ignore[arg-type]
         non_matched_feature_pickle_steps,
@@ -300,6 +301,7 @@ def generate_and_print_code(config: Config) -> int | ExitCode:
 
 
 def print_missing_code(
+    config: Config,
     features,
     feature_pickles: Sequence[tuple[Feature, Pickle]],
     feature_pickle_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]],
@@ -313,7 +315,7 @@ def print_missing_code(
         tw.line()
         tw.line(
             f'Scenario "{pickle.name}" is not bound to any test in the feature "{feature.name}"'
-            f" in the file {feature.filename}:{feature._get_pickle_line_number(pickle)}",
+            f" in the file {feature.filename}:{feature._get_pickle_line_number(pickle, config=config)}",
             red=True,
         )
 
@@ -326,7 +328,7 @@ def print_missing_code(
         tw.line(
             f"""Step {step_type} "{step.text}" is not defined in the scenario "{pickle.name}" in the feature"""
             f""" "{feature.name}" in the file"""
-            f""" {feature.filename}:{feature._get_step_line_number(step)}""",
+            f""" {feature.filename}:{getattr(step, 'line_number', None) or feature._get_step_line_number(step, config=config)}""",
             red=True,
         )
 

@@ -30,6 +30,7 @@ from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
+from pytest_bdd.model.gherkin_document.core import Feature as FeatureModel
 
 
 def _pytest_collect_file(parent: Collector, file_path=None):
@@ -50,17 +51,18 @@ def _pytest_pycollect_makemodule():
         yield
 
 
-def _build_scenario_param(feature: Feature, pickle: Pickle, feature_data: str, config: Config):
+def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: str, config: Config):
     marks = []
-    for tag in feature._get_pickle_tag_names(pickle):
+    for tag in feature.get_pickle_tag_names(pickle):
         tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(feature=feature, scenario=pickle, tag=tag)
         if tag_marks is not None:
             marks.extend(tag_marks)
+    table_rows_breadcrumb = feature.build_pickle_table_rows_breadcrumb(pickle, config=config)
     return pytest.param(
         feature,
         pickle,
         feature_data,
-        id=f"{feature.uri}-{feature.name}-{pickle.name}{feature.build_pickle_table_rows_breadcrumb(pickle)}",
+        id=f"{feature.uri}-{feature.name}-{pickle.name}{table_rows_breadcrumb}",
         marks=marks,
     )
 

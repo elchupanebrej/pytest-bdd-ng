@@ -88,6 +88,9 @@ def test_transition_marks_failed_status_on_step_error() -> None:
 
 def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     context = _build_context()
+    context.reporting_state.active_test_case_started_id = "case-started-1"
+    context.reporting_state.active_test_step_id = "step-1"
+    context.reference_resolver.add_missing_reference("missing-ast-node")
     apply_transition(
         context,
         hook_phase=HookPhase.after_scenario,
@@ -102,3 +105,6 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     assert context.active_set.scenario is None
     assert context.active_set.step is None
     assert context.session_context.active_scenario_context_id is None
+    assert context.reporting_state.active_test_case_started_id == "case-started-1"
+    assert context.reporting_state.active_test_step_id == "step-1"
+    assert context.reference_resolver.missing_reference_diagnostics == ["missing-ast-node"]

@@ -42,7 +42,6 @@ def iter_child_ids(obj: Any):
                             filter(
                                 None,
                                 [
-                                    # Nested Rule support is intentionally unchanged.
                                     child.background,
                                     child.scenario,
                                 ],

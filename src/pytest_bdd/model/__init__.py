@@ -9,7 +9,9 @@ from .execution_context import (
     HookInvocationContext,
     HookPhase,
     LifecycleObjectRef,
+    ReferenceResolverState,
     ReportingContextSnapshot,
+    ReportingLifecycleState,
     SessionExecutionContext,
 )
 from .hook_parameter_model import ExecutionContextView, HookParameterModel
@@ -116,7 +118,9 @@ __all__ = [
     "MessageValidationViolation",
     "ObservedOutcome",
     "OutcomeMappingRule",
+    "ReferenceResolverState",
     "ReportingContextSnapshot",
+    "ReportingLifecycleState",
     "SessionExecutionContext",
     "StatusUniquenessResult",
     "build_baseline_diff",

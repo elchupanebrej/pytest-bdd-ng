@@ -75,6 +75,57 @@ class ActiveObjectSet:
 
 
 @dataclass(slots=True)
+class ReportingLifecycleState:
+    run_started_id: str | None = None
+    test_run_hook_started_id: str | None = None
+    active_test_case_id: str | None = None
+    active_test_case_started_id: str | None = None
+    active_test_step_id: str | None = None
+    runtime_step_to_test_step_id: dict[int, str] = field(default_factory=dict)
+    scenario_attempt_context: dict[str, str | int] | None = None
+    step_started_timestamp: Any | None = None
+    step_finished_timestamp: Any | None = None
+
+    def reset_scenario_scope(self) -> None:
+        self.active_test_case_id = None
+        self.active_test_case_started_id = None
+        self.active_test_step_id = None
+        self.runtime_step_to_test_step_id.clear()
+        self.scenario_attempt_context = None
+        self.step_started_timestamp = None
+        self.step_finished_timestamp = None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "run_started_id": self.run_started_id,
+            "test_run_hook_started_id": self.test_run_hook_started_id,
+            "active_test_case_id": self.active_test_case_id,
+            "active_test_case_started_id": self.active_test_case_started_id,
+            "active_test_step_id": self.active_test_step_id,
+            "runtime_step_to_test_step_id": dict(self.runtime_step_to_test_step_id),
+            "scenario_attempt_context": self.scenario_attempt_context,
+            "step_started_timestamp": self.step_started_timestamp,
+            "step_finished_timestamp": self.step_finished_timestamp,
+        }
+
+
+@dataclass(slots=True)
+class ReferenceResolverState:
+    missing_reference_diagnostics: list[str] = field(default_factory=list)
+
+    def add_missing_reference(self, message: str) -> None:
+        self.missing_reference_diagnostics.append(message)
+
+    def clear(self) -> None:
+        self.missing_reference_diagnostics.clear()
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "missing_reference_diagnostics": list(self.missing_reference_diagnostics),
+        }
+
+
+@dataclass(slots=True)
 class ContextErrorState:
     code: Literal["object_inactive", "transition_order_violation", "context_not_initialized"]
     message: str
@@ -102,6 +153,7 @@ class SessionExecutionContext:
     active_scenario_context_id: str | None = None
     active_step_context_id: str | None = None
     last_error: ContextErrorState | None = None
+    reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
 
     def advance_transition(self) -> None:
         self.transition_index += 1
@@ -116,6 +168,7 @@ class SessionExecutionContext:
             "active_scenario_context_id": self.active_scenario_context_id,
             "active_step_context_id": self.active_step_context_id,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
+            "reporting_state": self.reporting_state.as_dict(),
         }
 
 
@@ -163,6 +216,12 @@ class ExecutionContext:
     feature_node: ExecutionContextNode | None = None
     scenario_node: ExecutionContextNode | None = None
     step_node: ExecutionContextNode | None = None
+    feature_object: Any | None = None
+    scenario_object: Any | None = None
+    step_object: Any | None = None
+    previous_step_object: Any | None = None
+    reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
+    reference_resolver: ReferenceResolverState = field(default_factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -211,6 +270,8 @@ class ExecutionContext:
             "feature_node": self.feature_node.as_dict() if self.feature_node is not None else None,
             "scenario_node": self.scenario_node.as_dict() if self.scenario_node is not None else None,
             "step_node": self.step_node.as_dict() if self.step_node is not None else None,
+            "reporting_state": self.reporting_state.as_dict(),
+            "reference_resolver": self.reference_resolver.as_dict(),
         }
 
 

@@ -163,6 +163,10 @@ def apply_transition(
     context.scenario_ref = scenario_ref
     context.step_ref = step_ref
     context.previous_step_ref = previous_step_ref
+    context.feature_object = feature
+    context.scenario_object = scenario
+    context.step_object = step
+    context.previous_step_object = previous_step
 
     context.set_active_set(
         build_active_object_set(
@@ -199,6 +203,10 @@ def apply_transition(
             context.feature_node.close(context.transition_index)
 
         context.stage = ExecutionStage.finished
+        context.feature_object = None
+        context.scenario_object = None
+        context.step_object = None
+        context.previous_step_object = None
         context.set_active_set(
             build_active_object_set(
                 stage=ExecutionStage.finished,

@@ -7,3 +7,8 @@ if TYPE_CHECKING:
 @runtime_checkable
 class HasPytestBDDIdGenerator(Protocol):
     pytest_bdd_id_generator: Union["IdGenerator", Any]
+
+
+@runtime_checkable
+class Identifiable(Protocol):
+    id: Any
