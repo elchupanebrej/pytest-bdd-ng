@@ -29,6 +29,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Ci,
     Duration,
     ExternalAttachment,
+    GherkinDocument,
     Group,
     Hook,
     HookType,
@@ -37,6 +38,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Location,
     Meta,
     ParameterType,
+    Pickle,
     Product,
     Snippet,
     Source,
@@ -318,13 +320,15 @@ class GherkinMessageReporter:
 
         self.process_messages_io_queue.put_nowait(message_json)
 
-    def pytest_bdd_source_read(self, config: Config, feature, source):  # noqa: ARG002 hookspec
+    def pytest_bdd_source_read(self, config: Config, gherkin_document: GherkinDocument, source: Source) -> None:
+        _ = gherkin_document
         self._emit_envelope(config, Message(source=source))
 
-    def pytest_bdd_feature_read(self, config: Config, feature):
-        self._emit_envelope(config, Message(gherkin_document=feature.gherkin_document))
+    def pytest_bdd_feature_read(self, config: Config, gherkin_document: GherkinDocument) -> None:
+        self._emit_envelope(config, Message(gherkin_document=gherkin_document))
 
-    def pytest_bdd_pickle_read(self, config: Config, feature, pickle):  # noqa: ARG002 hookspec
+    def pytest_bdd_pickle_read(self, config: Config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
+        _ = gherkin_document
         self._emit_envelope(config, Message(pickle=pickle))
 
     @pytest.hookimpl(hookwrapper=True)
@@ -465,10 +469,10 @@ class GherkinMessageReporter:
         return run_started_id
 
     @staticmethod
-    def _resolve_feature_and_scenario(*, execution_context: Any) -> tuple[Any | None, Any | None]:
-        feature = getattr(execution_context, "feature_object", None)
-        scenario = getattr(execution_context, "scenario_object", None)
-        return feature, scenario
+    def _resolve_gherkin_document_and_pickle(*, execution_context: Any) -> tuple[Any | None, Any | None]:
+        gherkin_document = getattr(execution_context, "feature_object", None)
+        pickle = getattr(execution_context, "scenario_object", None)
+        return gherkin_document, pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         context = resolve_request_execution_context(request)
@@ -637,8 +641,8 @@ class GherkinMessageReporter:
                 "Execution context unavailable during pytest_runtest_setup; skipping context-backed correlation writes."
             )
             return
-        feature, scenario = self._resolve_feature_and_scenario(execution_context=execution_context)
-        if feature is None or scenario is None:
+        gherkin_document, pickle = self._resolve_gherkin_document_and_pickle(execution_context=execution_context)
+        if gherkin_document is None or pickle is None:
             logger.warning(
                 "Execution context does not carry runtime feature/scenario during pytest_runtest_setup."
             )
@@ -658,16 +662,16 @@ class GherkinMessageReporter:
                     id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
                     hook_id=hook_registration.hook_message_id,
                 )
-                for hook_registration in self._iter_matching_hook_registrations(request=request, scenario=scenario)
+                for hook_registration in self._iter_matching_hook_registrations(request=request, scenario=pickle)
             ]
         )
 
-        for step in scenario.steps:
+        for step in pickle.steps:
             try:
                 step_definition = hook_handler.pytest_bdd_match_step_definition_to_step(
                     request=request,
-                    feature=feature,
-                    scenario=scenario,
+                    gherkin_document=gherkin_document,
+                    pickle=pickle,
                     step=step,
                     previous_step=previous_step,
                 )
@@ -699,7 +703,7 @@ class GherkinMessageReporter:
         resolved_run_started_id = self._resolve_run_started_id(config=cast(Config, config))
         test_case = TestCase(
             id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
-            pickle_id=scenario.id,
+            pickle_id=pickle.id,
             test_steps=test_steps,
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
         )
@@ -948,7 +952,14 @@ class GherkinMessageReporter:
 
         return None
 
-    def pytest_bdd_step_func_lookup_error(self, request, feature, scenario, step, exception):  # noqa: ARG002 hookspec
+    def pytest_bdd_step_func_lookup_error(
+        self,
+        request,
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
+        step,
+        exception,
+    ):
         if self.is_disabled:
             return
         config = request.config
@@ -981,8 +992,8 @@ class GherkinMessageReporter:
     def pytest_bdd_before_scenario(
         self,
         request,
-        feature,  # noqa: ARG002 hookspec
-        scenario,  # noqa: ARG002 hookspec
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
@@ -1024,8 +1035,8 @@ class GherkinMessageReporter:
     def pytest_bdd_after_scenario(
         self,
         request,
-        feature,  # noqa: ARG002 hookspec
-        scenario,  # noqa: ARG002 hookspec
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
     ):
         if self.is_disabled:
             return
@@ -1064,8 +1075,8 @@ class GherkinMessageReporter:
     def pytest_bdd_before_step(
         self,
         request,
-        feature,  # noqa: ARG002 hookspec
-        scenario,  # noqa: ARG002 hookspec
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
         step,
         step_func,  # noqa: ARG002 hookspec
     ):
@@ -1101,8 +1112,8 @@ class GherkinMessageReporter:
     def pytest_bdd_after_step(
         self,
         request,
-        feature,  # noqa: ARG002 hookspec
-        scenario,  # noqa: ARG002 hookspec
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
         step,
         step_func,  # noqa: ARG002 hookspec
     ):
@@ -1141,8 +1152,8 @@ class GherkinMessageReporter:
     def pytest_bdd_step_error(
         self,
         request,
-        feature,  # noqa: ARG002 hookspec
-        scenario,  # noqa: ARG002 hookspec
+        gherkin_document,  # noqa: ARG002 hookspec
+        pickle,  # noqa: ARG002 hookspec
         step,
         step_func,  # noqa: ARG002 hookspec
         step_func_args,  # noqa: ARG002 hookspec

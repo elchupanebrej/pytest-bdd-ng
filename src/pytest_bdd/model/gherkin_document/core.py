@@ -6,11 +6,12 @@ The way of describing the behavior is based on Gherkin language.
 from __future__ import annotations
 
 from functools import partial
+from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, cast
 
 from attr import Factory, attrib, attrs
-from cucumber_messages import GherkinDocument, Pickle  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
 
 from pytest_bdd.const import TAG_PREFIX
@@ -118,9 +119,42 @@ class Feature:
         return str(description) if description is not None else None
 
 
-def _resolve_registry_for_feature(feature: Feature, *, config: Any | None = None) -> dict[str, Any]:
+def _feature_filename_from_uri(uri: str | None) -> str:
+    if uri is None:
+        return "<unknown>"
+    if uri.startswith("file:"):
+        return uri.removeprefix("file:")
+    return str(Path(uri).as_posix())
+
+
+def build_feature_adapter(
+    *,
+    gherkin_document: GherkinDocument,
+    source: Source | None = None,
+    pickles: Sequence[Pickle] | None = None,
+) -> Feature:
+    filename = getattr(gherkin_document, "_pytest_bdd_filename", None)
+    if filename is None and source is not None:
+        filename = _feature_filename_from_uri(source.uri)
+    if filename is None:
+        filename = _feature_filename_from_uri(gherkin_document.uri)
+
+    feature = Feature(
+        gherkin_document=gherkin_document,
+        uri=cast(str, gherkin_document.uri),
+        filename=str(filename),
+    )
+    if pickles:
+        feature.pickles = [*pickles]
+    return feature
+
+
+def _resolve_registry_for_feature(feature: Feature | GherkinDocument, *, config: Any | None = None) -> dict[str, Any]:
     fallback_registry: dict[str, Any] = {}
-    feature_message = getattr(getattr(feature, "gherkin_document", None), "feature", None)
+    if isinstance(feature, GherkinDocument):
+        feature_message = feature.feature
+    else:
+        feature_message = getattr(getattr(feature, "gherkin_document", None), "feature", None)
     if feature_message is not None:
         fallback_registry = build_registry(feature_message)
 

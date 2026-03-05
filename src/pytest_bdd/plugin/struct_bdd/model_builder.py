@@ -57,6 +57,7 @@ class GherkinDocumentBuilder(_ASTBuilder):
     def build_feature(self, filename, uri, id_generator):
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
+        gherkin_document._pytest_bdd_filename = filename
 
         return GherkinDocumentFeature(  # type: ignore[call-arg]
             gherkin_document=gherkin_document,

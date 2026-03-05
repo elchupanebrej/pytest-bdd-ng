@@ -36,19 +36,19 @@ class _HookSpy:
     def __init__(self) -> None:
         self.events: list[tuple[str, str]] = []
 
-    def pytest_bdd_source_read(self, *, config, feature: Feature, source: Source) -> None:
+    def pytest_bdd_source_read(self, *, config, gherkin_document: GherkinDocument, source: Source) -> None:
         _ = config
         self.events.append(("source", source.uri))
-        assert feature.uri == source.uri
+        assert gherkin_document.uri == source.uri
 
-    def pytest_bdd_feature_read(self, *, config, feature: Feature) -> None:
+    def pytest_bdd_feature_read(self, *, config, gherkin_document: GherkinDocument) -> None:
         _ = config
-        self.events.append(("feature", feature.uri))
+        self.events.append(("feature", gherkin_document.uri))
 
-    def pytest_bdd_pickle_read(self, *, config, feature: Feature, pickle: Pickle) -> None:
+    def pytest_bdd_pickle_read(self, *, config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
         _ = config
         self.events.append(("pickle", pickle.id))
-        assert feature.uri
+        assert gherkin_document.uri
 
 
 def _build_feature() -> Feature:

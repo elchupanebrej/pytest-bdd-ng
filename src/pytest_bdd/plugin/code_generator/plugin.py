@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from itertools import chain, filterfalse, zip_longest
-from operator import lt, methodcaller
+from operator import methodcaller
 from pathlib import Path
 from typing import Any, cast
 
@@ -19,7 +19,6 @@ from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilde
 from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
-from pytest_bdd.util.packaging import compare_distribution_version
 from pytest_bdd.util.toolz_extra import chain_map
 
 STEP_TYPE_TO_STEP_PREFIX = {
@@ -134,20 +133,13 @@ def process_single_item(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
     """Handles processing for a single test item."""
-    is_legacy_pytest = compare_distribution_version("pytest", "7.0", lt)
-    method_name = "prepare" if is_legacy_pytest else "setup"
-    methodcaller(method_name, item)(item.session._setupstate)
-
-    item = cast(Item, item)
+    item.session._setupstate.setup(item)
     item_request: FixtureRequest = item._request
     pickle: Pickle = item_request.getfixturevalue("scenario")
     feature: Feature = item_request.getfixturevalue("feature")
-
     seen_feature_pickles_ids.add((feature.uri, pickle.name))
-
     process_pickle_steps(pickle, item_request, feature, non_matched_feature_pickle_steps)
-
-    item.session._setupstate.teardown_exact(*((item,) if is_legacy_pytest else ()), None)  # type: ignore[call-arg]
+    item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]
 
 
 def process_pickle_steps(
@@ -162,8 +154,8 @@ def process_pickle_steps(
         try:
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
                 request=item_request,
-                feature=feature,
-                scenario=pickle,
+                gherkin_document=feature.gherkin_document,
+                pickle=pickle,
                 step=step,
                 previous_step=previous_step,
             )

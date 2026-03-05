@@ -72,7 +72,7 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
             from pytest_bdd.plugin.scenario_runner.context_access import resolve_execution_context
             from pytest_bdd.plugin.scenario_runner.context_store import ExecutionContextStore
 
-            feature = request.getfixturevalue("feature")
+            feature = request.getfixturevalue("gherkin_document")
             scenario = request.getfixturevalue("scenario")
             execution_context = resolve_execution_context(
                 request,

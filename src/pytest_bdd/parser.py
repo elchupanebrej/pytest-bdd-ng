@@ -108,6 +108,7 @@ class BaseParser(ParserProtocol):
         filename: str,
     ) -> Feature:
         gherkin_document = Feature.load_gherkin_document(gherkin_document_raw_dict)
+        gherkin_document._pytest_bdd_filename = filename
 
         return Feature(  # type: ignore[call-arg]
             gherkin_document=gherkin_document,

@@ -1,6 +1,7 @@
 from collections import deque
 
 import pytest
+from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import PickleStep as Step  # type:ignore[import-untyped]
 
 from pytest_bdd import given, then, when
@@ -10,6 +11,7 @@ from pytest_bdd.compatibility.pytest import (
     Parser,
     PytestPluginManager,
 )
+from pytest_bdd.model.gherkin_document.core import build_feature_adapter
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
@@ -125,6 +127,20 @@ def attach(request: FixtureRequest):
         )
 
     return add_attachment
+
+
+@pytest.fixture
+def feature(
+    gherkin_document: GherkinDocument,
+    scenario: Pickle,
+    feature_source: Source,
+):
+    """Compatibility fixture exposing legacy Feature adapter from canonical gherkin document payload."""
+    return build_feature_adapter(
+        gherkin_document=gherkin_document,
+        source=feature_source,
+        pickles=[scenario],
+    )
 
 
 @pytest.fixture(scope="session")

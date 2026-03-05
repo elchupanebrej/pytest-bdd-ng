@@ -2,10 +2,9 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
-from cucumber_messages import Pickle, Source  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import Config, Mark
-from pytest_bdd.model.gherkin_document import Feature
 
 
 class ScenarioTestCollectorHookSpec:
@@ -30,11 +29,11 @@ class ScenarioTestCollectorHookSpec:
         return ``True`` to do more sophisticated handling of tags.
         """
 
-    def pytest_bdd_source_read(self, config: Config, feature: Feature, source: Source) -> None:
+    def pytest_bdd_source_read(self, config: Config, gherkin_document: GherkinDocument, source: Source) -> None:
         """Notify plugins that source payload for feature was read during collection."""
 
-    def pytest_bdd_feature_read(self, config: Config, feature: Feature) -> None:
+    def pytest_bdd_feature_read(self, config: Config, gherkin_document: GherkinDocument) -> None:
         """Notify plugins that gherkin document payload for feature was read during collection."""
 
-    def pytest_bdd_pickle_read(self, config: Config, feature: Feature, pickle: Pickle) -> None:
+    def pytest_bdd_pickle_read(self, config: Config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
         """Notify plugins that pickle payload was materialized during collection."""

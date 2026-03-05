@@ -10,10 +10,7 @@ from types import ModuleType
 from unittest.mock import patch
 
 import pytest
-from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
-    Pickle,
-    Source,
-)
+from cucumber_messages import Pickle, Source  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
@@ -52,7 +49,7 @@ def _pytest_pycollect_makemodule():
         yield
 
 
-def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: str, config: Config):
+def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: Source, config: Config):
     marks = []
     for tag in feature.get_pickle_tag_names(pickle):
         tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(feature=feature, scenario=pickle, tag=tag)
@@ -60,7 +57,7 @@ def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: s
             marks.extend(tag_marks)
     table_rows_breadcrumb = feature.build_pickle_table_rows_breadcrumb(pickle, config=config)
     return pytest.param(
-        feature,
+        feature.gherkin_document,
         pickle,
         feature_data,
         id=f"{feature.uri}-{feature.name}-{pickle.name}{table_rows_breadcrumb}",
@@ -73,13 +70,21 @@ class _ScenarioCollectionReadObserver:
     config: Config
 
     def on_source_loaded(self, feature: FeatureModel, source: Source) -> None:
-        self.config.hook.pytest_bdd_source_read(config=self.config, feature=feature, source=source)
+        self.config.hook.pytest_bdd_source_read(
+            config=self.config,
+            gherkin_document=feature.gherkin_document,
+            source=source,
+        )
 
     def on_feature_loaded(self, feature: FeatureModel) -> None:
-        self.config.hook.pytest_bdd_feature_read(config=self.config, feature=feature)
+        self.config.hook.pytest_bdd_feature_read(config=self.config, gherkin_document=feature.gherkin_document)
 
     def on_pickle_loaded(self, feature: FeatureModel, pickle: Pickle) -> None:
-        self.config.hook.pytest_bdd_pickle_read(config=self.config, feature=feature, pickle=pickle)
+        self.config.hook.pytest_bdd_pickle_read(
+            config=self.config,
+            gherkin_document=feature.gherkin_document,
+            pickle=pickle,
+        )
 
 
 def _iter_resolved_feature_scenarios(config: Config, locators):
@@ -143,7 +148,7 @@ class ScenarioTestCollector(BaseCollector):
             feature_scenario_feature_source = _iter_resolved_feature_scenarios(config, locators)
 
             metafunc.parametrize(
-                "feature, scenario, feature_source",
+                "gherkin_document, scenario, feature_source",
                 starmap(
                     partial(_build_scenario_param, config=config),
                     feature_scenario_feature_source,
@@ -161,12 +166,17 @@ class ScenarioTestCollector(BaseCollector):
 
     @pytest.hookimpl
     def pytest_bdd_match_step_definition_to_step(
-        self, request, feature, scenario, step, previous_step
+        self,
+        request,
+        gherkin_document,
+        pickle,
+        step,
+        previous_step,
     ) -> StepDefinitionManager.Definition:
         step_registry: StepDefinitionManager.Registry = request.getfixturevalue("step_registry")
         step_matcher: StepDefinitionManager.Matcher = request.getfixturevalue("step_matcher")
 
-        return step_matcher(request, feature, scenario, step, previous_step, step_registry)
+        return step_matcher(request, gherkin_document, pickle, step, previous_step, step_registry)
 
     @pytest.hookimpl
     def pytest_bdd_get_mimetype(

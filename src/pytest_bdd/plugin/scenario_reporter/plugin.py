@@ -7,10 +7,11 @@ that enriches the pytest test reporting.
 from collections.abc import Callable
 
 import pytest
-from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
+from cucumber_messages import GherkinDocument, Pickle, PickleStep, Source  # type:ignore[attr-defined, import-untyped]
 
-from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
+from pytest_bdd.compatibility.pytest import CallInfo, FixtureLookupError, FixtureRequest, Item
 from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.model.gherkin_document.core import build_feature_adapter
 from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
 from pytest_bdd.plugin.scenario_runner.context_access import build_reporting_context_snapshot
 
@@ -38,15 +39,46 @@ class ScenarioReporter:
                 if scenario_report.context_snapshot is not None:
                     rep.execution_context_snapshot = scenario_report.context_snapshot.as_dict()
 
+    @staticmethod
+    def _coerce_feature_adapter(
+        *,
+        request: FixtureRequest,
+        gherkin_document: Feature | GherkinDocument,
+        pickle: Pickle,
+    ) -> Feature:
+        if isinstance(gherkin_document, Feature):
+            return gherkin_document
+
+        feature_source: Source | None
+        try:
+            feature_source = request.getfixturevalue("feature_source")
+        except FixtureLookupError:
+            feature_source = None
+
+        return build_feature_adapter(
+            gherkin_document=gherkin_document,
+            source=feature_source,
+            pickles=[pickle],
+        )
+
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_scenario(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Pickle,
+        gherkin_document: Feature | GherkinDocument,
+        pickle: Pickle,
     ) -> None:
         """Create scenario report for the item."""
-        self.current_report = ScenarioReport(feature=feature, scenario=scenario, config=request.config)  # type: ignore[call-arg]
+        feature_adapter = self._coerce_feature_adapter(
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+        )
+        self.current_report = ScenarioReport(
+            feature=feature_adapter,
+            scenario=pickle,
+            config=request.config,
+        )  # type: ignore[call-arg]
         self.current_report.set_context_snapshot(
             build_reporting_context_snapshot(
                 request=request,
@@ -58,8 +90,8 @@ class ScenarioReporter:
     def pytest_bdd_step_error(
         self,
         request: FixtureRequest,
-        feature: Feature,  # noqa: ARG002 hookspec
-        scenario: Pickle,  # noqa: ARG002 hookspec
+        gherkin_document: Feature | GherkinDocument,  # noqa: ARG002 hookspec
+        pickle: Pickle,  # noqa: ARG002 hookspec
         step: PickleStep,  # noqa: ARG002 hookspec
         step_func: Callable,  # noqa: ARG002 hookspec
         step_func_args: dict,  # noqa: ARG002 hookspec
@@ -78,8 +110,8 @@ class ScenarioReporter:
     def pytest_bdd_before_step(
         self,
         request: FixtureRequest,
-        feature: Feature,  # noqa: ARG002 hookspec
-        scenario: Pickle,  # noqa: ARG002 hookspec
+        gherkin_document: Feature | GherkinDocument,  # noqa: ARG002 hookspec
+        pickle: Pickle,  # noqa: ARG002 hookspec
         step: PickleStep,
         step_func: Callable,  # noqa: ARG002 hookspec
     ) -> None:
@@ -96,8 +128,8 @@ class ScenarioReporter:
     def pytest_bdd_after_step(
         self,
         request: FixtureRequest,
-        feature: Feature,  # noqa: ARG002 hookspec
-        scenario: Pickle,  # noqa: ARG002 hookspec
+        gherkin_document: Feature | GherkinDocument,  # noqa: ARG002 hookspec
+        pickle: Pickle,  # noqa: ARG002 hookspec
         step: PickleStep,  # noqa: ARG002 hookspec
         step_func: Callable,  # noqa: ARG002 hookspec
         step_func_args: dict,  # noqa: ARG002 hookspec
@@ -115,8 +147,8 @@ class ScenarioReporter:
     def pytest_bdd_after_scenario(
         self,
         request: FixtureRequest,
-        feature: Feature,  # noqa: ARG002 hookspec
-        scenario: Pickle,  # noqa: ARG002 hookspec
+        gherkin_document: Feature | GherkinDocument,  # noqa: ARG002 hookspec
+        pickle: Pickle,  # noqa: ARG002 hookspec
     ) -> None:
         self.current_report.set_context_snapshot(
             build_reporting_context_snapshot(
