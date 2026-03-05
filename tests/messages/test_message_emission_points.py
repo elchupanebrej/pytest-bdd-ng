@@ -11,6 +11,9 @@ PLUGIN_PATH = (
 
 EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
     "pytest_sessionstart": {"meta"},
+    "pytest_bdd_source_read": {"source"},
+    "pytest_bdd_feature_read": {"gherkin_document"},
+    "pytest_bdd_pickle_read": {"pickle"},
     "pytest_runtestloop": {"test_run_started"},
     "pytest_runtest_setup": {"test_case"},
     "_report_step_definitions": {"step_definition"},
@@ -27,7 +30,7 @@ EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
 
 # parse_error envelopes are emitted by parser layer (`BaseParser.emit_parse_error`)
 # before reporter plugin hooks are entered.
-EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error", "source", "gherkin_document", "pickle"}
+EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error"}
 
 
 PAYLOAD_HINTS: dict[str, str] = {

@@ -1,17 +1,18 @@
 import mimetypes
 from collections.abc import Collection, Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from functools import partial
 from itertools import starmap
-from operator import contains, methodcaller
+from operator import contains
 from pathlib import Path
 from types import ModuleType
 from unittest.mock import patch
 
 import pytest
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
-    Feature,
     Pickle,
+    Source,
 )
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
@@ -26,11 +27,11 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
+from pytest_bdd.model.gherkin_document.core import Feature as FeatureModel
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
-from pytest_bdd.model.gherkin_document.core import Feature as FeatureModel
 
 
 def _pytest_collect_file(parent: Collector, file_path=None):
@@ -65,6 +66,26 @@ def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: s
         id=f"{feature.uri}-{feature.name}-{pickle.name}{table_rows_breadcrumb}",
         marks=marks,
     )
+
+
+@dataclass(kw_only=True)
+class _ScenarioCollectionReadObserver:
+    config: Config
+
+    def on_source_loaded(self, feature: FeatureModel, source: Source) -> None:
+        self.config.hook.pytest_bdd_source_read(config=self.config, feature=feature, source=source)
+
+    def on_feature_loaded(self, feature: FeatureModel) -> None:
+        self.config.hook.pytest_bdd_feature_read(config=self.config, feature=feature)
+
+    def on_pickle_loaded(self, feature: FeatureModel, pickle: Pickle) -> None:
+        self.config.hook.pytest_bdd_pickle_read(config=self.config, feature=feature, pickle=pickle)
+
+
+def _iter_resolved_feature_scenarios(config: Config, locators):
+    observer = _ScenarioCollectionReadObserver(config=config)
+    for locator in locators:
+        yield from locator.resolve(config, observer=observer)
 
 
 class _ModernTestCollector:
@@ -119,7 +140,7 @@ class ScenarioTestCollector(BaseCollector):
             scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
             locator_builder = ScenarioLocatorBuilder(config=config)
             locators = chain_map(locator_builder.build_for_pytest_mark, scenario_marks)
-            feature_scenario_feature_source = chain_map(methodcaller("resolve", config), locators)
+            feature_scenario_feature_source = _iter_resolved_feature_scenarios(config, locators)
 
             metafunc.parametrize(
                 "feature, scenario, feature_source",

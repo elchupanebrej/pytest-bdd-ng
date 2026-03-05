@@ -16,14 +16,10 @@ from urllib.parse import urljoin
 import aiohttp
 import certifi
 from attr import Factory, attrib, attrs
-from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
-    Envelope as Message,
-)
 from cucumber_messages import (
     Pickle,
     Source,
 )
-from pydantic import ValidationError
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pathlib import GlobError
@@ -51,10 +47,24 @@ class ScenarioLocatorFeatureResolver(Protocol):
 
 
 @runtime_checkable
+class ScenarioLocatorReadObserver(Protocol):
+    def on_source_loaded(self, feature: Feature, source: Source) -> None:  # pragma: no cover
+        ...
+
+    def on_feature_loaded(self, feature: Feature) -> None:  # pragma: no cover
+        ...
+
+    def on_pickle_loaded(self, feature: Feature, pickle: Pickle) -> None:  # pragma: no cover
+        ...
+
+
+@runtime_checkable
 class ScenarioLocatorResolver(Protocol):
     def resolve(
         self,
         config: Config | HasPytestBDDIdGenerator,
+        *,
+        observer: ScenarioLocatorReadObserver | None = None,
     ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
         ...
 
@@ -74,45 +84,23 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         )
 
     @staticmethod
-    def _emit_message(
-        *,
-        config: Config | HasPytestBDDIdGenerator,
-        message: Message,
-    ) -> None:
-        hook_handler = getattr(config, "hook", None)
-        if hook_handler is None:
-            return
-        hook_handler.pytest_bdd_message(config=config, message=message)
-
-    @staticmethod
     def _materialize_feature_pickles(feature: Feature, config: Config | HasPytestBDDIdGenerator) -> None:
         feature.materialize_pickles(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
 
-    @staticmethod
-    def _register_feature_messages(
-        *,
+    def resolve(
+        self,
         config: Config | HasPytestBDDIdGenerator,
-        feature: Feature,
-        feature_data: Source | None,
-    ) -> None:
-        if feature_data is not None:
-            ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(source=feature_data))
-        ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(gherkin_document=feature.gherkin_document))
-
-    @staticmethod
-    def _register_pickle_message(
         *,
-        config: Config | HasPytestBDDIdGenerator,
-        pickle: Pickle,
-    ) -> None:
-        ScenarioLocatorFilterMixin._emit_message(config=config, message=Message(pickle=pickle))
-
-    def resolve(self, config):
+        observer: ScenarioLocatorReadObserver | None = None,
+    ):
         for feature, feature_data in self.resolve_features(config):
-            self._register_feature_messages(config=config, feature=feature, feature_data=feature_data)
+            if observer is not None:
+                observer.on_source_loaded(feature, feature_data)
+                observer.on_feature_loaded(feature)
             self._materialize_feature_pickles(feature, config)
             for _, pickle in self.filter_scenarios(feature, config):
-                self._register_pickle_message(config=config, pickle=pickle)
+                if observer is not None:
+                    observer.on_pickle_loaded(feature, pickle)
                 yield feature, pickle, feature_data
 
 
@@ -202,11 +190,8 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                     return
                 else:
                     raise
-            try:
-                yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
-            except ValidationError:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+            media_type = str(mimetype) if mimetype is not None else "text/plain;charset=UTF-8"
+            yield feature, Source(uri=url, data=feature_data, media_type=media_type)
         finally:
             if filename is not None:
                 with suppress(Exception):
@@ -337,8 +322,5 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     continue
                 else:
                     raise
-            try:
-                yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2
-            except ValidationError:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+            source_media_type = str(media_type) if media_type is not None else "text/plain;charset=UTF-8"
+            yield feature, Source(uri=uri, data=feature_data, media_type=source_media_type)

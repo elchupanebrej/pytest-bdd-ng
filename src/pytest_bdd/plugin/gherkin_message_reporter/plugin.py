@@ -192,8 +192,6 @@ class GherkinMessageReporter:
         logger.warning("Message reporting disabled; message-output guarantees were skipped for this run.")
 
     def _emit_envelope(self, config: Config, message: Message) -> None:
-        if self.is_disabled:
-            return
         if not has_single_payload(message):
             message_text = "Envelope must include exactly one payload"
             raise TypeError(message_text)
@@ -319,6 +317,15 @@ class GherkinMessageReporter:
             raise RuntimeError(message_text) from exc
 
         self.process_messages_io_queue.put_nowait(message_json)
+
+    def pytest_bdd_source_read(self, config: Config, feature, source):  # noqa: ARG002 hookspec
+        self._emit_envelope(config, Message(source=source))
+
+    def pytest_bdd_feature_read(self, config: Config, feature):
+        self._emit_envelope(config, Message(gherkin_document=feature.gherkin_document))
+
+    def pytest_bdd_pickle_read(self, config: Config, feature, pickle):  # noqa: ARG002 hookspec
+        self._emit_envelope(config, Message(pickle=pickle))
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtestloop(self, session: pytest.Session):

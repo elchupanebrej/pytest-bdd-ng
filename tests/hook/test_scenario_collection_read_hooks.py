@@ -10,6 +10,7 @@ from cucumber_messages import (
     FeatureChild,
     GherkinDocument,
     Location,
+    Pickle,
     Scenario,
     Source,
     Step,
@@ -17,6 +18,7 @@ from cucumber_messages import (
 )
 
 from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.plugin.scenario_test_collector.plugin import _iter_resolved_feature_scenarios
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_bdd.util.other import IdGenerator
 
@@ -28,6 +30,25 @@ class _DummyLocator(ScenarioLocatorFilterMixin):
     def resolve_features(self, config):
         _ = config
         yield from self.entries
+
+
+class _HookSpy:
+    def __init__(self) -> None:
+        self.events: list[tuple[str, str]] = []
+
+    def pytest_bdd_source_read(self, *, config, feature: Feature, source: Source) -> None:
+        _ = config
+        self.events.append(("source", source.uri))
+        assert feature.uri == source.uri
+
+    def pytest_bdd_feature_read(self, *, config, feature: Feature) -> None:
+        _ = config
+        self.events.append(("feature", feature.uri))
+
+    def pytest_bdd_pickle_read(self, *, config, feature: Feature, pickle: Pickle) -> None:
+        _ = config
+        self.events.append(("pickle", pickle.id))
+        assert feature.uri
 
 
 def _build_feature() -> Feature:
@@ -65,54 +86,15 @@ def _build_feature() -> Feature:
     )
 
 
-def test_resolve_features_phase_does_not_materialize_pickles() -> None:
+def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
     feature = _build_feature()
     source = Source(uri=feature.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(feature, source)])
-    config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator())
+    hook = _HookSpy()
+    config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator(), hook=hook)
 
-    resolved_features = list(locator.resolve_features(config))
-
-    assert len(resolved_features) == 1
-    assert feature.pickles == []
-
-
-def test_resolve_pipeline_materializes_pickles_without_message_emission() -> None:
-    feature = _build_feature()
-    source = Source(uri=feature.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(feature, source)])
-    config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator())
-
-    resolved = list(locator.resolve(config))
+    resolved = list(_iter_resolved_feature_scenarios(config, [locator]))
 
     assert len(resolved) == 1
     assert len(feature.pickles) == 1
-
-
-def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
-    feature = _build_feature()
-    source = Source(uri=feature.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(feature, source)])
-    config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator())
-    observed_callbacks: list[tuple[str, str]] = []
-
-    class _Observer:
-        def on_source_loaded(self, loaded_feature: Feature, loaded_source: Source) -> None:
-            observed_callbacks.append(("source", loaded_feature.uri))
-            assert loaded_source is source
-
-        def on_feature_loaded(self, loaded_feature: Feature) -> None:
-            observed_callbacks.append(("feature", loaded_feature.uri))
-
-        def on_pickle_loaded(self, loaded_feature: Feature, loaded_pickle) -> None:
-            observed_callbacks.append(("pickle", loaded_feature.uri))
-            assert loaded_pickle.id
-
-    _ = list(
-        locator.resolve(
-            config,
-            observer=_Observer(),
-        )
-    )
-
-    assert observed_callbacks[:3] == [("source", feature.uri), ("feature", feature.uri), ("pickle", feature.uri)]
+    assert hook.events[:3] == [("source", feature.uri), ("feature", feature.uri), ("pickle", feature.pickles[0].id)]
