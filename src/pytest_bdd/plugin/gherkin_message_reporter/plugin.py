@@ -59,7 +59,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TestStepResultStatus,
     TestStepStarted,
     Timestamp,
-    UndefinedParameterType,
+    UndefinedParameterType, PickleStep,
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import (
@@ -87,9 +87,7 @@ from pytest_bdd.model.message_validation import (
 )
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.pickle_runner.run_access import (
-    map_runtime_step_to_test_step_id,
     resolve_step_object,
-    resolve_test_step_id_for_runtime_step,
 )
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
@@ -471,17 +469,13 @@ class GherkinMessageReporter:
     @staticmethod
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[Any | None, Any | None]:
         scenario_run = run.active_scenario_run
-        if scenario_run is None:
-            return None, None
-        gherkin_document = getattr(scenario_run, "feature_object", None)
-        pickle = getattr(scenario_run, "scenario_object", None)
-        return gherkin_document, pickle
+        return scenario_run.gherkin_document, scenario_run.pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         run = Run.from_pytest_stash(request.config)
         if run is None:
             return None
-        test_step_id = resolve_test_step_id_for_runtime_step(run=run, runtime_step=step)
+        test_step_id = run.resolve_test_step_id_for_runtime_step(pickle_step=step)
         if test_step_id is None:
             logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
         return test_step_id
@@ -658,7 +652,7 @@ class GherkinMessageReporter:
 
         test_steps = []
         previous_step = None
-        reporting_state.runtime_step_to_test_step_id.clear()
+        reporting_state.runtime_step_to_pickle_step_id.clear()
 
         test_steps.extend(
             [
@@ -695,9 +689,8 @@ class GherkinMessageReporter:
                     ),
                 )
                 test_steps.append(test_step)
-                map_runtime_step_to_test_step_id(
-                    run=run,
-                    runtime_step=step,
+                run.map_runtime_step_to_test_step_id(
+                    pickle_step=step,
                     test_step_id=test_step.id,
                 )
             finally:

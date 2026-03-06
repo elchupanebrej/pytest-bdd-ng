@@ -3,8 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
+from cucumber_messages import PickleStep, Pickle, GherkinDocument
+
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.model.message_registry import EnvelopeRegistry
+from pytest_bdd.types.protocol import Identifiable
 
 if TYPE_CHECKING:
     from pytest_bdd.model.message_extension import EventEnvelope
@@ -85,7 +88,7 @@ class ReportingLifecycleState:
     active_test_case_id: str | None = None
     active_test_case_started_id: str | None = None
     active_test_step_id: str | None = None
-    runtime_step_to_test_step_id: dict[int, str] = field(default_factory=dict)
+    runtime_step_to_pickle_step_id: dict[int, str] = field(default_factory=dict)
     scenario_attempt_context: dict[str, str | int] | None = None
     step_started_timestamp: Any | None = None
     step_finished_timestamp: Any | None = None
@@ -94,7 +97,7 @@ class ReportingLifecycleState:
         self.active_test_case_id = None
         self.active_test_case_started_id = None
         self.active_test_step_id = None
-        self.runtime_step_to_test_step_id.clear()
+        self.runtime_step_to_pickle_step_id.clear()
         self.scenario_attempt_context = None
         self.step_started_timestamp = None
         self.step_finished_timestamp = None
@@ -106,7 +109,7 @@ class ReportingLifecycleState:
             "active_test_case_id": self.active_test_case_id,
             "active_test_case_started_id": self.active_test_case_started_id,
             "active_test_step_id": self.active_test_step_id,
-            "runtime_step_to_test_step_id": dict(self.runtime_step_to_test_step_id),
+            "runtime_step_to_test_step_id": dict(self.runtime_step_to_pickle_step_id),
             "scenario_attempt_context": self.scenario_attempt_context,
             "step_started_timestamp": self.step_started_timestamp,
             "step_finished_timestamp": self.step_finished_timestamp,
@@ -235,6 +238,8 @@ class Run:
     @classmethod
     def get_scenario_run(cls, request: Any) -> ScenarioRun | None:
         run = cls.from_pytest_stash(request.config)
+        if run is None:
+            return None
         key = cls._request_key(request)
         return run.scenario_runs_by_request.get(key)
 
@@ -280,7 +285,7 @@ class Run:
         return scenario_run
 
     def create_scenario_run(
-        self, request: Any, *, feature: Any | None = None, scenario: Any | None = None
+        self, request: Any, *, gherkin_document: GherkinDocument | None = None, pickle: Pickle | None = None
     ) -> ScenarioRun:
         from pytest_bdd.plugin.pickle_runner.run_transitions import (  # noqa: PLC0415
             build_lifecycle_ref,
@@ -294,8 +299,8 @@ class Run:
 
         run = self
 
-        feature_ref = build_lifecycle_ref("feature", feature, is_active=feature is not None)
-        scenario_ref = build_lifecycle_ref("scenario", scenario, is_active=scenario is not None)
+        feature_ref = build_lifecycle_ref("feature", gherkin_document, is_active=gherkin_document is not None)
+        scenario_ref = build_lifecycle_ref("scenario", pickle, is_active=pickle is not None)
         active_set = ActiveObjectSet(
             run=run_ref,
             feature=feature_ref,
@@ -309,7 +314,7 @@ class Run:
         feature_node = None
         if feature_ref is not None:
             feature_node = RunNode(
-                id=f"feature-{runtime_object_id(feature)}-{run_node_id}",
+                id=f"feature-{runtime_object_id(gherkin_document)}-{run_node_id}",
                 parent_id=run.id,
                 kind="feature",
                 object_ref=feature_ref,
@@ -346,8 +351,8 @@ class Run:
             feature_node=feature_node,
             scenario_node=scenario_node,
             step_node=None,
-            feature_object=feature,
-            scenario_object=scenario,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
             step_object=None,
             previous_step_object=None,
         )
@@ -355,6 +360,21 @@ class Run:
         run.scenario_runs_by_request[key] = scenario_run
         run.active_scenario_run = scenario_run
         return scenario_run
+
+    def map_runtime_step_to_test_step_id(self, *, pickle_step: PickleStep, test_step_id: str) -> None:
+        self.reporting_state.runtime_step_to_pickle_step_id[id(pickle_step)] = test_step_id
+
+    def resolve_test_step_id_for_runtime_step(self, *, pickle_step: PickleStep) -> str | None:
+        reporting_state = self.reporting_state
+        mapped = reporting_state.runtime_step_to_pickle_step_id.get(id(pickle_step))
+        if mapped is not None:
+            return mapped
+        if isinstance(pickle_step, Identifiable) and pickle_step.id is not None:
+            runtime_step_id_text = str(pickle_step.id)
+            for candidate in reporting_state.runtime_step_to_pickle_step_id.values():
+                if candidate == runtime_step_id_text:
+                    return candidate
+        return reporting_state.active_test_step_id
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -414,9 +434,9 @@ class ScenarioRun:
     feature_node: RunNode | None = None
     scenario_node: RunNode | None = None
     step_node: RunNode | None = None
-    feature_object: Any | None = None
-    scenario_object: Any | None = None
-    step_object: Any | None = None
+    gherkin_document: GherkinDocument | None = None
+    pickle: Pickle | None = None
+    step_object: PickleStep | None = None
     previous_step_object: Any | None = None
     reference_resolver: ReferenceResolverState = field(default_factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)

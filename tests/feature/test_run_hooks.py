@@ -24,8 +24,8 @@ def test_hook_callbacks_share_same_scenario_run_reference(testdir):
         """
         def pytest_bdd_before_scenario(request, run):
             assert run.active_scenario_run is not None
-            gherkin_document = run.active_scenario_run.feature_object
-            pickle = run.active_scenario_run.scenario_object
+            gherkin_document = run.active_scenario_run.gherkin_document
+            pickle = run.active_scenario_run.pickle
             assert gherkin_document is not None
             assert pickle is not None
             assert not hasattr(gherkin_document, "scenario_run")

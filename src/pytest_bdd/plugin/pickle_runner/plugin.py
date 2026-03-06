@@ -80,8 +80,8 @@ class PickleRunner:
         run = Run.from_pytest_stash(request.config)
         scenario_run = run.create_scenario_run(
             request,
-            feature=gherkin_document,
-            scenario=pickle,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
         )
 
     @pytest.hookimpl(tryfirst=True)
@@ -150,7 +150,7 @@ class PickleRunner:
             apply_transition(
                 scenario_run,
                 hook_phase=hook_phase,
-                feature=gherkin_document,
+                gherkin_document=gherkin_document,
                 scenario=pickle,
                 step=None if step is UNSET else step,
                 previous_step=None if previous_step is UNSET else previous_step,

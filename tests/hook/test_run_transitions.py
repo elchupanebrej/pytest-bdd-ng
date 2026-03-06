@@ -58,7 +58,7 @@ def test_transition_updates_stage_for_step_flow() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.before_step,
-        feature=feature,
+        gherkin_document=feature,
         scenario=scenario,
         step=step,
         previous_step=None,
@@ -74,7 +74,7 @@ def test_transition_marks_failed_status_on_step_error() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.step_error,
-        feature=_Dummy("feature", "f-1"),
+        gherkin_document=_Dummy("feature", "f-1"),
         scenario=_Dummy("scenario", "s-1"),
         step=_Dummy("step", "st-1"),
         previous_step=None,
@@ -92,7 +92,7 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.after_scenario,
-        feature=_Dummy("feature", "f-1"),
+        gherkin_document=_Dummy("feature", "f-1"),
         scenario=_Dummy("scenario", "s-1"),
         step=None,
         previous_step=None,

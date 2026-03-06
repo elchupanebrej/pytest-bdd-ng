@@ -50,8 +50,8 @@ def test_extended_step_context_resolves_scenario_description_from_context_regist
     config = _build_config_with_registry({"scenario-1": SimpleNamespace(id="scenario-1", description="Scenario from context")})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["scenario-1"])
-    scenario_run.feature_object = feature
-    scenario_run.scenario_object = scenario
+    scenario_run.gherkin_document = feature
+    scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
         assert scenario.description == "Scenario from context"
@@ -69,8 +69,8 @@ def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> N
     )
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["rule-scenario-id", "fallback-id"])
-    scenario_run.feature_object = feature
-    scenario_run.scenario_object = scenario
+    scenario_run.gherkin_document = feature
+    scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
         assert scenario.description == "Nested scenario description"
@@ -83,8 +83,8 @@ def test_extended_step_context_records_missing_scenario_reference_in_context_dia
     config = _build_config_with_registry({})
     feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["missing-scenario-id"])
-    scenario_run.feature_object = feature
-    scenario_run.scenario_object = scenario
+    scenario_run.gherkin_document = feature
+    scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
         assert scenario.description is None

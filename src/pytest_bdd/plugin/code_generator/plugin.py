@@ -153,8 +153,8 @@ def process_pickle_steps(
     run = Run.from_pytest_stash(item_request.config)
     scenario_run = run.create_scenario_run(
         item_request,
-        feature=feature.gherkin_document,
-        scenario=pickle,
+        gherkin_document=feature.gherkin_document,
+        pickle=pickle,
     )
     previous_step: PickleStep | None = None
     for step in pickle.steps:

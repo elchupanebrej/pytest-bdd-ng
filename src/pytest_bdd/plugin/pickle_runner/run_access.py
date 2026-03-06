@@ -18,7 +18,6 @@ from pytest_bdd.model.scenario_run import (
     LifecycleKind,
     LifecycleObjectRef,
     ReportingContextSnapshot,
-    ReportingLifecycleState,
     Run,
     ScenarioRun,
 )
@@ -27,12 +26,12 @@ from .run_transitions import build_lifecycle_ref
 
 def resolve_feature_object(run: Run) -> Any | None:
     scenario_run = run.active_scenario_run
-    return scenario_run.feature_object if scenario_run is not None else None
+    return scenario_run.gherkin_document if scenario_run is not None else None
 
 
 def resolve_pickle_object(run: Run) -> Any | None:
     scenario_run = run.active_scenario_run
-    return scenario_run.scenario_object if scenario_run is not None else None
+    return scenario_run.pickle if scenario_run is not None else None
 
 
 def resolve_step_object(run: Run) -> Any | None:
@@ -134,33 +133,6 @@ def build_reporting_context_snapshot(
         )
 
     return _fallback_reporting_snapshot(request, fallback_reason=fallback_reason)
-
-
-def map_runtime_step_to_test_step_id(
-    *,
-    run: Run,
-    runtime_step: Any,
-    test_step_id: str,
-) -> None:
-    run.reporting_state.runtime_step_to_test_step_id[id(runtime_step)] = test_step_id
-
-
-def resolve_test_step_id_for_runtime_step(
-    *,
-    run: Run,
-    runtime_step: Any,
-) -> str | None:
-    reporting_state: ReportingLifecycleState = run.reporting_state
-    mapped = reporting_state.runtime_step_to_test_step_id.get(id(runtime_step))
-    if mapped is not None:
-        return mapped
-    runtime_step_id = getattr(runtime_step, "id", None)
-    if runtime_step_id is not None:
-        runtime_step_id_text = str(runtime_step_id)
-        for candidate in reporting_state.runtime_step_to_test_step_id.values():
-            if candidate == runtime_step_id_text:
-                return candidate
-    return reporting_state.active_test_step_id
 
 
 def resolve_registry_node(

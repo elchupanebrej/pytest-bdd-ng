@@ -3,6 +3,8 @@ from __future__ import annotations
 from itertools import count
 from typing import Any
 
+from cucumber_messages import GherkinDocument
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     RunNode,
@@ -76,7 +78,7 @@ def apply_transition(
     scenario_run: ScenarioRun,
     *,
     hook_phase: HookPhase,
-    feature: Any | None = None,
+    gherkin_document: GherkinDocument | None = None,
     scenario: Any | None = None,
     step: Any | None = None,
     previous_step: Any | None = None,
@@ -93,7 +95,7 @@ def apply_transition(
     feature_is_active = scenario_is_active
     step_is_active = stage is RunStage.step_running
 
-    feature_ref = build_lifecycle_ref("feature", feature, is_active=feature_is_active) if feature is not None else None
+    feature_ref = build_lifecycle_ref("feature", gherkin_document, is_active=feature_is_active) if gherkin_document is not None else None
     scenario_ref = (
         build_lifecycle_ref("scenario", scenario, is_active=scenario_is_active) if scenario is not None else None
     )
@@ -134,8 +136,8 @@ def apply_transition(
     scenario_run.scenario_ref = scenario_ref
     scenario_run.step_ref = step_ref
     scenario_run.previous_step_ref = previous_step_ref
-    scenario_run.feature_object = feature
-    scenario_run.scenario_object = scenario
+    scenario_run.gherkin_document = gherkin_document
+    scenario_run.pickle = scenario
     scenario_run.step_object = step
     scenario_run.previous_step_object = previous_step
 

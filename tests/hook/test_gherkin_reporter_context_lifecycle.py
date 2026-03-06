@@ -17,9 +17,6 @@ from pytest_bdd.model.scenario_run import (
     ScenarioRun,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
-from pytest_bdd.plugin.pickle_runner.run_access import (
-    map_runtime_step_to_test_step_id,
-)
 
 
 def _build_reporter() -> GherkinMessageReporter:
@@ -78,9 +75,8 @@ def test_reporter_resolves_test_step_id_from_scenario_run_mapping() -> None:
     request = _build_request_with_context(scenario_run)
     runtime_step = object()
 
-    map_runtime_step_to_test_step_id(
-        run=scenario_run.run,
-        runtime_step=runtime_step,
+    scenario_run.run.map_runtime_step_to_test_step_id(
+        pickle_step=runtime_step,
         test_step_id="test-step-42",
     )
 

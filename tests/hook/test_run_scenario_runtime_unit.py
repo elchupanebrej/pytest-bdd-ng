@@ -78,7 +78,7 @@ def test_pop_clears_active_scenario_and_step_context_ids() -> None:
     scenario = _RuntimeObject(name="Scenario", id="scenario-1")
     run = Run.ensure_for_session(config=config, session=session)
 
-    scenario_run = run.create_scenario_run(request, feature=feature, scenario=scenario)
+    scenario_run = run.create_scenario_run(request, gherkin_document=feature, pickle=scenario)
     scenario_run.run.active_step_id = "step-ctx-1"
 
     popped = Run.pop_scenario_run(request)
@@ -122,9 +122,9 @@ def test_create_scenario_run_binds_feature_object_when_feature_provided() -> Non
     feature = SimpleNamespace(uri="features/example.feature", gherkin_document=SimpleNamespace(feature=None))
     run = Run.ensure_for_session(config=config, session=session)
 
-    scenario_run = run.create_scenario_run(request, feature=feature)
+    scenario_run = run.create_scenario_run(request, gherkin_document=feature)
 
-    assert scenario_run.feature_object is feature
+    assert scenario_run.gherkin_document is feature
 
 
 def test_ensure_run_initializes_envelope_registry_in_config_stash() -> None:
