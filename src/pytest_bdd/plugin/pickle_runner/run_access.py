@@ -45,21 +45,6 @@ def resolve_previous_step_object(run: Run) -> Any | None:
     return scenario_run.previous_step_object if scenario_run is not None else None
 
 
-def build_unavailable_object_error(
-    *,
-    hook_name: str,
-    scenario_run: ScenarioRun,
-    requested_kind: LifecycleKind,
-) -> ContextErrorState:
-    return ContextErrorState(
-        code="object_inactive",
-        message=f"Requested lifecycle object '{requested_kind}' is not active",
-        hook_name=hook_name,
-        stage=scenario_run.stage,
-        requested_kind=requested_kind,
-    )
-
-
 def resolve_active_object_or_error(
     *,
     hook_name: str,
@@ -70,9 +55,11 @@ def resolve_active_object_or_error(
     if active_object is not None:
         return active_object, None
 
-    error = build_unavailable_object_error(
+    error = ContextErrorState(
+        code="object_inactive",
+        message=f"Requested lifecycle object '{requested_kind}' is not active",
         hook_name=hook_name,
-        scenario_run=scenario_run,
+        stage=scenario_run.stage,
         requested_kind=requested_kind,
     )
     scenario_run.last_error = error
