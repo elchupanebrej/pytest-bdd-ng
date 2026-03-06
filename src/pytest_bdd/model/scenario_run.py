@@ -14,15 +14,15 @@ NodeKind = Literal["feature", "scenario", "step"]
 
 
 class HookPhase(StrEnum):
-    before_scenario = "before_scenario"
-    run_scenario = "run_scenario"
-    after_scenario = "after_scenario"
-    run_step = "run_step"
-    before_step = "before_step"
-    before_step_call = "before_step_call"
-    after_step = "after_step"
-    step_error = "step_error"
-    step_lookup_error = "step_lookup_error"
+    before_scenario = "pytest_bdd_before_scenario"
+    run_scenario = "pytest_bdd_run_scenario"
+    after_scenario = "pytest_bdd_after_scenario"
+    run_step = "pytest_bdd_run_step"
+    before_step = "pytest_bdd_before_step"
+    before_step_call = "pytest_bdd_before_step_call"
+    after_step = "pytest_bdd_after_step"
+    step_error = "pytest_bdd_step_error"
+    step_lookup_error = "pytest_bdd_step_lookup_error"
 
 
 class RunStage(StrEnum):

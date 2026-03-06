@@ -14,14 +14,13 @@ from cucumber_messages import (
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model.scenario_run import RunStatus, Run, ScenarioRun
+from pytest_bdd.model.scenario_run import RunStatus, Run, HookPhase
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
-
 from .run_access import (
     resolve_feature_object,
     resolve_pickle_object,
@@ -31,7 +30,7 @@ from .run_access import (
     resolve_step_object,
     resolve_step_runtime_enrichment,
 )
-from .run_transitions import apply_transition, phase_from_hook_name
+from .run_transitions import apply_transition
 
 if TYPE_CHECKING:
     from collections import deque
@@ -143,8 +142,11 @@ class PickleRunner:
         run = Run.from_pytest_stash(request.config)
         scenario_run = run.active_scenario_run
 
-        hook_phase = phase_from_hook_name(hook_name)
-        if hook_phase is not None:
+        try:
+            hook_phase = HookPhase(hook_name)
+        except ValueError:
+            pass
+        else:
             apply_transition(
                 scenario_run,
                 hook_phase=hook_phase,

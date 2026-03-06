@@ -30,14 +30,6 @@ PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
 }
 
 
-def phase_from_hook_name(hook_name: str) -> HookPhase | None:
-    normalized_name = hook_name.removeprefix("pytest_bdd_")
-    try:
-        return HookPhase(normalized_name)
-    except ValueError:
-        return None
-
-
 def runtime_object_id(obj: Any) -> str:
     if obj is None:
         return "none"

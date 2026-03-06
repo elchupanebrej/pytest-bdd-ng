@@ -20,9 +20,10 @@ from pytest_bdd.model.scenario_run import (
     ReportingContextSnapshot,
     ReportingLifecycleState,
     Run,
-    ScenarioRun,
+    ScenarioRun, HookPhase,
 )
-from .run_transitions import build_active_object_set, build_lifecycle_ref, phase_from_hook_name
+from .run_transitions import build_active_object_set, build_lifecycle_ref
+
 
 def resolve_feature_object(run: Run) -> Any | None:
     scenario_run = run.active_scenario_run
@@ -50,7 +51,7 @@ def build_hook_invocation_context(
     request: Any,
     scenario_run: ScenarioRun,
 ) -> HookInvocationContext:
-    phase = phase_from_hook_name(hook_name) or scenario_run.active_hook
+    phase = HookPhase(hook_name)
     node_id = getattr(request.node, "nodeid", str(id(request.node)))
     return HookInvocationContext(
         hook_name=hook_name,
