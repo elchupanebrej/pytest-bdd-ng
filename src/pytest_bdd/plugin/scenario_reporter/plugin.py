@@ -13,7 +13,7 @@ from pytest_bdd.compatibility.pytest import CallInfo, FixtureLookupError, Fixtur
 from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.model.gherkin_document.core import build_feature_adapter
 from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
-from pytest_bdd.plugin.scenario_runner.run_access import (
+from pytest_bdd.plugin.pickle_runner.run_access import (
     build_reporting_context_snapshot,
     resolve_feature_object,
     resolve_pickle_object,

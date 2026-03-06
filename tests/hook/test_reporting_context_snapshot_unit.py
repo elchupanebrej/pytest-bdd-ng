@@ -11,19 +11,18 @@ from pytest_bdd.model.scenario_run import (
     Run,
     ScenarioRun,
 )
-from pytest_bdd.plugin.scenario_runner.run_access import build_reporting_context_snapshot
-from pytest_bdd.plugin.scenario_runner.run_store import RunStore
+from pytest_bdd.plugin.pickle_runner.run_access import build_reporting_context_snapshot
 
 
 def _build_scenario_run(*, stage: RunStage) -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
     run_root = Run(
-        run_context_id="run-1",
+        id="run-1",
         run_ref=run_ref,
         status=RunStatus.ok,
     )
     return ScenarioRun(
-        context_id="ctx-1",
+        id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.before_scenario,
         stage=stage,
@@ -41,25 +40,11 @@ def _build_request(*, config: SimpleNamespace | None = None, session: SimpleName
     return SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::test"))
 
 
-def test_snapshot_uses_direct_run_argument() -> None:
-    request = _build_request()
-    context = _build_scenario_run(stage=RunStage.step_running)
-    context.run.active_scenario_run = context
-
-    snapshot = build_reporting_context_snapshot(request=request, run=context.run)
-
-    assert snapshot is not None
-    assert snapshot.resolved_from_hierarchy is True
-    assert snapshot.fallback_reason is None
-    assert snapshot.run_context_id == "run-1"
-    assert snapshot.stage == RunStage.step_running
-
-
-def test_snapshot_uses_request_run_attribute() -> None:
+def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
     request = _build_request()
     context = _build_scenario_run(stage=RunStage.scenario_running)
     context.run.active_scenario_run = context
-    request.run = context.run
+    context.run.set_in_pytest_stash(request.config)
 
     snapshot = build_reporting_context_snapshot(request=request)
 
@@ -74,17 +59,17 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
     session = SimpleNamespace(config=config, name="run-session")
     request = _build_request(config=config, session=session)
     stash_root = Run(
-        run_context_id="run-stash",
+        id="run-stash",
         run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
         status=RunStatus.ok,
     )
-    RunStore.set_run_in_config(config, stash_root)
+    stash_root.set_in_pytest_stash(config)
 
     snapshot = build_reporting_context_snapshot(request=request, fallback_reason="hierarchy-missing")
 
     assert snapshot is not None
     assert snapshot.resolved_from_hierarchy is True
-    assert snapshot.run_context_id == "run-stash"
+    assert snapshot.run_id == "run-stash"
     assert snapshot.active_set.run.object_id == "run-stash"
     assert snapshot.fallback_reason == "hierarchy-missing"
 
@@ -101,4 +86,4 @@ def test_snapshot_builds_synthetic_fallback_without_stash_context() -> None:
     assert snapshot.fallback_reason == "hierarchy_not_available"
     assert snapshot.active_set.run.kind == "run"
     assert snapshot.active_set.run.object_id == "run-session"
-    assert snapshot.run_context_id.startswith("run-")
+    assert snapshot.run_id.startswith("run-")

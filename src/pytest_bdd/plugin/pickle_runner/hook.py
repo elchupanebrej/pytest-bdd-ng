@@ -7,7 +7,7 @@ from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.scenario_run import Run
 
 
-class ScenarioRunnerHookSpec:
+class PickleRunnerHookSpec:
     def pytest_bdd_before_scenario(self, request: FixtureRequest, run: Run):
         """Called before scenario is executed."""
 

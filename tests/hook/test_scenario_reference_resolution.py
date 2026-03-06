@@ -13,21 +13,20 @@ from pytest_bdd.model.scenario_run import (
     Run,
     ScenarioRun,
 )
-from pytest_bdd.plugin.scenario_runner.run_access import resolve_step_runtime_enrichment
-from pytest_bdd.plugin.scenario_runner.run_store import RunStore
-from pytest_bdd.plugin.scenario_runner.plugin import ScenarioRunner
+from pytest_bdd.plugin.pickle_runner.run_access import resolve_step_runtime_enrichment
+from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
 
 
 def _build_scenario_run() -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
     session = Run(
-        run_context_id="run-1",
+        id="run-1",
         run_ref=run_ref,
         status=RunStatus.ok,
     )
     active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.scenario_running)
     return ScenarioRun(
-        context_id="ctx-1",
+        id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.run_scenario,
         stage=RunStage.scenario_running,
@@ -39,13 +38,13 @@ def _build_scenario_run() -> ScenarioRun:
 
 def _build_config_with_registry(entries: dict[str, object]) -> SimpleNamespace:
     config = SimpleNamespace(stash={})
-    envelope_registry = RunStore.ensure_envelope_registry_in_config(config)
+    envelope_registry = Run.ensure_envelope_registry_in_pytest_stash(config)
     envelope_registry.identifiable.objects_by_id.update(entries)
     return config
 
 
 def test_extended_step_context_resolves_scenario_description_from_context_registry() -> None:
-    runner = ScenarioRunner()
+    runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry({"scenario-1": SimpleNamespace(id="scenario-1", description="Scenario from context")})
@@ -59,7 +58,7 @@ def test_extended_step_context_resolves_scenario_description_from_context_regist
 
 
 def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> None:
-    runner = ScenarioRunner()
+    runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry(
@@ -78,7 +77,7 @@ def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> N
 
 
 def test_extended_step_context_records_missing_scenario_reference_in_context_diagnostics() -> None:
-    runner = ScenarioRunner()
+    runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     config = _build_config_with_registry({})

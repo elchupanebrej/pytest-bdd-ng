@@ -21,20 +21,20 @@ def test_run_context_is_available_via_fixture_and_stash(testdir):
 
     testdir.makeconftest(
         """
-        from pytest_bdd.plugin.scenario_runner.run_store import RunStore
+        from pytest_bdd.model.scenario_run import Run
 
         def pytest_sessionstart(session):
-            assert RunStore.RUN_STASH_KEY in session.config.stash
-            run_context = session.config.stash[RunStore.RUN_STASH_KEY]
+            assert Run.STASH_KEY in session.config.stash
+            run_context = session.config.stash[Run.STASH_KEY]
             assert run_context is not None
-            session.config._run_context_id = id(run_context)
+            session.config._run_id = id(run_context)
 
         def pytest_bdd_before_scenario(request, run):
             run_context = request.getfixturevalue('run_context')
-            stash_run = request.config.stash[RunStore.RUN_STASH_KEY]
+            stash_run = request.config.stash[Run.STASH_KEY]
             assert run_context is stash_run
             assert run is stash_run
-            assert id(run_context) == request.config._run_context_id
+            assert id(run_context) == request.config._run_id
         """
     )
 

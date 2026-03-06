@@ -86,13 +86,11 @@ from pytest_bdd.model.message_validation import (
     validate_message_stream,
 )
 from pytest_bdd.model.scenario_run import Run
-from pytest_bdd.plugin.scenario_runner.run_access import (
+from pytest_bdd.plugin.pickle_runner.run_access import (
     map_runtime_step_to_test_step_id,
-    resolve_request_run,
     resolve_step_object,
     resolve_test_step_id_for_runtime_step,
 )
-from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
@@ -310,7 +308,7 @@ class GherkinMessageReporter:
             message_text = "Cannot emit envelope with zero or multiple payloads"
             raise TypeError(message_text)
 
-        RunStore.register_envelope_in_config(config, message)
+        Run.register_envelope_in_pytest_stash(config, message)
         if self.is_disabled:
             return
 
@@ -346,7 +344,7 @@ class GherkinMessageReporter:
         )
 
         before_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
-        run_root = RunStore.get_run_from_config(config)
+        run_root = Run.from_pytest_stash(config)
         if run_root is not None:
             run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
         self._emit_envelope(
@@ -455,10 +453,10 @@ class GherkinMessageReporter:
 
     @staticmethod
     def _resolve_run_started_id(*, config: Config) -> str | None:
-        run_root = RunStore.get_run_from_config(config)
-        if run_root is None:
+        run = Run.from_pytest_stash(config)
+        if run is None:
             return None
-        return run_root.reporting_state.run_started_id
+        return run.reporting_state.run_started_id
 
     def _require_run_started_id(self, *, config: Config) -> str:
         run_started_id = self._resolve_run_started_id(config=config)
@@ -480,7 +478,7 @@ class GherkinMessageReporter:
         return gherkin_document, pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
-        run = resolve_request_run(request)
+        run = Run.from_pytest_stash(request.config)
         if run is None:
             return None
         test_step_id = resolve_test_step_id_for_runtime_step(run=run, runtime_step=step)
@@ -640,7 +638,7 @@ class GherkinMessageReporter:
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        run = resolve_request_run(request)
+        run = Run.from_pytest_stash(request.config)
         scenario_run = run.active_scenario_run if run is not None else None
         if run is None or scenario_run is None:
             logger.warning(
@@ -1201,23 +1199,22 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        run = resolve_request_run(request)
+        run = Run.from_pytest_stash(config)
         reporting_state = run.reporting_state if run is not None else None
         test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
         active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None
-        run_root = RunStore.get_run_from_config(config)
         attachment_timestamp = self.get_timestamp()
         effective_test_run_hook_started_id = (
             test_run_hook_started_id
             or (
-                run_root.reporting_state.test_run_hook_started_id
-                if run_root is not None
+                run.reporting_state.test_run_hook_started_id
+                if run is not None
                 else None
             )
         )
         effective_test_run_started_id = (
             test_run_started_id
-            or (run_root.reporting_state.run_started_id if run_root is not None else None)
+            or (run.reporting_state.run_started_id if run is not None else None)
         )
 
         if isinstance(attachment, (str, TextIOBase)):

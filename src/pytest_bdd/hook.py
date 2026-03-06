@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from enum import Enum
 from inspect import signature
 from itertools import count, product, starmap
@@ -11,7 +11,7 @@ from _pytest.mark import Mark
 from decopatch import function_decorator
 from makefun import wraps
 
-from pytest_bdd.compatibility.pytest import PYTEST7, FixtureLookupError, FixtureRequest
+from pytest_bdd.compatibility.pytest import PYTEST7, FixtureRequest
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 
 if TYPE_CHECKING:
@@ -64,38 +64,14 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
 
 
 def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureRequest) -> tuple[tuple, dict]:
-    run = getattr(request, "run", None)
-    if run is None:
-        run = getattr(request.node, "_pytest_bdd_run", None)
-    if run is None and "run" in func_sig.parameters:
-        try:
-            from pytest_bdd.plugin.scenario_runner.run_access import resolve_request_run, resolve_scenario_run
-            from pytest_bdd.plugin.scenario_runner.run_store import RunStore
-
-            feature = request.getfixturevalue("gherkin_document")
-            scenario = request.getfixturevalue("scenario")
-            scenario_run = resolve_scenario_run(
-                request,
-                run_store=RunStore(),
-                feature=feature,
-                scenario=scenario,
-            )
-            run = resolve_request_run(request)
-            if run is None:
-                run = getattr(scenario_run, "run", None)
-        except FixtureLookupError:  # pragma: no cover - non-bdd test nodes don't expose these fixtures
-            run = None
-
-    if run is not None:
-        with suppress(AttributeError):
-            request.run = run
+    from pytest_bdd.model.scenario_run import Run
 
     return (
         args,
         {
             **kwargs,
             **({"request": request} if "request" in func_sig.parameters else {}),
-            **({"run": run} if "run" in func_sig.parameters else {}),
+            **({"run": Run.from_pytest_stash(request.config)} if "run" in func_sig.parameters else {}),
         },
     )
 

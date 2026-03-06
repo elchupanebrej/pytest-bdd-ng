@@ -101,10 +101,9 @@ def build_active_object_set(
 
 
 def apply_transition(
-    context: ScenarioRun,
+    scenario_run: ScenarioRun,
     *,
     hook_phase: HookPhase,
-    run: Any | None = None,
     feature: Any | None = None,
     scenario: Any | None = None,
     step: Any | None = None,
@@ -112,11 +111,11 @@ def apply_transition(
     status: RunStatus | None = None,
 ) -> ScenarioRun:
     stage = PHASE_TO_STAGE[hook_phase]
-    run_root = context.run
+    run = scenario_run.run
 
-    run_ref = context.run_ref if run is None else build_lifecycle_ref("run", run, is_active=True)
+    run_ref = scenario_run.run_ref if run is None else build_lifecycle_ref("run", run, is_active=True)
     if run_ref is None:
-        run_ref = context.run_ref
+        run_ref = scenario_run.run_ref
 
     scenario_is_active = stage not in {RunStage.idle, RunStage.finished}
     feature_is_active = scenario_is_active
@@ -130,7 +129,7 @@ def apply_transition(
     if hook_phase is HookPhase.after_scenario:
         step_ref = None
         previous_step_ref = None
-        context.step_node = None
+        scenario_run.step_node = None
     else:
         step_ref = build_lifecycle_ref("step", step, is_active=step_is_active) if step is not None else None
         previous_step_ref = (
@@ -139,36 +138,36 @@ def apply_transition(
             else None
         )
         if step_ref is not None and step_is_active:
-            parent_context_id = (
-                context.scenario_node.context_id if context.scenario_node is not None else context.context_id
+            parent_id = (
+                scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
             )
-            context.step_node = RunNode(
-                context_id=f"step-{step_ref.object_id}-{context.transition_index + 1}",
-                parent_context_id=parent_context_id,
+            scenario_run.step_node = RunNode(
+                id=f"step-{step_ref.object_id}-{scenario_run.transition_index + 1}",
+                parent_id=parent_id,
                 kind="step",
                 object_ref=step_ref,
                 is_active=True,
-                opened_at_transition=context.transition_index + 1,
+                opened_at_transition=scenario_run.transition_index + 1,
             )
         else:
-            context.step_node = None
+            scenario_run.step_node = None
 
-    context.active_hook = hook_phase
-    context.stage = stage
-    context.status = status or context.status
+    scenario_run.active_hook = hook_phase
+    scenario_run.stage = stage
+    scenario_run.status = status or scenario_run.status
     if hook_phase in {HookPhase.step_error, HookPhase.step_lookup_error} and status is None:
-        context.status = RunStatus.failed
+        scenario_run.status = RunStatus.failed
 
-    context.feature_ref = feature_ref
-    context.scenario_ref = scenario_ref
-    context.step_ref = step_ref
-    context.previous_step_ref = previous_step_ref
-    context.feature_object = feature
-    context.scenario_object = scenario
-    context.step_object = step
-    context.previous_step_object = previous_step
+    scenario_run.feature_ref = feature_ref
+    scenario_run.scenario_ref = scenario_ref
+    scenario_run.step_ref = step_ref
+    scenario_run.previous_step_ref = previous_step_ref
+    scenario_run.feature_object = feature
+    scenario_run.scenario_object = scenario
+    scenario_run.step_object = step
+    scenario_run.previous_step_object = previous_step
 
-    context.set_active_set(
+    scenario_run.set_active_set(
         build_active_object_set(
             stage=stage,
             run_ref=run_ref,
@@ -178,35 +177,35 @@ def apply_transition(
             previous_step_ref=previous_step_ref,
         )
     )
-    context.advance_transition()
-    if run_root is not None:
-        run_root.active_scenario_run = context
-        run_root.advance_transition()
-        run_root.status = context.status
-        run_root.active_feature_context_id = (
-            context.feature_node.context_id
-            if context.feature_node is not None and context.feature_node.is_active
+    scenario_run.advance_transition()
+    if run is not None:
+        run.active_scenario_run = scenario_run
+        run.advance_transition()
+        run.status = scenario_run.status
+        run.active_feature_id = (
+            scenario_run.feature_node.id
+            if scenario_run.feature_node is not None and scenario_run.feature_node.is_active
             else None
         )
-        run_root.active_scenario_context_id = (
-            context.scenario_node.context_id
-            if context.scenario_node is not None and context.scenario_node.is_active
+        run.active_scenario_id = (
+            scenario_run.scenario_node.id
+            if scenario_run.scenario_node is not None and scenario_run.scenario_node.is_active
             else None
         )
-        run_root.active_step_context_id = (
-            context.step_node.context_id if context.step_node is not None and context.step_node.is_active else None
+        run.active_step_id = (
+            scenario_run.step_node.id if scenario_run.step_node is not None and scenario_run.step_node.is_active else None
         )
 
     if hook_phase is HookPhase.after_scenario:
-        if context.scenario_node is not None:
-            context.scenario_node.close(context.transition_index)
-        if context.feature_node is not None:
-            context.feature_node.close(context.transition_index)
+        if scenario_run.scenario_node is not None:
+            scenario_run.scenario_node.close(scenario_run.transition_index)
+        if scenario_run.feature_node is not None:
+            scenario_run.feature_node.close(scenario_run.transition_index)
 
-        context.stage = RunStage.finished
-        context.step_object = None
-        context.previous_step_object = None
-        context.set_active_set(
+        scenario_run.stage = RunStage.finished
+        scenario_run.step_object = None
+        scenario_run.previous_step_object = None
+        scenario_run.set_active_set(
             build_active_object_set(
                 stage=RunStage.finished,
                 run_ref=run_ref,
@@ -216,9 +215,8 @@ def apply_transition(
                 previous_step_ref=None,
             )
         )
-        if run_root is not None:
-            run_root.active_scenario_context_id = None
-            run_root.active_step_context_id = None
-            run_root.active_scenario_run = None
+        if run is not None:
+            run.active_scenario_id = None
+            run.active_step_id = None
 
-    return context
+    return scenario_run

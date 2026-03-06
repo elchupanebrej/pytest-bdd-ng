@@ -159,9 +159,9 @@ def _resolve_registry_for_feature(feature: Feature | GherkinDocument, *, config:
         fallback_registry = build_registry(feature_message)
 
     if config is not None:
-        from pytest_bdd.plugin.scenario_runner.run_store import RunStore
+        from pytest_bdd.model.scenario_run import Run
 
-        envelope_registry = RunStore.get_envelope_registry_from_config(config)
+        envelope_registry = Run.envelope_registry_from_pytest_stash(config)
         if envelope_registry is not None:
             combined_registry = dict(fallback_registry)
             combined_registry.update(envelope_registry.identifiable.objects_by_id)

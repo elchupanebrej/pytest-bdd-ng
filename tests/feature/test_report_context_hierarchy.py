@@ -59,4 +59,4 @@ def test_reporting_snapshot_uses_context_hierarchy(testdir):
     assert snapshot["stage"] == "finished"
     assert snapshot["active_set"]["run"]["kind"] == "run"
     assert snapshot["active_set"]["scenario"] is None
-    assert snapshot["run_context_id"].startswith("run-")
+    assert snapshot["run_id"].startswith("run-")

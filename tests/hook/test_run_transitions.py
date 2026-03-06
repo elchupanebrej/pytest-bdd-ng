@@ -12,7 +12,7 @@ from pytest_bdd.model.scenario_run import (
     Run,
     ScenarioRun,
 )
-from pytest_bdd.plugin.scenario_runner.run_transitions import apply_transition
+from pytest_bdd.plugin.pickle_runner.run_transitions import apply_transition
 
 
 @dataclass(slots=True)
@@ -24,13 +24,13 @@ class _Dummy:
 def _build_context() -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run", is_active=True)
     session = Run(
-        run_context_id="run-1",
+        id="run-1",
         run_ref=run_ref,
         status=RunStatus.ok,
     )
     scenario_node = RunNode(
-        context_id="ctx",
-        parent_context_id=session.run_context_id,
+        id="ctx",
+        parent_id=session.id,
         kind="scenario",
         object_ref=LifecycleObjectRef(kind="scenario", object_id="s-1", is_active=True),
         is_active=True,
@@ -38,7 +38,7 @@ def _build_context() -> ScenarioRun:
     )
     active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.idle)
     return ScenarioRun(
-        context_id="ctx",
+        id="ctx",
         run_ref=run_ref,
         active_hook=HookPhase.before_scenario,
         stage=RunStage.idle,
@@ -58,7 +58,6 @@ def test_transition_updates_stage_for_step_flow() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.before_step,
-        run=_Dummy("run", "run"),
         feature=feature,
         scenario=scenario,
         step=step,
@@ -75,7 +74,6 @@ def test_transition_marks_failed_status_on_step_error() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.step_error,
-        run=_Dummy("run", "run"),
         feature=_Dummy("feature", "f-1"),
         scenario=_Dummy("scenario", "s-1"),
         step=_Dummy("step", "st-1"),
@@ -94,7 +92,6 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     apply_transition(
         context,
         hook_phase=HookPhase.after_scenario,
-        run=_Dummy("run", "run"),
         feature=_Dummy("feature", "f-1"),
         scenario=_Dummy("scenario", "s-1"),
         step=None,
@@ -104,7 +101,7 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     assert context.stage == RunStage.finished
     assert context.active_set.scenario is None
     assert context.active_set.step is None
-    assert context.run.active_scenario_context_id is None
+    assert context.run.active_scenario_id is None
     assert context.run.reporting_state.active_test_case_started_id == "case-started-1"
     assert context.run.reporting_state.active_test_step_id == "step-1"
     assert context.reference_resolver.missing_reference_diagnostics == ["missing-ast-node"]

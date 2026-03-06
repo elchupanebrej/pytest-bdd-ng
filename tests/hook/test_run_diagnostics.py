@@ -8,14 +8,14 @@ from pytest_bdd.model.scenario_run import (
     LifecycleObjectRef,
     ScenarioRun,
 )
-from pytest_bdd.plugin.scenario_runner.run_access import resolve_active_object_or_error
+from pytest_bdd.plugin.pickle_runner.run_access import resolve_active_object_or_error
 
 
 def _build_context() -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
     active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.idle)
     return ScenarioRun(
-        context_id="ctx-1",
+        id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.before_scenario,
         stage=RunStage.idle,

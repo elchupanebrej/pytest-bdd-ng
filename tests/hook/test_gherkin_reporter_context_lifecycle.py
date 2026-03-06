@@ -17,11 +17,9 @@ from pytest_bdd.model.scenario_run import (
     ScenarioRun,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
-from pytest_bdd.plugin.scenario_runner.run_access import (
+from pytest_bdd.plugin.pickle_runner.run_access import (
     map_runtime_step_to_test_step_id,
-    resolve_request_scenario_run,
 )
-from pytest_bdd.plugin.scenario_runner.run_store import RunStore
 
 
 def _build_reporter() -> GherkinMessageReporter:
@@ -35,12 +33,12 @@ def _build_reporter() -> GherkinMessageReporter:
 def _build_scenario_run() -> ScenarioRun:
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
     session = Run(
-        run_context_id="run-1",
+        id="run-1",
         run_ref=run_ref,
         status=RunStatus.ok,
     )
     return ScenarioRun(
-        context_id="ctx-1",
+        id="ctx-1",
         run_ref=run_ref,
         active_hook=HookPhase.run_step,
         stage=RunStage.step_running,
@@ -51,12 +49,14 @@ def _build_scenario_run() -> ScenarioRun:
 
 
 def _build_request_with_context(scenario_run: ScenarioRun) -> SimpleNamespace:
+    config = SimpleNamespace(stash={})
+    scenario_run.run.set_in_pytest_stash(config)
     request = SimpleNamespace(
         node=SimpleNamespace(nodeid="node::scenario"),
-        config=SimpleNamespace(stash={}),
+        config=config,
     )
-    setattr(request.node, RunStore.SCENARIO_RUN_ATTR, scenario_run)
-    request.config.stash[RunStore.SCENARIO_RUNS_STASH_KEY] = {"node::scenario": scenario_run}
+    scenario_run.run.scenario_runs_by_request["node::scenario"] = scenario_run
+    scenario_run.run.active_scenario_run = scenario_run
     return request
 
 
@@ -70,23 +70,6 @@ def test_reporter_has_no_context_store_state_annotation() -> None:
     annotated_state_fields = getattr(GherkinMessageReporter, "__annotations__", {})
     assert "_context_store" not in annotated_state_fields
     assert "_run_id" not in annotated_state_fields
-
-
-def test_resolve_request_scenario_run_is_read_only_lookup() -> None:
-    request = SimpleNamespace(node=SimpleNamespace(nodeid="node::scenario"), config=SimpleNamespace(stash={}))
-    assert resolve_request_scenario_run(request) is None
-
-
-def test_resolve_request_scenario_run_from_config_stash_registry() -> None:
-    scenario_run = _build_scenario_run()
-    request = SimpleNamespace(
-        node=SimpleNamespace(nodeid="node::scenario"),
-        config=SimpleNamespace(
-            stash={RunStore.SCENARIO_RUNS_STASH_KEY: {"node::scenario": scenario_run}}
-        ),
-    )
-
-    assert resolve_request_scenario_run(request) is scenario_run
 
 
 def test_reporter_resolves_test_step_id_from_scenario_run_mapping() -> None:
@@ -126,7 +109,7 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
 
     reporter.pytest_bdd_message(config=config, message=envelope)
 
-    envelope_registry = RunStore.get_envelope_registry_from_config(config)
+    envelope_registry = Run.envelope_registry_from_pytest_stash(config)
     assert envelope_registry is not None
     assert envelope_registry.envelopes == [envelope]
     assert envelope_registry.resolve("run-started-1") is envelope.test_run_started

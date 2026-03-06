@@ -8,7 +8,7 @@ from typing import Any, cast
 from pytest_bdd.hook import after_mark, after_tag, around_mark, around_tag, before_mark, before_tag
 from pytest_bdd.model.scenario_run import ExternalApiCompatibilityRecord
 
-from .hook import ScenarioRunnerHookSpec
+from .hook import PickleRunnerHookSpec
 
 DECORATOR_PUBLIC_SYMBOLS = {
     "decorator:after_mark": after_mark,
@@ -22,7 +22,7 @@ DECORATOR_PUBLIC_SYMBOLS = {
 
 def collect_hook_public_symbols() -> list[str]:
     symbols: list[str] = []
-    for attr_name, attr_value in vars(ScenarioRunnerHookSpec).items():
+    for attr_name, attr_value in vars(PickleRunnerHookSpec).items():
         if attr_name.startswith("_"):
             continue
         if isfunction(attr_value):

@@ -67,7 +67,7 @@ from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser
-from pytest_bdd.plugin.scenario_runner.const import Steps
+from pytest_bdd.plugin.pickle_runner.const import Steps
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals

@@ -12,21 +12,21 @@ from pytest_bdd.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_bdd.model.gherkin_document.core import build_feature_adapter
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
 from .const import Steps
-from .run_store import RunStore
-from .plugin import ScenarioRunner
+from .plugin import PickleRunner
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from .hook import ScenarioRunnerHookSpec
+    from .hook import PickleRunnerHookSpec
 
-    pluginmanager.add_hookspecs(ScenarioRunnerHookSpec)
+    pluginmanager.add_hookspecs(PickleRunnerHookSpec)
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -50,7 +50,7 @@ def pytest_addoption(parser: Parser) -> None:
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
-    runner = ScenarioRunner()
+    runner = PickleRunner()
     config.pluginmanager.register(runner, runner.plugin_name)
     # TODO Use DI here, don't pass value around plugins in such manner
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
@@ -146,7 +146,7 @@ def feature(
 @pytest.fixture(scope="session")
 def run_context(request: FixtureRequest):
     """Session-scoped fixture exposing canonical Run."""
-    return RunStore.ensure_run_for_session(
+    return Run.ensure_for_session(
         config=request.config,
         session=request.session,
     )

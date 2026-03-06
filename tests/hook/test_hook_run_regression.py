@@ -28,8 +28,7 @@ def test_mark_hooks_can_read_optional_run_without_breaking_existing_usage(testdi
         @before_mark('tag')
         def validate_run(request, run=None):
             assert request is not None
-            assert request.run is not None
-            assert run is request.run
+            assert run is not None
 
         @when('do work')
         def do_work():

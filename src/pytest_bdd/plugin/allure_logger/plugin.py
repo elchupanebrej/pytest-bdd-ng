@@ -9,7 +9,7 @@ from pluggy import HookimplMarker
 from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-from pytest_bdd.plugin.scenario_runner.run_access import (
+from pytest_bdd.plugin.pickle_runner.run_access import (
     resolve_feature_object,
     resolve_pickle_object,
     resolve_step_object,

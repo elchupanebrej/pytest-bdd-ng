@@ -8,6 +8,10 @@ Planned
 -------
 - Refactor
 
+  - Remove pytests 625 and outdated compatibility code
+  - scenatio fixture has to be replaced with pickle
+  - Rework step context
+
   - Split plugins
 
     - Add poset plugin/hooks ordering into pluggy library

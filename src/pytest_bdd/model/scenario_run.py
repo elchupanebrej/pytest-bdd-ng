@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pytest_bdd.compatibility.enum import StrEnum
+from pytest_bdd.model.message_registry import EnvelopeRegistry
+
+if TYPE_CHECKING:
+    from pytest_bdd.model.message_extension import EventEnvelope
 
 LifecycleKind = Literal["run", "feature", "scenario", "step"]
 NodeKind = Literal["feature", "scenario", "step"]
@@ -145,13 +149,17 @@ class ContextErrorState:
 
 @dataclass(slots=True)
 class Run:
-    run_context_id: str
+    STASH_KEY = "_pytest_bdd_run"
+    ENVELOPE_REGISTRY_STASH_KEY = "_pytest_bdd_envelope_registry"
+
+    id: str
     run_ref: LifecycleObjectRef
     status: RunStatus
     transition_index: int = 0
-    active_feature_context_id: str | None = None
-    active_scenario_context_id: str | None = None
-    active_step_context_id: str | None = None
+    active_feature_id: str | None = None
+    active_scenario_id: str | None = None
+    active_step_id: str | None = None
+    scenario_runs_by_request: dict[str, ScenarioRun] = field(default_factory=dict, repr=False)
     active_scenario_run: ScenarioRun | None = field(default=None, repr=False)
     last_error: ContextErrorState | None = None
     reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
@@ -159,15 +167,208 @@ class Run:
     def advance_transition(self) -> None:
         self.transition_index += 1
 
+    @classmethod
+    def from_pytest_stash(cls, config: Any) -> Run | None:
+        stash = config.stash
+        candidate = stash[cls.STASH_KEY] if cls.STASH_KEY in stash else None
+        if isinstance(candidate, Run):
+            return candidate
+        return None
+
+    def set_in_pytest_stash(self, config: Any) -> None:
+        config.stash[self.STASH_KEY] = self
+
+    @classmethod
+    def envelope_registry_from_pytest_stash(cls, config: Any) -> EnvelopeRegistry | None:
+        stash = config.stash
+        candidate = stash[cls.ENVELOPE_REGISTRY_STASH_KEY] if cls.ENVELOPE_REGISTRY_STASH_KEY in stash else None
+        if isinstance(candidate, EnvelopeRegistry):
+            return candidate
+        return None
+
+    @classmethod
+    def ensure_envelope_registry_in_pytest_stash(cls, config: Any) -> EnvelopeRegistry:
+        existing = cls.envelope_registry_from_pytest_stash(config)
+        if existing is not None:
+            return existing
+        stash = config.stash
+        registry = EnvelopeRegistry()
+        stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = registry
+        return registry
+
+    @classmethod
+    def register_envelope_in_pytest_stash(cls, config: Any, envelope: EventEnvelope) -> EnvelopeRegistry:
+        registry = cls.ensure_envelope_registry_in_pytest_stash(config)
+        registry.add_envelope(envelope)
+        return registry
+
+    @classmethod
+    def ensure_for_session(cls, *, config: Any, session: Any) -> Run:
+        cls.ensure_envelope_registry_in_pytest_stash(config)
+        existing = cls.from_pytest_stash(config)
+        if existing is not None:
+            return existing
+
+        object_id = (
+            getattr(session, "name", None)
+            or getattr(session, "nodeid", None)
+            or str(id(session))
+        )
+        run_ref = LifecycleObjectRef(kind="run", object_id=str(object_id), name="run", is_active=True)
+        run = Run(
+            id=f"run-{id(session)}",
+            run_ref=run_ref,
+            status=RunStatus.ok,
+            transition_index=0,
+        )
+        run.set_in_pytest_stash(config)
+        return run
+
+    @staticmethod
+    def _request_key(request: Any) -> str:
+        node = getattr(request, "node", None)
+        node_id = getattr(node, "nodeid", None)
+        if node_id is not None:
+            return str(node_id)
+        return f"request-{id(request)}"
+
+    @classmethod
+    def get_scenario_run(cls, request: Any) -> ScenarioRun | None:
+        config = getattr(request, "config", None)
+        run = cls.from_pytest_stash(config) if config is not None else None
+        key = cls._request_key(request)
+        if run is None:
+            return None
+        return run.scenario_runs_by_request.get(key)
+
+    @classmethod
+    def set_scenario_run(cls, request: Any, scenario_run: ScenarioRun) -> None:
+        run = scenario_run.run
+        if run is None:
+            run = cls.ensure_for_session(config=request.config, session=request.session)
+            scenario_run.run = run
+        key = cls._request_key(request)
+        run.scenario_runs_by_request[key] = scenario_run
+        run.active_scenario_run = scenario_run
+
+    @classmethod
+    def pop_scenario_run(cls, request: Any) -> ScenarioRun | None:  # noqa: C901
+        config = getattr(request, "config", None)
+        run = cls.from_pytest_stash(config) if config is not None else None
+        if run is None:
+            return None
+        key = cls._request_key(request)
+        scenario_run = run.scenario_runs_by_request.pop(key, None)
+        if scenario_run is None:
+            return None
+
+        run_root = scenario_run.run
+        if run_root is not None:
+            if scenario_run.step_node is not None:
+                scenario_run.step_node.close(run_root.transition_index)
+            if scenario_run.scenario_node is not None:
+                scenario_run.scenario_node.close(run_root.transition_index)
+            if scenario_run.feature_node is not None:
+                scenario_run.feature_node.close(run_root.transition_index)
+
+            if run_root.active_scenario_id == scenario_run.id:
+                run_root.active_scenario_id = None
+            if run_root.active_scenario_run is scenario_run:
+                run_root.active_scenario_run = None
+            if run_root.active_step_id is not None:
+                run_root.active_step_id = None
+            run_root.reporting_state.reset_scenario_scope()
+
+        scenario_run.reference_resolver.clear()
+        return scenario_run
+
+    def create_scenario_run(
+        self, request: Any, *, feature: Any | None = None, scenario: Any | None = None
+    ) -> ScenarioRun:
+        from pytest_bdd.plugin.pickle_runner.run_transitions import (  # noqa: PLC0415
+            build_active_object_set,
+            build_lifecycle_ref,
+            initial_scenario_run_id,
+            runtime_object_id,
+        )
+
+        run_ref = build_lifecycle_ref("run", request.session, is_active=True)
+        if run_ref is None:
+            run_ref = LifecycleObjectRef(kind="run", object_id="run", name="run", is_active=True)
+
+        run = self
+
+        feature_ref = build_lifecycle_ref("feature", feature, is_active=feature is not None)
+        scenario_ref = build_lifecycle_ref("scenario", scenario, is_active=scenario is not None)
+        active_set = build_active_object_set(
+            stage=RunStage.idle,
+            run_ref=run_ref,
+            feature_ref=feature_ref,
+            scenario_ref=scenario_ref,
+            step_ref=None,
+            previous_step_ref=None,
+        )
+
+        run_node_id = initial_scenario_run_id(request)
+        feature_node = None
+        if feature_ref is not None:
+            feature_node = RunNode(
+                id=f"feature-{runtime_object_id(feature)}-{run_node_id}",
+                parent_id=run.id,
+                kind="feature",
+                object_ref=feature_ref,
+                is_active=True,
+                opened_at_transition=run.transition_index,
+            )
+            run.active_feature_id = feature_node.id
+
+        scenario_node = None
+        if scenario_ref is not None:
+            scenario_node = RunNode(
+                id=run_node_id,
+                parent_id=feature_node.id if feature_node is not None else run.id,
+                kind="scenario",
+                object_ref=scenario_ref,
+                is_active=True,
+                opened_at_transition=run.transition_index,
+            )
+            run.active_scenario_id = scenario_node.id
+
+        scenario_run = ScenarioRun(
+            id=run_node_id,
+            run_ref=run_ref,
+            feature_ref=feature_ref,
+            scenario_ref=scenario_ref,
+            step_ref=None,
+            previous_step_ref=None,
+            active_hook=HookPhase.before_scenario,
+            stage=RunStage.idle,
+            status=RunStatus.ok,
+            active_set=active_set,
+            transition_index=0,
+            run=run,
+            feature_node=feature_node,
+            scenario_node=scenario_node,
+            step_node=None,
+            feature_object=feature,
+            scenario_object=scenario,
+            step_object=None,
+            previous_step_object=None,
+        )
+        key = type(self)._request_key(request)
+        run.scenario_runs_by_request[key] = scenario_run
+        run.active_scenario_run = scenario_run
+        return scenario_run
+
     def as_dict(self) -> dict[str, Any]:
         return {
-            "run_context_id": self.run_context_id,
+            "run_id": self.id,
             "run_ref": self.run_ref.as_dict(),
             "status": self.status.value,
             "transition_index": self.transition_index,
-            "active_feature_context_id": self.active_feature_context_id,
-            "active_scenario_context_id": self.active_scenario_context_id,
-            "active_step_context_id": self.active_step_context_id,
+            "active_feature_id": self.active_feature_id,
+            "active_scenario_id": self.active_scenario_id,
+            "active_step_id": self.active_step_id,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
             "reporting_state": self.reporting_state.as_dict(),
         }
@@ -175,8 +376,8 @@ class Run:
 
 @dataclass(slots=True)
 class RunNode:
-    context_id: str
-    parent_context_id: str
+    id: str
+    parent_id: str
     kind: NodeKind
     object_ref: LifecycleObjectRef
     is_active: bool
@@ -189,8 +390,8 @@ class RunNode:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "context_id": self.context_id,
-            "parent_context_id": self.parent_context_id,
+            "id": self.id,
+            "parent_id": self.parent_id,
             "kind": self.kind,
             "object_ref": self.object_ref.as_dict(),
             "is_active": self.is_active,
@@ -201,7 +402,7 @@ class RunNode:
 
 @dataclass(slots=True)
 class ScenarioRun:
-    context_id: str
+    id: str
     run_ref: LifecycleObjectRef
     active_hook: HookPhase
     stage: RunStage
@@ -254,7 +455,7 @@ class ScenarioRun:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "context_id": self.context_id,
+            "id": self.id,
             "run_ref": self.run_ref.as_dict(),
             "feature_ref": self.feature_ref.as_dict() if self.feature_ref is not None else None,
             "scenario_ref": self.scenario_ref.as_dict() if self.scenario_ref is not None else None,
@@ -294,7 +495,7 @@ class HookInvocationContext:
 
 @dataclass(slots=True)
 class ReportingContextSnapshot:
-    run_context_id: str
+    run_id: str
     active_set: ActiveObjectSet
     stage: RunStage
     resolved_from_hierarchy: bool
@@ -302,7 +503,7 @@ class ReportingContextSnapshot:
 
     def as_dict(self) -> dict[str, Any]:
         return {
-            "run_context_id": self.run_context_id,
+            "run_id": self.run_id,
             "active_set": self.active_set.as_dict(),
             "stage": self.stage.value,
             "resolved_from_hierarchy": self.resolved_from_hierarchy,

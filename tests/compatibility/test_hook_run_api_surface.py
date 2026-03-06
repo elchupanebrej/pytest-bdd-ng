@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pytest_bdd.plugin.scenario_runner.api_compatibility import (
+from pytest_bdd.plugin.pickle_runner.api_compatibility import (
     build_external_api_compatibility_record,
     load_api_baseline,
 )

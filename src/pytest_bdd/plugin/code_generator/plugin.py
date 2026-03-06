@@ -17,7 +17,7 @@ from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model.gherkin_document import Feature
-from pytest_bdd.plugin.scenario_runner.run_store import RunStore
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import chain_map
@@ -150,8 +150,8 @@ def process_pickle_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> None:
     """Process pickle steps to gather unmatched steps."""
-    run_store = RunStore()
-    scenario_run = run_store.get_or_create(
+    run = Run.from_pytest_stash(item_request.config)
+    scenario_run = run.create_scenario_run(
         item_request,
         feature=feature.gherkin_document,
         scenario=pickle,
