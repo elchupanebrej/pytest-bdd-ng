@@ -47,23 +47,6 @@ def resolve_previous_step_object(run: Run) -> Any | None:
     return scenario_run.previous_step_object if scenario_run is not None else None
 
 
-def build_hook_invocation_context(
-    *,
-    hook_name: str,
-    request: Any,
-    scenario_run: ScenarioRun,
-) -> HookInvocationContext:
-    phase = HookPhase(hook_name)
-    node_id = getattr(request.node, "nodeid", str(id(request.node)))
-    return HookInvocationContext(
-        hook_name=hook_name,
-        hook_phase=phase,
-        scenario_run_ref=scenario_run,
-        request_ref=node_id,
-        resolved_objects=scenario_run.active_set,
-    )
-
-
 def build_unavailable_object_error(
     *,
     hook_name: str,
@@ -108,10 +91,15 @@ def resolve_scenario_run_for_hook(
     scenario: Any | None = None,
 ) -> tuple[ScenarioRun, HookInvocationContext]:
     scenario_run = Run.get_scenario_run(request)
-    invocation_context = build_hook_invocation_context(
+    node_id = getattr(request.node, "nodeid", str(id(request.node)))
+    phase = HookPhase(hook_name)
+
+    invocation_context = HookInvocationContext(
         hook_name=hook_name,
-        request=request,
-        scenario_run=scenario_run,
+        hook_phase=phase,
+        scenario_run_ref=scenario_run,
+        request_ref=node_id,
+        resolved_objects=scenario_run.active_set,
     )
     return scenario_run, invocation_context
 

@@ -234,8 +234,7 @@ class Run:
 
     @classmethod
     def get_scenario_run(cls, request: Any) -> ScenarioRun | None:
-        config = getattr(request, "config", None)
-        run = cls.from_pytest_stash(config) if config is not None else None
+        run = cls.from_pytest_stash(request.config)
         key = cls._request_key(request)
         if run is None:
             return None
