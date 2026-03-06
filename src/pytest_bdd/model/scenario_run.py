@@ -286,7 +286,6 @@ class Run:
         self, request: Any, *, feature: Any | None = None, scenario: Any | None = None
     ) -> ScenarioRun:
         from pytest_bdd.plugin.pickle_runner.run_transitions import (  # noqa: PLC0415
-            build_active_object_set,
             build_lifecycle_ref,
             initial_scenario_run_id,
             runtime_object_id,
@@ -300,13 +299,13 @@ class Run:
 
         feature_ref = build_lifecycle_ref("feature", feature, is_active=feature is not None)
         scenario_ref = build_lifecycle_ref("scenario", scenario, is_active=scenario is not None)
-        active_set = build_active_object_set(
-            stage=RunStage.idle,
-            run_ref=run_ref,
-            feature_ref=feature_ref,
-            scenario_ref=scenario_ref,
-            step_ref=None,
-            previous_step_ref=None,
+        active_set = ActiveObjectSet(
+            run=run_ref,
+            feature=feature_ref,
+            scenario=scenario_ref,
+            step=None,
+            previous_step=None,
+            captured_at_stage=RunStage.idle,
         )
 
         run_node_id = initial_scenario_run_id(request)

@@ -72,26 +72,6 @@ def initial_scenario_run_id(request: Any) -> str:
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"
 
-
-def build_active_object_set(
-    *,
-    stage: RunStage,
-    run_ref: LifecycleObjectRef,
-    feature_ref: LifecycleObjectRef | None,
-    scenario_ref: LifecycleObjectRef | None,
-    step_ref: LifecycleObjectRef | None,
-    previous_step_ref: LifecycleObjectRef | None,
-) -> ActiveObjectSet:
-    return ActiveObjectSet(
-        run=run_ref,
-        feature=feature_ref,
-        scenario=scenario_ref,
-        step=step_ref,
-        previous_step=previous_step_ref,
-        captured_at_stage=stage,
-    )
-
-
 def apply_transition(
     scenario_run: ScenarioRun,
     *,
@@ -160,13 +140,13 @@ def apply_transition(
     scenario_run.previous_step_object = previous_step
 
     scenario_run.set_active_set(
-        build_active_object_set(
-            stage=stage,
-            run_ref=run_ref,
-            feature_ref=feature_ref,
-            scenario_ref=scenario_ref,
-            step_ref=step_ref,
-            previous_step_ref=previous_step_ref,
+        ActiveObjectSet(
+            run=run_ref,
+            feature=feature_ref,
+            scenario=scenario_ref,
+            step=step_ref,
+            previous_step=previous_step_ref,
+            captured_at_stage=stage,
         )
     )
     scenario_run.advance_transition()
@@ -198,13 +178,13 @@ def apply_transition(
         scenario_run.step_object = None
         scenario_run.previous_step_object = None
         scenario_run.set_active_set(
-            build_active_object_set(
-                stage=RunStage.finished,
-                run_ref=run_ref,
-                feature_ref=None,
-                scenario_ref=None,
-                step_ref=None,
-                previous_step_ref=None,
+            ActiveObjectSet(
+                run=run_ref,
+                feature=None,
+                scenario=None,
+                step=None,
+                previous_step=None,
+                captured_at_stage=RunStage.finished,
             )
         )
         if run is not None:

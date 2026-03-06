@@ -12,6 +12,7 @@ from pytest_bdd.model.gherkin_document.lookup import (
     get_step_prefix,
 )
 from pytest_bdd.model.scenario_run import (
+    ActiveObjectSet,
     ContextErrorState,
     RunStage,
     HookInvocationContext,
@@ -20,9 +21,10 @@ from pytest_bdd.model.scenario_run import (
     ReportingContextSnapshot,
     ReportingLifecycleState,
     Run,
-    ScenarioRun, HookPhase,
+    ScenarioRun,
+    HookPhase,
 )
-from .run_transitions import build_active_object_set, build_lifecycle_ref
+from .run_transitions import build_lifecycle_ref
 
 
 def resolve_feature_object(run: Run) -> Any | None:
@@ -129,13 +131,13 @@ def _fallback_reporting_snapshot(
         run_ref = run_root.run_ref
         run_id = run_root.id
 
-    fallback_active_set = build_active_object_set(
-        stage=RunStage.idle,
-        run_ref=run_ref,
-        feature_ref=None,
-        scenario_ref=None,
-        step_ref=None,
-        previous_step_ref=None,
+    fallback_active_set = ActiveObjectSet(
+        run=run_ref,
+        feature=None,
+        scenario=None,
+        step=None,
+        previous_step=None,
+        captured_at_stage=RunStage.idle,
     )
     return ReportingContextSnapshot(
         run_id=run_id,
@@ -166,13 +168,13 @@ def build_reporting_context_snapshot(
     if run is not None:
         return ReportingContextSnapshot(
             run_id=run.id,
-            active_set=build_active_object_set(
-                stage=RunStage.idle,
-                run_ref=run.run_ref,
-                feature_ref=None,
-                scenario_ref=None,
-                step_ref=None,
-                previous_step_ref=None,
+            active_set=ActiveObjectSet(
+                run=run.run_ref,
+                feature=None,
+                scenario=None,
+                step=None,
+                previous_step=None,
+                captured_at_stage=RunStage.idle,
             ),
             stage=RunStage.idle,
             resolved_from_hierarchy=True,
