@@ -23,20 +23,21 @@ def test_each_scenario_gets_isolated_scenario_run(testdir):
     )
 
     testdir.makepyfile(
+        # language=python
         """
         from pytest_bdd import given, scenario
 
         def pytest_bdd_before_scenario(request, run):
-            context = run.active_scenario_run
-            assert context is not None
-            request.config.run_context_ids = getattr(request.config, "run_context_ids", [])
-            request.config.node_context_ids = getattr(request.config, "node_context_ids", [])
-            request.config.run_context_ids.append(context.run.run_context_id)
-            request.config.node_context_ids.append(context.context_id)
+            scenario_run = run.active_scenario_run
+            assert scenario_run is not None
+            request.config.run_ids = getattr(request.config, "run_ids", [])
+            request.config.scenario_ids = getattr(request.config, "scenario_ids", [])
+            request.config.run_ids.append(scenario_run.run.id)
+            request.config.scenario_ids.append(scenario_run.id)
 
         def pytest_sessionfinish(session, exitstatus):
-            run_ids = getattr(session.config, "run_context_ids", [])
-            node_ids = getattr(session.config, "node_context_ids", [])
+            run_ids = getattr(session.config, "run_ids", [])
+            node_ids = getattr(session.config, "scenario_ids", [])
             assert len(set(run_ids)) == 1
             assert len(set(node_ids)) == 2
 
