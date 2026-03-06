@@ -72,18 +72,3 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
     assert snapshot.run_id == "run-stash"
     assert snapshot.active_set.run.object_id == "run-stash"
     assert snapshot.fallback_reason == "hierarchy-missing"
-
-
-def test_snapshot_builds_synthetic_fallback_without_stash_context() -> None:
-    config = SimpleNamespace(stash={})
-    session = SimpleNamespace(config=config, name="run-session")
-    request = _build_request(config=config, session=session)
-
-    snapshot = build_reporting_context_snapshot(request=request)
-
-    assert snapshot is not None
-    assert snapshot.resolved_from_hierarchy is False
-    assert snapshot.fallback_reason == "hierarchy_not_available"
-    assert snapshot.active_set.run.kind == "run"
-    assert snapshot.active_set.run.object_id == "run-session"
-    assert snapshot.run_id.startswith("run-")

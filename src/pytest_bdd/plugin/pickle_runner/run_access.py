@@ -15,14 +15,12 @@ from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     ContextErrorState,
     RunStage,
-    HookInvocationContext,
     LifecycleKind,
     LifecycleObjectRef,
     ReportingContextSnapshot,
     ReportingLifecycleState,
     Run,
     ScenarioRun,
-    HookPhase,
 )
 from .run_transitions import build_lifecycle_ref
 
@@ -81,27 +79,6 @@ def resolve_active_object_or_error(
     if scenario_run.run is not None:
         scenario_run.run.last_error = error
     return None, error
-
-
-def resolve_scenario_run_for_hook(
-    *,
-    hook_name: str,
-    request: Any,
-    feature: Any | None = None,
-    scenario: Any | None = None,
-) -> tuple[ScenarioRun, HookInvocationContext]:
-    scenario_run = Run.get_scenario_run(request)
-    node_id = getattr(request.node, "nodeid", str(id(request.node)))
-    phase = HookPhase(hook_name)
-
-    invocation_context = HookInvocationContext(
-        hook_name=hook_name,
-        hook_phase=phase,
-        scenario_run_ref=scenario_run,
-        request_ref=node_id,
-        resolved_objects=scenario_run.active_set,
-    )
-    return scenario_run, invocation_context
 
 
 def _fallback_reporting_snapshot(

@@ -236,8 +236,6 @@ class Run:
     def get_scenario_run(cls, request: Any) -> ScenarioRun | None:
         run = cls.from_pytest_stash(request.config)
         key = cls._request_key(request)
-        if run is None:
-            return None
         return run.scenario_runs_by_request.get(key)
 
     @classmethod
@@ -470,24 +468,6 @@ class ScenarioRun:
             "scenario_node": self.scenario_node.as_dict() if self.scenario_node is not None else None,
             "step_node": self.step_node.as_dict() if self.step_node is not None else None,
             "reference_resolver": self.reference_resolver.as_dict(),
-        }
-
-
-@dataclass(slots=True)
-class HookInvocationContext:
-    hook_name: str
-    hook_phase: HookPhase
-    scenario_run_ref: ScenarioRun
-    request_ref: str
-    resolved_objects: ActiveObjectSet
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "hook_name": self.hook_name,
-            "hook_phase": self.hook_phase.value,
-            "scenario_run_ref": self.scenario_run_ref.as_dict(),
-            "request_ref": self.request_ref,
-            "resolved_objects": self.resolved_objects.as_dict(),
         }
 
 
