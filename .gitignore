@@ -83,3 +83,4 @@ venv/
 
 # Node workspace artifacts
 node_modules/
+/artifacts/
