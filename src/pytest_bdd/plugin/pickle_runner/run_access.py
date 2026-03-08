@@ -84,7 +84,7 @@ def _fallback_reporting_snapshot(
     *,
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot | None:
-    run_root = Run.from_pytest_stash(request.config.stash)
+    run_root = Run.find_in_stash(request.config.stash)
     if run_root is None:
         run_ref = build_lifecycle_ref("run", getattr(request, "session", None), is_active=True)
         if run_ref is None:
@@ -116,7 +116,7 @@ def build_reporting_context_snapshot(
     request: FixtureRequest,
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot | None:
-    run = Run.from_pytest_stash(request.config.stash)
+    run = Run.find_in_stash(request.config.stash)
 
     if run is not None and run.active_scenario_run is not None:
         active_scenario_run = run.active_scenario_run

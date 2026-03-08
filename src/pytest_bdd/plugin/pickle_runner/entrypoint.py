@@ -50,7 +50,7 @@ def pytest_configure(config: Config) -> None:
     runner = PickleRunner()
     config.pluginmanager.register(runner, runner.plugin_name)
     Run.initialize_for_config(stash=config.stash, config=config)
-    IdGenerator().initialize_in_pytest_stash(config.stash)
+    IdGenerator().initialize_in_stash(config.stash)
 
 
 @given("trace")
@@ -129,4 +129,4 @@ def attach(request: FixtureRequest):
 @pytest.fixture(scope="session")
 def run_context(request: FixtureRequest):
     """Session-scoped fixture exposing canonical Run."""
-    return Run.from_pytest_stash(request.config.stash)
+    return Run.from_stash(request.config.stash)

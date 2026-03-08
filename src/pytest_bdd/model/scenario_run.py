@@ -20,7 +20,7 @@ from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
-from pytest_bdd.model.stash_access import PytestBDDStashBound
+from pytest_bdd.model.stash_access import StashBound
 from pytest_bdd.types.protocol import Identifiable
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
@@ -348,7 +348,7 @@ class FeatureRuntimeBinding:
 
 
 @dataclass(slots=True)
-class Run(PytestBDDStashBound):
+class Run(StashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
 
     id: str
@@ -383,15 +383,15 @@ class Run(PytestBDDStashBound):
     @classmethod
     def initialize_for_session(cls, *, stash: Stash, session: Session) -> Run:
         run = cls._build_for_owner(session)
-        run.initialize_in_pytest_stash(stash)
-        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_pytest_stash(stash)
+        run.initialize_in_stash(stash)
+        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_stash(stash)
         return run
 
     @classmethod
     def initialize_for_config(cls, *, stash: Stash, config: Config) -> Run:
         run = cls._build_for_owner(config)
-        run.initialize_in_pytest_stash(stash)
-        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_pytest_stash(stash)
+        run.initialize_in_stash(stash)
+        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_stash(stash)
         return run
 
     @staticmethod
@@ -404,7 +404,7 @@ class Run(PytestBDDStashBound):
 
     @classmethod
     def get_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
-        run = cls.from_pytest_stash(request.config.stash)
+        run = cls.find_in_stash(request.config.stash)
         if run is None:
             return None
         key = cls._request_key(request)
@@ -414,7 +414,7 @@ class Run(PytestBDDStashBound):
     def set_scenario_run(cls, request: FixtureRequest, scenario_run: ScenarioRun) -> None:
         run = scenario_run.run
         if run is None:
-            run = cls.require_from_pytest_stash(request.config.stash)
+            run = cls.from_stash(request.config.stash)
             scenario_run.run = run
         key = cls._request_key(request)
         run.scenario_runs_by_request[key] = scenario_run
@@ -424,7 +424,7 @@ class Run(PytestBDDStashBound):
     def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:  # noqa: C901
         config = getattr(request, "config", None)
         stash = getattr(config, "stash", None)
-        run = cls.from_pytest_stash(stash) if stash is not None else None
+        run = cls.find_in_stash(stash) if stash is not None else None
         if run is None:
             return None
         key = cls._request_key(request)

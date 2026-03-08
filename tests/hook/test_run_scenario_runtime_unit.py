@@ -46,17 +46,17 @@ def test_config_stash_lookup_supports_stash_without_get_method() -> None:
     config = SimpleNamespace(stash=_Stash())
     run_root = _build_run_root("stash")
 
-    run_root.set_in_pytest_stash(config.stash)
+    run_root.set_in_stash(config.stash)
 
-    assert Run.from_pytest_stash(config.stash) is run_root
+    assert Run.from_stash(config.stash) is run_root
 
 
 def test_initialize_run_raises_when_run_is_already_initialized() -> None:
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     existing = _build_run_root("existing")
-    existing.initialize_in_pytest_stash(config.stash)
-    EnvelopeRegistry(identifiable=existing.identifiable_registry).initialize_in_pytest_stash(config.stash)
+    existing.initialize_in_stash(config.stash)
+    EnvelopeRegistry(identifiable=existing.identifiable_registry).initialize_in_stash(config.stash)
 
     with pytest.raises(exceptions.PytestBDDStashAlreadyInitializedError, match="already initialized"):
         Run.initialize_for_session(stash=config.stash, session=session)
@@ -71,14 +71,14 @@ def test_initialize_run_creates_and_stores_value_when_missing() -> None:
     assert resolved.status == RunStatus.ok
     assert resolved.run_ref.kind == "run"
     assert resolved.run_ref.object_id == "run-session"
-    assert Run.require_from_pytest_stash(config.stash) is resolved
+    assert Run.from_stash(config.stash) is resolved
 
 
 def test_id_generator_lookup_raises_when_missing() -> None:
     config = SimpleNamespace(stash={})
 
     with pytest.raises(exceptions.PytestBDDStashLookupError, match=r"unavailable in config\.stash"):
-        IdGenerator.require_from_pytest_stash(config.stash)
+        IdGenerator.from_stash(config.stash)
 
 
 def test_pop_clears_active_scenario_and_step_context_ids() -> None:
@@ -144,40 +144,29 @@ def test_initialize_run_initializes_envelope_registry_in_config_stash() -> None:
 
     _ = Run.initialize_for_session(stash=config.stash, session=session)
 
-    assert EnvelopeRegistry.require_from_pytest_stash(config.stash) is not None
+    assert EnvelopeRegistry.from_stash(config.stash)
     assert EnvelopeRegistry.STASH_KEY in config.stash
 
 
-def test_ensure_id_generator_initializes_in_config_stash_once() -> None:
+def test_initialize_id_generator_initializes_in_config_stash_once() -> None:
     config = SimpleNamespace(stash={})
 
-    id_generator = IdGenerator().ensure_in_pytest_stash(config.stash)
+    id_generator = IdGenerator().initialize_in_stash(config.stash)
 
     assert id_generator is not None
     assert IdGenerator.STASH_KEY in config.stash
     assert not hasattr(config, "pytest_bdd_id_generator")
 
 
-def test_ensure_id_generator_raises_on_repeated_ensure() -> None:
-    config = SimpleNamespace(stash={})
-
-    first = IdGenerator().ensure_in_pytest_stash(config.stash)
-
-    with pytest.raises(exceptions.PytestBDDStashAlreadyInitializedError, match="already initialized"):
-        IdGenerator().ensure_in_pytest_stash(config.stash)
-
-    assert IdGenerator.require_from_pytest_stash(config.stash) is first
-
-
 def test_initialize_id_generator_raises_on_repeated_initialization() -> None:
     config = SimpleNamespace(stash={})
 
-    first = IdGenerator().initialize_in_pytest_stash(config.stash)
+    first = IdGenerator().initialize_in_stash(config.stash)
 
     with pytest.raises(exceptions.PytestBDDStashAlreadyInitializedError, match="already initialized"):
-        IdGenerator().initialize_in_pytest_stash(config.stash)
+        IdGenerator().initialize_in_stash(config.stash)
 
-    assert IdGenerator.require_from_pytest_stash(config.stash) is first
+    assert IdGenerator.from_stash(config.stash) is first
 
 
 def test_register_envelope_indexes_identifiable_objects_by_protocol() -> None:

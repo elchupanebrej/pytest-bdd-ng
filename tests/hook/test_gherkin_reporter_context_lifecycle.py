@@ -48,7 +48,7 @@ def _build_scenario_run() -> ScenarioRun:
 
 def _build_request_with_context(scenario_run: ScenarioRun) -> SimpleNamespace:
     config = SimpleNamespace(stash={})
-    scenario_run.run.set_in_pytest_stash(config.stash)
+    scenario_run.run.set_in_stash(config.stash)
     request = SimpleNamespace(
         node=SimpleNamespace(nodeid="node::scenario"),
         config=config,
@@ -107,6 +107,6 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
 
     reporter.pytest_bdd_message(config=config, message=envelope)
 
-    envelope_registry = EnvelopeRegistry.require_from_pytest_stash(config.stash)
+    envelope_registry = EnvelopeRegistry.from_stash(config.stash)
     assert envelope_registry.envelopes == [envelope]
     assert envelope_registry.resolve("run-started-1") is envelope.test_run_started

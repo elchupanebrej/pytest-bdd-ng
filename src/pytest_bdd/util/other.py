@@ -4,7 +4,7 @@ from typing import Any, ClassVar, Protocol, runtime_checkable
 from gherkin.stream.id_generator import IdGenerator as BaseIdGenerator
 
 from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX
-from pytest_bdd.model.stash_access import PytestBDDStashBound
+from pytest_bdd.model.stash_access import StashBound
 
 
 def format_as_python_identifier(s: Any) -> str:
@@ -29,7 +29,7 @@ def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
     return str(value, **({"encoding": "utf-8"} if isinstance(value, bytes) else {}))
 
 
-class IdGenerator(BaseIdGenerator, PytestBDDStashBound):
+class IdGenerator(BaseIdGenerator, StashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_id_generator"
 
     def __init__(self):

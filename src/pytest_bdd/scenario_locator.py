@@ -91,9 +91,9 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         source: Source,
         config: Config | HasPytestBDDStash,
     ):
-        run = Run.require_from_pytest_stash(config.stash)
+        run = Run.from_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
-        binding.ensure_pickles(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
+        binding.ensure_pickles(id_generator=IdGenerator.from_stash(config.stash))
         return binding
 
     def resolve(
@@ -149,7 +149,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
+            parser = parser_type(id_generator=IdGenerator.from_stash(config.stash))
 
             yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
 
@@ -316,7 +316,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
+            parser = parser_type(id_generator=IdGenerator.from_stash(config.stash))
 
             try:
                 feature, feature_data = parser.parse(

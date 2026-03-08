@@ -316,7 +316,7 @@ class StepPrototype(Node):
             gherkin_document = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename,
                 uri=self.uri,
-                id_generator=IdGenerator.require_from_pytest_stash(config.stash),
+                id_generator=IdGenerator.from_stash(config.stash),
             )
 
             if isinstance(self.mimetype, SourceMediaType):

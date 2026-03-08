@@ -72,12 +72,12 @@ def test_resolve_features_phase_does_not_materialize_pickles() -> None:
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])
     config = SimpleNamespace(stash={})
-    IdGenerator().initialize_in_pytest_stash(config.stash)
+    IdGenerator().initialize_in_stash(config.stash)
 
     resolved_features = list(locator.resolve_features(config))
 
     assert len(resolved_features) == 1
-    assert Run.from_pytest_stash(config.stash) is None
+    assert Run.find_in_stash(config.stash) is None
 
 
 def test_resolve_pipeline_materializes_pickles_without_message_emission() -> None:
@@ -86,11 +86,11 @@ def test_resolve_pipeline_materializes_pickles_without_message_emission() -> Non
     locator = _DummyLocator(entries=[(gherkin_document, source)])
     config = SimpleNamespace(stash={})
     Run.initialize_for_config(stash=config.stash, config=config)
-    IdGenerator().initialize_in_pytest_stash(config.stash)
+    IdGenerator().initialize_in_stash(config.stash)
 
     resolved = list(locator.resolve(config))
-    run = Run.from_pytest_stash(config.stash)
-    binding = run.feature_binding_for_document(gherkin_document) if run is not None else None
+    run = Run.from_stash(config.stash)
+    binding = run.feature_binding_for_document(gherkin_document)
 
     assert len(resolved) == 1
     assert binding is not None
@@ -103,7 +103,7 @@ def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
     locator = _DummyLocator(entries=[(gherkin_document, source)])
     config = SimpleNamespace(stash={})
     Run.initialize_for_config(stash=config.stash, config=config)
-    IdGenerator().initialize_in_pytest_stash(config.stash)
+    IdGenerator().initialize_in_stash(config.stash)
     observed_callbacks: list[tuple[str, str]] = []
 
     class _Observer:

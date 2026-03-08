@@ -144,7 +144,7 @@ def process_single_item(
     pickle: Pickle = item_request.getfixturevalue("pickle")
     gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
     feature_source: Source = item_request.getfixturevalue("feature_source")
-    feature_binding = Run.require_from_pytest_stash(item_request.config.stash).ensure_feature_binding(
+    feature_binding = Run.from_stash(item_request.config.stash).ensure_feature_binding(
         gherkin_document=gherkin_document,
         source=feature_source,
         pickles=(pickle,),
@@ -161,7 +161,7 @@ def process_pickle_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> None:
     """Process pickle steps to gather unmatched steps."""
-    run = Run.require_from_pytest_stash(item_request.config.stash)
+    run = Run.from_stash(item_request.config.stash)
     scenario_run = run.create_scenario_run(
         item_request,
         gherkin_document=feature_binding.gherkin_document,
@@ -196,7 +196,7 @@ def collect_features_and_seen_uris(
         cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
     )
     feature_pickles_feature_source = list(chain_map(methodcaller("resolve", config), locators))
-    run = Run.require_from_pytest_stash(config.stash)
+    run = Run.from_stash(config.stash)
     features_by_uri = {
         str(gherkin_document.uri): run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
         for gherkin_document, _pickle, source in feature_pickles_feature_source
@@ -271,7 +271,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
     )
     feature_pickles_feature_source = list(chain_map(methodcaller("resolve", config), locators))
 
-    run = Run.require_from_pytest_stash(config.stash)
+    run = Run.from_stash(config.stash)
     features_by_uri: dict[str, FeatureRuntimeBinding] = {}
     for gherkin_document, _pickle, source in feature_pickles_feature_source:
         features_by_uri.setdefault(

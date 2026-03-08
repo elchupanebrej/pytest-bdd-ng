@@ -337,17 +337,16 @@ class GherkinMessageReporter:
         if self.is_disabled:
             yield
             return
-        config = session.config
-        run_started_id = self._require_run_started_id(config=cast(Config, config))
+        config: Config = session.config
+        run_started_id = self._require_run_started_id(config=config)
         self._emit_envelope(
             config,
             Message(test_run_started=TestRunStarted(id=run_started_id, timestamp=self.get_timestamp())),
         )
 
-        before_test_run_hook_started_id = self._next_id(config=cast(Config, config))
-        run_root = Run.from_pytest_stash(config.stash)
-        if run_root is not None:
-            run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
+        before_test_run_hook_started_id = next(IdGenerator.from_stash(config.stash))
+        run_root = Run.from_stash(config.stash)
+        run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
         self._emit_envelope(
             config,
             Message(
@@ -458,15 +457,8 @@ class GherkinMessageReporter:
                 return value.removeprefix("refs/heads/")
         return None
 
-    @staticmethod
-    def _resolve_run_started_id(*, config: Config) -> str | None:
-        run = Run.from_pytest_stash(config.stash)
-        if run is None:
-            return None
-        return run.reporting_state.run_started_id
-
     def _require_run_started_id(self, *, config: Config) -> str:
-        run_started_id = self._resolve_run_started_id(config=config)
+        run_started_id = Run.from_stash(config.stash).reporting_state.run_started_id
         if run_started_id is None:
             msg = (
                 "Execution context run_started_id is unavailable in config.stash. "
@@ -476,18 +468,12 @@ class GherkinMessageReporter:
         return run_started_id
 
     @staticmethod
-    def _next_id(*, config: Config) -> str:
-        return next(IdGenerator.require_from_pytest_stash(config.stash))
-
-    @staticmethod
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[Any | None, Any | None]:
         scenario_run = run.active_scenario_run
         return scenario_run.gherkin_document, scenario_run.pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
-        run = Run.from_pytest_stash(request.config.stash)
-        if run is None:
-            return None
+        run = Run.from_stash(request.config.stash)
         test_step_id = run.resolve_test_step_id_for_runtime_step(pickle_step=step)
         if test_step_id is None:
             logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
@@ -504,7 +490,7 @@ class GherkinMessageReporter:
             if not run_success
             else None
         )
-        after_test_run_hook_started_id = self._next_id(config=cast(Config, config))
+        after_test_run_hook_started_id = next(IdGenerator.from_stash(cast(Config, config).stash))
         self._emit_envelope(
             config,
             Message(
@@ -605,7 +591,7 @@ class GherkinMessageReporter:
             source_file = getfile(func)
             source_line = getsourcelines(func)[1]
 
-            hook_message_id = self._next_id(config=cast(Config, config))
+            hook_message_id = next(IdGenerator.from_stash(cast(Config, config).stash))
             hook_message = Hook(
                 id=hook_message_id,
                 **({"name": hook_name} if hook_name is not None else {}),
@@ -651,9 +637,9 @@ class GherkinMessageReporter:
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        run = Run.from_pytest_stash(request.config.stash)
-        scenario_run = run.active_scenario_run if run is not None else None
-        if run is None or scenario_run is None:
+        run = Run.from_stash(request.config.stash)
+        scenario_run = run.active_scenario_run
+        if scenario_run is None:
             logger.warning(
                 "Execution context unavailable during pytest_runtest_setup; skipping context-backed correlation writes."
             )
@@ -674,7 +660,7 @@ class GherkinMessageReporter:
         test_steps.extend(
             [
                 TestStep(
-                    id=self._next_id(config=cast(Config, config)),
+                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
                     hook_id=hook_registration.hook_message_id,
                 )
                 for hook_registration in self._iter_matching_hook_registrations(request=request, pickle=pickle)
@@ -698,7 +684,7 @@ class GherkinMessageReporter:
                     step_text=step.text,
                 )
                 test_step = TestStep(
-                    id=self._next_id(config=cast(Config, config)),
+                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
                     **(
@@ -713,9 +699,9 @@ class GherkinMessageReporter:
             finally:
                 previous_step = step
 
-        resolved_run_started_id = self._resolve_run_started_id(config=cast(Config, config))
+        resolved_run_started_id = Run.from_stash(cast(Config, config).stash).reporting_state.run_started_id
         test_case = TestCase(
-            id=self._next_id(config=cast(Config, config)),
+            id=next(IdGenerator.from_stash(cast(Config, config).stash)),
             pickle_id=pickle.id,
             test_steps=test_steps,
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
@@ -915,7 +901,7 @@ class GherkinMessageReporter:
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
-                                    id=self._next_id(config=cast(Config, config)),
+                                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
                                     **(
                                         {"source_reference": parameter_type_source_reference}
                                         if parameter_type_source_reference is not None
@@ -983,7 +969,7 @@ class GherkinMessageReporter:
         if pickle_step_id is None:
             return
 
-        suggestion_id = self._next_id(config=cast(Config, config))
+        suggestion_id = next(IdGenerator.from_stash(cast(Config, config).stash))
         suggestion = Suggestion(
             id=suggestion_id,
             pickle_step_id=str(pickle_step_id),
@@ -1023,7 +1009,7 @@ class GherkinMessageReporter:
         worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
-            id=self._next_id(config=cast(Config, config)),
+            id=next(IdGenerator.from_stash(cast(Config, config).stash)),
             test_case_id=test_case_id,
             worker_id=worker_id,
             timestamp=self.get_timestamp(),
@@ -1219,7 +1205,7 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        run = Run.from_pytest_stash(config.stash)
+        run = Run.find_in_stash(config.stash)
         reporting_state = run.reporting_state if run is not None else None
         test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
         active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None

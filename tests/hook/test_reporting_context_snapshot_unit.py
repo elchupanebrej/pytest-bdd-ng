@@ -44,7 +44,7 @@ def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
     request = _build_request()
     context = _build_scenario_run(stage=RunStage.scenario_running)
     context.run.active_scenario_run = context
-    context.run.set_in_pytest_stash(request.config.stash)
+    context.run.set_in_stash(request.config.stash)
 
     snapshot = build_reporting_context_snapshot(request=request)
 
@@ -63,7 +63,7 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
         run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
         status=RunStatus.ok,
     )
-    stash_root.set_in_pytest_stash(config.stash)
+    stash_root.set_in_stash(config.stash)
 
     snapshot = build_reporting_context_snapshot(request=request, fallback_reason="hierarchy-missing")
 

@@ -11,10 +11,10 @@ if TYPE_CHECKING:
 
     from pytest_bdd.compatibility.pytest import Stash
 
-T = TypeVar("T", bound="PytestBDDStashBound")
+T = TypeVar("T", bound="StashBound")
 
 
-class PytestBDDStashAccess:
+class StashAccess:
     @staticmethod
     def _stash_get(stash: Stash, key: str) -> Any | None:
         if hasattr(stash, "get"):
@@ -61,7 +61,7 @@ class PytestBDDStashAccess:
         return cls.set(stash, value_factory())
 
 
-class PytestBDDStashBound:
+class StashBound:
     STASH_KEY: ClassVar[str]
 
     @classmethod
@@ -73,26 +73,18 @@ class PytestBDDStashBound:
         return f"`{cls.__name__}` is already initialized in config.stash."
 
     @classmethod
-    def from_pytest_stash(cls, stash: Stash) -> Self | None:
-        return PytestBDDStashAccess.get_optional(stash, cls)
+    def find_in_stash(cls, stash: Stash) -> Self | None:
+        return StashAccess.get_optional(stash, cls)
 
     @classmethod
-    def require_from_pytest_stash(cls, stash: Stash) -> Self:
-        return PytestBDDStashAccess.require(stash, cls, missing_message=cls.stash_missing_message())
+    def from_stash(cls, stash: Stash) -> Self:
+        return StashAccess.require(stash, cls, missing_message=cls.stash_missing_message())
 
-    def set_in_pytest_stash(self, stash: Stash) -> Self:
-        return PytestBDDStashAccess.set(stash, self)
+    def set_in_stash(self, stash: Stash) -> Self:
+        return StashAccess.set(stash, self)
 
-    def ensure_in_pytest_stash(self, stash: Stash) -> Self:
-        return PytestBDDStashAccess.create_once(
-            stash,
-            type(self),
-            value_factory=lambda: self,
-            duplicate_message=type(self).stash_duplicate_message(),
-        )
-
-    def initialize_in_pytest_stash(self, stash: Stash) -> Self:
-        return PytestBDDStashAccess.create_once(
+    def initialize_in_stash(self, stash: Stash) -> Self:
+        return StashAccess.create_once(
             stash,
             type(self),
             value_factory=lambda: self,

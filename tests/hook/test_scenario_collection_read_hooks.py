@@ -95,11 +95,11 @@ def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
     hook = _HookSpy()
     config = SimpleNamespace(stash={}, hook=hook)
     Run.initialize_for_config(stash=config.stash, config=config)
-    IdGenerator().initialize_in_pytest_stash(config.stash)
+    IdGenerator().initialize_in_stash(config.stash)
 
     resolved = list(_iter_resolved_feature_scenarios(config, [locator]))
-    run = Run.from_pytest_stash(config.stash)
-    binding = run.feature_binding_for_document(gherkin_document) if run is not None else None
+    run = Run.from_stash(config.stash)
+    binding = run.feature_binding_for_document(gherkin_document)
 
     assert len(resolved) == 1
     assert binding is not None

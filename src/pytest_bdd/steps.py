@@ -406,7 +406,7 @@ class StepDefinitionManager:
             return fixture_names
 
         def as_message(self, config: Config | HasPytestBDDStash):
-            id_generator = IdGenerator.require_from_pytest_stash(config.stash)
+            id_generator = IdGenerator.from_stash(config.stash)
             try:
                 message = self.__cache[id(id_generator)]
             except KeyError:
