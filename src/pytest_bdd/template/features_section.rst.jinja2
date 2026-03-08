@@ -1,10 +1,7 @@
-{% if heading %}
-{{ heading }}
+{% if heading %}{{ heading }}
 {{ underline }}
-{% endif %}
-.. toctree::
+{% endif %}.. toctree::
     :maxdepth: 2
 
-{% for entry in entries %}
-    {{ entry }}
+{% for entry in entries %}    {{ entry }}
 {% endfor %}

@@ -10,7 +10,56 @@ if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
 
-@pytest.mark.skipif(
+AUTO_GENERATED_START_MARKER = ".. BEGIN AUTO-GENERATED FEATURES TREE"
+AUTO_GENERATED_END_MARKER = ".. END AUTO-GENERATED FEATURES TREE"
+
+
+def write_feature_source(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(dedent(content), encoding="utf-8")
+
+
+def create_ordered_feature_tree(features_path: Path) -> None:
+    write_feature_source(
+        features_path / "01 Tutorial" / "01 Launch.feature",
+        # language=gherkin
+        """\
+        Feature: Launch tutorial
+        """,
+    )
+    write_feature_source(
+        features_path / "02 Feature" / "01 Basics.feature",
+        # language=gherkin
+        """\
+        Feature: Basics
+        """,
+    )
+    write_feature_source(
+        features_path / "02 Feature" / "02 Markdown parsing.feature.md",
+        # language=markdown
+        """\
+        # Feature: Markdown parsing
+        Some feature description
+
+        ## Scenario: Parse markdown
+        * Given markdown feature content
+        """,
+    )
+    write_feature_source(
+        features_path / "02 Feature" / "03 Load" / "01 Autoload.feature",
+        # language=gherkin
+        """\
+        Feature: Autoload
+        """,
+    )
+
+
+def assert_in_order(text: str, *parts: str) -> None:
+    positions = [text.index(part) for part in parts]
+    assert positions == sorted(positions)
+
+
+LATEST_PY313_LINUX_ONLY = pytest.mark.skipif(
     not (
         all(
             [
@@ -22,36 +71,15 @@ if TYPE_CHECKING:  # pragma: no cover
     ),
     reason="Verify only on the latest python version and linux environment",
 )
-def test_doc_generation(testdir: "Testdir"):
+
+
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_orders_prefixed_sections_and_entries(testdir: "Testdir") -> None:
     from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
-    (features_path / "simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do nothing
-        """,
-    )
-    (features_path / "simple_markdown.gherkin.md").write_text(
-        dedent(
-            # language=markdown
-            """\
-            # Feature: Simple gherkin markdown
-            Some feature description
-
-            ## Scenario:
-            *  Given some step
-        """,
-        ),
-    )
-    (features_path / "extra").mkdir()
-    (features_path / "extra" / "other_simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do other nothing
-        """,
-    )
+    create_ordered_feature_tree(features_path)
 
     output_path = Path(testdir.tmpdir) / "output"
     output_path.mkdir()
@@ -63,91 +91,58 @@ def test_doc_generation(testdir: "Testdir"):
         assert (temp_path / "features.rst").read_text() == dedent(
             # language=rst
             """\
-                Features
-                ========
+            Features
+            ========
 
-                .. NOTE:: This page is generated from feature files under ``features/``.
-                          Manual edits should be limited to this introduction block.
-                          The navigation tree below is regenerated automatically.
+            .. NOTE:: This page is generated from feature files under ``features/``.
+                      Manual edits should be limited to this introduction block.
+                      The navigation tree below is regenerated automatically.
 
-                .. BEGIN AUTO-GENERATED FEATURES TREE
-                .. toctree::
-                    :maxdepth: 2
+            .. BEGIN AUTO-GENERATED FEATURES TREE
 
-                    simple_markdown.gherkin
-                    simple
+            Tutorial
+            --------
+            .. toctree::
+                :maxdepth: 2
 
-                extra
-                -----
-                .. toctree::
-                    :maxdepth: 2
+                01 Tutorial/01 Launch
 
-                    extra/other_simple
-                .. END AUTO-GENERATED FEATURES TREE
+            Feature
+            -------
+            .. toctree::
+                :maxdepth: 2
+
+                02 Feature/01 Basics
+                02 Feature/02 Markdown parsing.feature
+
+            Load
+            ~~~~
+            .. toctree::
+                :maxdepth: 2
+
+                02 Feature/03 Load/01 Autoload
+
+            .. END AUTO-GENERATED FEATURES TREE
             """,
         )
 
-        assert (temp_path / "simple_markdown.gherkin.rst").read_text() == dedent(
-            # language=rst
-            """\
-                Feature: Simple gherkin markdown
-                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        launch_page = (temp_path / "01 Tutorial" / "01 Launch.rst").read_text()
+        basics_page = (temp_path / "02 Feature" / "01 Basics.rst").read_text()
 
-                Some feature description
-
-                Scenario:
-                ^^^^^^^^^
-
-                -  Given some step
-            """,
-        )
-
-        assert (temp_path / "simple.rst").read_text() == dedent(
-            # language=rst
-            """\
-                simple
-                ------
-
-                .. include:: ../features/simple.gherkin
-                   :code: gherkin
-            """,
-        )
-
-        assert (temp_path / "extra" / "other_simple.rst").read_text() == dedent(
-            # language=rst
-            """\
-                other_simple
-                ############
-
-                .. include:: ../../features/extra/other_simple.gherkin
-                   :code: gherkin
-            """,
-        )
+        assert launch_page.startswith("Launch\n")
+        assert ".. include:: ../../features/01 Tutorial/01 Launch.feature" in launch_page
+        assert basics_page.startswith("Basics\n")
+        assert ".. include:: ../../features/02 Feature/01 Basics.feature" in basics_page
+        assert (temp_path / "02 Feature" / "02 Markdown parsing.feature.rst").exists()
 
 
-@pytest.mark.skipif(
-    not (
-        all(
-            [
-                sys.version_info.major == 3,
-                sys.version_info.minor == 13,
-                sys.platform.startswith("linux"),
-            ]
-        )
-    ),
-    reason="Verify only on the latest python version and linux environment",
-)
-def test_doc_generation_preserves_manual_sections(testdir: "Testdir"):
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_preserves_manual_sections_and_positions(testdir: "Testdir") -> None:
     from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
-    (features_path / "simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do nothing
-        """,
-    )
+    create_ordered_feature_tree(features_path)
 
     output_path = Path(testdir.tmpdir) / "output"
     output_path.mkdir()
@@ -172,6 +167,7 @@ def test_doc_generation_preserves_manual_sections(testdir: "Testdir"):
             Manual suffix line.
             """,
         ),
+        encoding="utf-8",
     )
 
     with TemporaryDirectory() as temp_dirname:
@@ -183,32 +179,23 @@ def test_doc_generation_preserves_manual_sections(testdir: "Testdir"):
         assert "Manual introduction line." in rendered_index
         assert "Manual suffix line." in rendered_index
         assert "Legacy section" not in rendered_index
-        assert "simple" in rendered_index
-
-
-@pytest.mark.skipif(
-    not (
-        all(
-            [
-                sys.version_info.major == 3,
-                sys.version_info.minor == 13,
-                sys.platform.startswith("linux"),
-            ]
+        assert_in_order(
+            rendered_index,
+            "Manual introduction line.",
+            AUTO_GENERATED_START_MARKER,
+            "Tutorial",
+            AUTO_GENERATED_END_MARKER,
+            "Manual suffix line.",
         )
-    ),
-    reason="Verify only on the latest python version and linux environment",
-)
-def test_doc_generation_without_markers_preserves_intro_prefix(testdir: "Testdir"):
+
+
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_without_markers_preserves_intro_prefix_for_ordered_headings(testdir: "Testdir") -> None:
     from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
-    (features_path / "simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do nothing
-        """,
-    )
+    create_ordered_feature_tree(features_path)
 
     output_path = Path(testdir.tmpdir) / "output"
     output_path.mkdir()
@@ -221,14 +208,22 @@ def test_doc_generation_without_markers_preserves_intro_prefix(testdir: "Testdir
 
             Manual intro without markers.
 
+            Feature
+            -------
+            .. toctree::
+                :maxdepth: 2
+
+                features/legacy-feature
+
             Tutorial
             --------
             .. toctree::
                 :maxdepth: 2
 
-                features/legacy
+                features/legacy-tutorial
             """,
         ),
+        encoding="utf-8",
     )
 
     with TemporaryDirectory() as temp_dirname:
@@ -238,33 +233,18 @@ def test_doc_generation_without_markers_preserves_intro_prefix(testdir: "Testdir
         rendered_index = (temp_path / "features.rst").read_text()
 
         assert "Manual intro without markers." in rendered_index
-        assert "features/legacy" not in rendered_index
-        assert "simple" in rendered_index
+        assert "features/legacy-feature" not in rendered_index
+        assert "features/legacy-tutorial" not in rendered_index
+        assert_in_order(rendered_index, "Manual intro without markers.", "Tutorial", "Feature", "Load")
 
 
-@pytest.mark.skipif(
-    not (
-        all(
-            [
-                sys.version_info.major == 3,
-                sys.version_info.minor == 13,
-                sys.platform.startswith("linux"),
-            ]
-        )
-    ),
-    reason="Verify only on the latest python version and linux environment",
-)
-def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "Testdir"):
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "Testdir") -> None:
     from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
-    (features_path / "simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do nothing
-        """,
-    )
+    create_ordered_feature_tree(features_path)
 
     output_path = Path(testdir.tmpdir) / "output"
     output_path.mkdir()
@@ -287,6 +267,7 @@ def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "
             .. END AUTO-GENERATED FEATURES TREE
             """,
         ),
+        encoding="utf-8",
     )
 
     with TemporaryDirectory() as temp_first, TemporaryDirectory() as temp_second:
@@ -297,35 +278,71 @@ def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "
         (output_path / "features.rst").write_text((first_path / "features.rst").read_text(), encoding="utf-8")
         convert(features_path.resolve(), output_path.resolve(), second_path)
 
-        first_render = (first_path / "features.rst").read_text()
-        second_render = (second_path / "features.rst").read_text()
-
-        assert first_render == second_render
+        assert (first_path / "features.rst").read_text() == (second_path / "features.rst").read_text()
 
 
-@pytest.mark.skipif(
-    not (
-        all(
-            [
-                sys.version_info.major == 3,
-                sys.version_info.minor == 13,
-                sys.platform.startswith("linux"),
-            ]
-        )
-    ),
-    reason="Verify only on the latest python version and linux environment",
-)
-def test_doc_generation_cli_fails_when_generated_docs_are_stale(testdir: "Testdir", monkeypatch: pytest.MonkeyPatch):
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_rejects_missing_ordering_prefix(testdir: "Testdir") -> None:
+    from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert
+
+    features_path = Path(testdir.tmpdir) / "features"
+    features_path.mkdir()
+    write_feature_source(
+        features_path / "01 Tutorial" / "Launch.feature",
+        # language=gherkin
+        """\
+        Feature: Launch tutorial
+        """,
+    )
+
+    output_path = Path(testdir.tmpdir) / "output"
+    output_path.mkdir()
+
+    with TemporaryDirectory() as temp_dirname:
+        temp_path = Path(temp_dirname)
+        with pytest.raises(OrderingValidationError, match="missing_ordering_prefix"):
+            convert(features_path.resolve(), output_path.resolve(), temp_path)
+
+
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_rejects_duplicate_ordering_prefix(testdir: "Testdir") -> None:
+    from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert
+
+    features_path = Path(testdir.tmpdir) / "features"
+    features_path.mkdir()
+    write_feature_source(
+        features_path / "01 Tutorial" / "01 Launch.feature",
+        # language=gherkin
+        """\
+        Feature: Launch tutorial
+        """,
+    )
+    write_feature_source(
+        features_path / "01 Tutorial" / "01 Install.feature",
+        # language=gherkin
+        """\
+        Feature: Install tutorial
+        """,
+    )
+
+    output_path = Path(testdir.tmpdir) / "output"
+    output_path.mkdir()
+
+    with TemporaryDirectory() as temp_dirname:
+        temp_path = Path(temp_dirname)
+        with pytest.raises(OrderingValidationError, match="duplicate_ordering_prefix"):
+            convert(features_path.resolve(), output_path.resolve(), temp_path)
+
+
+@LATEST_PY313_LINUX_ONLY
+def test_doc_generation_cli_fails_when_generated_docs_are_stale(
+    testdir: "Testdir", monkeypatch: pytest.MonkeyPatch
+) -> None:
     from pytest_bdd.script.bdd_tree_to_rst import main
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
-    (features_path / "simple.gherkin").write_text(
-        # language=gherkin
-        """
-        Feature: Do nothing
-        """,
-    )
+    create_ordered_feature_tree(features_path)
 
     output_path = Path(testdir.tmpdir) / "output"
     output_path.mkdir()
@@ -344,6 +361,7 @@ def test_doc_generation_cli_fails_when_generated_docs_are_stale(testdir: "Testdi
             .. END AUTO-GENERATED FEATURES TREE
             """,
         ),
+        encoding="utf-8",
     )
 
     monkeypatch.setattr(

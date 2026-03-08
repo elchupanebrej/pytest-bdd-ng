@@ -7,18 +7,17 @@ Options:
     --snapshot=<snapshot_path> Path to save snapshot on found diff between old and new documentation
 """
 
+import re
 import sys
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
 from filecmp import dircmp
 from functools import lru_cache, reduce
-from itertools import chain, zip_longest
-from operator import methodcaller, truediv
+from operator import truediv
 from os.path import commonpath
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import cast
 
 import pypandoc  # type: ignore[import-not-found, import-untyped]
@@ -31,17 +30,7 @@ from pytest_bdd.compatibility.importlib.resources import files
 SECTION_SYMBOLS = "-~^\"$%&'()*+,./:;<=>?@[\\]^_`{|}#!="
 AUTO_GENERATED_START_MARKER = ".. BEGIN AUTO-GENERATED FEATURES TREE"
 AUTO_GENERATED_END_MARKER = ".. END AUTO-GENERATED FEATURES TREE"
-DEFAULT_INDEX_PREFIX = dedent(
-    # language=rst
-    """\
-    Features
-    ========
-
-    .. NOTE:: This page is generated from feature files under ``features/``.
-              Manual edits should be limited to this introduction block.
-              The navigation tree below is regenerated automatically.
-    """,
-).rstrip("\n")
+ORDERING_PREFIX_PATTERN = re.compile(r"^(?P<prefix>\d+)[ _-]+(?P<label>.+)$")
 TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa: S701
 
 
@@ -50,6 +39,29 @@ class ToctreeSection:
     heading: str
     depth: int
     entries: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OrderedSource:
+    path: Path
+    kind: str
+    ordering_prefix: int
+    display_name: str
+
+
+class OrderingValidationError(ValueError):
+    def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str):
+        self.error_code = error_code
+        self.scope_path = scope_path
+        self.source_path = source_path
+        self.message = message
+        super().__init__(str(self))
+
+    def __str__(self) -> str:
+        return (
+            f"{self.error_code}: {self.message} "
+            f"(scope={self.scope_path.as_posix()}, source={self.source_path.as_posix()})"
+        )
 
 
 @lru_cache(maxsize=8)
@@ -72,7 +84,7 @@ def extract_existing_intro(
     top_level_headings: Sequence[str],
 ) -> tuple[str, str]:
     if not existing_index_file.exists():
-        return DEFAULT_INDEX_PREFIX, ""
+        return "", ""
 
     existing_content = existing_index_file.read_text(encoding="utf-8")
 
@@ -107,41 +119,133 @@ def render_toctree_section(section: ToctreeSection) -> str:
     return rendered_section.lstrip("\n").rstrip("\n")
 
 
+def render_index_document(intro_block: str, sections_content: str, suffix_block: str) -> str:
+    template = load_template("features_index.rst.jinja2")
+    rendered_index = cast(
+        str,
+        template.render(
+            intro_block=intro_block,
+            start_marker=AUTO_GENERATED_START_MARKER,
+            end_marker=AUTO_GENERATED_END_MARKER,
+            sections_content=sections_content,
+            suffix_block=suffix_block,
+        ),
+    )
+    return rendered_index.rstrip("\n") + "\n"
+
+
 def render_generated_index(
     sections: Sequence[ToctreeSection],
     existing_index_file: Path,
 ) -> str:
     top_level_headings = [section.heading for section in sections if section.depth == 1 and section.heading]
     preserved_intro, preserved_suffix = extract_existing_intro(existing_index_file, top_level_headings)
-
     sections_content = "\n\n".join(map(render_toctree_section, sections)).rstrip("\n")
-
-    content = "\n".join(
-        [
-            preserved_intro.rstrip("\n"),
-            "",
-            AUTO_GENERATED_START_MARKER,
-            "",
-            sections_content,
-            "",
-            AUTO_GENERATED_END_MARKER,
-        ],
+    return render_index_document(
+        preserved_intro.rstrip("\n"), sections_content, preserved_suffix.lstrip("\n").rstrip("\n")
     )
 
-    if preserved_suffix:
-        stripped_suffix = preserved_suffix.lstrip("\n").rstrip("\n")
-        content = f"{content}\n\n{stripped_suffix}"
 
-    return content.rstrip("\n") + "\n"
+def strip_ordering_prefix(name: str) -> str:
+    match = ORDERING_PREFIX_PATTERN.match(name)
+    if match is None:
+        return name
+    return match.group("label").strip()
 
 
-def render_include_page(rel_path: Path, include_path: str, code_type: str) -> str:
+def source_display_name(path: Path, kind: str) -> str:
+    if kind == "section":
+        return strip_ordering_prefix(path.name)
+    if kind == "markdown":
+        return strip_ordering_prefix(path.with_suffix("").stem)
+    return strip_ordering_prefix(path.stem)
+
+
+def classify_source_path(path: Path) -> str:
+    if path.is_dir():
+        return "section"
+    if path.name.endswith((".gherkin.md", ".feature.md")):
+        return "markdown"
+    if path.name.endswith(".bdd.yaml"):
+        return "yaml"
+    if path.name.endswith((".gherkin", ".feature")):
+        return "gherkin"
+    return "ignore"
+
+
+def format_scope_path(scope_rel_path: Path) -> Path:
+    if scope_rel_path.as_posix() == ".":
+        return Path(".")
+    return scope_rel_path
+
+
+def parse_ordered_source(path: Path, kind: str, scope_rel_path: Path) -> OrderedSource:
+    match = ORDERING_PREFIX_PATTERN.match(path.name)
+    if match is None:
+        error_code = "missing_ordering_prefix"
+        raise OrderingValidationError(
+            error_code,
+            format_scope_path(scope_rel_path),
+            path,
+            f"sibling entry '{path.name}' is missing a numeric ordering prefix",
+        )
+    return OrderedSource(
+        path=path,
+        kind=kind,
+        ordering_prefix=int(match.group("prefix")),
+        display_name=source_display_name(path, kind),
+    )
+
+
+def sort_ordered_sources(sources: Sequence[OrderedSource], scope_rel_path: Path) -> list[OrderedSource]:
+    seen_prefixes: dict[int, OrderedSource] = {}
+    for source in sources:
+        if source.ordering_prefix in seen_prefixes:
+            previous = seen_prefixes[source.ordering_prefix]
+            error_code = "duplicate_ordering_prefix"
+            raise OrderingValidationError(
+                error_code,
+                format_scope_path(scope_rel_path),
+                source.path,
+                (
+                    f"sibling entries '{previous.path.name}' and '{source.path.name}' "
+                    f"share numeric ordering prefix {source.ordering_prefix}"
+                ),
+            )
+        seen_prefixes[source.ordering_prefix] = source
+    return sorted(sources, key=lambda source: source.ordering_prefix)
+
+
+def collect_ordered_sources(
+    processable_path: Path, features_path: Path
+) -> tuple[list[OrderedSource], list[OrderedSource]]:
+    processable_rel_path = processable_path.relative_to(features_path)
+    ordered_file_sources: list[OrderedSource] = []
+    ordered_dir_sources: list[OrderedSource] = []
+
+    for child_path in processable_path.iterdir():
+        kind = classify_source_path(child_path)
+        if kind == "ignore":
+            continue
+        ordered_source = parse_ordered_source(child_path, kind, processable_rel_path)
+        if kind == "section":
+            ordered_dir_sources.append(ordered_source)
+        else:
+            ordered_file_sources.append(ordered_source)
+
+    return (
+        sort_ordered_sources(ordered_file_sources, processable_rel_path),
+        sort_ordered_sources(ordered_dir_sources, processable_rel_path),
+    )
+
+
+def render_include_page(title: str, rel_path: Path, include_path: str, code_type: str) -> str:
     template = load_template("feature_include.rst.jinja2")
     rendered_include = cast(
         str,
         template.render(
-            title=rel_path.stem,
-            underline=SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(rel_path.stem),
+            title=title,
+            underline=SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(title),
             include_path=include_path,
             code_type=code_type,
         ),
@@ -168,61 +272,39 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
         processable_path = processable_paths.popleft()
 
         processable_rel_path = processable_path.relative_to(features_path)
-
-        gherkin_file_paths = [
-            *processable_path.glob("*.gherkin"),
-            *processable_path.glob("*.feature"),
-        ]
-        markdown_gherkin_file_paths = [
-            *processable_path.glob("*.gherkin.md"),
-            *processable_path.glob("*.feature.md"),
-        ]
-        # TODO rework file extension
-        struct_bdd_file_paths = processable_path.glob("*.bdd.yaml")
-
-        sub_processable_paths = list(filter(methodcaller("is_dir"), processable_path.iterdir()))
+        ordered_file_sources, ordered_dir_sources = collect_ordered_sources(processable_path, features_path)
 
         toctree_entries: list[str] = []
 
-        for path in markdown_gherkin_file_paths:
+        for ordered_source in ordered_file_sources:
+            path = ordered_source.path
             rel_path = path.relative_to(features_path)
             offset = len(rel_path.parts)
-
             abs_path = temp_path / rel_path
             abs_path.parent.mkdir(exist_ok=True, parents=True)
-
-            rst_content = pypandoc.convert_text(
-                (features_path / rel_path).read_text(),
-                "rst",
-                format="gfm",
-                extra_args=[f"--shift-heading-level-by={offset + 1}", "--eol=lf"],
-            )
-
-            abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8", newline="\n")
-
-            toctree_path = path.relative_to(features_path).with_suffix("").as_posix()
-            toctree_entries.append(toctree_path)
-
-        for path, codetype in chain(
-            zip_longest(gherkin_file_paths, [], fillvalue="gherkin"),
-            zip_longest(struct_bdd_file_paths, [], fillvalue="yaml"),
-        ):
-            rel_path = cast(Path, path).relative_to(features_path)
-            abs_path = temp_path / rel_path
-            abs_path.parent.mkdir(exist_ok=True, parents=True)
-
-            abs_path.with_suffix(".rst").write_text(
-                render_include_page(
-                    rel_path,
-                    (
-                        reduce(truediv, [".."] * len(rel_path.parts), Path())
-                        / (output_path_rel_to_features_path / rel_path)
-                    ).as_posix(),
-                    codetype,
-                ),
-                encoding="utf-8",
-                newline="\n",
-            )
+            if ordered_source.kind == "markdown":
+                rst_content = pypandoc.convert_text(
+                    (features_path / rel_path).read_text(),
+                    "rst",
+                    format="gfm",
+                    extra_args=[f"--shift-heading-level-by={offset + 1}", "--eol=lf"],
+                )
+                abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8", newline="\n")
+            else:
+                codetype = "yaml" if ordered_source.kind == "yaml" else "gherkin"
+                abs_path.with_suffix(".rst").write_text(
+                    render_include_page(
+                        ordered_source.display_name,
+                        rel_path,
+                        (
+                            reduce(truediv, [".."] * len(rel_path.parts), Path())
+                            / (output_path_rel_to_features_path / rel_path)
+                        ).as_posix(),
+                        codetype,
+                    ),
+                    encoding="utf-8",
+                    newline="\n",
+                )
 
             toctree_path = rel_path.with_suffix("").as_posix()
             toctree_entries.append(toctree_path)
@@ -230,13 +312,13 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
         if toctree_entries:
             sections.append(
                 ToctreeSection(
-                    heading=processable_rel_path.name,
+                    heading=strip_ordering_prefix(processable_rel_path.name),
                     depth=len(processable_rel_path.parts),
                     entries=tuple(toctree_entries),
                 ),
             )
 
-        processable_paths.extendleft(sub_processable_paths)
+        processable_paths.extendleft(source.path for source in reversed(ordered_dir_sources))
 
     index_file.write_text(render_generated_index(sections, existing_index_file), newline="\n")
 
@@ -253,7 +335,10 @@ def main():  # pragma: no cover
 
     with TemporaryDirectory() as temp_dirname:
         temp_dir = Path(temp_dirname)
-        convert(features_dir, output_dir, temp_dir)
+        try:
+            convert(features_dir, output_dir, temp_dir)
+        except OrderingValidationError as exc:
+            sys.exit(str(exc))
 
         if diff := diff_folders(dircmp(str(output_dir), temp_dir)):
             if snapshot_dir is not None:

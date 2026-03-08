@@ -9,6 +9,7 @@ def test_template_assets_are_available_through_package_resources() -> None:
     template_package = files("pytest_bdd.template")
 
     assert template_package.joinpath("test.py.jinja2").is_file()
+    assert template_package.joinpath("features_index.rst.jinja2").is_file()
     assert template_package.joinpath("features_section.rst.jinja2").is_file()
     assert template_package.joinpath("feature_include.rst.jinja2").is_file()
 
@@ -17,6 +18,7 @@ def test_setup_cfg_package_data_lists_jinja2_assets() -> None:
     setup_cfg = (PROJECT_ROOT / "setup.cfg").read_text(encoding="utf-8")
 
     assert "test.py.jinja2" in setup_cfg
+    assert "features_index.rst.jinja2" in setup_cfg
     assert "features_section.rst.jinja2" in setup_cfg
     assert "feature_include.rst.jinja2" in setup_cfg
     assert "test.py.mak" not in setup_cfg

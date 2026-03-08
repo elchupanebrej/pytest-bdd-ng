@@ -47,6 +47,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-08
 - In-memory runtime context (`Run`/`ScenarioRun`) + file artifacts (`.ndjson`, governance JSON) (009-execution-context-reporting)
 - Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `gherkin`, `jsonschema` (009-execution-context-reporting)
 - In-memory runtime state in `Run` / `ScenarioRun` plus `pytest.config.stash`; NDJSON and governance artifacts on disk (009-execution-context-reporting)
+- Python 3.10-3.14 + `pytest`, `Jinja2`, `pypandoc`, `pathlib2`, `tox`, `pre-commit` (010-order-rst-docs)
+- Filesystem-only artifacts under `features/`, `docs/features/`, and generated temporary output directories (010-order-rst-docs)
 
 ## Project Structure
 
@@ -72,6 +74,7 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 010-order-rst-docs: Added Python 3.10-3.14 + `pytest`, `Jinja2`, `pypandoc`, `pathlib2`, `tox`, `pre-commit`
 - 009-execution-context-reporting: Added Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `gherkin`, `jsonschema`
 - 009-execution-context-reporting: Added Python 3.10-3.14 + `pytest`, `pluggy`, `cucumber-messages`, `jsonschema`
 - 009-execution-context-reporting: Added Python 3.10-3.14 + `pytest>=7`, `pluggy`, `cucumber-messages`, `jsonschema`, existing `message_converter`
