@@ -12,8 +12,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | None]] = {
-    # pytest 6.x
-    "625": ((3, 6), (3, 10)),
     # pytest 7.x
     "70": ((3, 7), (3, 11)),
     "71": ((3, 7), (3, 11)),
@@ -33,7 +31,7 @@ PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | 
 }
 
 MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 10)
-MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (6, 2, 5)
+MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (7, 0, 0)
 
 REASON_COMPATIBLE = "compatible"
 REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST = "python_not_supported_by_pytest"
@@ -151,10 +149,27 @@ def build_matrix(
     return entries
 
 
+def _extract_brace_factor_values(*, text: str, prefix: str) -> set[str]:
+    factors: set[str] = set()
+    for raw_group in re.findall(rf"{prefix}\{{([^}}]+)\}}", text):
+        for raw_factor in raw_group.split(","):
+            factor = raw_factor.strip()
+            if factor.startswith("py") and factor[2:].isdigit():
+                factor = factor[2:]
+            if factor == "latest" or factor.isdigit():
+                factors.add(factor)
+    return factors
+
+
 def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[str]]:
     text = tox_ini_path.read_text(encoding="utf-8")
-    python_factors = sorted(set(re.findall(r"py(?:py)?(\d{2,3})", text)))
-    pytest_factors = sorted(set(re.findall(r"pytest(latest|\d{2,3})", text)))
+    python_factors = sorted(
+        set(re.findall(r"py(?:py)?(\d{2,3})", text)) | _extract_brace_factor_values(text=text, prefix="py")
+    )
+    pytest_factors = sorted(
+        set(re.findall(r"pytest(latest|\d{2,3})", text))
+        | _extract_brace_factor_values(text=text, prefix="pytest")
+    )
     return python_factors, pytest_factors
 
 

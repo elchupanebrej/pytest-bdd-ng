@@ -6,7 +6,6 @@ from operator import ge
 from pathlib import Path
 from typing import TYPE_CHECKING, Union, cast
 
-import py
 import pytest
 from _pytest.compat import NotSetType
 from _pytest.config import Config, ExitCode, PytestPluginManager
@@ -26,9 +25,6 @@ from _pytest.terminal import TerminalReporter
 from pytest_bdd.util.packaging import compare_distribution_version
 
 __all__ = [
-    "PYTEST7",
-    "PYTEST61",
-    "PYTEST62",
     "PYTEST81",
     "PYTEST83",
     "CallInfo",
@@ -66,29 +62,18 @@ def is_pytest_version_greater_or_equal(version: str):
     return compare_distribution_version("pytest", version, ge)
 
 
-PYTEST61, PYTEST62, PYTEST7, PYTEST8, PYTEST81, PYTEST83 = map(
+PYTEST8, PYTEST81, PYTEST83 = map(
     is_pytest_version_greater_or_equal,
     [
-        "6.1",
-        "6.2",
-        "7.0",
         "8.0",
         "8.1",
         "8.3",
     ],
 )
-
-
-if PYTEST7:
-    from pytest import Testdir  # noqa: PT013
-else:
-    from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
-
-if PYTEST62:
-    from pytest import FixtureRequest  # noqa: PT013
-else:
-    from _pytest.fixtures import FixtureRequest
 # endregion
+
+FixtureRequest = pytest.FixtureRequest
+Testdir = pytest.Testdir
 
 if TYPE_CHECKING:  # pragma: no cover
     from _pytest.nodes import Item as BaseItem
@@ -103,14 +88,7 @@ else:
 class Module(pytest.Module):
     @classmethod
     def build(cls, parent, file_path):
-        if hasattr(cls, "from_parent"):
-            collector = cls.from_parent(
-                parent,
-                **({"path": Path(file_path)} if PYTEST7 else {"fspath": py.path.local(file_path)}),  # noqa: PTH124
-            )
-        else:
-            collector = cls(parent=parent, fspath=py.path.local(file_path))  # noqa: PTH124
-        return collector
+        return cls.from_parent(parent, path=Path(file_path))
 
     def get_path(self):
         return getattr(self, "path", Path(self.fspath))
@@ -137,14 +115,12 @@ def assert_outcomes(
 
 
 def get_config_root_path(config: Config) -> Path:
-    return Path(getattr(cast(Config, config), "rootpath" if PYTEST61 else "rootdir"))
+    return Path(cast(Config, config).rootpath)
 
 
 def fail(reason, *, pytrace=True):
     __tracebackhide__ = True
-    if PYTEST7:
-        return pytest.fail(reason, pytrace=pytrace)
-    return pytest.fail(msg=reason, pytrace=pytrace)
+    return pytest.fail(reason, pytrace=pytrace)
 
 
 def is_set(obj):

@@ -11,11 +11,12 @@ from _pytest.mark import Mark
 from decopatch import function_decorator
 from makefun import wraps
 
-from pytest_bdd.compatibility.pytest import PYTEST7, FixtureRequest
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 
 if TYPE_CHECKING:
     from decopatch.main import _Decorator
+
+    from pytest_bdd.compatibility.pytest import FixtureRequest
 
 expression_count_gen = count()
 
@@ -55,7 +56,7 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
                     tag.name,
                     args=(),
                     kwargs={},
-                    **({"_ispytest": True} if PYTEST7 else {}),  # type:ignore[arg-type]
+                    _ispytest=True,  # type:ignore[arg-type]
                 )
                 for tag in request.getfixturevalue("pickle").tags
             ),

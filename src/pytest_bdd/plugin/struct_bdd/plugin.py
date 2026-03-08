@@ -8,7 +8,7 @@ from typing import ClassVar
 
 import pytest
 
-from pytest_bdd.compatibility.pytest import PYTEST7, Config, Module
+from pytest_bdd.compatibility.pytest import Config, Module
 from pytest_bdd.mimetype import Mimetype, struct_bdd_suffixes
 
 from .model import StepPrototype
@@ -96,22 +96,10 @@ class StructBDDPlugin:
                 if isinstance(member, StepPrototype) and member_name.startswith("test_"):
                     setattr(res.module, member_name, member.as_test(res.module.__file__))
 
-    if PYTEST7:
-
-        @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(
-            self,
-            parent,  # noqa: ARG002 hookspec
-            module_path,  # noqa: ARG002 hookspec
-        ):
-            yield from self._pytest_pycollect_makemodule()
-
-    else:
-
-        @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(  # type:ignore[misc]
-            self,
-            path,  # noqa: ARG002 hookspec
-            parent,  # noqa: ARG002 hookspec
-        ):
-            yield from self._pytest_pycollect_makemodule()
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_pycollect_makemodule(
+        self,
+        parent,  # noqa: ARG002 hookspec
+        module_path,  # noqa: ARG002 hookspec
+    ):
+        yield from self._pytest_pycollect_makemodule()

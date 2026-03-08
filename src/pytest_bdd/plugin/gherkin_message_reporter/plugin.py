@@ -69,7 +69,6 @@ from filelock import FileLock
 
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
-    PYTEST7,
     Config,
     FixtureDef,
     FixtureLookupError,
@@ -758,9 +757,7 @@ class GherkinMessageReporter:
                 parsed_expression = GherkinTagExpression.parse(expression)
                 scenario_tags = []
                 for tag in pickle.tags:
-                    mark = Mark(tag.name, args=(), kwargs={})
-                    if PYTEST7:
-                        mark._ispytest = True
+                    mark = Mark(tag.name, args=(), kwargs={}, _ispytest=True)
                     scenario_tags.append(mark)
                 return bool(parsed_expression.evaluate(scenario_tags))
         except Exception:  # noqa: BLE001

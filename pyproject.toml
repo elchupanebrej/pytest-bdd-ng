@@ -68,7 +68,7 @@ dependencies = [
   "pathvalidate",
   "py",
   "pydantic>=2.0.3",
-  "pytest>=6.2.5",
+  "pytest>=7.0.0",
   "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
 ]

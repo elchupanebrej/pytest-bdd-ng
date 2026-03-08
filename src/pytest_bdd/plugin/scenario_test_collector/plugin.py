@@ -15,7 +15,6 @@ from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[att
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
-    PYTEST7,
     Collector,
     Config,
     Mark,
@@ -117,24 +116,7 @@ class _ModernTestCollector:
         return _pytest_collect_file(parent=parent, file_path=file_path)
 
 
-class _LegacyTestCollector:
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(  # type:ignore[misc]
-        self,
-        path,  # noqa: ARG002 hookimpl
-        parent,  # noqa: ARG002 hookimpl
-    ):
-        yield from _pytest_pycollect_makemodule()
-
-    @pytest.hookimpl
-    def pytest_collect_file(self, parent: Collector, path):  # type: ignore[misc]
-        return _pytest_collect_file(parent=parent, file_path=path)
-
-
-BaseCollector: type = _ModernTestCollector if PYTEST7 else _LegacyTestCollector
-
-
-class ScenarioTestCollector(BaseCollector):
+class ScenarioTestCollector(_ModernTestCollector):
     @pytest.hookimpl(tryfirst=True)
     def pytest_plugin_registered(
         self,

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Protocol, Union, cast, runtime_checkable
 
-from pytest_bdd.compatibility.pytest import PYTEST62, Parser
+from pytest_bdd.compatibility.pytest import Parser
 
 from .const import CucumberJson
 from .plugin import LogBDDCucumberJSON
@@ -37,7 +37,7 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addini(
         str(CucumberJson.Ini.PATH_OPTION),
         default="",
-        type="string" if PYTEST62 else None,
+        type="string",
         help=help_,
     )
 
