@@ -110,6 +110,7 @@ full = [
   "pytest-bdd-ng[doc-gen]",
   "pytest-bdd-ng[struct-bdd]",
   "pytest-bdd-ng[test]",
+  "pytest-bdd-ng[test-playwright]",
   "pytest-bdd-ng[testtypes]"
 ]
 struct-bdd = [
@@ -131,6 +132,9 @@ test = [
   "python-coveralls",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
   "ruff"
+]
+test-playwright = [
+  "playwright"
 ]
 testenv = [
   "tox~=4.0",

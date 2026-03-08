@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import os
+import sys
 from collections import defaultdict
+from contextlib import contextmanager
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
 from typing import TYPE_CHECKING
 
+import pytest
 from cucumber_messages import (
     Attachment,  # type:ignore[attr-defined]
     AttachmentContentEncoding,  # type:ignore[attr-defined]
@@ -44,7 +50,55 @@ def _is_populated(value: object) -> bool:
     return True
 
 
-def _build_feature_suite(testdir: Testdir, tmp_path: Path) -> dict[str, list[object]]:
+def _resolve_playwright_browsers_path() -> Path | None:
+    configured_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+    if configured_path and configured_path != "0":
+        path = Path(configured_path)
+        return path if path.exists() else None
+
+    if os.name == "posix":
+        import pwd
+
+        user_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+        if sys.platform == "darwin":
+            path = user_home / "Library/Caches/ms-playwright"
+        else:
+            path = user_home / ".cache/ms-playwright"
+        return path if path.exists() else None
+
+    user_profile = os.environ.get("USERPROFILE")
+    if user_profile:
+        path = Path(user_profile) / "AppData/Local/ms-playwright"
+        return path if path.exists() else None
+    return None
+
+
+@contextmanager
+def _serve_directory(directory: Path):
+    class _QuietHandler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(directory), **kwargs)
+
+        def log_message(self, format: str, *args) -> None:  # noqa: A002
+            _ = (format, args)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _QuietHandler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+def _generate_feature_suite_messages(
+    testdir: Testdir,
+    tmp_path: Path,
+    *,
+    cucumber_html_path: Path | None = None,
+) -> list[object]:
     GherkinMessageReporter.parameter_type_registry.clear()
     GherkinMessageReporter.hook_registry.clear()
     GherkinMessageReporter.hook_registration_registry.clear()
@@ -186,19 +240,28 @@ def _build_feature_suite(testdir: Testdir, tmp_path: Path) -> dict[str, list[obj
     )
 
     ndjson_path = tmp_path / "messages-feature-suite.ndjson"
-    result = testdir.runpytest(
+    cli_args = [
         "-p",
         f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
         "-p",
         MESSAGE_REPORTER_PLUGIN,
         "--messages-ndjson",
         str(ndjson_path),
-    )
+    ]
+    if cucumber_html_path is not None:
+        cli_args.extend(["--cucumber-html", str(cucumber_html_path)])
+
+    result = testdir.runpytest(*cli_args)
     result.assert_outcomes(passed=2, failed=1)
 
     messages = parse_ndjson_messages(ndjson_path)
     assert messages, "Expected at least one message envelope."
     assert all(has_single_payload(message) for message in messages)
+    return messages
+
+
+def _build_feature_suite(testdir: Testdir, tmp_path: Path) -> dict[str, list[object]]:
+    messages = _generate_feature_suite_messages(testdir, tmp_path)
 
     payloads_by_kind: dict[str, list[object]] = defaultdict(list)
     for message in messages:
@@ -282,3 +345,55 @@ def test_feature_driven_message_suite_covers_optional_field_depth_and_outcomes(
         payloads_by_kind["gherkin_document"],
         ("feature", "children", "scenario", "steps", "doc_string", "content"),
     )
+
+
+@pytest.mark.playwright
+@pytest.mark.technical_nonconvertible
+def test_feature_driven_message_suite_html_report_renders_in_browser(
+    testdir: Testdir,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playwright_sync_api = pytest.importorskip("playwright.sync_api")
+    browsers_path = _resolve_playwright_browsers_path()
+    if browsers_path is None:
+        pytest.skip("Playwright browsers are unavailable; run `python -m playwright install chromium`.")
+    monkeypatch.setenv("PLAYWRIGHT_BROWSERS_PATH", str(browsers_path))
+    html_report_path = tmp_path / "messages-feature-suite.html"
+
+    _generate_feature_suite_messages(testdir, tmp_path, cucumber_html_path=html_report_path)
+
+    assert html_report_path.exists()
+    assert html_report_path.stat().st_size > 0
+
+    page_errors: list[str] = []
+    console_errors: list[str] = []
+    with _serve_directory(tmp_path) as base_url, playwright_sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        try:
+            page = browser.new_page()
+            page.on("pageerror", lambda exception: page_errors.append(str(exception)))
+            page.on(
+                "console",
+                lambda message: console_errors.append(message.text) if message.type == "error" else None,
+            )
+            page.goto(f"{base_url}/{html_report_path.name}", wait_until="load")
+            page.get_by_role("heading", name="Scenarios", exact=True).wait_for(state="visible", timeout=10000)
+            page.get_by_role("heading", name="before-test-run", exact=True).wait_for(state="visible", timeout=10000)
+            page.get_by_role("heading", name="after-test-run", exact=True).wait_for(state="visible", timeout=10000)
+            page.get_by_text("pass path", exact=True).wait_for(state="visible", timeout=10000)
+            page.get_by_text("fail path", exact=True).wait_for(state="visible", timeout=10000)
+            text_attachment_locator = page.locator("summary").filter(
+                has_text="Attached Text (text/plain;charset=UTF-8)",
+            )
+            binary_attachment_locator = page.get_by_text("Download payload.bin", exact=True)
+            text_attachment_locator.first.wait_for(state="visible", timeout=10000)
+            binary_attachment_locator.first.wait_for(state="visible", timeout=10000)
+            assert text_attachment_locator.count() >= 1
+            assert binary_attachment_locator.count() >= 1
+            assert page.locator("text=No test run hooks were executed.").count() == 0
+        finally:
+            browser.close()
+
+    assert page_errors == []
+    assert console_errors == []

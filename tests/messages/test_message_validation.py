@@ -1,17 +1,41 @@
 from __future__ import annotations
 
-from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import (  # type:ignore[attr-defined]
+    Duration,
     ExternalAttachment,  # type:ignore[attr-defined]
+    Hook,
+    HookType,
+    JavaMethod,
+    JavaStackTraceElement,
+    Location,
     Meta,
     Product,
+    SourceReference,
+    StepDefinition,
+    StepDefinitionPattern,
     Timestamp,
 )
+from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import TestRunFinished as CucumberTestRunFinished  # type:ignore[attr-defined]
+from cucumber_messages import TestRunHookFinished as CucumberTestRunHookFinished
+from cucumber_messages import TestRunHookStarted as CucumberTestRunHookStarted
 from cucumber_messages import TestRunStarted as CucumberTestRunStarted
+from cucumber_messages import TestStepFinished as CucumberTestStepFinished
+from cucumber_messages import (
+    TestStepResult as CucumberTestStepResult,
+)
+from cucumber_messages import (
+    TestStepResultStatus as CucumberTestStepResultStatus,
+)
+from cucumber_messages import TestStepStarted as CucumberTestStepStarted
 
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
-from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
+from pytest_bdd.model.message_extension import StepDefinitionPatternType
+from pytest_bdd.model.message_validation import (
+    collect_observed_capability_ids,
+    validate_envelope_against_schema,
+    validate_message_stream,
+)
 
 
 def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
@@ -116,3 +140,135 @@ def test_validate_message_stream_uses_execution_message_adapter(monkeypatch) -> 
 
     assert result.status == "pass"
     assert calls == [envelope]
+
+
+def test_validate_envelope_against_schema_uses_schema_compatible_projection() -> None:
+    envelope = Message(
+        step_definition=StepDefinition(
+            id="step-definition-1",
+            pattern=StepDefinitionPattern(
+                source="I have {count:d} cucumbers",
+                type=StepDefinitionPatternType.pytest_bdd_parse_expression,
+            ),
+            source_reference=SourceReference(
+                uri="steps.py",
+                location=Location(line=1, column=1),
+                java_method=JavaMethod(class_name="steps", method_name="step", method_parameter_types=[]),
+                java_stack_trace_element=JavaStackTraceElement(
+                    class_name="steps",
+                    file_name="steps.py",
+                    method_name="step",
+                ),
+            ),
+        )
+    )
+
+    violations = validate_envelope_against_schema(envelope)
+
+    assert violations == ()
+
+
+def test_validate_message_stream_tracks_test_step_started_by_test_step_id() -> None:
+    envelopes = [
+        Message(
+            test_step_started=CucumberTestStepStarted(
+                test_case_started_id="case-started-1",
+                test_step_id="step-1",
+                timestamp=Timestamp(seconds=1, nanos=0),
+            )
+        ),
+        Message(
+            test_step_finished=CucumberTestStepFinished(
+                test_case_started_id="case-started-1",
+                test_step_id="step-1",
+                timestamp=Timestamp(seconds=2, nanos=0),
+                test_step_result=CucumberTestStepResult(
+                    duration=Duration(seconds=0, nanos=1),
+                    status=CucumberTestStepResultStatus.passed,
+                ),
+            )
+        ),
+    ]
+
+    result = validate_message_stream(envelopes, track_coverage=False)
+
+    assert "ORPHAN_REFERENCE" not in {violation.code for violation in result.violations}
+
+
+def test_validate_message_stream_requires_declared_run_hook_definition() -> None:
+    envelopes = [
+        Message(
+            test_run_hook_started=CucumberTestRunHookStarted(
+                hook_id="pytest-bdd-ng.before-test-run",
+                id="run-hook-started-1",
+                test_run_started_id="run-started-1",
+                timestamp=Timestamp(seconds=1, nanos=0),
+            )
+        ),
+        Message(
+            test_run_hook_finished=CucumberTestRunHookFinished(
+                test_run_hook_started_id="run-hook-started-1",
+                timestamp=Timestamp(seconds=2, nanos=0),
+                result=CucumberTestStepResult(
+                    duration=Duration(seconds=0, nanos=1),
+                    status=CucumberTestStepResultStatus.passed,
+                ),
+            )
+        ),
+    ]
+
+    result = validate_message_stream(envelopes, track_coverage=False)
+
+    assert result.status == "fail"
+    assert any(
+        violation.message == "test_run_hook_started references unknown hook_id 'pytest-bdd-ng.before-test-run'."
+        for violation in result.violations
+    )
+
+
+def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
+    envelopes = [
+        Message(
+            hook=Hook(
+                id="pytest-bdd-ng.before-test-run",
+                name="before-test-run",
+                type=HookType.before_test_run,
+                source_reference=SourceReference(
+                    uri="pytest_bdd/plugin/gherkin_message_reporter/plugin.py",
+                    location=Location(line=1, column=1),
+                    java_method=JavaMethod(
+                        class_name="pytest_bdd.plugin.gherkin_message_reporter.plugin",
+                        method_name="pytest_sessionstart",
+                        method_parameter_types=[],
+                    ),
+                    java_stack_trace_element=JavaStackTraceElement(
+                        class_name="pytest_bdd.plugin.gherkin_message_reporter.plugin",
+                        file_name="plugin.py",
+                        method_name="pytest_sessionstart",
+                    ),
+                ),
+            )
+        ),
+        Message(
+            test_run_hook_started=CucumberTestRunHookStarted(
+                hook_id="pytest-bdd-ng.before-test-run",
+                id="run-hook-started-1",
+                test_run_started_id="run-started-1",
+                timestamp=Timestamp(seconds=1, nanos=0),
+            )
+        ),
+        Message(
+            test_run_hook_finished=CucumberTestRunHookFinished(
+                test_run_hook_started_id="run-hook-started-1",
+                timestamp=Timestamp(seconds=2, nanos=0),
+                result=CucumberTestStepResult(
+                    duration=Duration(seconds=0, nanos=1),
+                    status=CucumberTestStepResultStatus.passed,
+                ),
+            )
+        ),
+    ]
+
+    result = validate_message_stream(envelopes, track_coverage=False)
+
+    assert "ORPHAN_REFERENCE" not in {violation.code for violation in result.violations}

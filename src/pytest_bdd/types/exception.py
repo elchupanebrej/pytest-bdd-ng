@@ -22,6 +22,13 @@ class PytestBDDStashTypeMismatchError(PytestBDDStashError, TypeError):
         )
 
 
+class MessageSchemaValidationError(ValueError):
+    """Schema-compatible emitted message does not satisfy the canonical schema."""
+
+    def __init__(self, details: str):
+        super().__init__(f"Schema-compatible message emission failed: {details}")
+
+
 class ScenarioIsDecoratorOnlyError(Exception):
     """Scenario can be only used as decorator."""
 

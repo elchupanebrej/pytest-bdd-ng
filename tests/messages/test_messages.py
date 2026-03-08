@@ -11,6 +11,7 @@ from cucumber_messages import (  # type:ignore[attr-defined]  # type:ignore[attr
     AttachmentContentEncoding,
     GherkinDocument,
     Hook,
+    HookType,
     Meta,
     ParameterType,
     Pickle,
@@ -142,6 +143,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
 
     with ndjson_path.open(mode="r") as ndjson_file:
         ndjson_lines = ndjson_file.readlines()
+    assert "PYTEST_BDD_" not in "".join(ndjson_lines)
 
     unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
@@ -609,8 +611,11 @@ def test_hook_type_messages(testdir, tmp_path):
     unfold_messages = parse_and_unfold_messages(ndjson_lines)
 
     attachment_messages = messages = list_filter_by_type(Hook, unfold_messages)
-    oracle_attachment_messages_count = 4
+    oracle_attachment_messages_count = 6
     assert len(attachment_messages) == oracle_attachment_messages_count, f"Messages: {pformat(messages)}"
+
+    assert any(message.type == HookType.before_test_run and message.name == "before-test-run" for message in messages)
+    assert any(message.type == HookType.after_test_run and message.name == "after-test-run" for message in messages)
 
     # before_mark hook
     assert any(message.tag_expression == "tag" and message.name is None for message in attachment_messages)

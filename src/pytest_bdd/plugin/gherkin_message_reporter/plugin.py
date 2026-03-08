@@ -18,7 +18,6 @@ from threading import Event, Thread
 from time import sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-import chevron
 import pytest
 from _pytest.mark import Mark
 from attr import attrib, attrs
@@ -77,13 +76,15 @@ from pytest_bdd.compatibility.pytest import (
     is_testrun_success,
 )
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
-from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
+from pytest_bdd.model.message_converter import envelope_from_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
 from pytest_bdd.model.message_registry import EnvelopeRegistry
+from pytest_bdd.model.message_serialization import MessageSerializationProfile
 from pytest_bdd.model.message_validation import (
     default_outcome_mapping_rules,
     observed_outcome_from_envelope,
+    validate_envelope_dict_against_schema,
     validate_message_stream,
 )
 from pytest_bdd.model.scenario_run import Run
@@ -92,6 +93,7 @@ from pytest_bdd.plugin.pickle_runner.run_access import (
 )
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
+from pytest_bdd.types.exception import MessageSchemaValidationError
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.packaging import get_distribution_version
@@ -114,6 +116,8 @@ class HookRegistration:
 
 @attrs(eq=False)
 class GherkinMessageReporter:
+    BEFORE_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.before-test-run"
+    AFTER_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.after-test-run"
     config: Config = attrib()
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
@@ -129,11 +133,15 @@ class GherkinMessageReporter:
     _disabled_warning_emitted: bool
     _outcome_mapping_rules: list[OutcomeMappingRule]
     _mapping_diagnostics_count: int
+    _emitted_step_definition_ids: set[str]
+    _emitted_run_hook_definition_ids: set[str]
 
     def __attrs_post_init__(self):
         self._disabled_warning_emitted = False
         self._outcome_mapping_rules = default_outcome_mapping_rules()
         self._mapping_diagnostics_count = 0
+        self._emitted_step_definition_ids = set()
+        self._emitted_run_hook_definition_ids = set()
 
         self.is_disabled = all(
             [
@@ -276,27 +284,71 @@ class GherkinMessageReporter:
             return
         script_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.js")))
         css_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.css")))
+        icon_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "icon.url")))
         template_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "index.mustache.html")))
-
-        template_raw = template_path.read_text(encoding="utf-8")
-        template = re.sub(r"\{\{", "{{&", template_raw)  # It is not completely in agree with documentation
+        template = template_path.read_text(encoding="utf-8")
 
         with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
-            messages = ",".join(f.readlines())
+            messages = tuple(line.strip() for line in f if line.strip())
 
         html_report_path = Path(self.config.option.cucumber_html_path)
         html_report_path.parent.mkdir(parents=True, exist_ok=True)
         html_report_path.write_text(
-            chevron.render(
-                template,
-                {
-                    "css": css_path.read_text(encoding="utf-8"),
-                    "script": script_path.read_text(encoding="utf-8"),
-                    "messages": messages,
-                },
+            self._render_html_report_content(
+                template=template,
+                title="Cucumber",
+                icon=icon_path.read_text(encoding="utf-8").strip(),
+                css=css_path.read_text(encoding="utf-8"),
+                custom_css="",
+                messages=messages,
+                script=script_path.read_text(encoding="utf-8"),
+                custom_script="",
             ),
             encoding="utf-8",
         )
+
+    @staticmethod
+    def _html_formatter_template_between(template: str, begin: str | None, end: str | None) -> str:
+        begin_index = 0 if begin is None else template.index(begin) + len(begin)
+        end_index = len(template) if end is None else template.index(end)
+        return template[begin_index:end_index]
+
+    @staticmethod
+    def _escape_html_formatter_message_json(message_json: str) -> str:
+        return message_json.replace("<", "\\x3C")
+
+    @classmethod
+    def _render_html_report_content(
+        cls,
+        *,
+        template: str,
+        title: str,
+        icon: str,
+        css: str,
+        custom_css: str,
+        messages: tuple[str, ...],
+        script: str,
+        custom_script: str,
+    ) -> str:
+        escaped_messages = ",".join(cls._escape_html_formatter_message_json(message_json) for message_json in messages)
+        parts = (
+            cls._html_formatter_template_between(template, None, "{{title}}"),
+            title,
+            cls._html_formatter_template_between(template, "{{title}}", "{{icon}}"),
+            icon,
+            cls._html_formatter_template_between(template, "{{icon}}", "{{css}}"),
+            css,
+            cls._html_formatter_template_between(template, "{{css}}", "{{custom_css}}"),
+            custom_css,
+            cls._html_formatter_template_between(template, "{{custom_css}}", "{{messages}}"),
+            escaped_messages,
+            cls._html_formatter_template_between(template, "{{messages}}", "{{script}}"),
+            script,
+            cls._html_formatter_template_between(template, "{{script}}", "{{custom_script}}"),
+            custom_script,
+            cls._html_formatter_template_between(template, "{{custom_script}}", None),
+        )
+        return "".join(parts)
 
     def pytest_bdd_message(
         self,
@@ -308,12 +360,22 @@ class GherkinMessageReporter:
             message_text = "Cannot emit envelope with zero or multiple payloads"
             raise TypeError(message_text)
 
-        EnvelopeRegistry.register_envelope_in_pytest_stash(config.stash, message)
         if self.is_disabled:
+            EnvelopeRegistry.register_envelope_in_pytest_stash(config.stash, message)
             return
 
+        schema_compatible_message = ExecutionMessageAdapter.serialize_to_dict(
+            message,
+            profile=MessageSerializationProfile.schema_compatible,
+        )
+        schema_violations = validate_envelope_dict_against_schema(schema_compatible_message)
+        if schema_violations:
+            details = "; ".join(violation.message for violation in schema_violations)
+            raise MessageSchemaValidationError(details)
+
+        EnvelopeRegistry.register_envelope_in_pytest_stash(config.stash, message)
         try:
-            message_json = json.dumps(envelope_to_dict(message))
+            message_json = json.dumps(schema_compatible_message)
         except Exception as exc:
             message_text = "Message emission failed while serializing envelope"
             raise RuntimeError(message_text) from exc
@@ -346,11 +408,17 @@ class GherkinMessageReporter:
         before_test_run_hook_started_id = next(IdGenerator.from_stash(config.stash))
         run_root = Run.from_stash(config.stash)
         run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
+        self._emit_run_hook_definition(
+            config,
+            hook_id=self.BEFORE_TEST_RUN_HOOK_ID,
+            hook_type=HookType.before_test_run,
+            hook_name="before-test-run",
+        )
         self._emit_envelope(
             config,
             Message(
                 test_run_hook_started=TestRunHookStarted(
-                    hook_id="pytest-bdd-ng.before-test-run",
+                    hook_id=self.BEFORE_TEST_RUN_HOOK_ID,
                     id=before_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
@@ -400,6 +468,18 @@ class GherkinMessageReporter:
                     ci=ci,
                 )
             ),
+        )
+        self._emit_run_hook_definition(
+            cast(Config, config),
+            hook_id=self.BEFORE_TEST_RUN_HOOK_ID,
+            hook_type=HookType.before_test_run,
+            hook_name="before-test-run",
+        )
+        self._emit_run_hook_definition(
+            cast(Config, config),
+            hook_id=self.AFTER_TEST_RUN_HOOK_ID,
+            hook_type=HookType.after_test_run,
+            hook_name="after-test-run",
         )
 
     @staticmethod
@@ -471,6 +551,38 @@ class GherkinMessageReporter:
         scenario_run = run.active_scenario_run
         return scenario_run.gherkin_document, scenario_run.pickle
 
+    def _emit_run_hook_definition(self, config: Config, *, hook_id: str, hook_type: HookType, hook_name: str) -> None:
+        if hook_id in self._emitted_run_hook_definition_ids:
+            return
+        self._emitted_run_hook_definition_ids.add(hook_id)
+        hook_method = type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
+        source_file = getfile(hook_method)
+        source_line = getsourcelines(hook_method)[1]
+        self._emit_envelope(
+            config,
+            Message(
+                hook=Hook(
+                    id=hook_id,
+                    name=hook_name,
+                    type=hook_type,
+                    source_reference=SourceReference(
+                        uri=relpath(source_file, str(get_config_root_path(config))),
+                        location=Location(line=source_line, column=1),
+                        java_method=JavaMethod(
+                            class_name=type(self).__module__,
+                            method_name=hook_method.__name__,
+                            method_parameter_types=[],
+                        ),
+                        java_stack_trace_element=JavaStackTraceElement(
+                            class_name=type(self).__module__,
+                            file_name=Path(source_file).name,
+                            method_name=hook_method.__name__,
+                        ),
+                    ),
+                )
+            ),
+        )
+
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         run = Run.from_stash(request.config.stash)
         test_step_id = run.resolve_test_step_id_for_runtime_step(pickle_step=step)
@@ -490,11 +602,17 @@ class GherkinMessageReporter:
             else None
         )
         after_test_run_hook_started_id = next(IdGenerator.from_stash(cast(Config, config).stash))
+        self._emit_run_hook_definition(
+            cast(Config, config),
+            hook_id=self.AFTER_TEST_RUN_HOOK_ID,
+            hook_type=HookType.after_test_run,
+            hook_name="after-test-run",
+        )
         self._emit_envelope(
             config,
             Message(
                 test_run_hook_started=TestRunHookStarted(
-                    hook_id="pytest-bdd-ng.after-test-run",
+                    hook_id=self.AFTER_TEST_RUN_HOOK_ID,
                     id=after_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
@@ -722,9 +840,13 @@ class GherkinMessageReporter:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
+                    step_definition_message = step_definition.as_message(config=config)
+                    if step_definition_message.id in self._emitted_step_definition_ids:
+                        continue
+                    self._emitted_step_definition_ids.add(step_definition_message.id)
                     self._emit_envelope(
                         config,
-                        Message(step_definition=step_definition.as_message(config=config)),
+                        Message(step_definition=step_definition_message),
                     )
             step_registry = step_registry.parent
 

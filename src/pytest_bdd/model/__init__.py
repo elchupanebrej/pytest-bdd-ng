@@ -35,6 +35,7 @@ from .message_outcome_mapping import (
     resolve_outcome_mapping,
     validate_outcome_mappings,
 )
+from .message_serialization import MessageSerializationProfile
 from .message_status_governance import (
     CAPABILITY_STATUSES,
     LEGACY_STATUS_ALIASES,
@@ -59,6 +60,8 @@ from .message_validation import (
     collect_observed_outcomes,
     default_outcome_mapping_rules,
     observed_outcome_from_envelope,
+    validate_envelope_against_schema,
+    validate_envelope_dict_against_schema,
     validate_envelope_shape,
     validate_message_stream,
 )
@@ -108,6 +111,7 @@ __all__ = [
     "LifecycleObjectRef",
     "MappingValidationResult",
     "MessageCapability",
+    "MessageSerializationProfile",
     "MessageValidationResult",
     "MessageValidationViolation",
     "ObservedOutcome",
@@ -144,6 +148,8 @@ __all__ = [
     "resolve_outcome_mapping",
     "sync_capability_inventory",
     "validate_capability_decision",
+    "validate_envelope_against_schema",
+    "validate_envelope_dict_against_schema",
     "validate_envelope_shape",
     "validate_message_stream",
     "validate_outcome_mappings",

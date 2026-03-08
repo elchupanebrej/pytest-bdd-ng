@@ -6,6 +6,7 @@ from typing import Any
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
 from .message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
+from .message_serialization import MessageSerializationProfile, normalize_envelope_dict_for_profile
 
 
 def _resolve_registry_index(
@@ -40,9 +41,22 @@ class ExecutionProjection:
 
 class ExecutionMessageAdapter:
     @staticmethod
-    def serialize(envelope: EventEnvelope) -> EventEnvelope:
-        envelope_to_dict(envelope)
+    def serialize(
+        envelope: EventEnvelope,
+        *,
+        profile: MessageSerializationProfile = MessageSerializationProfile.extended,
+    ) -> EventEnvelope:
+        ExecutionMessageAdapter.serialize_to_dict(envelope, profile=profile)
         return envelope
+
+    @staticmethod
+    def serialize_to_dict(
+        envelope: EventEnvelope,
+        *,
+        profile: MessageSerializationProfile = MessageSerializationProfile.extended,
+    ) -> dict[str, Any]:
+        envelope_dict = envelope_to_dict(envelope)
+        return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
 
     @classmethod
     def deserialize(

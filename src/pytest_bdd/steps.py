@@ -60,7 +60,6 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # 
 )
 from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
 from ordered_set import OrderedSet
-from pydantic import ValidationError
 from typing_extensions import Protocol, runtime_checkable
 
 from pytest_bdd.compatibility.path import relpath
@@ -414,22 +413,17 @@ class StepDefinitionManager:
 
                 parser_expression_type = self.parser.type
 
-                expression_type: StepDefinitionPatternType | str
+                expression_type: StepDefinitionPatternType
                 if isinstance(parser_expression_type, StepDefinitionPatternType):
                     expression_type = parser_expression_type
-                elif isinstance(parser_expression_type, StepDefinitionPatternType):
-                    expression_type = parser_expression_type.value
                 else:
-                    expression_type = str(parser_expression_type)
+                    try:
+                        expression_type = StepDefinitionPatternType(str(parser_expression_type))
+                    except ValueError as exc:
+                        msg = f"Unsupported step definition pattern type: {parser_expression_type!r}"
+                        raise TypeError(msg) from exc
 
-                try:
-                    pattern = StepDefinitionPattern(source=str(self.parser), type=expression_type)
-                except ValidationError:
-                    # Workaround because of https://github.com/cucumber/messages/issues/160
-                    pattern = StepDefinitionPattern(
-                        source=str(self.parser),
-                        type=StepDefinitionPatternType.regular_expression,  # type:ignore[attr-defined]
-                    )
+                pattern = StepDefinitionPattern(source=str(self.parser), type=expression_type)
                 message = self.__cache[id(id_generator)] = StepDefinition(
                     id=self.id,
                     pattern=pattern,

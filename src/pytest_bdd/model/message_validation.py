@@ -27,6 +27,7 @@ from .message_outcome_mapping import (
     normalize_outcome_status,
     validate_outcome_mappings,
 )
+from .message_serialization import MessageSerializationProfile
 from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASES, normalize_capability_status
 
 
@@ -241,6 +242,42 @@ def _schema_violation(error: ValidationError) -> MessageValidationViolation:
     )
 
 
+def _strip_nones(value: object) -> object:
+    if isinstance(value, dict):
+        return {k: _strip_nones(v) for k, v in value.items() if v is not None}
+    if isinstance(value, list):
+        return [_strip_nones(v) for v in value if v is not None]
+    return value
+
+
+def validate_envelope_dict_against_schema(
+    envelope_dict: dict[str, object],
+) -> tuple[MessageValidationViolation, ...]:
+    clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
+    if _VALIDATOR_INIT_ERROR is not None:
+        return (
+            MessageValidationViolation(
+                code="SCHEMA_VIOLATION",
+                message=_VALIDATOR_INIT_ERROR,
+            ),
+        )
+    if _VALIDATOR is None:
+        return ()
+    return tuple(_schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict))
+
+
+def validate_envelope_against_schema(
+    envelope: EventEnvelope,
+    *,
+    serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
+) -> tuple[MessageValidationViolation, ...]:
+    from .execution_message_adapter import ExecutionMessageAdapter
+
+    return validate_envelope_dict_against_schema(
+        ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile)
+    )
+
+
 def validate_message_stream(  # noqa: C901
     envelopes: list[EventEnvelope],
     *,
@@ -248,14 +285,19 @@ def validate_message_stream(  # noqa: C901
     enforce_mapping_diagnostics: bool = False,
     mapping_rules: list[OutcomeMappingRule] | None = None,
     track_coverage: bool = True,
+    serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
 ) -> MessageValidationResult:
     violations: list[MessageValidationViolation] = []
 
     payload_ids: set[str] = set()
+    declared_hook_ids: set[str] = set()
+    referenced_run_hook_ids: dict[str, int] = {}
     started_test_case_ids: set[str] = set()
     started_test_step_ids: set[str] = set()
+    started_test_run_hook_ids: set[str] = set()
     test_case_started_positions: dict[str, int] = {}
     test_step_started_positions: dict[str, int] = {}
+    test_run_hook_started_positions: dict[str, int] = {}
     terminal_status_by_attempt: dict[str, str] = {}
     blocked_for_release = False
     orphan_reference_count = 0
@@ -282,31 +324,9 @@ def validate_message_stream(  # noqa: C901
         payload = projection.payload
 
         # JSONSchema Validation & Tracking
-        from .message_converter import envelope_to_dict
-
-        envelope_dict = envelope_to_dict(envelope)
-
-        # Strip None values for jsonschema to validate properly
-        def _strip_nones(d):
-            if isinstance(d, dict):
-                return {k: _strip_nones(v) for k, v in d.items() if v is not None}
-            if isinstance(d, list):
-                return [_strip_nones(v) for v in d if v is not None]
-            return d
-
-        clean_envelope_dict = _strip_nones(envelope_dict)
-
-        if _VALIDATOR_INIT_ERROR is not None:
-            violations.append(
-                MessageValidationViolation(
-                    code="SCHEMA_VIOLATION",
-                    message=_VALIDATOR_INIT_ERROR,
-                )
-            )
-        elif _VALIDATOR is not None:
-            violations.extend(
-                _schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict)
-            )
+        envelope_dict = ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile)
+        clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
+        violations.extend(validate_envelope_dict_against_schema(envelope_dict))
 
         if observed_coverage is not None:
             coverage_payload_kind = canonical_payload_kind(payload_kind)
@@ -331,6 +351,11 @@ def validate_message_stream(  # noqa: C901
             else:
                 payload_ids.add(payload_id)
 
+        if payload_kind == "hook":
+            hook_id = _payload_id(payload)
+            if hook_id is not None:
+                declared_hook_ids.add(hook_id)
+
         if payload_kind == "meta" and latest_protocol_version is not None:
             protocol_version = getattr(payload, "protocol_version", None)
             if protocol_version != latest_protocol_version:
@@ -351,10 +376,20 @@ def validate_message_stream(  # noqa: C901
                 test_case_started_positions[payload_id] = position
 
         if payload_kind == "test_step_started":
-            payload_id = _payload_id(payload)
+            payload_id = getattr(payload, "test_step_id", None)
             if payload_id is not None:
+                payload_id = str(payload_id)
                 started_test_step_ids.add(payload_id)
                 test_step_started_positions[payload_id] = position
+
+        if payload_kind == "test_run_hook_started":
+            payload_id = _payload_id(payload)
+            if payload_id is not None:
+                started_test_run_hook_ids.add(payload_id)
+                test_run_hook_started_positions[payload_id] = position
+            hook_id = getattr(payload, "hook_id", None)
+            if isinstance(hook_id, str):
+                referenced_run_hook_ids[hook_id] = position
 
         if payload_kind == "test_case_finished":
             test_case_started_id = getattr(payload, "test_case_started_id", None)
@@ -394,6 +429,30 @@ def validate_message_stream(  # noqa: C901
                         message=(
                             "test_step_finished was emitted before its matching "
                             f"test_step_started for step_id '{test_step_id}'."
+                        ),
+                    )
+                )
+
+        if payload_kind == "test_run_hook_finished":
+            test_run_hook_started_id = getattr(payload, "test_run_hook_started_id", None)
+            if test_run_hook_started_id not in started_test_run_hook_ids:
+                orphan_reference_count += 1
+                violations.append(
+                    MessageValidationViolation(
+                        code="ORPHAN_REFERENCE",
+                        message=(
+                            "test_run_hook_finished references unknown "
+                            f"test_run_hook_started_id '{test_run_hook_started_id}'."
+                        ),
+                    )
+                )
+            elif position < test_run_hook_started_positions[test_run_hook_started_id]:
+                violations.append(
+                    MessageValidationViolation(
+                        code="OUT_OF_ORDER_LIFECYCLE",
+                        message=(
+                            "test_run_hook_finished was emitted before its matching "
+                            f"test_run_hook_started for id '{test_run_hook_started_id}'."
                         ),
                     )
                 )
@@ -468,6 +527,16 @@ def validate_message_stream(  # noqa: C901
                         )
                     )
                 terminal_status_by_attempt[test_case_started_id] = current_status
+
+    for hook_id in referenced_run_hook_ids:
+        if hook_id not in declared_hook_ids:
+            orphan_reference_count += 1
+            violations.append(
+                MessageValidationViolation(
+                    code="ORPHAN_REFERENCE",
+                    message=f"test_run_hook_started references unknown hook_id '{hook_id}'.",
+                )
+            )
 
     if enforce_mapping_diagnostics:
         observed_outcomes = collect_observed_outcomes(envelopes)
