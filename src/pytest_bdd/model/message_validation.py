@@ -264,6 +264,23 @@ def validate_message_stream(  # noqa: C901
     observed_coverage = ObservedCoverage() if track_coverage else None
 
     for position, envelope in enumerate(envelopes):
+        from .execution_message_adapter import ExecutionMessageAdapter
+
+        try:
+            projection = ExecutionMessageAdapter.deserialize(envelope)
+        except TypeError as exc:
+            violations.append(
+                MessageValidationViolation(
+                    code="INVALID_PAYLOAD_SHAPE",
+                    message=str(exc),
+                )
+            )
+            continue
+
+        envelope = projection.envelope
+        payload_kind = projection.payload_kind
+        payload = projection.payload
+
         # JSONSchema Validation & Tracking
         from .message_converter import envelope_to_dict
 
@@ -291,19 +308,6 @@ def validate_message_stream(  # noqa: C901
                 _schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict)
             )
 
-        if not has_single_payload(envelope):
-            violations.append(
-                MessageValidationViolation(
-                    code="INVALID_PAYLOAD_SHAPE",
-                    message="Envelope must include exactly one payload.",
-                )
-            )
-            continue
-
-        payload_kind = get_payload_kind(envelope)
-        if payload_kind is None:
-            continue
-
         if observed_coverage is not None:
             coverage_payload_kind = canonical_payload_kind(payload_kind)
             observed_coverage.record_field(coverage_payload_kind, "")
@@ -314,7 +318,6 @@ def validate_message_stream(  # noqa: C901
                 observed_coverage,
             )
 
-        payload = getattr(envelope, payload_kind)
         payload_id = _payload_id(payload)
         if payload_id is not None:
             if payload_id in payload_ids:

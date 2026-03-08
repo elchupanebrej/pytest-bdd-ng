@@ -26,8 +26,8 @@ Scenario: Keep feature description text
       from pytest_bdd import given
 
       @given('I check feature description')
-      def step(feature):
-        assert feature.description == "My Feature description"
+      def step(gherkin_document):
+        assert gherkin_document.feature.description.strip() == "My Feature description"
 
 -  When run pytest
 

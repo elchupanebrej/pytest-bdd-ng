@@ -17,7 +17,7 @@ from cucumber_messages import (
     StepKeywordType,
 )
 
-from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.plugin import _iter_resolved_feature_scenarios
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_bdd.util.other import IdGenerator
@@ -51,7 +51,7 @@ class _HookSpy:
         assert gherkin_document.uri
 
 
-def _build_feature() -> Feature:
+def _build_gherkin_document() -> GherkinDocument:
     scenario_step = Step(
         id="ast-step-1",
         keyword="Given ",
@@ -79,22 +79,27 @@ def _build_feature() -> Feature:
         tags=[],
     )
 
-    return Feature(
-        gherkin_document=GherkinDocument(comments=[], feature=feature_message, uri="file:features/example.feature"),
+    gherkin_document = GherkinDocument(
+        comments=[],
+        feature=feature_message,
         uri="file:features/example.feature",
-        filename="features/example.feature",
     )
+    gherkin_document._pytest_bdd_filename = "features/example.feature"
+    return gherkin_document
 
 
 def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
-    feature = _build_feature()
-    source = Source(uri=feature.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(feature, source)])
+    gherkin_document = _build_gherkin_document()
+    source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
+    locator = _DummyLocator(entries=[(gherkin_document, source)])
     hook = _HookSpy()
     config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator(), hook=hook)
 
     resolved = list(_iter_resolved_feature_scenarios(config, [locator]))
+    run = Run.from_pytest_stash(config)
+    binding = run.feature_binding_for_document(gherkin_document) if run is not None else None
 
     assert len(resolved) == 1
-    assert len(feature.pickles) == 1
-    assert hook.events[:3] == [("source", feature.uri), ("feature", feature.uri), ("pickle", feature.pickles[0].id)]
+    assert binding is not None
+    assert len(binding.pickles) == 1
+    assert hook.events[:3] == [("source", gherkin_document.uri), ("feature", gherkin_document.uri), ("pickle", binding.pickles[0].id)]

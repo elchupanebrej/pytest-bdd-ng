@@ -27,8 +27,8 @@ Scenario: Keep scenario description text
       from pytest_bdd import given
 
       @given('I check scenario description')
-      def step(scenario):
-        assert "My Scenario description" in scenario.description
+      def step(pickle):
+        assert "My Scenario description" in pickle.description
 
 -  When run pytest
 

@@ -4,11 +4,11 @@ from types import SimpleNamespace
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunStage,
-    RunStatus,
     HookPhase,
     LifecycleObjectRef,
     Run,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.run_access import build_reporting_context_snapshot

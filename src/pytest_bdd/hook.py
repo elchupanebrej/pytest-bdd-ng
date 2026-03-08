@@ -57,7 +57,7 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list:
                     kwargs={},
                     **({"_ispytest": True} if PYTEST7 else {}),  # type:ignore[arg-type]
                 )
-                for tag in request.getfixturevalue("scenario").tags
+                for tag in request.getfixturevalue("pickle").tags
             ),
         }[_kind],
     )

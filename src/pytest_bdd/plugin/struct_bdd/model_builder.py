@@ -21,8 +21,6 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Tag,
 )
 
-from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
-
 from .model import Join as StructJoin
 from .model import StepPrototype as StructStep
 from .model import Table as StructTable
@@ -58,12 +56,7 @@ class GherkinDocumentBuilder(_ASTBuilder):
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
         gherkin_document._pytest_bdd_filename = filename
-
-        return GherkinDocumentFeature(  # type: ignore[call-arg]
-            gherkin_document=gherkin_document,
-            uri=uri,
-            filename=filename,
-        )
+        return gherkin_document
 
 
 @attrs

@@ -2,49 +2,64 @@
 
 ## Scope
 
-Defines the adapter boundary between runtime execution model and cucumber message model used for reporting.
+Defines the translation boundary between run-owned execution state and cucumber message envelopes used for reporting, replay, and governance.
+
+## Allowed Inputs
+
+Runtime source objects:
+- `Run`
+- `ScenarioRun`
+- `FeatureRuntimeBinding`
+- `GherkinDocument`
+- `Source`
+- `Pickle`
+- `PickleStep`
+
+Forbidden inputs:
+- `src/pytest_bdd/model/gherkin_document/core.py::Feature`
+- any compatibility wrapper that re-materializes feature metadata outside `Run`
 
 ## Responsibilities
 
 `ExecutionMessageAdapter` MUST:
-- serialize execution-side runtime state/events into message-model payloads;
-- deserialize message-model payloads into execution-side projections;
-- preserve deterministic IDs and reference relationships required by reporting and governance.
+- serialize runtime lifecycle state to message payloads;
+- deserialize message payloads into execution projections for validation and replay workflows;
+- preserve deterministic IDs and cross-object reference links;
+- operate without constructing or depending on a `Feature` adapter.
 
 ## Conversion Rules
 
-1. Runtime path:
-   - Execution plugins own runtime objects and context mutations.
-   - Reporter requests message payloads through adapter serialization only.
+1. Serialization:
+- Must read correlation IDs from `Run.reporting_state`.
+- Must derive feature-level metadata from the active `FeatureRuntimeBinding`.
+- Must not create synthetic lifecycle IDs when state is missing.
 
-2. Reporting path:
-   - Message payloads are emitted after adapter conversion.
-   - Reporter transport (`_emit_envelope`) never mutates execution context.
+2. Deserialization:
+- Must resolve object IDs via `EnvelopeRegistry.identifiable`.
+- Must expose projection objects that can resolve linked objects from the run-owned registry.
+- Missing links produce deterministic diagnostics instead of fabricated objects.
 
-3. Deserialization path:
-   - Adapter reconstructs execution projection using context-owned registries.
-   - Missing references produce deterministic diagnostics, not synthetic objects.
+3. Validation and reporting:
+- Reporter transport receives adapter-normalized envelopes only.
+- `message_validation.py` runs envelope projections through the adapter path before semantic checks.
+- No adapter path may depend on `Feature` helper methods.
 
-## Registry & ID Contract
+## Registry and ID Contract
 
-- AST lookup source: `ExecutionContext.gherkin_registry.ast_node_by_id`
-- Message reference source: `ExecutionContext.message_reference_index`
-- Required deterministic key shape: `(worker_id, payload_kind, payload_id)`
-- Python memory identity (`id(...)`) is allowed only for in-process optimization maps and is non-canonical.
-
-## Wire Compatibility
-
-- Adapter uses existing `message_converter` for envelope wire conversion.
-- No schema mutation outside cucumber-messages contract.
+- Canonical registry source: `Run.envelope_registry_from_pytest_stash(config)`.
+- Canonical feature lookup source: `Run.feature_bindings_by_uri`.
+- ID lookup key: stringified `Identifiable.id`.
+- Transient optimization maps (for example `runtime_step_to_pickle_step_id`) are scenario-scoped only and are not canonical registry keys.
 
 ## Failure Handling
 
-- Missing context / registry entries => deterministic diagnostic record and nullable link resolution.
-- Duplicate deterministic registry key => deterministic conflict diagnostic.
-- Adapter must not auto-generate fabricated IDs for missing runtime links.
+- Missing runtime context: deterministic warning/diagnostic and skip only context-dependent correlation fields.
+- Missing feature binding: deterministic diagnostic; no fallback wrapper construction.
+- Missing registry link: deterministic missing-reference diagnostic.
+- Duplicate indexed IDs: deterministic overwrite behavior bound to insertion order.
 
 ## Validation Requirements
 
-- Round-trip tests (`execution -> message -> execution`) preserve required IDs and links.
-- Adapter serialization tests assert message-emission payloads come from adapter path.
-- Negative tests assert missing-link behavior remains deterministic and non-fabricating.
+- Round-trip tests preserve IDs and reference relationships for runtime-required payloads.
+- Reporter tests assert payload correlation uses run-owned feature bindings.
+- Negative tests assert missing links and missing bindings do not trigger synthetic backfilling or `Feature` reconstruction.

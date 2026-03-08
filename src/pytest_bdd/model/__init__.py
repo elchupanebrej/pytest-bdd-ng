@@ -1,18 +1,4 @@
-from .scenario_run import (
-    ActiveObjectSet,
-    ContextErrorState,
-    RunNode,
-    RunStage,
-    RunStatus,
-    ExternalApiCompatibilityRecord,
-    HookPhase,
-    LifecycleObjectRef,
-    ReferenceResolverState,
-    ReportingContextSnapshot,
-    ReportingLifecycleState,
-    Run,
-    ScenarioRun,
-)
+from .execution_message_adapter import ExecutionMessageAdapter, ExecutionProjection
 from .message_baseline_diff import (
     WEEKLY_CADENCE,
     BaselineComparisonSchedule,
@@ -76,6 +62,21 @@ from .message_validation import (
     validate_envelope_shape,
     validate_message_stream,
 )
+from .scenario_run import (
+    ActiveObjectSet,
+    ContextErrorState,
+    ExternalApiCompatibilityRecord,
+    HookPhase,
+    LifecycleObjectRef,
+    ReferenceResolverState,
+    ReportingContextSnapshot,
+    ReportingLifecycleState,
+    Run,
+    RunNode,
+    RunStage,
+    RunStatus,
+    ScenarioRun,
+)
 
 __all__ = [
     "ALLOWED_IMPLEMENTATION_STATUSES",
@@ -98,9 +99,8 @@ __all__ = [
     "CapabilitySyncResult",
     "ContextErrorState",
     "DecisionValidationResult",
-    "RunNode",
-    "RunStage",
-    "RunStatus",
+    "ExecutionMessageAdapter",
+    "ExecutionProjection",
     "ExternalApiCompatibilityRecord",
     "GovernanceChecklist",
     "GovernanceChecklistEntry",
@@ -116,6 +116,9 @@ __all__ = [
     "ReportingContextSnapshot",
     "ReportingLifecycleState",
     "Run",
+    "RunNode",
+    "RunStage",
+    "RunStatus",
     "ScenarioRun",
     "StatusUniquenessResult",
     "build_baseline_diff",

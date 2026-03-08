@@ -26,7 +26,7 @@ def _is_optional(value: object) -> bool:
 
 def test_payload_kinds_are_derived_from_protocol_envelope() -> None:
     envelope_hints = get_type_hints(Envelope, globalns=vars(cucumber_messages_module))
-    assert PAYLOAD_KINDS == tuple(envelope_hints.keys())
+    assert tuple(envelope_hints.keys()) == PAYLOAD_KINDS
 
 
 def test_status_capable_payload_kinds_are_protocol_derived() -> None:
@@ -48,8 +48,8 @@ def test_status_capable_payload_kinds_are_protocol_derived() -> None:
         if implementation_status_hint is not None and not _is_optional(implementation_status_hint):
             expected_required.append(payload_kind)
 
-    assert STATUS_CAPABLE_PAYLOAD_KINDS == tuple(expected_status_capable)
-    assert REQUIRED_STATUS_PAYLOAD_KINDS == tuple(expected_required)
+    assert tuple(expected_status_capable) == STATUS_CAPABLE_PAYLOAD_KINDS
+    assert tuple(expected_required) == REQUIRED_STATUS_PAYLOAD_KINDS
     optional_from_protocol = tuple(
         payload for payload in STATUS_CAPABLE_PAYLOAD_KINDS if payload not in REQUIRED_STATUS_PAYLOAD_KINDS
     )

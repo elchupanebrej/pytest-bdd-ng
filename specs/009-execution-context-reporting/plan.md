@@ -1,47 +1,53 @@
 # Implementation Plan: Execution Context Reporting Consistency
 
-**Branch**: `009-execution-context-reporting` | **Date**: 2026-03-05 | **Spec**: [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/spec.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/spec.md)
+**Branch**: `009-execution-context-reporting` | **Date**: 2026-03-07 | **Spec**: `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/spec.md`
 **Input**: Feature specification from `/specs/009-execution-context-reporting/spec.md`
 
 ## Summary
 
-Refactor reporting and runtime boundaries so `ExecutionContext` remains the only runtime state source, reporting uses a dedicated execution<->message adapter layer, and all reference reconstruction is deterministic through context-owned registries and IDs. Preserve external message/report behavior while enforcing strict read/write ownership, runtime-true coverage gating, and deterministic diagnostics (no synthetic fabrication).
+Remove `src/pytest_bdd/model/gherkin_document/core.py::Feature` from the runtime and reporting boundary entirely. The design standardizes on `Run` and `ScenarioRun` as the only runtime context owners, stores feature-level registries and derived metadata in run-owned bindings, and uses canonical cucumber message objects (`GherkinDocument`, `Source`, `Pickle`) everywhere else.
+
+This plan enforces four outcomes:
+- `Feature` is not constructed or consumed in hooks, fixtures, collector callbacks, or reporting flows.
+- Feature-level lookup and registry state moves into `Run` / `ScenarioRun`.
+- Collection, parametrization, and reporting operate on canonical message-model objects plus run-owned bindings.
+- The execution/message adapter remains the only protocol conversion boundary.
 
 ## Technical Context
 
-**Language/Version**: Python 3.10-3.14  
-**Primary Dependencies**: `pytest>=6.2.5`, `pluggy`, `cucumber-messages`, `jsonschema`, existing `message_converter`  
-**Storage**: In-memory runtime context state (`ExecutionContext`, `SessionExecutionContext`) + file artifacts (NDJSON, JSON governance reports under `artifacts/` and `specs/`)  
-**Testing**: `pytest`, `tox>=4.2`, targeted hook/messages/messages_coverage suites, `pre-commit`, `ruff`, `mypy`  
-**Target Platform**: Cross-platform Python package (Linux/macOS/Windows CI matrix; worker-aware behavior for xdist)  
-**Project Type**: Python library + pytest plugin stack  
-**Performance Goals**: No observable regression in reporting throughput for existing messages suites; retain deterministic emission/validation behavior and current CI runtime envelope  
-**Constraints**: Reporter plugins are read-only over context; execution plugins are exclusive context writers; no synthetic event/state fabrication; deterministic ID/reference resolution via adapter+registry; `config.stash` as canonical shared context transport  
-**Scale/Scope**: Runtime/reporting/model layers in `src/pytest_bdd` plus hook/reporting/governance tests in `tests/`; contract and governance artifacts under `specs/009-execution-context-reporting/`
+**Language/Version**: Python 3.10-3.14
+**Primary Dependencies**: `pytest`, `pluggy`, `cucumber-messages`, `gherkin`, `jsonschema`
+**Storage**: In-memory runtime state in `Run` / `ScenarioRun` plus `pytest.config.stash`; NDJSON and governance artifacts on disk
+**Testing**: `pytest`, `tox`, `ruff`, `mypy`, `pre-commit`
+**Target Platform**: Cross-platform Python test environments (Linux/macOS/Windows CI matrix)
+**Project Type**: Python library and pytest plugin suite
+**Performance Goals**: Preserve current collection and runtime execution characteristics; avoid extra wrapper construction and avoid synthetic reporting passes
+**Constraints**: No reporter-side context mutation; no `Feature` adapters in hooks or fixtures; no compatibility shim for executable `scenario`; no synthetic event fabrication; deterministic ID and reference resolution through run-owned registries
+**Scale/Scope**: Parser, scenario locator, feature locator, collector, pickle runner, reporters, code generation inputs, hook surface, fixture surface, and message/governance validation across `src/pytest_bdd/*` and matching tests
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Pre-Phase 0 Gate Review
+### Pre-Phase 0 Gate Assessment
+
+| Principle | Gate | Status | Notes |
+|-----------|------|--------|-------|
+| I. Spec-Driven Delivery | Spec and clarifications are explicit and testable | PASS | `/specs/009-execution-context-reporting/spec.md` now explicitly forbids `Feature` in hooks, fixtures, and adapter APIs and requires migration of feature-level state into `Run` / `ScenarioRun`. |
+| II. Independent Story Increments | Stories remain independently testable | PASS | US1 covers reporter/context ownership, US2 covers removal of `Feature` and run-owned feature state, US3 covers adapter/reference resolution. |
+| III. Validation-First Changes | Validation strategy is defined before implementation | PASS | Quickstart scenarios cover collection boundary, runtime API surface, reporting, adapter, and full strict audit flow. |
+| IV. Deterministic Compatibility and Contracts | Contracts are explicit and versionable | PASS | Contracts define runtime ownership, adapter semantics, and the public hook/fixture boundary without `Feature`. |
+| V. Task-Traceable Commits and Pre-Commit Enforcement | Enforceable during implementation | PASS | No design-time exception is required; implementation remains responsible for task-scoped commits and pre-commit compliance. |
+
+### Post-Phase 1 Design Re-Check
 
 | Principle | Status | Evidence |
 |-----------|--------|----------|
-| I. Spec-Driven Delivery | PASS | Spec + clarifications define runtime ownership split, adapter boundary, and deterministic diagnostics (`FR-001..FR-019`). |
-| II. Independent Story Increments | PASS | US1 (context ownership), US2 (registry ownership), US3 (reference/adapter/governance) remain independently testable. |
-| III. Validation-First Changes | PASS | Validation strategy defined via hook/message/messages_coverage and governance regression suites; quickstart scenarios are executable. |
-| IV. Deterministic Compatibility and Contracts | PASS | Contract artifacts define runtime ownership, adapter conversion contract, and CI governance gate semantics. |
-| V. Task-Traceable Commits and Pre-Commit | PASS | Implementation plan preserves requirement for task-linked commits and pre-commit pass before commit. |
-
-### Post-Phase 1 Gate Review
-
-| Principle | Status | Evidence |
-|-----------|--------|----------|
-| I. Spec-Driven Delivery | PASS | `research.md`, `data-model.md`, `contracts/`, `quickstart.md` map directly to FR/SC requirements and clarifications. |
-| II. Independent Story Increments | PASS | Data/contract decomposition supports phased implementation by story and independent validation paths. |
-| III. Validation-First Changes | PASS | Quickstart includes independent US1/US2/US3 executable checks plus strict governance gate flow. |
-| IV. Deterministic Compatibility and Contracts | PASS | Adapter and governance contracts explicitly define deterministic ID/reference behavior and failure modes. |
-| V. Task-Traceable Commits and Pre-Commit | PASS | No exceptions required; no constitution violation or complexity override introduced. |
+| I. Spec-Driven Delivery | PASS | `research.md`, `data-model.md`, `contracts/`, and `quickstart.md` map directly to FR-001..FR-026 and SC-001..SC-013. |
+| II. Independent Story Increments | PASS | Design separates reporter read-only behavior, run-owned feature-state migration, and adapter/governance behavior into independently testable increments. |
+| III. Validation-First Changes | PASS | `quickstart.md` provides targeted command groups for collection API, runtime API, reporting, and strict governance validation. |
+| IV. Deterministic Compatibility and Contracts | PASS | Contracts cover execution-context ownership, adapter conversion, governance, and runtime hook/fixture surface without `Feature`. |
+| V. Task-Traceable Commits and Pre-Commit Enforcement | PASS | No constitution violation introduced in planning artifacts; enforcement remains in implementation/tasks phase. |
 
 ## Project Structure
 
@@ -54,72 +60,93 @@ Refactor reporting and runtime boundaries so `ExecutionContext` remains the only
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
-│   ├── execution-context-boundary.md
-│   ├── execution-message-adapter.md
-│   └── governance-gate-contract.md
 └── tasks.md
 ```
 
 ### Source Code (repository root)
 
 ```text
-/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/
-├── src/pytest_bdd/
-│   ├── model/
-│   │   ├── execution_context.py
-│   │   ├── gherkin_document/
-│   │   └── message_converter.py
-│   └── plugin/
-│       ├── scenario_runner/
-│       ├── gherkin_message_reporter/
-│       ├── scenario_reporter/
-│       └── scenario_test_collector/
-└── tests/
-    ├── hook/
-    ├── model/
-    ├── messages/
-    ├── messages_coverage/
-    ├── generation/
-    └── struct_bdd/
+/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/
+├── parser.py
+├── scenario_locator.py
+├── feature_locator.py
+├── hook.py
+├── model/
+│   ├── scenario_run.py
+│   ├── execution_message_adapter.py
+│   ├── message_registry.py
+│   └── gherkin_document/
+├── plugin/
+│   ├── pickle_runner/
+│   ├── scenario_test_collector/
+│   ├── gherkin_message_reporter/
+│   ├── scenario_reporter/
+│   └── code_generator/
+└── scenario.py
+
+/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/
+├── compatibility/
+├── hook/
+├── feature/
+├── messages/
+├── messages_coverage/
+├── model/
+└── struct_bdd/
 ```
 
-**Structure Decision**: Keep existing single-package plugin architecture. Introduce adapter layer and registry/index abstractions inside existing runtime/reporting modules without creating a new top-level project.
+**Structure Decision**: Keep the single-project Python library layout. The refactor spans parser/locator/runtime/reporting boundaries, so the plan centers the work around `parser.py`, `scenario_locator.py`, `feature_locator.py`, `model/scenario_run.py`, `model/message_registry.py`, and plugin integration points rather than introducing a new package.
 
-## Phase 0: Research Output
+## Phase 0: Research Summary
 
-Research decisions are consolidated in:
-- [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/research.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/research.md)
+Phase 0 resolved the design boundary with no remaining unresolved questions:
+- `Feature` is removed from runtime/reporting and collection APIs.
+- `Run` owns feature bindings and session-shared registries.
+- `ScenarioRun` owns scenario-scoped pointers into the active feature binding.
+- Collection emits `Source`, `GherkinDocument`, then `Pickle` read events in order.
+- Hooks and fixtures expose only canonical message objects and `Run`.
 
-Resolved topics include:
-- Strict execution-plugin write vs reporter read ownership.
-- Adapter-only message conversion boundary.
-- Deterministic serialize/deserialize round-trip via context-owned registries.
-- Worker-safe ID/reference keying and missing-context failure handling.
-- Governance classification evidence rules for runtime-required vs non-runtime-required capabilities.
+## Phase 1: Design Summary
 
-## Phase 1: Design & Contracts Output
-
-Generated artifacts:
-- Data model: [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/data-model.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/data-model.md)
-- Contracts:
-  - [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/execution-context-boundary.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/execution-context-boundary.md)
-  - [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/execution-message-adapter.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/execution-message-adapter.md)
-  - [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/governance-gate-contract.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/contracts/governance-gate-contract.md)
-- Quickstart: [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/quickstart.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/009-execution-context-reporting/quickstart.md)
-
-## Validation Evidence (2026-03-05)
-
-- `PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest tests/hook/test_gherkin_reporter_context_lifecycle.py tests/messages/test_message_emission_points.py tests/model/gherkin_document/test_feature_context_lookup.py tests/hook/test_scenario_reference_resolution.py tests/messages/test_execution_message_adapter.py tests/messages/test_execution_message_adapter_roundtrip.py tests/messages/test_governance.py tests/messages_coverage/test_execution_context_governance_regression.py tests/messages_coverage/test_full_capability_governance.py -q`  
-  Result: `45 passed`.
-- `conda run -n pytest-bdd-ng-py314 python -m pytest tests/hook/test_execution_context_store_unit.py tests/hook/test_execution_context_transitions.py tests/feature/test_report_context_hierarchy.py tests/generation/test_generate_missing.py -q`  
-  Result: `17 passed`.
-- `conda run -n pytest-bdd-ng-py314 python -m pytest tests/struct_bdd/test_steps.py -q`  
-  Result: optional parser dependency gap in local env (`pyhocon`, `hjson`, `json5` missing), no execution-context regressions observed.
-- `conda run -n pytest-bdd-ng-py314 ruff check src/pytest_bdd/model/execution_message_adapter.py src/pytest_bdd/model/execution_context.py src/pytest_bdd/model/message_validation.py src/pytest_bdd/plugin/scenario_runner/context_access.py src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py tests/messages/test_execution_message_adapter.py tests/messages/test_execution_message_adapter_roundtrip.py`  
-  Result: `All checks passed`.
-- `conda run -n pytest-bdd-ng-py314 pre-commit run --files <changed-files>`  
-  Result: command completed; hooks skipped by current matcher configuration for the provided file set.
+Phase 1 artifacts define:
+- a run-owned `FeatureRuntimeBinding` model for feature metadata, AST registry, source, and compiled pickles;
+- explicit contracts for hook/fixture APIs without `Feature`;
+- quickstart validation that covers both API-surface removal and strict runtime coverage auditing.
 
 ## Complexity Tracking
 
-No constitution violations or justified exceptions required.
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| None | N/A | N/A |
+
+## Implementation Validation
+
+### Completed Validation Commands
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/e2e/test_e2e.py \
+  tests/e2e/allure/test_e2e_allure.py -q
+```
+
+Result:
+- `95 passed in 56.50s`
+
+```bash
+PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
+conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
+```
+
+Result:
+- `518 passed, 5 skipped in 93.12s`
+
+```bash
+git diff --name-only -- '*.py' | xargs conda run -n pytest-bdd-ng-py314 python -m ruff check
+```
+
+Result:
+- `All checks passed!`
+
+### Notes
+
+- The final runtime/reporting boundary no longer relies on `src/pytest_bdd/model/gherkin_document/core.py::Feature`.
+- E2E feature examples were updated to the final API surface: `gherkin_document` replaces the removed `feature` fixture, and `pytest_bdd_convert_tag_to_marks` now accepts `gherkin_document`.

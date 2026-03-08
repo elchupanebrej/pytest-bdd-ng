@@ -4,8 +4,7 @@ from typing import Any, Final, Literal
 from attr import Factory, attrib, attrs
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
-from pytest_bdd.model.scenario_run import ReportingContextSnapshot
-from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, ReportingContextSnapshot
 
 RuntimeStepStatus = Literal["passed", "failed"]
 CONTROLLED_RUNTIME_STEP_STATUSES: Final[tuple[RuntimeStepStatus, ...]] = ("passed", "failed")
@@ -32,19 +31,19 @@ class StepReport:
         self.step = step
         self.started = time.perf_counter()
 
-    def serialize(self, feature: Feature, *, config: Any | None = None) -> dict[str, Any]:
+    def serialize(self, feature_binding: FeatureRuntimeBinding) -> dict[str, Any]:
         """Serialize the step execution report.
 
         :return: Serialized step execution report.
         :rtype: dict
         """
-        keyword = getattr(self.step, "keyword", None) or feature._get_step_keyword(self.step, config=config)
+        keyword = getattr(self.step, "keyword", None) or feature_binding.step_keyword(self.step)
         line_number = getattr(self.step, "line_number", None)
         if line_number is None:
-            line_number = feature._get_step_line_number(self.step, config=config)
+            line_number = feature_binding.step_line_number(self.step)
         step_prefix = getattr(self.step, "prefix", None)
         if step_prefix is None:
-            step_prefix = feature._get_step_prefix(self.step, config=config)
+            step_prefix = feature_binding.step_prefix(self.step)
         return {
             "name": self.step.text,
             "type": step_prefix,
@@ -80,9 +79,8 @@ class StepReport:
 class ScenarioReport:
     """Pickle execution report."""
 
-    feature: Feature = attrib()
-    scenario: Pickle = attrib()
-    config: Any | None = attrib(default=None)
+    feature_binding: FeatureRuntimeBinding = attrib()
+    pickle: Pickle = attrib()
     step_reports: list[StepReport] = attrib(default=Factory(list))
     context_snapshot: ReportingContextSnapshot | None = attrib(default=None)
 
@@ -112,28 +110,28 @@ class ScenarioReport:
         :return: Serialized report.
         :rtype: dict
         """
-        pickle = self.scenario
-        feature: Feature = self.feature
+        pickle = self.pickle
+        feature_binding = self.feature_binding
 
         return {
-            "steps": [step_report.serialize(self.feature, config=self.config) for step_report in self.step_reports],
+            "steps": [step_report.serialize(self.feature_binding) for step_report in self.step_reports],
             "name": pickle.name,
-            "line_number": feature._get_pickle_line_number(pickle, config=self.config),
-            "tags": sorted(set(feature.get_pickle_tag_names(pickle)).difference(feature.tag_names)),
+            "line_number": feature_binding.pickle_line_number(pickle),
+            "tags": sorted({tag.name.lstrip("@") for tag in pickle.tags}.difference(feature_binding.tag_names)),
             "feature": {
-                "name": feature.name,
-                "filename": feature.filename,
-                "rel_filename": feature.rel_filename,
-                "line_number": feature.line_number,
-                "description": feature.description,
-                "tags": feature.tag_names,
+                "name": feature_binding.name,
+                "filename": feature_binding.filename,
+                "rel_filename": feature_binding.rel_filename,
+                "line_number": feature_binding.line_number,
+                "description": feature_binding.description,
+                "tags": feature_binding.tag_names,
             },
         }
 
     def fail(self) -> None:
         """Stop collecting information and finalize the report as failed."""
         self.current_step_report.finalize(failed=True)
-        remaining_steps = self.scenario.steps[len(self.step_reports) :]
+        remaining_steps = self.pickle.steps[len(self.step_reports) :]
 
         # Fail the rest of the steps and make reports.
         for step in remaining_steps:

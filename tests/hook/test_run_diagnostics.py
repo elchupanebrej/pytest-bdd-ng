@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunStage,
-    RunStatus,
     HookPhase,
     LifecycleObjectRef,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.run_access import resolve_active_object_or_error

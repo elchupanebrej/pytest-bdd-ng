@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 from itertools import count
-from typing import Any
-
-from cucumber_messages import GherkinDocument
+from typing import TYPE_CHECKING, Any
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunNode,
-    RunStage,
-    RunStatus,
     HookPhase,
     LifecycleKind,
     LifecycleObjectRef,
+    RunNode,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
+
+if TYPE_CHECKING:
+    from cucumber_messages import GherkinDocument
 
 _context_index = count(1)
 
@@ -74,12 +75,13 @@ def initial_scenario_run_id(request: Any) -> str:
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"
 
+
 def apply_transition(
     scenario_run: ScenarioRun,
     *,
     hook_phase: HookPhase,
     gherkin_document: GherkinDocument | None = None,
-    scenario: Any | None = None,
+    pickle: Any | None = None,
     step: Any | None = None,
     previous_step: Any | None = None,
     status: RunStatus | None = None,
@@ -95,10 +97,12 @@ def apply_transition(
     feature_is_active = scenario_is_active
     step_is_active = stage is RunStage.step_running
 
-    feature_ref = build_lifecycle_ref("feature", gherkin_document, is_active=feature_is_active) if gherkin_document is not None else None
-    scenario_ref = (
-        build_lifecycle_ref("scenario", scenario, is_active=scenario_is_active) if scenario is not None else None
+    feature_ref = (
+        build_lifecycle_ref("feature", gherkin_document, is_active=feature_is_active)
+        if gherkin_document is not None
+        else None
     )
+    scenario_ref = build_lifecycle_ref("scenario", pickle, is_active=scenario_is_active) if pickle is not None else None
 
     if hook_phase is HookPhase.after_scenario:
         step_ref = None
@@ -112,9 +116,7 @@ def apply_transition(
             else None
         )
         if step_ref is not None and step_is_active:
-            parent_id = (
-                scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
-            )
+            parent_id = scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
             scenario_run.step_node = RunNode(
                 id=f"step-{step_ref.object_id}-{scenario_run.transition_index + 1}",
                 parent_id=parent_id,
@@ -137,7 +139,7 @@ def apply_transition(
     scenario_run.step_ref = step_ref
     scenario_run.previous_step_ref = previous_step_ref
     scenario_run.gherkin_document = gherkin_document
-    scenario_run.pickle = scenario
+    scenario_run.pickle = pickle
     scenario_run.step_object = step
     scenario_run.previous_step_object = previous_step
 
@@ -167,7 +169,9 @@ def apply_transition(
             else None
         )
         run.active_step_id = (
-            scenario_run.step_node.id if scenario_run.step_node is not None and scenario_run.step_node.is_active else None
+            scenario_run.step_node.id
+            if scenario_run.step_node is not None and scenario_run.step_node.is_active
+            else None
         )
 
     if hook_phase is HookPhase.after_scenario:

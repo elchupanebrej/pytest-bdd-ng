@@ -4,12 +4,12 @@ from dataclasses import dataclass
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunNode,
-    RunStage,
-    RunStatus,
     HookPhase,
     LifecycleObjectRef,
     Run,
+    RunNode,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.run_transitions import apply_transition
@@ -59,7 +59,7 @@ def test_transition_updates_stage_for_step_flow() -> None:
         context,
         hook_phase=HookPhase.before_step,
         gherkin_document=feature,
-        scenario=scenario,
+        pickle=scenario,
         step=step,
         previous_step=None,
     )
@@ -75,7 +75,7 @@ def test_transition_marks_failed_status_on_step_error() -> None:
         context,
         hook_phase=HookPhase.step_error,
         gherkin_document=_Dummy("feature", "f-1"),
-        scenario=_Dummy("scenario", "s-1"),
+        pickle=_Dummy("scenario", "s-1"),
         step=_Dummy("step", "st-1"),
         previous_step=None,
     )
@@ -93,7 +93,7 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
         context,
         hook_phase=HookPhase.after_scenario,
         gherkin_document=_Dummy("feature", "f-1"),
-        scenario=_Dummy("scenario", "s-1"),
+        pickle=_Dummy("scenario", "s-1"),
         step=None,
         previous_step=None,
     )

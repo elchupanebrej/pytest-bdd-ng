@@ -14,19 +14,19 @@ from cucumber_messages import (
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model.scenario_run import RunStatus, Run, HookPhase
+from pytest_bdd.model.scenario_run import HookPhase, Run, RunStatus
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
+
 from .run_access import (
     resolve_feature_object,
     resolve_pickle_object,
     resolve_previous_step_object,
     resolve_scenario_description,
-
     resolve_step_object,
     resolve_step_runtime_enrichment,
 )
@@ -46,17 +46,19 @@ class PickleRunner:
         self.request: FixtureRequest | None = None
         self.gherkin_document: GherkinDocument | None = None
         self.pickle: Pickle | None = None
+        self.feature_source: Any | None = None
 
     @staticmethod
-    def _resolve_gherkin_document_and_pickle(item: Item) -> tuple[Any | None, Any | None]:
+    def _resolve_runtime_params(item: Item) -> tuple[Any | None, Any | None, Any | None]:
         callspec = getattr(item, "callspec", None)
         params = getattr(callspec, "params", None)
         if isinstance(params, dict):
             gherkin_document = params.get("gherkin_document")
-            pickle = params.get("scenario")
-            if gherkin_document is not None and pickle is not None:
-                return gherkin_document, pickle
-        return None, None
+            pickle = params.get("pickle")
+            feature_source = params.get("feature_source")
+            if gherkin_document is not None and pickle is not None and feature_source is not None:
+                return gherkin_document, pickle, feature_source
+        return None, None, None
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session) -> None:
@@ -73,14 +75,17 @@ class PickleRunner:
             return
 
         request = item._request
-        gherkin_document, pickle = self._resolve_gherkin_document_and_pickle(item=item)
-        if gherkin_document is None or pickle is None:
+        gherkin_document, pickle, feature_source = self._resolve_runtime_params(item=item)
+        if gherkin_document is None or pickle is None or feature_source is None:
             return
 
         run = Run.from_pytest_stash(request.config)
-        scenario_run = run.create_scenario_run(
+        if run is None:
+            run = Run.ensure_for_session(config=request.config, session=request.session)
+        run.create_scenario_run(
             request,
             gherkin_document=gherkin_document,
+            feature_source=feature_source,
             pickle=pickle,
         )
 
@@ -93,7 +98,8 @@ class PickleRunner:
 
         self.request = item._request
         self.gherkin_document = self.request.getfixturevalue("gherkin_document")
-        self.pickle = self.request.getfixturevalue("scenario")
+        self.pickle = self.request.getfixturevalue("pickle")
+        self.feature_source = self.request.getfixturevalue("feature_source")
 
         self._invoke_bdd_hook(
             hook_name="pytest_bdd_before_scenario",
@@ -122,7 +128,7 @@ class PickleRunner:
             item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
 
     @pytest.hookimpl(trylast=True)
-    def pytest_runtest_teardown(self, item: Item, nextitem: Item|None):
+    def pytest_runtest_teardown(self, item: Item, nextitem: Item | None):  # noqa: ARG002
         __tracebackhide__ = True
         yield
         Run.pop_scenario_run(item._request)
@@ -151,7 +157,7 @@ class PickleRunner:
                 scenario_run,
                 hook_phase=hook_phase,
                 gherkin_document=gherkin_document,
-                scenario=pickle,
+                pickle=pickle,
                 step=None if step is UNSET else step,
                 previous_step=None if previous_step is UNSET else previous_step,
                 status=status,
@@ -224,30 +230,23 @@ class PickleRunner:
             yield
             return
 
-        config = getattr(gherkin_document, "_pytest_bdd_config", None)
-        if self.request is not None:
-            config = getattr(self.request, "config", None)
-
         try:
             if isinstance(step, PickleStep):
+                feature_binding = scenario_run.feature_binding() if scenario_run is not None else None
                 step_runtime_enrichment = resolve_step_runtime_enrichment(
-                    feature=gherkin_document,
                     step=step,
+                    feature_binding=feature_binding,
                     scenario_run=scenario_run,
-                    config=config,
                 )
                 step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
                 step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
                 step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
                 step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
 
-            scenario_description = (
-                resolve_scenario_description(
-                    feature=gherkin_document,
-                    scenario=pickle,
-                    scenario_run=scenario_run,
-                    config=config,
-                )
+            scenario_description = resolve_scenario_description(
+                pickle=pickle,
+                feature_binding=scenario_run.feature_binding() if scenario_run is not None else None,
+                scenario_run=scenario_run,
             )
             pickle.__dict__["description"] = scenario_description
             yield

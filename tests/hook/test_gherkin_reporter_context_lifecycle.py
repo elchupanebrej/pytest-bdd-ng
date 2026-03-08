@@ -9,11 +9,11 @@ from cucumber_messages import Timestamp
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunStage,
-    RunStatus,
     HookPhase,
     LifecycleObjectRef,
     Run,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter

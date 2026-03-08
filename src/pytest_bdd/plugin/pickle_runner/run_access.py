@@ -2,31 +2,40 @@ from __future__ import annotations
 
 from typing import Any
 
-from pytest_bdd.model.gherkin_document.core import _resolve_registry_for_feature
-from pytest_bdd.model.gherkin_document.lookup import (
-    get_pickle_step_model_step,
-    get_step_data_table,
-    get_step_doc_string,
-    get_step_keyword,
-    get_step_line_number,
-    get_step_prefix,
-)
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     ContextErrorState,
-    RunStage,
+    FeatureRuntimeBinding,
     LifecycleKind,
     LifecycleObjectRef,
     ReportingContextSnapshot,
     Run,
+    RunStage,
     ScenarioRun,
 )
+
 from .run_transitions import build_lifecycle_ref
 
 
+def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
+    scenario_run = run.active_scenario_run
+    return scenario_run.feature_binding() if scenario_run is not None else None
+
+
 def resolve_feature_object(run: Run) -> Any | None:
+    binding = resolve_feature_binding(run)
+    if binding is not None:
+        return binding.gherkin_document
     scenario_run = run.active_scenario_run
     return scenario_run.gherkin_document if scenario_run is not None else None
+
+
+def resolve_feature_source(run: Run) -> Any | None:
+    binding = resolve_feature_binding(run)
+    if binding is not None:
+        return binding.source
+    scenario_run = run.active_scenario_run
+    return scenario_run.feature_source if scenario_run is not None else None
 
 
 def resolve_pickle_object(run: Run) -> Any | None:
@@ -105,7 +114,6 @@ def build_reporting_context_snapshot(
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot | None:
     run = Run.from_pytest_stash(request.config)
-    scenario_run = Run.get_scenario_run(request)
 
     if run is not None and run.active_scenario_run is not None:
         active_scenario_run = run.active_scenario_run
@@ -137,11 +145,11 @@ def build_reporting_context_snapshot(
 
 def resolve_registry_node(
     *,
-    registry: dict[str, Any],
+    feature_binding: FeatureRuntimeBinding | None,
     ast_node_id: str,
     scenario_run: ScenarioRun | None = None,
 ) -> Any | None:
-    node = registry.get(ast_node_id)
+    node = feature_binding.resolve_node(ast_node_id) if feature_binding is not None else None
     if node is None and scenario_run is not None:
         scenario_run.reference_resolver.add_missing_reference(f"Missing AST node id: {ast_node_id}")
     return node
@@ -149,19 +157,19 @@ def resolve_registry_node(
 
 def resolve_scenario_description(
     *,
-    feature: Any,
-    scenario: Any,
+    pickle: Any,
+    feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
-    config: Any | None = None,
 ) -> str | None:
-    ast_node_ids = getattr(scenario, "ast_node_ids", None) or ()
+    ast_node_ids = getattr(pickle, "ast_node_ids", None) or ()
     if not ast_node_ids:
         if scenario_run is not None:
-            scenario_run.reference_resolver.add_missing_reference("Scenario has no ast_node_ids")
+            scenario_run.reference_resolver.add_missing_reference("Pickle has no ast_node_ids")
         return None
     ast_node_id = str(ast_node_ids[0])
+    effective_binding = feature_binding or (scenario_run.feature_binding() if scenario_run is not None else None)
     node = resolve_registry_node(
-        registry=_resolve_registry_for_feature(feature, config=config),
+        feature_binding=effective_binding,
         ast_node_id=ast_node_id,
         scenario_run=scenario_run,
     )
@@ -173,13 +181,12 @@ def resolve_scenario_description(
 
 def resolve_step_runtime_enrichment(
     *,
-    feature: Any,
     step: Any,
+    feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
-    config: Any | None = None,
 ) -> dict[str, Any]:
-    registry = _resolve_registry_for_feature(feature, config=config)
-    model_step = get_pickle_step_model_step(registry, step)
+    effective_binding = feature_binding or (scenario_run.feature_binding() if scenario_run is not None else None)
+    model_step = effective_binding.pickle_step_ast_step(step) if effective_binding is not None else None
     if model_step is None:
         if scenario_run is not None:
             scenario_run.reference_resolver.add_missing_reference(
@@ -193,9 +200,9 @@ def resolve_step_runtime_enrichment(
             "data_table": None,
         }
     return {
-        "keyword": get_step_keyword(registry, step),
-        "prefix": get_step_prefix(registry, step),
-        "line_number": get_step_line_number(registry, step),
-        "doc_string": get_step_doc_string(registry, step),
-        "data_table": get_step_data_table(registry, step),
+        "keyword": effective_binding.step_keyword(step) if effective_binding is not None else None,
+        "prefix": effective_binding.step_prefix(step) if effective_binding is not None else None,
+        "line_number": effective_binding.step_line_number(step) if effective_binding is not None else None,
+        "doc_string": effective_binding.step_doc_string(step) if effective_binding is not None else None,
+        "data_table": effective_binding.step_data_table(step) if effective_binding is not None else None,
     }

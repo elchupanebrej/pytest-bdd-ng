@@ -1,14 +1,12 @@
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from attr import attrib, attrs
+from cucumber_messages import GherkinDocument  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.other import IdGenerator
-
-if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.model.gherkin_document import Feature
 
 
 @runtime_checkable
@@ -23,5 +21,5 @@ class ParserProtocol(Protocol):
         uri: str,
         *args,
         **kwargs,
-    ) -> tuple["Feature", str]:  # pragma: no cover
+    ) -> tuple[GherkinDocument, str]:  # pragma: no cover
         ...

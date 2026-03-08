@@ -1,73 +1,77 @@
-# Quickstart: Execution Context + Message Adapter Refactor
+# Quickstart: Execution Context Reporting Consistency
 
 ## Preconditions
 
-- Repo root: `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng`
+- Repository root: `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng`
 - Branch: `009-execution-context-reporting`
-- Environment: `conda` env `pytest-bdd-ng-py314`
+- Python environment: `conda` env `pytest-bdd-ng-py314`
 
-## Scenario 1: Reporter Uses Read-Only Context Access (US1)
+## 1. Validate Collection Without `Feature`
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/hook/test_scenario_locator_pipeline.py \
+  tests/model/gherkin_document/test_feature_context_lookup.py -q
+```
+
+Expected:
+- Locators and collectors operate on `Source`, `GherkinDocument`, and `Pickle`.
+- No collection callback constructs or consumes `src/pytest_bdd/model/gherkin_document/core.py::Feature`.
+- Feature-level AST lookup state resolves through `Run`-owned bindings.
+
+## 2. Validate Runtime Hook and Fixture Surface
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/compatibility/test_hook_run_api_surface.py \
+  tests/hook/test_run_scenario_runtime_unit.py \
+  tests/hook/test_scenario_run_model.py -q
+```
+
+Expected:
+- Hooks receive `run: Run` and recover active runtime objects from context.
+- Fixtures expose `gherkin_document`, `feature_source`, `pickle`, and `run_context`.
+- No runtime fixture named `feature` or `scenario` remains in the executable-scenario API surface.
+
+## 3. Validate Reporter and Scenario Serialization Paths
 
 ```bash
 conda run -n pytest-bdd-ng-py314 python -m pytest \
   tests/hook/test_gherkin_reporter_context_lifecycle.py \
-  tests/messages/test_message_emission_points.py -q
+  tests/feature/test_report_context_hierarchy.py \
+  tests/feature/test_report.py -q
 ```
 
 Expected:
-- Reporter does not bootstrap/mutate context.
-- Lifecycle IDs are context-derived.
+- Reporters read only from stash-backed `Run` / `ScenarioRun`.
+- Scenario serialization derives feature metadata and step lookup data through run-owned bindings instead of a `Feature` adapter.
+- Missing context still produces deterministic diagnostics without mutation.
 
-## Scenario 2: Registry Ownership Stays in Execution Context (US2)
-
-```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
-  tests/model/gherkin_document/test_feature_context_lookup.py \
-  tests/hook/test_scenario_reference_resolution.py -q
-```
-
-Expected:
-- `Feature` model has no registry ownership.
-- Lookups resolve through execution context / stash-backed context path.
-
-## Scenario 3: Adapter Round-Trip Integrity (US3)
+## 4. Validate Adapter and Governance Paths
 
 ```bash
+PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
 conda run -n pytest-bdd-ng-py314 python -m pytest \
   tests/messages/test_execution_message_adapter.py \
-  tests/messages/test_execution_message_adapter_roundtrip.py -q
-```
-
-Expected:
-- `execution -> message -> execution` preserves deterministic IDs and links.
-- Missing links generate deterministic diagnostics (no synthetic fabrication).
-
-## Scenario 4: Strict Governance Gate
-
-```bash
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/messages/test_execution_message_adapter_roundtrip.py \
+  tests/messages/test_message_validation.py \
   tests/messages/test_governance.py \
-  tests/messages_coverage/test_execution_context_governance_regression.py \
-  tests/messages_coverage/test_full_capability_governance.py -q
+  tests/messages_coverage/test_full_capability_governance.py \
+  tests/messages_coverage/test_run_governance_regression.py -q
 ```
 
 Expected:
-- Runtime-required fields are enforced by runtime evidence.
-- Remaining fields are covered or explicitly classified with valid evidence.
+- The execution/message adapter remains the single conversion path.
+- Validation and governance rely on canonical envelopes plus run-owned registries.
+- Uncovered capabilities still require valid `Partly-Applicable` or `Non-Implementable` evidence.
 
-## Scenario 5: E2E NDJSON + HTML Report
+## 5. Full Strict Regression Suite
 
 ```bash
-mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/artifacts
 PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
-conda run -n pytest-bdd-ng-py314 python -m pytest tests/messages_coverage -q \
-  -p no:pytest-bdd-gherkin-message-reporter \
-  -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
-  --messages-ndjson /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/artifacts/messages-coverage-e2e.ndjson \
-  --cucumber-html /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/artifacts/messages-coverage-e2e.html
+conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
 ```
 
-Expected artifacts:
-- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/artifacts/messages-coverage-e2e.ndjson`
-- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/artifacts/messages-coverage-e2e.html`
+Expected:
+- Full suite remains green under strict audit mode.
+- No hook, fixture, collector, or reporter path depends on `Feature`.

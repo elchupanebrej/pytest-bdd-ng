@@ -312,7 +312,7 @@ class StepPrototype(Node):
                 GherkinDocumentBuilder,
             )
 
-            feature = GherkinDocumentBuilder(self.step).build_feature(
+            gherkin_document = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename,
                 uri=self.uri,
                 id_generator=config.pytest_bdd_id_generator,
@@ -324,16 +324,20 @@ class StepPrototype(Node):
                 media_type = self.mimetype.value
             else:
                 media_type = str(self.mimetype)
+            source_data = Path(self.filename).read_text(encoding="utf-8")
             try:
                 feature_source = Source(
                     uri=self.uri,
-                    data=Path(self.filename).read_text(encoding="utf-8"),
+                    data=source_data,
                     media_type=media_type,
                 )
-                yield feature, feature_source
             except ValidationError:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+                feature_source = Source(
+                    uri=f"file:{Path(self.filename).as_posix()}",
+                    data=source_data,
+                    media_type=media_type,
+                )
+            yield gherkin_document, feature_source
 
     def as_test(self, filename):
         from pytest_bdd.scenario import scenarios

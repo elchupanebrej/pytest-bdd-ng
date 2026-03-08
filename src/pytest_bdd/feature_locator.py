@@ -5,13 +5,15 @@ from inspect import signature
 from pathlib import Path
 from typing import Any, cast
 
-from cucumber_messages import Pickle  # type:ignore[import-untyped]
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    GherkinDocument,
+    Pickle,  # type:ignore[import-untyped]
+)
 from pathvalidate import is_valid_filepath
 from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark, get_config_root_path
-from pytest_bdd.model.gherkin_document import Feature
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
@@ -21,7 +23,7 @@ from pytest_bdd.util.url import is_url_parsable
 
 class FeatureLocatorArgs(TypedDict):
     feature_paths: list[Path | str]  # List of paths to features
-    filter_: Callable[[Config, Feature, Any], tuple[Feature, Any]] | None  # Callable or string filter
+    filter_: Callable[[Config, GherkinDocument, Any], bool] | None  # Callable or string filter
     return_test_decorator: bool | None
     encoding: str | None
     features_base_dir: Path | str | None
@@ -188,9 +190,9 @@ class ScenarioLocatorBuilder:
 
         def updated_filter(
             config: Config,  # noqa: ARG001 typecheck
-            feature: Feature,  # noqa: ARG001 typecheck
-            scenario: Pickle,
+            gherkin_document: GherkinDocument,  # noqa: ARG001 typecheck
+            pickle: Pickle,
         ) -> bool:
-            return bool(filter_ == scenario.name)
+            return bool(filter_ == pickle.name)
 
         return updated_filter

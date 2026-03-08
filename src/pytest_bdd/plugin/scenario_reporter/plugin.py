@@ -7,18 +7,16 @@ that enriches the pytest test reporting.
 from collections.abc import Callable
 
 import pytest
-from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 
-from pytest_bdd.compatibility.pytest import CallInfo, FixtureLookupError, FixtureRequest, Item
-from pytest_bdd.model.gherkin_document import Feature
-from pytest_bdd.model.gherkin_document.core import build_feature_adapter
-from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
+from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
 from pytest_bdd.plugin.pickle_runner.run_access import (
     build_reporting_context_snapshot,
+    resolve_feature_binding,
     resolve_feature_object,
     resolve_pickle_object,
     resolve_step_object,
 )
+from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
 
 
 class ScenarioReporter:
@@ -44,28 +42,6 @@ class ScenarioReporter:
                 if scenario_report.context_snapshot is not None:
                     rep.execution_context_snapshot = scenario_report.context_snapshot.as_dict()
 
-    @staticmethod
-    def _coerce_feature_adapter(
-        *,
-        request: FixtureRequest,
-        gherkin_document: Feature | GherkinDocument,
-        pickle: Pickle,
-    ) -> Feature:
-        if isinstance(gherkin_document, Feature):
-            return gherkin_document
-
-        feature_source: Source | None
-        try:
-            feature_source = request.getfixturevalue("feature_source")
-        except FixtureLookupError:
-            feature_source = None
-
-        return build_feature_adapter(
-            gherkin_document=gherkin_document,
-            source=feature_source,
-            pickles=[pickle],
-        )
-
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_scenario(
         self,
@@ -77,15 +53,13 @@ class ScenarioReporter:
         pickle = resolve_pickle_object(run)
         if gherkin_document is None or pickle is None:
             return
-        feature_adapter = self._coerce_feature_adapter(
-            request=request,
-            gherkin_document=gherkin_document,
-            pickle=pickle,
-        )
+        feature_binding = resolve_feature_binding(run)
+        if feature_binding is None:
+            msg = "Run does not provide active feature binding"
+            raise RuntimeError(msg)
         self.current_report = ScenarioReport(
-            feature=feature_adapter,
-            scenario=pickle,
-            config=request.config,
+            feature_binding=feature_binding,
+            pickle=pickle,
         )  # type: ignore[call-arg]
         self.current_report.set_context_snapshot(
             build_reporting_context_snapshot(

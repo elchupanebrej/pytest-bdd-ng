@@ -8,7 +8,9 @@ from cucumber_messages import (  # type:ignore[attr-defined]
     Timestamp,
 )
 from cucumber_messages import TestRunFinished as CucumberTestRunFinished  # type:ignore[attr-defined]
+from cucumber_messages import TestRunStarted as CucumberTestRunStarted
 
+from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
 
 
@@ -95,3 +97,22 @@ def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
     assert "externalAttachment.mediaType" in observed_ids
     assert "externalAttachment.testCaseStartedId" in observed_ids
     assert "externalAttachment.timestamp.seconds" in observed_ids
+
+
+def test_validate_message_stream_uses_execution_message_adapter(monkeypatch) -> None:
+    envelope = Message(
+        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=1, nanos=0))
+    )
+    calls: list[Message] = []
+    original = ExecutionMessageAdapter.deserialize.__func__
+
+    def _record_deserialize(cls, value, *, registry=None):
+        calls.append(value)
+        return original(cls, value, registry=registry)
+
+    monkeypatch.setattr(ExecutionMessageAdapter, "deserialize", classmethod(_record_deserialize))
+
+    result = validate_message_stream([envelope], track_coverage=False)
+
+    assert result.status == "pass"
+    assert calls == [envelope]

@@ -250,11 +250,12 @@ def test_steps(testdir, kind, file_content, tmp_path):
         # language=python
         f"""\
         from textwrap import dedent
+        from cucumber_messages import GherkinDocument
         from pytest_bdd import given, when, then, scenario, step
 
         @scenario("steps.bdd.{kind}", "Executed step by step")
-        def test_steps(feature):
-            assert feature.description == dedent('''\\
+        def test_steps(gherkin_document: GherkinDocument):
+            assert gherkin_document.feature.description == dedent('''\\
                 Steps are executed one by one. Given and When sections
                 are not mandatory in some cases.
                 '''
@@ -330,11 +331,12 @@ def test_default_loader(testdir, kind, file_content):
         # language=python
         f"""\
         from textwrap import dedent
+        from cucumber_messages import GherkinDocument
         from pytest_bdd import given, when, then, scenario
 
         @scenario("steps.bdd.{kind}", "Executed step by step")
-        def test_steps(feature):
-            assert feature.description == dedent('''\\
+        def test_steps(gherkin_document: GherkinDocument):
+            assert gherkin_document.feature.description == dedent('''\\
                 Steps are executed one by one. Given and When sections
                 are not mandatory in some cases.
                 '''
@@ -550,7 +552,7 @@ def test_dsl_decorator(testdir):
         """ \
         from pytest_bdd import given, then
         from pytest_bdd.plugin.struct_bdd.model import Step, Table
-        from pytest_bdd.model.gherkin_document import Feature
+        from cucumber_messages import GherkinDocument
 
         step = Step(
             name="Examples are substituted",
@@ -574,8 +576,8 @@ def test_dsl_decorator(testdir):
 
 
         @step
-        def test(feature: Feature, scenario):
-            assert feature.name == "Examples are substituted"
+        def test(gherkin_document: GherkinDocument, pickle):
+            assert gherkin_document.feature.name == "Examples are substituted"
 
 
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")

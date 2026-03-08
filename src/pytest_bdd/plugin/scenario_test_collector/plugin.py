@@ -10,7 +10,7 @@ from types import ModuleType
 from unittest.mock import patch
 
 import pytest
-from cucumber_messages import Pickle, Source  # type:ignore[attr-defined, import-untyped]
+from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
@@ -24,7 +24,7 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
-from pytest_bdd.model.gherkin_document.core import Feature as FeatureModel
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.plugin.pickle_runner.run_access import (
     resolve_feature_object,
@@ -55,18 +55,22 @@ def _pytest_pycollect_makemodule():
         yield
 
 
-def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: Source, config: Config):
+def _build_pickle_param(gherkin_document: GherkinDocument, pickle: Pickle, feature_source: Source, config: Config):
+    binding = Run.ensure_for_config(config=config).ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=feature_source,
+    )
     marks = []
-    for tag in feature.get_pickle_tag_names(pickle):
-        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(feature=feature, scenario=pickle, tag=tag)
+    for tag in sorted(tag.name.lstrip("@") for tag in pickle.tags):
+        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(gherkin_document=gherkin_document, pickle=pickle, tag=tag)
         if tag_marks is not None:
             marks.extend(tag_marks)
-    table_rows_breadcrumb = feature.build_pickle_table_rows_breadcrumb(pickle, config=config)
+    table_rows_breadcrumb = binding.pickle_table_rows_breadcrumb(pickle)
     return pytest.param(
-        feature.gherkin_document,
+        gherkin_document,
         pickle,
-        feature_data,
-        id=f"{feature.uri}-{feature.name}-{pickle.name}{table_rows_breadcrumb}",
+        feature_source,
+        id=f"{binding.uri}-{binding.name}-{pickle.name}{table_rows_breadcrumb}",
         marks=marks,
     )
 
@@ -75,20 +79,20 @@ def _build_scenario_param(feature: FeatureModel, pickle: Pickle, feature_data: S
 class _ScenarioCollectionReadObserver:
     config: Config
 
-    def on_source_loaded(self, feature: FeatureModel, source: Source) -> None:
+    def on_source_loaded(self, gherkin_document: GherkinDocument, source: Source) -> None:
         self.config.hook.pytest_bdd_source_read(
             config=self.config,
-            gherkin_document=feature.gherkin_document,
+            gherkin_document=gherkin_document,
             source=source,
         )
 
-    def on_feature_loaded(self, feature: FeatureModel) -> None:
-        self.config.hook.pytest_bdd_feature_read(config=self.config, gherkin_document=feature.gherkin_document)
+    def on_feature_loaded(self, gherkin_document: GherkinDocument) -> None:
+        self.config.hook.pytest_bdd_feature_read(config=self.config, gherkin_document=gherkin_document)
 
-    def on_pickle_loaded(self, feature: FeatureModel, pickle: Pickle) -> None:
+    def on_pickle_loaded(self, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
         self.config.hook.pytest_bdd_pickle_read(
             config=self.config,
-            gherkin_document=feature.gherkin_document,
+            gherkin_document=gherkin_document,
             pickle=pickle,
         )
 
@@ -154,9 +158,9 @@ class ScenarioTestCollector(BaseCollector):
             feature_scenario_feature_source = _iter_resolved_feature_scenarios(config, locators)
 
             metafunc.parametrize(
-                "gherkin_document, scenario, feature_source",
+                "gherkin_document, pickle, feature_source",
                 starmap(
-                    partial(_build_scenario_param, config=config),
+                    partial(_build_pickle_param, config=config),
                     feature_scenario_feature_source,
                 ),
             )
@@ -164,10 +168,12 @@ class ScenarioTestCollector(BaseCollector):
     @pytest.hookimpl(trylast=True)
     def pytest_bdd_convert_tag_to_marks(
         self,
-        feature,  # noqa: ARG002 hookimpl
-        scenario,  # noqa: ARG002 hookimpl
+        gherkin_document,
+        pickle,
         tag,
     ) -> Collection[Mark | MarkDecorator] | None:
+        _ = gherkin_document
+        _ = pickle
         return [getattr(pytest.mark, tag)]
 
     @pytest.hookimpl

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pytest_bdd import scenario
 from pytest_bdd.plugin.pickle_runner.api_compatibility import (
     build_external_api_compatibility_record,
     load_api_baseline,
@@ -35,3 +36,15 @@ def test_external_api_compatibility_record_is_serializable() -> None:
     assert payload["api_surface_id"] == "hook-plugin-public-api"
     assert payload["baseline_reference"] == baseline["baseline_reference"]
     assert isinstance(payload["additive_symbols"], list)
+
+
+def test_scenario_decorator_uses_pickle_fixture_for_runtime_binding() -> None:
+    decorator = scenario("test.feature", "Scenario", return_test_decorator=True)
+
+    @decorator
+    def test_case():
+        return None
+
+    usefixtures_marks = [mark for mark in test_case.pytestmark if mark.name == "usefixtures"]
+
+    assert any(mark.args == ("gherkin_document", "pickle", "feature_source") for mark in usefixtures_marks)

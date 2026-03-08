@@ -17,6 +17,7 @@ import aiohttp
 import certifi
 from attr import Factory, attrib, attrs
 from cucumber_messages import (
+    GherkinDocument,
     Pickle,
     Source,
 )
@@ -26,7 +27,7 @@ from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import Config, get_config_root_path
 from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
@@ -42,19 +43,19 @@ class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
         config: Config | HasPytestBDDIdGenerator,
-    ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
+    ) -> Iterable[tuple[GherkinDocument, Source]]:  # pragma: no cover
         ...
 
 
 @runtime_checkable
 class ScenarioLocatorReadObserver(Protocol):
-    def on_source_loaded(self, feature: Feature, source: Source) -> None:  # pragma: no cover
+    def on_source_loaded(self, gherkin_document: GherkinDocument, source: Source) -> None:  # pragma: no cover
         ...
 
-    def on_feature_loaded(self, feature: Feature) -> None:  # pragma: no cover
+    def on_feature_loaded(self, gherkin_document: GherkinDocument) -> None:  # pragma: no cover
         ...
 
-    def on_pickle_loaded(self, feature: Feature, pickle: Pickle) -> None:  # pragma: no cover
+    def on_pickle_loaded(self, gherkin_document: GherkinDocument, pickle: Pickle) -> None:  # pragma: no cover
         ...
 
 
@@ -65,27 +66,34 @@ class ScenarioLocatorResolver(Protocol):
         config: Config | HasPytestBDDIdGenerator,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
-    ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
+    ) -> Iterable[tuple[GherkinDocument, Pickle, Source]]:  # pragma: no cover
         ...
 
 
-ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, Feature, Pickle], bool]
+ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, GherkinDocument, Pickle], bool]
 
 
 @attrs
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
     filter_: ScenarioLocatorFilterT | None = attrib(default=None, kw_only=True)
 
-    def filter_scenarios(self, feature, config):
+    def filter_scenarios(self, gherkin_document: GherkinDocument, pickles: Iterable[Pickle], config):
         return (
-            (feature, pickle)
-            for pickle in feature.pickles
-            if self.filter_ is None or self.filter_(config, feature, pickle)
+            (gherkin_document, pickle)
+            for pickle in pickles
+            if self.filter_ is None or self.filter_(config, gherkin_document, pickle)
         )
 
     @staticmethod
-    def _materialize_feature_pickles(feature: Feature, config: Config | HasPytestBDDIdGenerator) -> None:
-        feature.materialize_pickles(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+    def _bind_feature(
+        gherkin_document: GherkinDocument,
+        source: Source,
+        config: Config | HasPytestBDDIdGenerator,
+    ):
+        run = Run.ensure_for_config(config=config)
+        binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
+        binding.ensure_pickles(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+        return binding
 
     def resolve(
         self,
@@ -93,15 +101,15 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ):
-        for feature, feature_data in self.resolve_features(config):
+        for gherkin_document, feature_source in self.resolve_features(config):
+            binding = self._bind_feature(gherkin_document, feature_source, config)
             if observer is not None:
-                observer.on_source_loaded(feature, feature_data)
-                observer.on_feature_loaded(feature)
-            self._materialize_feature_pickles(feature, config)
-            for _, pickle in self.filter_scenarios(feature, config):
+                observer.on_source_loaded(gherkin_document, feature_source)
+                observer.on_feature_loaded(gherkin_document)
+            for _, pickle in self.filter_scenarios(gherkin_document, binding.pickles, config):
                 if observer is not None:
-                    observer.on_pickle_loaded(feature, pickle)
-                yield feature, pickle, feature_data
+                    observer.on_pickle_loaded(gherkin_document, pickle)
+                yield gherkin_document, pickle, feature_source
 
 
 @attrs

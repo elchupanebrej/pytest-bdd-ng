@@ -2,19 +2,31 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from cucumber_messages import DataTable, DocString, Location, PickleStep, Step, TableCell, TableRow
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    DataTable,
+    DocString,
+    GherkinDocument,
+    Location,
+    PickleStep,
+    Source,
+    Step,
+    TableCell,
+    TableRow,
+)
+from cucumber_messages import Feature as FeatureMessage
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
-    RunStage,
-    RunStatus,
+    FeatureRuntimeBinding,
     HookPhase,
     LifecycleObjectRef,
     Run,
+    RunStage,
+    RunStatus,
     ScenarioRun,
 )
-from pytest_bdd.plugin.pickle_runner.run_access import resolve_step_runtime_enrichment
 from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
+from pytest_bdd.plugin.pickle_runner.run_access import resolve_step_runtime_enrichment
 
 
 def _build_scenario_run() -> ScenarioRun:
@@ -36,21 +48,44 @@ def _build_scenario_run() -> ScenarioRun:
     )
 
 
-def _build_config_with_registry(entries: dict[str, object]) -> SimpleNamespace:
-    config = SimpleNamespace(stash={})
-    envelope_registry = Run.ensure_envelope_registry_in_pytest_stash(config)
-    envelope_registry.identifiable.objects_by_id.update(entries)
-    return config
+def _build_feature_binding(run: Run, entries: dict[str, object]) -> FeatureRuntimeBinding:
+    gherkin_document = GherkinDocument(
+        comments=[],
+        feature=FeatureMessage(
+            children=[],
+            description="",
+            keyword="Feature",
+            language="en",
+            location=Location(line=1, column=1),
+            name="Feature",
+            tags=[],
+        ),
+        uri="file:features/reference.feature",
+    )
+    gherkin_document._pytest_bdd_filename = "features/reference.feature"
+    binding = run.ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=Source(
+            uri=gherkin_document.uri,
+            data="Feature: Reference",
+            media_type="text/x.cucumber.gherkin+plain",
+        ),
+    )
+    run.index_identifiable_tree(list(entries.values()))
+    return binding
 
 
 def test_extended_step_context_resolves_scenario_description_from_context_registry() -> None:
     runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
-    config = _build_config_with_registry({"scenario-1": SimpleNamespace(id="scenario-1", description="Scenario from context")})
-    feature = SimpleNamespace(_pytest_bdd_config=config)
+    binding = _build_feature_binding(
+        scenario_run.run,
+        {"scenario-1": SimpleNamespace(id="scenario-1", description="Scenario from context")},
+    )
     scenario = SimpleNamespace(ast_node_ids=["scenario-1"])
-    scenario_run.gherkin_document = feature
+    scenario_run.feature_uri = binding.uri
+    scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
@@ -61,15 +96,16 @@ def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> N
     runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
-    config = _build_config_with_registry(
+    binding = _build_feature_binding(
+        scenario_run.run,
         {
             "rule-scenario-id": SimpleNamespace(id="rule-scenario-id", description="Nested scenario description"),
             "fallback-id": SimpleNamespace(id="fallback-id", description="Fallback description"),
-        }
+        },
     )
-    feature = SimpleNamespace(_pytest_bdd_config=config)
     scenario = SimpleNamespace(ast_node_ids=["rule-scenario-id", "fallback-id"])
-    scenario_run.gherkin_document = feature
+    scenario_run.feature_uri = binding.uri
+    scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
@@ -80,18 +116,16 @@ def test_extended_step_context_records_missing_scenario_reference_in_context_dia
     runner = PickleRunner()
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
-    config = _build_config_with_registry({})
-    feature = SimpleNamespace(_pytest_bdd_config=config)
+    binding = _build_feature_binding(scenario_run.run, {})
     scenario = SimpleNamespace(ast_node_ids=["missing-scenario-id"])
-    scenario_run.gherkin_document = feature
+    scenario_run.feature_uri = binding.uri
+    scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
     with runner.extended_step_context(scenario_run.run):
         assert scenario.description is None
 
-    assert scenario_run.reference_resolver.missing_reference_diagnostics == [
-        "Missing AST node id: missing-scenario-id"
-    ]
+    assert scenario_run.reference_resolver.missing_reference_diagnostics == ["Missing AST node id: missing-scenario-id"]
 
 
 def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> None:
@@ -118,15 +152,16 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
         ),
     )
     scenario_run = _build_scenario_run()
-    config = _build_config_with_registry({"rule-background-step-id": model_step})
-    feature = SimpleNamespace(_pytest_bdd_config=config)
-    pickle_step = PickleStep(ast_node_ids=["rule-background-step-id"], id="pickle-step-id", text="a rule background step")
+    binding = _build_feature_binding(scenario_run.run, {"rule-background-step-id": model_step})
+    scenario_run.feature_uri = binding.uri
+    scenario_run.gherkin_document = binding.gherkin_document
+    pickle_step = PickleStep(
+        ast_node_ids=["rule-background-step-id"], id="pickle-step-id", text="a rule background step"
+    )
 
     payload = resolve_step_runtime_enrichment(
-        feature=feature,
         scenario_run=scenario_run,
         step=pickle_step,
-        config=config,
     )
 
     assert payload["keyword"] == "Given"
@@ -139,15 +174,14 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
 
 def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> None:
     scenario_run = _build_scenario_run()
-    config = _build_config_with_registry({})
-    feature = SimpleNamespace(_pytest_bdd_config=config)
+    binding = _build_feature_binding(scenario_run.run, {})
+    scenario_run.feature_uri = binding.uri
+    scenario_run.gherkin_document = binding.gherkin_document
     pickle_step = PickleStep(ast_node_ids=["missing-step-id"], id="pickle-step-id", text="missing")
 
     payload = resolve_step_runtime_enrichment(
-        feature=feature,
         scenario_run=scenario_run,
         step=pickle_step,
-        config=config,
     )
 
     assert payload == {

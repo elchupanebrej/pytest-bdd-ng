@@ -1098,7 +1098,7 @@ def test_extend_steps_from_step(testdir):
         from pytest_bdd import given, when, then
 
         @when("I inject step \\"{keyword}\\" \\"{step_text}\\"")
-        def inject_step(steps_left: deque, keyword, step_text, scenario):
+        def inject_step(steps_left: deque, keyword, step_text, pickle):
             steps_left.appendleft(PickleStep(
                 id='MyStep',
                 ast_node_ids=[''],

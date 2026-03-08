@@ -124,7 +124,7 @@ def scenarios(
 
     decorator = compose(
         pytest.mark.pytest_bdd_scenario,
-        pytest.mark.usefixtures("feature", "scenario", "feature_source"),
+        pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),
         pytest.mark.scenarios(
             *feature_paths,
             filter_=filter_,

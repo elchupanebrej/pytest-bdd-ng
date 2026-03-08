@@ -10,15 +10,14 @@ from cucumber_messages import (
     GherkinDocument,
     Location,
     Scenario,
+    Source,
     Step,
 )
 
-from pytest_bdd.model.gherkin_document import Feature
-from pytest_bdd.model.gherkin_document import core as core_module
 from pytest_bdd.model.scenario_run import Run
 
 
-def _build_feature() -> Feature:
+def _build_gherkin_document() -> GherkinDocument:
     scenario_step = Step(
         id="ast-step-1",
         keyword="Given ",
@@ -44,38 +43,62 @@ def _build_feature() -> Feature:
         name="Feature",
         tags=[],
     )
-
-    return Feature(
-        gherkin_document=GherkinDocument(comments=[], feature=feature_message, uri="file:features/example.feature"),
+    gherkin_document = GherkinDocument(
+        comments=[],
+        feature=feature_message,
         uri="file:features/example.feature",
-        filename="features/example.feature",
+    )
+    gherkin_document._pytest_bdd_filename = "features/example.feature"
+    return gherkin_document
+
+
+def test_gherkin_document_does_not_expose_registry_attribute() -> None:
+    gherkin_document = _build_gherkin_document()
+
+    assert hasattr(gherkin_document, "registry") is False
+
+
+def test_run_feature_binding_indexes_gherkin_document_objects_in_run_registry() -> None:
+    gherkin_document = _build_gherkin_document()
+    config = SimpleNamespace(stash={})
+    run = Run.ensure_for_config(config=config)
+
+    binding = run.ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=Source(
+            uri=gherkin_document.uri,
+            data="Feature: Feature",
+            media_type="text/x.cucumber.gherkin+plain",
+        ),
     )
 
-
-def test_feature_does_not_expose_registry_attribute() -> None:
-    feature = _build_feature()
-
-    assert hasattr(feature, "registry") is False
+    assert binding.resolve_node("ast-scenario-1").description == "Scenario description from gherkin document"
+    assert binding.resolve_node("ast-step-1").text == "a step"
+    assert run.identifiable_registry.resolve("ast-scenario-1") is binding.resolve_node("ast-scenario-1")
 
 
-def test_resolver_uses_stash_envelope_registry_as_primary_source() -> None:
-    feature = _build_feature()
+def test_run_feature_binding_is_reused_for_same_gherkin_document() -> None:
+    gherkin_document = _build_gherkin_document()
     config = SimpleNamespace(stash={})
-    envelope_registry = Run.ensure_envelope_registry_in_pytest_stash(config)
-    ast_node = SimpleNamespace(id="ast-id", description="from-stash-registry")
-    envelope_registry.identifiable.objects_by_id["ast-id"] = ast_node
+    run = Run.ensure_for_config(config=config)
 
-    resolved = core_module._resolve_registry_for_feature(feature, config=config)
+    first = run.ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=Source(
+            uri=gherkin_document.uri,
+            data="Feature: Feature",
+            media_type="text/x.cucumber.gherkin+plain",
+        ),
+    )
+    second = run.ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=Source(
+            uri=gherkin_document.uri,
+            data="Feature: Feature updated",
+            media_type="text/x.cucumber.gherkin+plain",
+        ),
+    )
 
-    assert resolved["ast-id"] is ast_node
-    assert resolved["ast-id"].description == "from-stash-registry"
-
-
-def test_resolver_falls_back_to_gherkin_document_when_stash_registry_missing() -> None:
-    feature = _build_feature()
-    config = SimpleNamespace(stash={})
-
-    resolved = core_module._resolve_registry_for_feature(feature, config=config)
-
-    assert resolved["ast-scenario-1"].description == "Scenario description from gherkin document"
-    assert resolved["ast-step-1"].text == "a step"
+    assert first is second
+    assert second.source is not None
+    assert second.source.data == "Feature: Feature updated"

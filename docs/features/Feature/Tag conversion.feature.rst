@@ -24,7 +24,7 @@ Scenario: Convert feature tags to pytest marks
       from pytest_bdd import given
       from pytest_bdd.compatibility.pytest import fail
 
-      def pytest_bdd_convert_tag_to_marks(feature, scenario, tag):
+      def pytest_bdd_convert_tag_to_marks(gherkin_document, pickle, tag):
         if tag == 'todo':
            marker = pytest.mark.skip(reason="Not implemented yet")
            return [marker]

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from cucumber_expressions.parameter_type import ParameterType
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+
 from pytest_bdd import given, parsers, scenarios, then, when
 from pytest_bdd.hook import after_tag, around_mark, before_mark, before_tag
 
@@ -18,12 +19,7 @@ class Coordinate:
         self.z = z
 
     def __eq__(self, other):
-        return (
-            isinstance(other, Coordinate)
-            and self.x == other.x
-            and self.y == other.y
-            and self.z == other.z
-        )
+        return isinstance(other, Coordinate) and self.x == other.x and self.y == other.y and self.z == other.z
 
 
 def _build_parameter_type_registry() -> ParameterTypeRegistry:
@@ -34,8 +30,8 @@ def _build_parameter_type_registry() -> ParameterTypeRegistry:
             r"(\d+),\s*(\d+),\s*(\d+)",
             Coordinate,
             lambda x, y, z: Coordinate(int(x), int(y), int(z)),
-            True,
-            False,
+            use_for_snippets=True,
+            prefer_for_regexp_match=False,
         )
     )
     return registry

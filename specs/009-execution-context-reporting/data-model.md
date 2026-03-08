@@ -1,55 +1,99 @@
 # Data Model: Execution Context Reporting Consistency
 
-## Entity: SessionExecutionContext
+## Entity: Run
 
-Purpose: Session-root runtime context shared by scenario-scoped execution contexts.
+Purpose: Session-wide runtime root shared across plugins through `pytest.config.stash`.
 
 Fields:
-- `session_context_id: str` (required, unique per pytest session)
+- `id: str` (required, unique per pytest session)
 - `run_ref: LifecycleObjectRef` (required)
-- `status: ExecutionStatus` (required)
-- `transition_index: int` (required, monotonic)
-- `active_feature_context_id: str | None`
-- `active_scenario_context_id: str | None`
-- `active_step_context_id: str | None`
-- `reporting_state: ReportingLifecycleState` (required)
+- `status: RunStatus` (`ok | failed | interrupted`)
+- `transition_index: int` (monotonic)
+- `feature_bindings_by_uri: dict[str, FeatureRuntimeBinding]`
+- `scenario_runs_by_request: dict[str, ScenarioRun]`
+- `active_scenario_run: ScenarioRun | None`
+- `active_feature_uri: str | None`
+- `active_scenario_id: str | None`
+- `active_step_id: str | None`
 - `last_error: ContextErrorState | None`
+- `reporting_state: ReportingLifecycleState`
+
+Relationships:
+- Owns many `FeatureRuntimeBinding` records keyed by canonical feature URI.
+- Owns many `ScenarioRun` instances keyed by request identity.
+- Owns one `ReportingLifecycleState`.
+- Shares one `EnvelopeRegistry` through stash key `_pytest_bdd_envelope_registry`.
 
 Validation rules:
-- Transition index is monotonic increasing.
-- Active IDs must reference open context nodes.
+- Exactly one `Run` is stored per pytest session stash key `_pytest_bdd_run`.
+- `transition_index` only increments.
+- `active_feature_uri` must resolve to an existing `FeatureRuntimeBinding` while a scenario is active.
 
-## Entity: ExecutionContext
+## Entity: FeatureRuntimeBinding
 
-Purpose: Scenario-scoped runtime execution model; single source of truth for runtime and reporting lookup.
+Purpose: Run-owned feature-level execution and lookup state replacing the removed `Feature` adapter.
 
 Fields:
-- `context_id: str` (required)
-- `run_ref|feature_ref|scenario_ref|step_ref|previous_step_ref: LifecycleObjectRef | None`
+- `uri: str` (required, unique per feature document)
+- `filename: str` (required)
+- `rel_filename: str | None`
+- `source: Source` (required)
+- `gherkin_document: GherkinDocument` (required)
+- `pickles: tuple[Pickle, ...]`
+- `ast_registry: dict[str, Any]`
+- `name: str | None`
+- `line_number: int | None`
+- `description: str | None`
+- `tag_names: tuple[str, ...]`
+
+Relationships:
+- Owned by exactly one `Run`.
+- Referenced by one or more `ScenarioRun` instances via `feature_uri`.
+
+Validation rules:
+- `ast_registry` is derived from `gherkin_document` and remains deterministic for identical source input.
+- `pickles` are compiled from the bound `gherkin_document`, not from a wrapper adapter.
+- No hook, fixture, or reporter API exposes `FeatureRuntimeBinding` directly; it is accessed through `Run`.
+
+## Entity: ScenarioRun
+
+Purpose: Scenario/request-scoped runtime execution state used by hooks, runners, and reporting readers.
+
+Fields:
+- `id: str` (required)
+- `run_ref: LifecycleObjectRef`
 - `active_hook: HookPhase`
-- `stage: ExecutionStage`
-- `status: ExecutionStatus`
+- `stage: RunStage`
+- `status: RunStatus`
 - `active_set: ActiveObjectSet`
 - `transition_index: int`
-- `session_context: SessionExecutionContext | None`
-- `feature_node|scenario_node|step_node: ExecutionContextNode | None`
-- `feature_object|scenario_object|step_object|previous_step_object: Any | None`
-- `reporting_state: ReportingLifecycleState`
-- `gherkin_registry: GherkinRegistryState`
+- `feature_uri: str | None`
+- `gherkin_document: GherkinDocument | None`
+- `feature_source: Source | None`
+- `pickle: Pickle | None`
+- `step_object: PickleStep | None`
+- `previous_step_object: Any | None`
+- `feature_ref | scenario_ref | step_ref | previous_step_ref: LifecycleObjectRef | None`
+- `feature_node | scenario_node | step_node: RunNode | None`
 - `reference_resolver: ReferenceResolverState`
-- `message_reference_index: MessageReferenceIndex` (new)
+- `run: Run | None`
+
+Relationships:
+- Belongs to exactly one `Run`.
+- Resolves one active `FeatureRuntimeBinding` through `feature_uri`.
 
 Validation rules:
-- Reporter code reads but does not mutate context state.
-- `message_reference_index` keys are deterministic and worker-safe.
+- `ScenarioRun` is not stored directly in `config.stash`.
+- Lifecycle transitions follow hook-driven stage mapping.
+- `gherkin_document`, `feature_source`, and `pickle` must all come from the bound `FeatureRuntimeBinding`.
+- No `Feature` adapter fields are allowed.
 
 State transitions:
 - `idle -> scenario_setup -> scenario_running -> step_running -> scenario_running -> scenario_teardown -> finished`
-- `status: ok -> failed|interrupted`
 
 ## Entity: ReportingLifecycleState
 
-Purpose: Runtime correlation IDs and transient lifecycle mappings used for message emission.
+Purpose: Correlation state for cucumber message lifecycle emission.
 
 Fields:
 - `run_started_id: str | None`
@@ -57,95 +101,84 @@ Fields:
 - `active_test_case_id: str | None`
 - `active_test_case_started_id: str | None`
 - `active_test_step_id: str | None`
-- `runtime_step_to_test_step_id: dict[int, str]`
+- `runtime_step_to_pickle_step_id: dict[int, str]`
 - `scenario_attempt_context: dict[str, str | int] | None`
-- `step_started_timestamp: Timestamp | None`
-- `step_finished_timestamp: Timestamp | None`
+- `step_started_timestamp: Timestamp-like | None`
+- `step_finished_timestamp: Timestamp-like | None`
 
 Validation rules:
-- Scenario-scoped fields reset on scenario completion.
-- No synthetic fallback IDs are generated.
+- Scenario-scoped fields reset after scenario completion.
+- Correlation IDs are context-derived; synthetic backfilled IDs are disallowed.
 
-## Entity: GherkinRegistryState
+## Entity: LifecycleObjectRef
 
-Purpose: AST node registry used by runtime lookup and reference reconstruction.
+Purpose: Typed pointer to active runtime objects used in lifecycle snapshots.
 
 Fields:
-- `source_uri: str | None`
-- `ast_node_by_id: dict[str, Any]`
+- `kind: Literal["run", "feature", "scenario", "step"]`
+- `object_id: str`
+- `name: str | None`
+- `source: str | None`
+- `is_active: bool`
 
 Validation rules:
-- Keys are stable AST IDs.
-- Registry is write-owned by execution flow; reporters read-only.
+- `kind="feature"` points to a feature document identity, not to a `Feature` adapter instance.
+- `kind="scenario"` points to the executable runtime `Pickle`.
 
-## Entity: MessageReferenceIndex
+## Entity: EnvelopeRegistry
 
-Purpose: Context-owned index for message-model object lookup and reverse binding during deserialize.
+Purpose: Session-shared emitted message store plus identifiable object index for reference lookup.
 
 Fields:
-- `entries: dict[tuple[str, str, str], MessageReferenceRecord]`
-  - key shape: `(worker_id, payload_kind, payload_id)`
+- `envelopes: list[EventEnvelope]`
+- `identifiable: IdentifiableObjectRegistry`
 
 Validation rules:
-- Keys must be deterministic.
-- Duplicate key insertion is deterministic conflict (diagnostic + reject overwrite unless same payload identity).
+- Every added envelope is indexed recursively by `Identifiable.id`.
+- Lookup is deterministic by stringified ID.
+- Registry ownership lives with `Run`, not with parsed feature wrappers.
 
-## Entity: MessageReferenceRecord
+## Entity: IdentifiableObjectRegistry
 
-Purpose: Registry record binding message IDs to execution/runtime object references.
+Purpose: ID index for objects reachable from envelope payload trees.
 
 Fields:
-- `worker_id: str`
-- `payload_kind: str`
-- `payload_id: str`
-- `runtime_ref_kind: LifecycleKind | None`
-- `runtime_object_key: str | None` (stable key, not Python memory id)
-- `ast_node_ids: tuple[str, ...]`
+- `objects_by_id: dict[str, Identifiable]`
 
 Validation rules:
-- `payload_id` required for all records.
-- Runtime key optional for message-only entities, required for round-trip-required entities.
-
-## Entity: ExecutionMessageAdapter
-
-Purpose: Adapter boundary converting execution model <-> cucumber message model.
-
-Operations:
-- `serialize(context, runtime_event) -> Message`
-- `deserialize(context, message) -> ExecutionProjection`
-
-Validation rules:
-- Conversion is deterministic for equal inputs.
-- Uses `message_converter` for wire-shape compatibility.
-- Resolves/rebuilds links only through `gherkin_registry` and `message_reference_index`.
+- Last write wins per ID within one run stream.
+- Accepts only objects conforming to the `Identifiable` protocol.
 
 ## Entity: ExecutionProjection
 
-Purpose: Deserialized execution-side projection reconstructed from message model for replay/validation paths.
+Purpose: Adapter-produced projection that exposes a canonical payload kind, payload object, and registry-backed lookup API.
 
 Fields:
-- `run_started_id|test_case_id|test_step_id|hook_ids: str | None`
-- `linked_runtime_keys: tuple[str, ...]`
-- `linked_ast_node_ids: tuple[str, ...]`
-- `diagnostics: tuple[str, ...]`
+- `envelope: EventEnvelope`
+- `payload_kind: PayloadKind`
+- `payload: Any`
+- `registry: IdentifiableObjectRegistry | None`
 
 Validation rules:
-- Missing links yield deterministic diagnostics, never synthetic object fabrication.
+- Projection creation is deterministic for equal envelope input.
+- `resolve(object_id)` uses run-owned registry state only.
 
 ## Entity: GovernanceDecision
 
-Purpose: Capability classification for uncovered fields in coverage governance.
+Purpose: Classification metadata for capability coverage gating.
 
 Fields:
 - `capability_id: str`
-- `status: CapabilityStatus`
+- `status: Implemented | Partly-Applicable | Non-Implementable | Not-Acceptable | Not-Applicable | Pending`
 - `release_target: str`
 - `rationale: str | None`
 - `hard_limitation: str | None`
+- `decision_owner: str | None`
 - `evidence_refs: tuple[str, ...]`
+- `reviewed_at: datetime | None`
 - `recheck_trigger: str | None`
 
 Validation rules:
-- Runtime-required fields must be runtime-observed.
-- `Non-Implementable` requires objective hard limitation + recheck trigger.
-- `Partly-Applicable` must document language/runtime model mismatch.
+- Runtime-required capabilities must be runtime observed.
+- `Non-Implementable` requires objective hard-limitation rationale and recheck trigger.
+- `Partly-Applicable` requires explicit language/runtime mismatch rationale.

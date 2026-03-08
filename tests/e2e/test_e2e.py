@@ -3,9 +3,10 @@ from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_o
 from tests.messages.message_capability_fixtures import make_mapping_rule
 
 
-def _exclude_allure_features(config, feature, scenario):  # noqa: ARG001
+def _exclude_allure_features(config, feature, pickle):  # noqa: ARG001
     feature_uri = getattr(feature, "uri", "")
-    return "report/allure/" not in str(feature_uri).lower() and not feature.name.lower().startswith("allure ")
+    feature_name = str(getattr(getattr(feature, "feature", None), "name", "")).lower()
+    return "report/allure/" not in str(feature_uri).lower() and not feature_name.startswith("allure ")
 
 
 test = scenarios(".", filter_=_exclude_allure_features)

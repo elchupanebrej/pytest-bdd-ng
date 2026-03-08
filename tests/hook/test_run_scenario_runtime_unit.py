@@ -7,7 +7,7 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, i
 from cucumber_messages import TestCase as CucumberTestCase  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import TestStep as CucumberTestStep
 
-from pytest_bdd.model.scenario_run import RunStatus, LifecycleObjectRef, Run, ScenarioRun
+from pytest_bdd.model.scenario_run import LifecycleObjectRef, Run, RunStatus
 
 
 class _Stash:
@@ -148,10 +148,13 @@ def test_register_envelope_indexes_identifiable_objects_by_protocol() -> None:
     )
 
     registry = Run.register_envelope_in_pytest_stash(config, envelope)
+    run = Run.from_pytest_stash(config)
 
     assert registry.envelopes == [envelope]
     assert registry.resolve("test-case-1") is envelope.test_case
     assert registry.resolve("test-step-1") is envelope.test_case.test_steps[0]
+    assert run is not None
+    assert registry.identifiable is run.identifiable_registry
 
 
 def test_pop_resets_reporting_and_reference_states() -> None:

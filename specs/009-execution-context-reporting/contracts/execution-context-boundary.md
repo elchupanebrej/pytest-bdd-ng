@@ -2,57 +2,63 @@
 
 ## Scope
 
-Defines read/write ownership of runtime execution context and shared lookup data between execution plugins and reporting plugins.
+Defines ownership of runtime execution state after removal of `src/pytest_bdd/model/gherkin_document/core.py::Feature` from parser, locator, hook, fixture, and reporting boundaries.
 
-## Writers (Execution Layer)
+## Canonical Runtime Root
+
+- Session root: `Run`
+- Scenario root: `ScenarioRun`
+- Feature-level state: `Run.feature_bindings_by_uri`
+- Shared stash transport:
+  - `Run` stash key: `_pytest_bdd_run`
+  - Envelope registry stash key: `_pytest_bdd_envelope_registry`
+
+## Writers (Execution and Collection Layers)
 
 Allowed writers:
-- `src/pytest_bdd/plugin/scenario_runner/context_store.py`
-- `src/pytest_bdd/plugin/scenario_runner/context_transitions.py`
-- `src/pytest_bdd/plugin/scenario_runner/plugin.py`
-- execution-side writer helpers in `src/pytest_bdd/plugin/scenario_runner/context_access.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/parser.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/scenario_locator.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/scenario_test_collector/plugin.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/model/scenario_run.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/pickle_runner/plugin.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/pickle_runner/run_transitions.py`
 
 Writer obligations:
-- Create and mutate `ExecutionContext` and `SessionExecutionContext`.
-- Initialize/update `reporting_state`, `gherkin_registry`, and message reference index.
-- Publish context identity through `config.stash` for cross-plugin access.
+- Register or update `FeatureRuntimeBinding` records in `Run`.
+- Maintain active `ScenarioRun` bindings for `gherkin_document`, `feature_source`, `pickle`, and step objects.
+- Maintain lifecycle refs and `ReportingLifecycleState`.
+- Publish only `Run` and envelope registry entries into `config.stash`.
 
-## Readers (Reporting Layer)
+## Readers (Reporting and Consumer Layers)
 
 Read-only consumers:
-- `src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
-- `src/pytest_bdd/plugin/scenario_reporter/plugin.py`
-- any reporting serializer plugin consuming runtime context
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/scenario_reporter/report.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/allure_logger/plugin.py`
+- `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/src/pytest_bdd/plugin/code_generator/plugin.py`
 
 Reader obligations:
-- Resolve required state only via read accessors.
-- Never call context bootstrap/mutation APIs.
-- On missing context state, emit deterministic diagnostics and skip only correlation-dependent fields.
+- Resolve state via `Run.from_pytest_stash(...)`, `Run.active_scenario_run`, and run-owned feature binding helpers.
+- Never bootstrap or mutate runtime context.
+- Emit deterministic diagnostics when required context bindings are missing.
 
-## API Boundary
+## Prohibited Runtime Surface
 
-Reporter-allowed access:
-- `resolve_request_execution_context(...)`
-- read-only resolver helpers (`resolve_step_runtime_enrichment`, `resolve_scenario_description`, `resolve_test_step_id_for_runtime_step`)
+The following are forbidden in hooks, fixtures, locator callbacks, and reporters:
+- `src/pytest_bdd/model/gherkin_document/core.py::Feature`
+- feature-wrapper-specific helper methods
+- reporter-local `current_<item>` mirrors
+- reporter-side calls to context bootstrap/mutation APIs
+- storing `ScenarioRun` directly in `config.stash`
 
-Reporter-disallowed behavior:
-- Calls to `initialize_session_root`, `get_or_create`, `set`, `pop`, `ensure_session_root_for_session`
-- Direct assignment to `execution_context.reporting_state.*`
-- local `current_<item>` lifecycle state mirrors
+## Naming Semantics Contract
 
-## Shared Transport
-
-- Canonical session/context transport uses `config.stash` keys owned by execution flow.
-- Stash entries expose context identity; message reference index ownership remains inside execution context objects.
-
-## Compatibility Invariants
-
-- External envelope schema remains unchanged.
-- Correlation IDs come from execution context state.
-- Missing links stay deterministic and non-fabricated.
+- `pickle` means executable runtime scenario object (`cucumber_messages.Pickle`).
+- `scenario` means Gherkin AST `Scenario` semantics only.
+- `feature` in runtime context means a feature document identity or run-owned feature binding, not a `Feature` adapter instance.
 
 ## Validation Requirements
 
-- Tests assert reporter has no context-writer behavior.
-- Tests assert no `current_*` lifecycle ownership in reporter.
-- Tests assert missing context path emits deterministic diagnostics.
+- Hook tests verify all plugins can consume `run: Run` and recover active `ScenarioRun` safely.
+- Fixture/API tests verify `Feature` is not exposed on the runtime surface.
+- Collection tests verify the feature pipeline works with `Source`, `GherkinDocument`, and `Pickle` only.

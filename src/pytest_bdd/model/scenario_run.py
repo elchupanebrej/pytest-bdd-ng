@@ -1,13 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from pathlib import Path
+from textwrap import dedent
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from cucumber_messages import PickleStep, Pickle, GherkinDocument
+from _pytest.stash import Stash
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    GherkinDocument,
+    Pickle,
+    PickleStep,
+    Scenario,
+    Source,
+    Step,
+    TableRow,
+)
+from gherkin.pickles.compiler import Compiler as PicklesCompiler
 
 from pytest_bdd.compatibility.enum import StrEnum
-from pytest_bdd.model.message_registry import EnvelopeRegistry
+from pytest_bdd.const import TAG_PREFIX
+from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.types.protocol import Identifiable
+from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
     from pytest_bdd.model.message_extension import EventEnvelope
@@ -151,15 +166,200 @@ class ContextErrorState:
 
 
 @dataclass(slots=True)
+class FeatureRuntimeBinding:
+    uri: str
+    filename: str
+    gherkin_document: GherkinDocument
+    run: Run = field(repr=False, compare=False)
+    source: Source | None = None
+    pickles: tuple[Pickle, ...] = ()
+
+    @staticmethod
+    def _feature_filename_from_uri(uri: str | None) -> str:
+        if uri is None:
+            return "<unknown>"
+        if uri.startswith("file:"):
+            return uri.removeprefix("file:")
+        return str(Path(uri).as_posix())
+
+    @staticmethod
+    def load_gherkin_document(raw_gherkin_document: Any) -> GherkinDocument:
+        return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
+
+    @staticmethod
+    def load_pickles(pickles_data: Any) -> tuple[Pickle, ...]:
+        return tuple(message_converter.from_dict(pickle_data, Pickle) for pickle_data in pickles_data)
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        run: Run,
+        gherkin_document: GherkinDocument,
+        source: Source | None = None,
+        pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
+    ) -> FeatureRuntimeBinding:
+        filename = getattr(gherkin_document, "_pytest_bdd_filename", None)
+        if filename is None and source is not None:
+            filename = cls._feature_filename_from_uri(source.uri)
+        if filename is None:
+            filename = cls._feature_filename_from_uri(getattr(gherkin_document, "uri", None))
+
+        binding = cls(
+            uri=str(gherkin_document.uri),
+            filename=str(filename),
+            gherkin_document=gherkin_document,
+            run=run,
+            source=source,
+            pickles=tuple(pickles or ()),
+        )
+        binding.index_runtime_objects()
+        return binding
+
+    def ensure_pickles(self, *, id_generator: Any) -> tuple[Pickle, ...]:
+        if self.pickles:
+            return self.pickles
+
+        gherkin_document_payload = message_converter.to_dict(self.gherkin_document)
+        pickles_data = PicklesCompiler(id_generator=id_generator).compile(gherkin_document_payload)
+        self.pickles = self.load_pickles(pickles_data)
+        self.run.index_identifiable_tree(self.pickles)
+        return self.pickles
+
+    def index_runtime_objects(self) -> None:
+        feature_message = getattr(self.gherkin_document, "feature", None)
+        if feature_message is not None:
+            self.run.index_identifiable_tree(feature_message)
+        if self.pickles:
+            self.run.index_identifiable_tree(self.pickles)
+
+    def resolve_node(self, object_id: str) -> Any | None:
+        return self.run.identifiable_registry.resolve(str(object_id))
+
+    def linked_ast_nodes_for(self, obj: Any) -> list[Any]:
+        items = [
+            *filter(
+                lambda ast_node_id: ast_node_id != "",
+                ((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
+            ),
+            *filter(lambda ast_node_id: ast_node_id != "", getattr(obj, "ast_node_ids", ())),
+        ]
+        linked_nodes: list[Any] = []
+        for ast_node_id in items:
+            linked_node = self.resolve_node(str(ast_node_id))
+            if linked_node is None:
+                continue
+            linked_nodes.append(linked_node)
+        return linked_nodes
+
+    def pickle_ast_table_rows(self, pickle: Pickle) -> list[TableRow]:
+        return list(filter(lambda node: type(node) is TableRow, self.linked_ast_nodes_for(pickle)))
+
+    def pickle_table_rows_breadcrumb(self, pickle: Pickle) -> str:
+        table_rows_lines = ",".join(
+            (
+                f"line: {deepattrgetter('location.line', default=-1)(row)[0]}"
+                for row in self.pickle_ast_table_rows(pickle)
+            ),
+        )
+        return f"[table_rows:[{table_rows_lines}]]" if table_rows_lines else ""
+
+    def pickle_ast_scenario(self, pickle: Pickle) -> Scenario | None:
+        return next(
+            filter(
+                lambda node: type(node) is Scenario,
+                self.linked_ast_nodes_for(pickle),
+            ),
+            None,
+        )
+
+    def pickle_line_number(self, pickle: Pickle) -> int:
+        scenario = self.pickle_ast_scenario(pickle)
+        if scenario is None:
+            return -1
+        location = scenario.location
+        line = getattr(location, "line", None)
+        return int(line) if line is not None else -1
+
+    def pickle_step_ast_step(self, pickle_step: PickleStep) -> Step | None:
+        return next(
+            filter(
+                lambda node: type(node) is Step,
+                self.linked_ast_nodes_for(pickle_step),
+            ),
+            None,
+        )
+
+    def step_keyword(self, step: PickleStep) -> str | None:
+        model_step = self.pickle_step_ast_step(step)
+        if model_step is not None:
+            keyword = getattr(model_step, "keyword", None)
+            if isinstance(keyword, str):
+                return keyword.strip()
+        return None
+
+    def step_prefix(self, step: PickleStep) -> str | None:
+        keyword = self.step_keyword(step)
+        return keyword.lower() if keyword is not None else None
+
+    def step_line_number(self, step: PickleStep) -> int | None:
+        model_step = self.pickle_step_ast_step(step)
+        if model_step is not None:
+            return model_step.location.line if model_step.location is not None else -1
+        return None
+
+    def step_doc_string(self, step: PickleStep) -> Any:
+        return getattr(self.pickle_step_ast_step(step), "doc_string", None)
+
+    def step_data_table(self, step: PickleStep) -> Any:
+        return getattr(self.pickle_step_ast_step(step), "data_table", None)
+
+    @property
+    def rel_filename(self) -> str | None:
+        if self.uri.startswith("file:"):
+            return self.uri[len("file:") :]
+        return None
+
+    @property
+    def name(self) -> str | None:
+        feature_message = getattr(self.gherkin_document, "feature", None)
+        return str(feature_message.name) if feature_message is not None else None
+
+    @property
+    def line_number(self) -> int | None:
+        feature_message = getattr(self.gherkin_document, "feature", None)
+        location = getattr(feature_message, "location", None)
+        line = getattr(location, "line", None)
+        return int(line) if line is not None else None
+
+    @property
+    def description(self) -> str | None:
+        feature_message = getattr(self.gherkin_document, "feature", None)
+        description = getattr(feature_message, "description", None)
+        if description is None:
+            return None
+        return dedent(str(description))
+
+    @property
+    def tag_names(self) -> list[str]:
+        feature_message = getattr(self.gherkin_document, "feature", None)
+        tags = getattr(feature_message, "tags", None) or ()
+        return sorted(str(tag.name).lstrip(TAG_PREFIX) for tag in tags)
+
+
+@dataclass(slots=True)
 class Run:
-    STASH_KEY = "_pytest_bdd_run"
-    ENVELOPE_REGISTRY_STASH_KEY = "_pytest_bdd_envelope_registry"
+    STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
+    ENVELOPE_REGISTRY_STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
 
     id: str
     run_ref: LifecycleObjectRef
     status: RunStatus
     transition_index: int = 0
+    identifiable_registry: IdentifiableObjectRegistry = field(default_factory=IdentifiableObjectRegistry, repr=False)
+    feature_bindings_by_uri: dict[str, FeatureRuntimeBinding] = field(default_factory=dict, repr=False)
     active_feature_id: str | None = None
+    active_feature_uri: str | None = None
     active_scenario_id: str | None = None
     active_step_id: str | None = None
     scenario_runs_by_request: dict[str, ScenarioRun] = field(default_factory=dict, repr=False)
@@ -170,10 +370,16 @@ class Run:
     def advance_transition(self) -> None:
         self.transition_index += 1
 
+    @staticmethod
+    def _stash_get(stash: Stash, key: str) -> Any | None:
+        if hasattr(stash, "get"):
+            return stash.get(key, None)
+        return stash[key] if key in stash else None  # noqa: SIM401
+
     @classmethod
     def from_pytest_stash(cls, config: Any) -> Run | None:
         stash = config.stash
-        candidate = stash[cls.STASH_KEY] if cls.STASH_KEY in stash else None
+        candidate = cls._stash_get(stash, cls.STASH_KEY)
         if isinstance(candidate, Run):
             return candidate
         return None
@@ -184,7 +390,7 @@ class Run:
     @classmethod
     def envelope_registry_from_pytest_stash(cls, config: Any) -> EnvelopeRegistry | None:
         stash = config.stash
-        candidate = stash[cls.ENVELOPE_REGISTRY_STASH_KEY] if cls.ENVELOPE_REGISTRY_STASH_KEY in stash else None
+        candidate = cls._stash_get(stash, cls.ENVELOPE_REGISTRY_STASH_KEY)
         if isinstance(candidate, EnvelopeRegistry):
             return candidate
         return None
@@ -195,7 +401,10 @@ class Run:
         if existing is not None:
             return existing
         stash = config.stash
-        registry = EnvelopeRegistry()
+        run = cls.from_pytest_stash(config)
+        if run is None:
+            run = cls.ensure_for_config(config=config)
+        registry = EnvelopeRegistry(identifiable=run.identifiable_registry)
         stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = registry
         return registry
 
@@ -207,16 +416,11 @@ class Run:
 
     @classmethod
     def ensure_for_session(cls, *, config: Any, session: Any) -> Run:
-        cls.ensure_envelope_registry_in_pytest_stash(config)
         existing = cls.from_pytest_stash(config)
         if existing is not None:
             return existing
 
-        object_id = (
-            getattr(session, "name", None)
-            or getattr(session, "nodeid", None)
-            or str(id(session))
-        )
+        object_id = getattr(session, "name", None) or getattr(session, "nodeid", None) or str(id(session))
         run_ref = LifecycleObjectRef(kind="run", object_id=str(object_id), name="run", is_active=True)
         run = Run(
             id=f"run-{id(session)}",
@@ -225,7 +429,17 @@ class Run:
             transition_index=0,
         )
         run.set_in_pytest_stash(config)
+        if cls.envelope_registry_from_pytest_stash(config) is None:
+            config.stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = EnvelopeRegistry(identifiable=run.identifiable_registry)
         return run
+
+    @classmethod
+    def ensure_for_config(cls, *, config: Any, session: Any | None = None) -> Run:
+        existing = cls.from_pytest_stash(config)
+        if existing is not None:
+            return existing
+        session_like = session if session is not None else config
+        return cls.ensure_for_session(config=config, session=session_like)
 
     @staticmethod
     def _request_key(request: Any) -> str:
@@ -279,15 +493,22 @@ class Run:
                 run_root.active_scenario_run = None
             if run_root.active_step_id is not None:
                 run_root.active_step_id = None
+            if run_root.active_feature_uri == scenario_run.feature_uri:
+                run_root.active_feature_uri = None
             run_root.reporting_state.reset_scenario_scope()
 
         scenario_run.reference_resolver.clear()
         return scenario_run
 
     def create_scenario_run(
-        self, request: Any, *, gherkin_document: GherkinDocument | None = None, pickle: Pickle | None = None
+        self,
+        request: Any,
+        *,
+        gherkin_document: GherkinDocument | None = None,
+        pickle: Pickle | None = None,
+        feature_source: Source | None = None,
     ) -> ScenarioRun:
-        from pytest_bdd.plugin.pickle_runner.run_transitions import (  # noqa: PLC0415
+        from pytest_bdd.plugin.pickle_runner.run_transitions import (
             build_lifecycle_ref,
             initial_scenario_run_id,
             runtime_object_id,
@@ -298,6 +519,17 @@ class Run:
             run_ref = LifecycleObjectRef(kind="run", object_id="run", name="run", is_active=True)
 
         run = self
+        feature_binding = None
+        feature_uri = None
+        if gherkin_document is not None and getattr(gherkin_document, "uri", None) is not None:
+            feature_binding = run.ensure_feature_binding(
+                gherkin_document=gherkin_document,
+                source=feature_source,
+                pickles=(pickle,) if pickle is not None else None,
+            )
+            feature_uri = feature_binding.uri
+            if feature_source is None:
+                feature_source = feature_binding.source
 
         feature_ref = build_lifecycle_ref("feature", gherkin_document, is_active=gherkin_document is not None)
         scenario_ref = build_lifecycle_ref("scenario", pickle, is_active=pickle is not None)
@@ -322,6 +554,7 @@ class Run:
                 opened_at_transition=run.transition_index,
             )
             run.active_feature_id = feature_node.id
+            run.active_feature_uri = feature_uri
 
         scenario_node = None
         if scenario_ref is not None:
@@ -348,10 +581,12 @@ class Run:
             active_set=active_set,
             transition_index=0,
             run=run,
+            feature_uri=feature_uri,
             feature_node=feature_node,
             scenario_node=scenario_node,
             step_node=None,
             gherkin_document=gherkin_document,
+            feature_source=feature_source,
             pickle=pickle,
             step_object=None,
             previous_step_object=None,
@@ -361,8 +596,52 @@ class Run:
         run.active_scenario_run = scenario_run
         return scenario_run
 
+    def index_identifiable_tree(self, root: Any) -> None:
+        self.identifiable_registry.index_tree(root)
+
     def map_runtime_step_to_test_step_id(self, *, pickle_step: PickleStep, test_step_id: str) -> None:
         self.reporting_state.runtime_step_to_pickle_step_id[id(pickle_step)] = test_step_id
+
+    def ensure_feature_binding(
+        self,
+        *,
+        gherkin_document: GherkinDocument,
+        source: Source | None = None,
+        pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
+    ) -> FeatureRuntimeBinding:
+        uri = str(gherkin_document.uri)
+        binding = self.feature_bindings_by_uri.get(uri)
+        if binding is None:
+            binding = FeatureRuntimeBinding.build(
+                run=self,
+                gherkin_document=gherkin_document,
+                source=source,
+                pickles=pickles,
+            )
+            self.feature_bindings_by_uri[uri] = binding
+            return binding
+
+        binding.run = self
+        binding.gherkin_document = gherkin_document
+        if source is not None:
+            binding.source = source
+        if pickles and (not binding.pickles or len(pickles) >= len(binding.pickles)):
+            binding.pickles = tuple(pickles)
+        binding.index_runtime_objects()
+        if not binding.filename:
+            binding.filename = FeatureRuntimeBinding._feature_filename_from_uri(uri)
+        return binding
+
+    def feature_binding_for_uri(self, uri: str | None) -> FeatureRuntimeBinding | None:
+        if uri is None:
+            return None
+        return self.feature_bindings_by_uri.get(str(uri))
+
+    def feature_binding_for_document(self, gherkin_document: GherkinDocument | None) -> FeatureRuntimeBinding | None:
+        uri = getattr(gherkin_document, "uri", None) if gherkin_document is not None else None
+        if uri is None:
+            return None
+        return self.feature_bindings_by_uri.get(str(uri))
 
     def resolve_test_step_id_for_runtime_step(self, *, pickle_step: PickleStep) -> str | None:
         reporting_state = self.reporting_state
@@ -382,7 +661,9 @@ class Run:
             "run_ref": self.run_ref.as_dict(),
             "status": self.status.value,
             "transition_index": self.transition_index,
+            "feature_bindings_by_uri": sorted(self.feature_bindings_by_uri),
             "active_feature_id": self.active_feature_id,
+            "active_feature_uri": self.active_feature_uri,
             "active_scenario_id": self.active_scenario_id,
             "active_step_id": self.active_step_id,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
@@ -431,10 +712,12 @@ class ScenarioRun:
     previous_step_ref: LifecycleObjectRef | None = None
     last_error: ContextErrorState | None = None
     run: Run | None = None
+    feature_uri: str | None = None
     feature_node: RunNode | None = None
     scenario_node: RunNode | None = None
     step_node: RunNode | None = None
     gherkin_document: GherkinDocument | None = None
+    feature_source: Source | None = None
     pickle: Pickle | None = None
     step_object: PickleStep | None = None
     previous_step_object: Any | None = None
@@ -469,6 +752,13 @@ class ScenarioRun:
             return None
         return candidate
 
+    def feature_binding(self) -> FeatureRuntimeBinding | None:
+        if self.run is None:
+            return None
+        if self.feature_uri is not None:
+            return self.run.feature_binding_for_uri(self.feature_uri)
+        return self.run.feature_binding_for_document(self.gherkin_document)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
@@ -482,6 +772,7 @@ class ScenarioRun:
             "status": self.status.value,
             "active_set": self.active_set.as_dict(),
             "transition_index": self.transition_index,
+            "feature_uri": self.feature_uri,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
             "run": self.run.as_dict() if self.run is not None else None,
             "feature_node": self.feature_node.as_dict() if self.feature_node is not None else None,

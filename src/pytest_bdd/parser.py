@@ -22,7 +22,7 @@ from pytest_bdd.compatibility.gherkin import GherkinDocument
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.model.gherkin_document import Feature
+from pytest_bdd.model.scenario_run import FeatureRuntimeBinding
 from pytest_bdd.types.exception import FeatureConcreteParseError
 from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 
@@ -106,15 +106,10 @@ class BaseParser(ParserProtocol):
         _config: Config | HasPytestBDDIdGenerator,
         gherkin_document_raw_dict,
         filename: str,
-    ) -> Feature:
-        gherkin_document = Feature.load_gherkin_document(gherkin_document_raw_dict)
+    ) -> GherkinDocument:
+        gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
         gherkin_document._pytest_bdd_filename = filename
-
-        return Feature(  # type: ignore[call-arg]
-            gherkin_document=gherkin_document,
-            uri=gherkin_document.uri,
-            filename=filename,
-        )
+        return gherkin_document
 
 
 @attrs
@@ -126,7 +121,7 @@ class GherkinParser(BaseParser):
         uri: str,
         *args,
         **kwargs,
-    ) -> tuple[Feature, str]:
+    ) -> tuple[GherkinDocument, str]:
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         encoding = kwargs.pop("encoding", "utf-8")
         feature_file_data = path.read_text(encoding=encoding)
