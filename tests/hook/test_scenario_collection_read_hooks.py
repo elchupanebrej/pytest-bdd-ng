@@ -93,10 +93,12 @@ def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])
     hook = _HookSpy()
-    config = SimpleNamespace(stash={}, pytest_bdd_id_generator=IdGenerator(), hook=hook)
+    config = SimpleNamespace(stash={}, hook=hook)
+    Run.initialize_for_config(stash=config.stash, config=config)
+    IdGenerator().initialize_in_pytest_stash(config.stash)
 
     resolved = list(_iter_resolved_feature_scenarios(config, [locator]))
-    run = Run.from_pytest_stash(config)
+    run = Run.from_pytest_stash(config.stash)
     binding = run.feature_binding_for_document(gherkin_document) if run is not None else None
 
     assert len(resolved) == 1

@@ -56,7 +56,7 @@ def _pytest_pycollect_makemodule():
 
 
 def _build_pickle_param(gherkin_document: GherkinDocument, pickle: Pickle, feature_source: Source, config: Config):
-    binding = Run.ensure_for_config(config=config).ensure_feature_binding(
+    binding = Run.require_from_pytest_stash(config.stash).ensure_feature_binding(
         gherkin_document=gherkin_document,
         source=feature_source,
     )

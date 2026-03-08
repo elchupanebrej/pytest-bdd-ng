@@ -6,7 +6,7 @@ from attr import attrib, attrs
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.types.protocol import HasPytestBDDStash
 
 from .model import Step
 from .model_builder import GherkinDocumentBuilder
@@ -35,7 +35,7 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        _config: Config | HasPytestBDDIdGenerator,
+        _config: Config | HasPytestBDDStash,
         path: Path,
         uri: str,
         *args,

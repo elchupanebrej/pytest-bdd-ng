@@ -9,9 +9,9 @@ Remove `src/pytest_bdd/model/gherkin_document/core.py::Feature` from the runtime
 
 This plan enforces four outcomes:
 - `Feature` is not constructed or consumed in hooks, fixtures, collector callbacks, or reporting flows.
-- Feature-level lookup and registry state moves into `Run` / `ScenarioRun`.
+- Feature-level lookup and registry state moves into `Run` / `ScenarioRun`, with a single run-owned identifiable-object registry.
 - Collection, parametrization, and reporting operate on canonical message-model objects plus run-owned bindings.
-- The execution/message adapter remains the only protocol conversion boundary.
+- The execution/message adapter remains the only protocol conversion boundary, and `pytest_bdd_id_generator` is resolved through `config.stash`.
 
 ## Technical Context
 
@@ -108,9 +108,9 @@ Phase 0 resolved the design boundary with no remaining unresolved questions:
 ## Phase 1: Design Summary
 
 Phase 1 artifacts define:
-- a run-owned `FeatureRuntimeBinding` model for feature metadata, AST registry, source, and compiled pickles;
+- a run-owned `FeatureRuntimeBinding` model for feature metadata, source, and compiled pickles backed by a shared `Run.identifiable_registry`;
 - explicit contracts for hook/fixture APIs without `Feature`;
-- quickstart validation that covers both API-surface removal and strict runtime coverage auditing.
+- quickstart validation that covers API-surface removal, stash-backed ID services, and strict runtime coverage auditing.
 
 ## Complexity Tracking
 
@@ -121,6 +121,28 @@ Phase 1 artifacts define:
 ## Implementation Validation
 
 ### Completed Validation Commands
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/hook/test_scenario_locator_pipeline.py \
+  tests/hook/test_scenario_collection_read_hooks.py \
+  tests/hook/test_run_scenario_runtime_unit.py \
+  tests/hook/test_gherkin_reporter_context_lifecycle.py -q
+```
+
+Result:
+- `20 passed in 0.16s`
+
+```bash
+conda run -n pytest-bdd-ng-py314 python -m pytest \
+  tests/feature/test_report.py \
+  tests/messages/test_message_validation.py \
+  tests/messages/test_execution_message_adapter.py \
+  tests/generation/test_generate.py -q
+```
+
+Result:
+- `14 passed in 1.85s`
 
 ```bash
 conda run -n pytest-bdd-ng-py314 python -m pytest \
@@ -137,7 +159,7 @@ conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
 ```
 
 Result:
-- `518 passed, 5 skipped in 93.12s`
+- `520 passed, 5 skipped in 100.03s`
 
 ```bash
 git diff --name-only -- '*.py' | xargs conda run -n pytest-bdd-ng-py314 python -m ruff check
@@ -149,4 +171,5 @@ Result:
 ### Notes
 
 - The final runtime/reporting boundary no longer relies on `src/pytest_bdd/model/gherkin_document/core.py::Feature`.
+- `pytest_bdd_id_generator` is now stored and resolved through `pytest config.stash`; runtime and reporter code no longer read `config.pytest_bdd_id_generator`.
 - E2E feature examples were updated to the final API surface: `gherkin_document` replaces the removed `feature` fixture, and `pytest_bdd_convert_tag_to_marks` now accepts `gherkin_document`.

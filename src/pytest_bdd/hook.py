@@ -71,7 +71,7 @@ def _get_args_kwargs(*, args: tuple, kwargs: dict, func_sig, request: FixtureReq
         {
             **kwargs,
             **({"request": request} if "request" in func_sig.parameters else {}),
-            **({"run": Run.from_pytest_stash(request.config)} if "run" in func_sig.parameters else {}),
+            **({"run": Run.from_pytest_stash(request.config.stash)} if "run" in func_sig.parameters else {}),
         },
     )
 

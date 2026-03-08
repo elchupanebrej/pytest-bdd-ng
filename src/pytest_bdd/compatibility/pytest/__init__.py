@@ -20,6 +20,7 @@ from _pytest.pytester import RunResult
 from _pytest.python import Metafunc
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
+from _pytest.stash import Stash
 from _pytest.terminal import TerminalReporter
 
 from pytest_bdd.util.packaging import compare_distribution_version
@@ -49,6 +50,7 @@ __all__ = [
     "PytestPluginManager",
     "RunResult",
     "Session",
+    "Stash",
     "TerminalReporter",
     "TestReport",
     "Testdir",

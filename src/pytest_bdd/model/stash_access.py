@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+
+from typing_extensions import Self
+
+import pytest_bdd.types.exception as exceptions
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pytest_bdd.compatibility.pytest import Stash
+
+T = TypeVar("T", bound="PytestBDDStashBound")
+
+
+class PytestBDDStashAccess:
+    @staticmethod
+    def _stash_get(stash: Stash, key: str) -> Any | None:
+        if hasattr(stash, "get"):
+            return stash.get(key, None)
+        return stash[key] if key in stash else None  # noqa: SIM401
+
+    @classmethod
+    def get_optional(cls, stash: Stash, stash_type: type[T]) -> T | None:
+        candidate = cls._stash_get(stash, stash_type.STASH_KEY)
+        if candidate is None:
+            return None
+        if isinstance(candidate, stash_type):
+            return candidate
+        raise exceptions.PytestBDDStashTypeMismatchError(
+            stash_key=stash_type.STASH_KEY,
+            actual_type=type(candidate).__name__,
+            expected_type=stash_type.__name__,
+        )
+
+    @classmethod
+    def require(cls, stash: Stash, stash_type: type[T], *, missing_message: str) -> T:
+        candidate = cls.get_optional(stash, stash_type)
+        if candidate is not None:
+            return candidate
+        raise exceptions.PytestBDDStashLookupError(missing_message)
+
+    @classmethod
+    def set(cls, stash: Stash, value: T) -> T:
+        stash[value.STASH_KEY] = value
+        return value
+
+    @classmethod
+    def create_once(
+        cls,
+        stash: Stash,
+        stash_type: type[T],
+        *,
+        value_factory: Callable[[], T],
+        duplicate_message: str,
+    ) -> T:
+        existing = cls.get_optional(stash, stash_type)
+        if existing is not None:
+            raise exceptions.PytestBDDStashAlreadyInitializedError(duplicate_message)
+        return cls.set(stash, value_factory())
+
+
+class PytestBDDStashBound:
+    STASH_KEY: ClassVar[str]
+
+    @classmethod
+    def stash_missing_message(cls) -> str:
+        return f"`{cls.__name__}` is unavailable in config.stash."
+
+    @classmethod
+    def stash_duplicate_message(cls) -> str:
+        return f"`{cls.__name__}` is already initialized in config.stash."
+
+    @classmethod
+    def from_pytest_stash(cls, stash: Stash) -> Self | None:
+        return PytestBDDStashAccess.get_optional(stash, cls)
+
+    @classmethod
+    def require_from_pytest_stash(cls, stash: Stash) -> Self:
+        return PytestBDDStashAccess.require(stash, cls, missing_message=cls.stash_missing_message())
+
+    def set_in_pytest_stash(self, stash: Stash) -> Self:
+        return PytestBDDStashAccess.set(stash, self)
+
+    def ensure_in_pytest_stash(self, stash: Stash) -> Self:
+        return PytestBDDStashAccess.create_once(
+            stash,
+            type(self),
+            value_factory=lambda: self,
+            duplicate_message=type(self).stash_duplicate_message(),
+        )
+
+    def initialize_in_pytest_stash(self, stash: Stash) -> Self:
+        return PytestBDDStashAccess.create_once(
+            stash,
+            type(self),
+            value_factory=lambda: self,
+            duplicate_message=type(self).stash_duplicate_message(),
+        )

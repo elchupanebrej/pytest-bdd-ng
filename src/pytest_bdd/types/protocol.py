@@ -1,12 +1,14 @@
-from typing import TYPE_CHECKING, Any, Protocol, Union, runtime_checkable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from pytest_bdd.util.other import IdGenerator
+    from pytest_bdd.compatibility.pytest import Stash
 
 
 @runtime_checkable
-class HasPytestBDDIdGenerator(Protocol):
-    pytest_bdd_id_generator: Union["IdGenerator", Any]
+class HasPytestBDDStash(Protocol):
+    stash: Stash
 
 
 @runtime_checkable

@@ -1,6 +1,27 @@
 """pytest-bdd Exceptions."""
 
 
+class PytestBDDStashError(Exception):
+    """Base class for pytest-bdd stash access failures."""
+
+
+class PytestBDDStashLookupError(PytestBDDStashError, LookupError):
+    """Requested pytest-bdd stash object is missing."""
+
+
+class PytestBDDStashAlreadyInitializedError(PytestBDDStashError):
+    """Stash object is being initialized more than once."""
+
+
+class PytestBDDStashTypeMismatchError(PytestBDDStashError, TypeError):
+    """Stash key is occupied by a value of unexpected type."""
+
+    def __init__(self, *, stash_key: str, actual_type: str, expected_type: str):
+        super().__init__(
+            f"config.stash['{stash_key}'] contains {actual_type}, expected {expected_type}."
+        )
+
+
 class ScenarioIsDecoratorOnlyError(Exception):
     """Scenario can be only used as decorator."""
 

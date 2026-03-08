@@ -26,6 +26,10 @@
 
 - Q: What is the final boundary for `src/pytest_bdd/model/gherkin_document/core.py::Feature`? → A: Eliminate the `Feature` adapter from runtime/reporting semantics entirely: move all required registry, lookup, and feature-level execution data into `Run`/`ScenarioRun`, and do not expose or consume `Feature` in hooks, fixtures, or adapter APIs.
 
+### Session 2026-03-08
+
+- Q: Where must `pytest_bdd_id_generator` be stored and resolved from? → A: `pytest_bdd_id_generator` must be stored in `pytest config.stash` as session-shared runtime state and must not be carried on ad-hoc `config` attributes.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Context-Driven Reporter State (Priority: P1)
@@ -58,6 +62,7 @@ As a model maintainer, I want the `Feature` adapter removed from runtime/reporti
 1. **Given** parsed source, gherkin document, and pickles with backgrounds, rules, and scenarios, **When** feature-level runtime data is initialized, **Then** `Run`/`ScenarioRun` own the registry and lookup state required by execution and reporting.
 2. **Given** hook and fixture APIs after migration, **When** plugin code accesses feature-level runtime data, **Then** it resolves through `Run`/`ScenarioRun` or message-model objects and never through `src/pytest_bdd/model/gherkin_document/core.py::Feature`.
 3. **Given** collected gherkin message objects, **When** they are serialized or inspected, **Then** no runtime/reporting adapter object named `Feature` is required or exposed.
+4. **Given** execution plugins initialize session-shared runtime services, **When** they provide `pytest_bdd_id_generator`, **Then** it is stored and resolved through `pytest config.stash` rather than through custom attributes on `config`.
 
 ---
 
@@ -114,6 +119,7 @@ As an integrator of message generation, I want cross-object references resolved 
 - **FR-024**: Hooks and fixtures MUST NOT expose `src/pytest_bdd/model/gherkin_document/core.py::Feature` instances; permitted feature-level inputs are `Run`, `ScenarioRun`, `GherkinDocument`, `Pickle`, `Source`, or values derived from them.
 - **FR-025**: Any feature-level capability currently served by `Feature` MUST be migrated into `Run` or `ScenarioRun` before the `Feature` adapter is removed from runtime and reporting flows.
 - **FR-026**: Feature discovery, collection, and parametrization flows MUST operate on canonical message-model objects directly and MUST NOT require constructing `Feature` as an intermediate adapter for hooks, fixtures, or reporting.
+- **FR-027**: `pytest_bdd_id_generator` MUST be stored and resolved through `pytest config.stash` as session-shared runtime state; direct storage on ad-hoc `config` attributes MUST NOT remain in the runtime or reporting implementation.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -124,6 +130,7 @@ As an integrator of message generation, I want cross-object references resolved 
 - **GovernanceDecision**: Classification record for field capability (runtime-covered or explicitly non-implementable with hard technical reason).
 - **ExecutionMessageAdapter**: Translation boundary that converts runtime execution-model objects to/from cucumber message-model objects with deterministic mapping rules.
 - **RunOwnedObjectRegistry**: ID-indexed registry owned by `Run`/`ScenarioRun` and used during deserialize/reference reconstruction to resolve object links declared in message payloads.
+- **PytestConfigStashBinding**: Canonical stash-backed location for session-shared runtime services such as `Run` and `pytest_bdd_id_generator`.
 
 ### Assumptions & Dependencies
 
@@ -149,3 +156,4 @@ As an integrator of message generation, I want cross-object references resolved 
 - **SC-011**: 0 hook/context/adapter API surfaces expose `Pickle` objects under `scenario` naming; 100% use `pickle` naming for executable runtime scenario objects.
 - **SC-012**: 0 hook or fixture API surfaces expose `src/pytest_bdd/model/gherkin_document/core.py::Feature`.
 - **SC-013**: 100% of feature-level registry and lookup operations exercised by the validation suite resolve through `Run`/`ScenarioRun` without constructing or consuming `Feature`.
+- **SC-014**: 100% of runtime code paths that need `pytest_bdd_id_generator` resolve it from `pytest config.stash`, and 0 runtime/reporting code paths rely on ad-hoc `config.pytest_bdd_id_generator`-style attributes.

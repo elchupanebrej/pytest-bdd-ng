@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
+from pytest_bdd.model.stash_access import PytestBDDStashBound
 from pytest_bdd.types.protocol import Identifiable
 
 if TYPE_CHECKING:
+    from pytest_bdd.compatibility.pytest import Stash
     from pytest_bdd.model.message_extension import EventEnvelope
 
 
@@ -75,7 +77,9 @@ class IdentifiableObjectRegistry:
 
 
 @dataclass(slots=True)
-class EnvelopeRegistry:
+class EnvelopeRegistry(PytestBDDStashBound):
+    STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
+
     envelopes: list[EventEnvelope] = field(default_factory=list)
     identifiable: IdentifiableObjectRegistry = field(default_factory=IdentifiableObjectRegistry)
 
@@ -85,3 +89,20 @@ class EnvelopeRegistry:
 
     def resolve(self, object_id: str) -> Any | None:
         return self.identifiable.resolve(object_id)
+
+    @classmethod
+    def stash_missing_message(cls) -> str:
+        return (
+            "`EnvelopeRegistry` is unavailable in config.stash. "
+            "Execution plugins must initialize envelope tracking before reporter emission."
+        )
+
+    @classmethod
+    def register_envelope_in_pytest_stash(
+        cls,
+        stash: Stash,
+        envelope: EventEnvelope,
+    ) -> EnvelopeRegistry:
+        registry = cls.require_from_pytest_stash(stash)
+        registry.add_envelope(envelope)
+        return registry

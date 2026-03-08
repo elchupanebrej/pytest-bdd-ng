@@ -31,6 +31,7 @@ conda run -n pytest-bdd-ng-py314 python -m pytest \
 Expected:
 - Hooks receive `run: Run` and recover active runtime objects from context.
 - Fixtures expose `gherkin_document`, `feature_source`, `pickle`, and `run_context`.
+- Shared runtime services such as `pytest_bdd_id_generator` resolve through `config.stash`.
 - No runtime fixture named `feature` or `scenario` remains in the executable-scenario API surface.
 
 ## 3. Validate Reporter and Scenario Serialization Paths
@@ -44,6 +45,7 @@ conda run -n pytest-bdd-ng-py314 python -m pytest \
 
 Expected:
 - Reporters read only from stash-backed `Run` / `ScenarioRun`.
+- Reporter ID generation uses stash-backed runtime services instead of ad-hoc config attributes.
 - Scenario serialization derives feature metadata and step lookup data through run-owned bindings instead of a `Feature` adapter.
 - Missing context still produces deterministic diagnostics without mutation.
 

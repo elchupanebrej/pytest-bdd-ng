@@ -7,6 +7,7 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, i
 from cucumber_messages import TestRunStarted as CucumberTestRunStarted  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import Timestamp
 
+from pytest_bdd.model.message_registry import EnvelopeRegistry
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,
@@ -47,7 +48,7 @@ def _build_scenario_run() -> ScenarioRun:
 
 def _build_request_with_context(scenario_run: ScenarioRun) -> SimpleNamespace:
     config = SimpleNamespace(stash={})
-    scenario_run.run.set_in_pytest_stash(config)
+    scenario_run.run.set_in_pytest_stash(config.stash)
     request = SimpleNamespace(
         node=SimpleNamespace(nodeid="node::scenario"),
         config=config,
@@ -97,6 +98,7 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
         option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
         stash={},
     )
+    Run.initialize_for_config(stash=config.stash, config=config)
     reporter = GherkinMessageReporter(config=config)
     reporter.process_messages_io_queue = Queue()
     envelope = Message(
@@ -105,7 +107,6 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
 
     reporter.pytest_bdd_message(config=config, message=envelope)
 
-    envelope_registry = Run.envelope_registry_from_pytest_stash(config)
-    assert envelope_registry is not None
+    envelope_registry = EnvelopeRegistry.require_from_pytest_stash(config.stash)
     assert envelope_registry.envelopes == [envelope]
     assert envelope_registry.resolve("run-started-1") is envelope.test_run_started

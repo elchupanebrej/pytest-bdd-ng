@@ -12,6 +12,7 @@ Defines ownership of runtime execution state after removal of `src/pytest_bdd/mo
 - Shared stash transport:
   - `Run` stash key: `_pytest_bdd_run`
   - Envelope registry stash key: `_pytest_bdd_envelope_registry`
+  - ID generator stash key: `_pytest_bdd_id_generator`
 
 ## Writers (Execution and Collection Layers)
 
@@ -27,7 +28,7 @@ Writer obligations:
 - Register or update `FeatureRuntimeBinding` records in `Run`.
 - Maintain active `ScenarioRun` bindings for `gherkin_document`, `feature_source`, `pickle`, and step objects.
 - Maintain lifecycle refs and `ReportingLifecycleState`.
-- Publish only `Run` and envelope registry entries into `config.stash`.
+- Publish `Run`, `EnvelopeRegistry`, and `pytest_bdd_id_generator` into `config.stash`.
 
 ## Readers (Reporting and Consumer Layers)
 
@@ -49,6 +50,7 @@ The following are forbidden in hooks, fixtures, locator callbacks, and reporters
 - feature-wrapper-specific helper methods
 - reporter-local `current_<item>` mirrors
 - reporter-side calls to context bootstrap/mutation APIs
+- ad-hoc runtime-service attributes such as `config.pytest_bdd_id_generator`
 - storing `ScenarioRun` directly in `config.stash`
 
 ## Naming Semantics Contract

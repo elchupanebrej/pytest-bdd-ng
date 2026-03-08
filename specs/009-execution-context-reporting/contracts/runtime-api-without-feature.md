@@ -15,9 +15,15 @@ Collection outputs:
 - `GherkinDocument`
 - `Pickle`
 
+Session-shared runtime services:
+- `Run` from `config.stash[_pytest_bdd_run]`
+- `EnvelopeRegistry` from `config.stash[_pytest_bdd_envelope_registry]`
+- `pytest_bdd_id_generator` from `config.stash[_pytest_bdd_id_generator]`
+
 Forbidden collection payloads:
 - `Feature`
 - any feature wrapper introduced solely for runtime/reporting convenience
+- ad-hoc `config.pytest_bdd_id_generator` access
 
 ## Fixture Contract
 

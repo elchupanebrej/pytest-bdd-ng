@@ -81,6 +81,7 @@ from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_converter import envelope_from_dict, envelope_to_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
+from pytest_bdd.model.message_registry import EnvelopeRegistry
 from pytest_bdd.model.message_validation import (
     default_outcome_mapping_rules,
     observed_outcome_from_envelope,
@@ -92,8 +93,8 @@ from pytest_bdd.plugin.pickle_runner.run_access import (
 )
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.npm_resource import check_npm, check_npm_package, find_resource
+from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.packaging import get_distribution_version
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
@@ -308,7 +309,7 @@ class GherkinMessageReporter:
             message_text = "Cannot emit envelope with zero or multiple payloads"
             raise TypeError(message_text)
 
-        Run.register_envelope_in_pytest_stash(config, message)
+        EnvelopeRegistry.register_envelope_in_pytest_stash(config.stash, message)
         if self.is_disabled:
             return
 
@@ -343,8 +344,8 @@ class GherkinMessageReporter:
             Message(test_run_started=TestRunStarted(id=run_started_id, timestamp=self.get_timestamp())),
         )
 
-        before_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
-        run_root = Run.from_pytest_stash(config)
+        before_test_run_hook_started_id = self._next_id(config=cast(Config, config))
+        run_root = Run.from_pytest_stash(config.stash)
         if run_root is not None:
             run_root.reporting_state.test_run_hook_started_id = before_test_run_hook_started_id
         self._emit_envelope(
@@ -459,7 +460,7 @@ class GherkinMessageReporter:
 
     @staticmethod
     def _resolve_run_started_id(*, config: Config) -> str | None:
-        run = Run.from_pytest_stash(config)
+        run = Run.from_pytest_stash(config.stash)
         if run is None:
             return None
         return run.reporting_state.run_started_id
@@ -475,12 +476,16 @@ class GherkinMessageReporter:
         return run_started_id
 
     @staticmethod
+    def _next_id(*, config: Config) -> str:
+        return next(IdGenerator.require_from_pytest_stash(config.stash))
+
+    @staticmethod
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[Any | None, Any | None]:
         scenario_run = run.active_scenario_run
         return scenario_run.gherkin_document, scenario_run.pickle
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
-        run = Run.from_pytest_stash(request.config)
+        run = Run.from_pytest_stash(request.config.stash)
         if run is None:
             return None
         test_step_id = run.resolve_test_step_id_for_runtime_step(pickle_step=step)
@@ -499,7 +504,7 @@ class GherkinMessageReporter:
             if not run_success
             else None
         )
-        after_test_run_hook_started_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+        after_test_run_hook_started_id = self._next_id(config=cast(Config, config))
         self._emit_envelope(
             config,
             Message(
@@ -600,7 +605,7 @@ class GherkinMessageReporter:
             source_file = getfile(func)
             source_line = getsourcelines(func)[1]
 
-            hook_message_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+            hook_message_id = self._next_id(config=cast(Config, config))
             hook_message = Hook(
                 id=hook_message_id,
                 **({"name": hook_name} if hook_name is not None else {}),
@@ -641,12 +646,12 @@ class GherkinMessageReporter:
             return
 
         session = item.session
-        config: Config | HasPytestBDDIdGenerator = session.config  # https://github.com/python/typing/issues/213
+        config: Config = cast(Config, session.config)
 
         hook_handler = cast(Config, config).hook
 
         request = item._request
-        run = Run.from_pytest_stash(request.config)
+        run = Run.from_pytest_stash(request.config.stash)
         scenario_run = run.active_scenario_run if run is not None else None
         if run is None or scenario_run is None:
             logger.warning(
@@ -669,7 +674,7 @@ class GherkinMessageReporter:
         test_steps.extend(
             [
                 TestStep(
-                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                    id=self._next_id(config=cast(Config, config)),
                     hook_id=hook_registration.hook_message_id,
                 )
                 for hook_registration in self._iter_matching_hook_registrations(request=request, pickle=pickle)
@@ -693,7 +698,7 @@ class GherkinMessageReporter:
                     step_text=step.text,
                 )
                 test_step = TestStep(
-                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                    id=self._next_id(config=cast(Config, config)),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
                     **(
@@ -710,7 +715,7 @@ class GherkinMessageReporter:
 
         resolved_run_started_id = self._resolve_run_started_id(config=cast(Config, config))
         test_case = TestCase(
-            id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+            id=self._next_id(config=cast(Config, config)),
             pickle_id=pickle.id,
             test_steps=test_steps,
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
@@ -910,7 +915,7 @@ class GherkinMessageReporter:
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
-                                    id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+                                    id=self._next_id(config=cast(Config, config)),
                                     **(
                                         {"source_reference": parameter_type_source_reference}
                                         if parameter_type_source_reference is not None
@@ -978,7 +983,7 @@ class GherkinMessageReporter:
         if pickle_step_id is None:
             return
 
-        suggestion_id = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id()
+        suggestion_id = self._next_id(config=cast(Config, config))
         suggestion = Suggestion(
             id=suggestion_id,
             pickle_step_id=str(pickle_step_id),
@@ -1018,7 +1023,7 @@ class GherkinMessageReporter:
         worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
-            id=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator.get_next_id(),
+            id=self._next_id(config=cast(Config, config)),
             test_case_id=test_case_id,
             worker_id=worker_id,
             timestamp=self.get_timestamp(),
@@ -1214,7 +1219,7 @@ class GherkinMessageReporter:
         if self.is_disabled:
             return
         config = request.config
-        run = Run.from_pytest_stash(config)
+        run = Run.from_pytest_stash(config.stash)
         reporting_state = run.reporting_state if run is not None else None
         test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
         active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None

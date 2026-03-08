@@ -9,6 +9,7 @@ Fields:
 - `run_ref: LifecycleObjectRef` (required)
 - `status: RunStatus` (`ok | failed | interrupted`)
 - `transition_index: int` (monotonic)
+- `identifiable_registry: IdentifiableObjectRegistry`
 - `feature_bindings_by_uri: dict[str, FeatureRuntimeBinding]`
 - `scenario_runs_by_request: dict[str, ScenarioRun]`
 - `active_scenario_run: ScenarioRun | None`
@@ -22,7 +23,9 @@ Relationships:
 - Owns many `FeatureRuntimeBinding` records keyed by canonical feature URI.
 - Owns many `ScenarioRun` instances keyed by request identity.
 - Owns one `ReportingLifecycleState`.
+- Owns one session-wide `IdentifiableObjectRegistry` shared by runtime lookup and envelope indexing.
 - Shares one `EnvelopeRegistry` through stash key `_pytest_bdd_envelope_registry`.
+- Shares one stash-backed `pytest_bdd_id_generator` through stash key `_pytest_bdd_id_generator`.
 
 Validation rules:
 - Exactly one `Run` is stored per pytest session stash key `_pytest_bdd_run`.
@@ -40,7 +43,6 @@ Fields:
 - `source: Source` (required)
 - `gherkin_document: GherkinDocument` (required)
 - `pickles: tuple[Pickle, ...]`
-- `ast_registry: dict[str, Any]`
 - `name: str | None`
 - `line_number: int | None`
 - `description: str | None`
@@ -51,7 +53,7 @@ Relationships:
 - Referenced by one or more `ScenarioRun` instances via `feature_uri`.
 
 Validation rules:
-- `ast_registry` is derived from `gherkin_document` and remains deterministic for identical source input.
+- AST lookup resolves through the owning `Run.identifiable_registry`, not through a binding-local registry.
 - `pickles` are compiled from the bound `gherkin_document`, not from a wrapper adapter.
 - No hook, fixture, or reporter API exposes `FeatureRuntimeBinding` directly; it is accessed through `Run`.
 
@@ -136,7 +138,7 @@ Fields:
 Validation rules:
 - Every added envelope is indexed recursively by `Identifiable.id`.
 - Lookup is deterministic by stringified ID.
-- Registry ownership lives with `Run`, not with parsed feature wrappers.
+- Registry ownership lives with `Run`, and `EnvelopeRegistry` reuses that shared index instead of maintaining a second AST registry.
 
 ## Entity: IdentifiableObjectRegistry
 
@@ -148,6 +150,20 @@ Fields:
 Validation rules:
 - Last write wins per ID within one run stream.
 - Accepts only objects conforming to the `Identifiable` protocol.
+
+## Entity: PytestConfigStashBinding
+
+Purpose: Canonical stash-backed transport for session-shared runtime services.
+
+Fields:
+- `_pytest_bdd_run: Run`
+- `_pytest_bdd_envelope_registry: EnvelopeRegistry`
+- `_pytest_bdd_id_generator: IdGenerator`
+
+Validation rules:
+- Runtime and collection layers resolve shared services through `config.stash` only.
+- Ad-hoc config attributes such as `config.pytest_bdd_id_generator` are forbidden.
+- Reporter and adapter flows may read stash-backed services but must not introduce fallback config attributes.
 
 ## Entity: ExecutionProjection
 

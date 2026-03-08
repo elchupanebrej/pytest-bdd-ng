@@ -68,10 +68,10 @@ from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_conf
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser
 from pytest_bdd.plugin.pickle_runner.const import Steps
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.types.protocol import HasPytestBDDStash
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
-from pytest_bdd.util.other import format_as_python_identifier
+from pytest_bdd.util.other import IdGenerator, format_as_python_identifier
 from pytest_bdd.util.toolz_extra import chain_map, flip, getitemdefault, setdefaultattr
 
 if TYPE_CHECKING:
@@ -405,8 +405,8 @@ class StepDefinitionManager:
                 fixture_names.update(bypassed_params)
             return fixture_names
 
-        def as_message(self, config: Config | HasPytestBDDIdGenerator):
-            id_generator = cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator
+        def as_message(self, config: Config | HasPytestBDDStash):
+            id_generator = IdGenerator.require_from_pytest_stash(config.stash)
             try:
                 message = self.__cache[id(id_generator)]
             except KeyError:

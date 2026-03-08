@@ -17,8 +17,8 @@ from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_f
 from pytest_bdd.model.scenario_run import HookPhase, Run, RunStatus
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
 from pytest_bdd.util.inspect_extra import get_args
+from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
 
@@ -62,10 +62,9 @@ class PickleRunner:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session) -> None:
-        run = Run.ensure_for_session(config=session.config, session=session)
+        run = Run.require_from_pytest_stash(session.config.stash)
         if run.reporting_state.run_started_id is None:
-            config = cast(HasPytestBDDIdGenerator, session.config)
-            run.reporting_state.run_started_id = config.pytest_bdd_id_generator.get_next_id()
+            run.reporting_state.run_started_id = next(IdGenerator.require_from_pytest_stash(session.config.stash))
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item: Item) -> None:
@@ -79,9 +78,7 @@ class PickleRunner:
         if gherkin_document is None or pickle is None or feature_source is None:
             return
 
-        run = Run.from_pytest_stash(request.config)
-        if run is None:
-            run = Run.ensure_for_session(config=request.config, session=request.session)
+        run = Run.require_from_pytest_stash(request.config.stash)
         run.create_scenario_run(
             request,
             gherkin_document=gherkin_document,
@@ -145,7 +142,7 @@ class PickleRunner:
         status: RunStatus | None = None,
         **extra_kwargs: Any,
     ) -> Any:
-        run = Run.from_pytest_stash(request.config)
+        run = Run.from_pytest_stash(request.config.stash)
         scenario_run = run.active_scenario_run
 
         try:

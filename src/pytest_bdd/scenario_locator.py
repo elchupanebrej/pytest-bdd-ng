@@ -31,7 +31,8 @@ from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.url import is_local_url
 
 if TYPE_CHECKING:
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
-        config: Config | HasPytestBDDIdGenerator,
+        config: Config | HasPytestBDDStash,
     ) -> Iterable[tuple[GherkinDocument, Source]]:  # pragma: no cover
         ...
 
@@ -63,7 +64,7 @@ class ScenarioLocatorReadObserver(Protocol):
 class ScenarioLocatorResolver(Protocol):
     def resolve(
         self,
-        config: Config | HasPytestBDDIdGenerator,
+        config: Config | HasPytestBDDStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ) -> Iterable[tuple[GherkinDocument, Pickle, Source]]:  # pragma: no cover
@@ -88,16 +89,16 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
     def _bind_feature(
         gherkin_document: GherkinDocument,
         source: Source,
-        config: Config | HasPytestBDDIdGenerator,
+        config: Config | HasPytestBDDStash,
     ):
-        run = Run.ensure_for_config(config=config)
+        run = Run.require_from_pytest_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
-        binding.ensure_pickles(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+        binding.ensure_pickles(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
         return binding
 
     def resolve(
         self,
-        config: Config | HasPytestBDDIdGenerator,
+        config: Config | HasPytestBDDStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ):
@@ -130,7 +131,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Config | HasPytestBDDIdGenerator):
+    def resolve_features(self, config: Config | HasPytestBDDStash):
         urls = self._build_urls()
         if not urls:
             return
@@ -148,7 +149,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
 
             yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
 
@@ -232,7 +233,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
     )
 
-    def _resolve_features_base_dir(self, config: Config | HasPytestBDDIdGenerator):
+    def _resolve_features_base_dir(self, config: Config | HasPytestBDDStash):
         try:
             if self.features_base_dir is None:
                 # TODO: refactor, move out from class usage to initialization or higher
@@ -283,7 +284,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Config | HasPytestBDDIdGenerator):
+    def resolve_features(self, config: Config | HasPytestBDDStash):
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths = set()
 
@@ -315,7 +316,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             if parser_type is None:
                 break
 
-            parser = parser_type(id_generator=cast(HasPytestBDDIdGenerator, config).pytest_bdd_id_generator)
+            parser = parser_type(id_generator=IdGenerator.require_from_pytest_stash(config.stash))
 
             try:
                 feature, feature_data = parser.parse(

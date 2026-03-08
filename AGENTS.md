@@ -66,6 +66,8 @@ tests/
 - Follow repository linting/formatting via `ruff` and pre-commit hooks.
 - Keep compatibility behavior aligned with pytest Python-version support matrix.
 - Documentation and planning artifacts MUST be written in English.
+- Outside pytest hook implementations, returning `None` is an antipattern; use
+  explicit values or deterministic exceptions instead.
 - For non-native platform test environments, run via the Docker skill; Windows
   targets are exempt from this Docker requirement.
 

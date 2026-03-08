@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
@@ -15,6 +15,9 @@ from pytest_bdd.model.scenario_run import (
 )
 
 from .run_transitions import build_lifecycle_ref
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.pytest import FixtureRequest
 
 
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
@@ -77,11 +80,11 @@ def resolve_active_object_or_error(
 
 
 def _fallback_reporting_snapshot(
-    request: Any,
+    request: FixtureRequest,
     *,
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot | None:
-    run_root = Run.from_pytest_stash(request.config)
+    run_root = Run.from_pytest_stash(request.config.stash)
     if run_root is None:
         run_ref = build_lifecycle_ref("run", getattr(request, "session", None), is_active=True)
         if run_ref is None:
@@ -110,10 +113,10 @@ def _fallback_reporting_snapshot(
 
 def build_reporting_context_snapshot(
     *,
-    request: Any,
+    request: FixtureRequest,
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot | None:
-    run = Run.from_pytest_stash(request.config)
+    run = Run.from_pytest_stash(request.config.stash)
 
     if run is not None and run.active_scenario_run is not None:
         active_scenario_run = run.active_scenario_run

@@ -17,6 +17,8 @@ from pytest_bdd.model.scenario_run import (
 if TYPE_CHECKING:
     from cucumber_messages import GherkinDocument
 
+    from pytest_bdd.compatibility.pytest import FixtureRequest
+
 _context_index = count(1)
 
 
@@ -70,7 +72,7 @@ def build_lifecycle_ref(kind: LifecycleKind, value: Any, *, is_active: bool) -> 
     )
 
 
-def initial_scenario_run_id(request: Any) -> str:
+def initial_scenario_run_id(request: FixtureRequest) -> str:
     node_id = getattr(getattr(request, "node", None), "nodeid", None)
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"

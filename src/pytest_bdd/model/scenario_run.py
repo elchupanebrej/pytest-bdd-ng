@@ -5,7 +5,6 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from _pytest.stash import Stash
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     GherkinDocument,
     Pickle,
@@ -21,11 +20,12 @@ from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
+from pytest_bdd.model.stash_access import PytestBDDStashBound
 from pytest_bdd.types.protocol import Identifiable
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
-    from pytest_bdd.model.message_extension import EventEnvelope
+    from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Session, Stash
 
 LifecycleKind = Literal["run", "feature", "scenario", "step"]
 NodeKind = Literal["feature", "scenario", "step"]
@@ -348,9 +348,8 @@ class FeatureRuntimeBinding:
 
 
 @dataclass(slots=True)
-class Run:
+class Run(PytestBDDStashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
-    ENVELOPE_REGISTRY_STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
 
     id: str
     run_ref: LifecycleObjectRef
@@ -370,79 +369,33 @@ class Run:
     def advance_transition(self) -> None:
         self.transition_index += 1
 
-    @staticmethod
-    def _stash_get(stash: Stash, key: str) -> Any | None:
-        if hasattr(stash, "get"):
-            return stash.get(key, None)
-        return stash[key] if key in stash else None  # noqa: SIM401
-
     @classmethod
-    def from_pytest_stash(cls, config: Any) -> Run | None:
-        stash = config.stash
-        candidate = cls._stash_get(stash, cls.STASH_KEY)
-        if isinstance(candidate, Run):
-            return candidate
-        return None
-
-    def set_in_pytest_stash(self, config: Any) -> None:
-        config.stash[self.STASH_KEY] = self
-
-    @classmethod
-    def envelope_registry_from_pytest_stash(cls, config: Any) -> EnvelopeRegistry | None:
-        stash = config.stash
-        candidate = cls._stash_get(stash, cls.ENVELOPE_REGISTRY_STASH_KEY)
-        if isinstance(candidate, EnvelopeRegistry):
-            return candidate
-        return None
-
-    @classmethod
-    def ensure_envelope_registry_in_pytest_stash(cls, config: Any) -> EnvelopeRegistry:
-        existing = cls.envelope_registry_from_pytest_stash(config)
-        if existing is not None:
-            return existing
-        stash = config.stash
-        run = cls.from_pytest_stash(config)
-        if run is None:
-            run = cls.ensure_for_config(config=config)
-        registry = EnvelopeRegistry(identifiable=run.identifiable_registry)
-        stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = registry
-        return registry
-
-    @classmethod
-    def register_envelope_in_pytest_stash(cls, config: Any, envelope: EventEnvelope) -> EnvelopeRegistry:
-        registry = cls.ensure_envelope_registry_in_pytest_stash(config)
-        registry.add_envelope(envelope)
-        return registry
-
-    @classmethod
-    def ensure_for_session(cls, *, config: Any, session: Any) -> Run:
-        existing = cls.from_pytest_stash(config)
-        if existing is not None:
-            return existing
-
-        object_id = getattr(session, "name", None) or getattr(session, "nodeid", None) or str(id(session))
+    def _build_for_owner(cls, owner: Any) -> Run:
+        object_id = getattr(owner, "name", None) or getattr(owner, "nodeid", None) or str(id(owner))
         run_ref = LifecycleObjectRef(kind="run", object_id=str(object_id), name="run", is_active=True)
-        run = Run(
-            id=f"run-{id(session)}",
+        return Run(
+            id=f"run-{id(owner)}",
             run_ref=run_ref,
             status=RunStatus.ok,
             transition_index=0,
         )
-        run.set_in_pytest_stash(config)
-        if cls.envelope_registry_from_pytest_stash(config) is None:
-            config.stash[cls.ENVELOPE_REGISTRY_STASH_KEY] = EnvelopeRegistry(identifiable=run.identifiable_registry)
+
+    @classmethod
+    def initialize_for_session(cls, *, stash: Stash, session: Session) -> Run:
+        run = cls._build_for_owner(session)
+        run.initialize_in_pytest_stash(stash)
+        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_pytest_stash(stash)
         return run
 
     @classmethod
-    def ensure_for_config(cls, *, config: Any, session: Any | None = None) -> Run:
-        existing = cls.from_pytest_stash(config)
-        if existing is not None:
-            return existing
-        session_like = session if session is not None else config
-        return cls.ensure_for_session(config=config, session=session_like)
+    def initialize_for_config(cls, *, stash: Stash, config: Config) -> Run:
+        run = cls._build_for_owner(config)
+        run.initialize_in_pytest_stash(stash)
+        EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_pytest_stash(stash)
+        return run
 
     @staticmethod
-    def _request_key(request: Any) -> str:
+    def _request_key(request: FixtureRequest) -> str:
         node = getattr(request, "node", None)
         node_id = getattr(node, "nodeid", None)
         if node_id is not None:
@@ -450,27 +403,28 @@ class Run:
         return f"request-{id(request)}"
 
     @classmethod
-    def get_scenario_run(cls, request: Any) -> ScenarioRun | None:
-        run = cls.from_pytest_stash(request.config)
+    def get_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
+        run = cls.from_pytest_stash(request.config.stash)
         if run is None:
             return None
         key = cls._request_key(request)
         return run.scenario_runs_by_request.get(key)
 
     @classmethod
-    def set_scenario_run(cls, request: Any, scenario_run: ScenarioRun) -> None:
+    def set_scenario_run(cls, request: FixtureRequest, scenario_run: ScenarioRun) -> None:
         run = scenario_run.run
         if run is None:
-            run = cls.ensure_for_session(config=request.config, session=request.session)
+            run = cls.require_from_pytest_stash(request.config.stash)
             scenario_run.run = run
         key = cls._request_key(request)
         run.scenario_runs_by_request[key] = scenario_run
         run.active_scenario_run = scenario_run
 
     @classmethod
-    def pop_scenario_run(cls, request: Any) -> ScenarioRun | None:  # noqa: C901
+    def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:  # noqa: C901
         config = getattr(request, "config", None)
-        run = cls.from_pytest_stash(config) if config is not None else None
+        stash = getattr(config, "stash", None)
+        run = cls.from_pytest_stash(stash) if stash is not None else None
         if run is None:
             return None
         key = cls._request_key(request)
@@ -502,7 +456,7 @@ class Run:
 
     def create_scenario_run(
         self,
-        request: Any,
+        request: FixtureRequest,
         *,
         gherkin_document: GherkinDocument | None = None,
         pickle: Pickle | None = None,

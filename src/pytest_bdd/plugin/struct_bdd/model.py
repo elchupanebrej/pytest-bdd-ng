@@ -23,6 +23,7 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
 from pytest_bdd.compatibility.typing import Self
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
+from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 # mypy: disable-error-code="typeddict-unknown-key, typeddict-item"
@@ -315,7 +316,7 @@ class StepPrototype(Node):
             gherkin_document = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename,
                 uri=self.uri,
-                id_generator=config.pytest_bdd_id_generator,
+                id_generator=IdGenerator.require_from_pytest_stash(config.stash),
             )
 
             if isinstance(self.mimetype, SourceMediaType):

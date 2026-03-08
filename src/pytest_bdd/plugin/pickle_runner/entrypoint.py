@@ -14,7 +14,6 @@ from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
-from pytest_bdd.util.toolz_extra import setdefaultattr
 
 from .const import Steps
 from .plugin import PickleRunner
@@ -50,8 +49,8 @@ def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
     runner = PickleRunner()
     config.pluginmanager.register(runner, runner.plugin_name)
-    # TODO Use DI here, don't pass value around plugins in such manner
-    setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
+    Run.initialize_for_config(stash=config.stash, config=config)
+    IdGenerator().initialize_in_pytest_stash(config.stash)
 
 
 @given("trace")
@@ -130,4 +129,4 @@ def attach(request: FixtureRequest):
 @pytest.fixture(scope="session")
 def run_context(request: FixtureRequest):
     """Session-scoped fixture exposing canonical Run."""
-    return Run.from_pytest_stash(request.config)
+    return Run.from_pytest_stash(request.config.stash)

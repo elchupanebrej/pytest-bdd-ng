@@ -48,6 +48,7 @@ Forbidden inputs:
 
 - Canonical registry source: `Run.envelope_registry_from_pytest_stash(config)`.
 - Canonical feature lookup source: `Run.feature_bindings_by_uri`.
+- Canonical ID-generator source: `Run.require_id_generator_from_pytest_stash(config)`.
 - ID lookup key: stringified `Identifiable.id`.
 - Transient optimization maps (for example `runtime_step_to_pickle_step_id`) are scenario-scoped only and are not canonical registry keys.
 
