@@ -1,11 +1,18 @@
 import json
+import os
 import re
 import shutil
+import subprocess  # noqa: S404
 import string
+import tempfile
 from functools import reduce
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+# Prevent the private fixture feature file from being collected as a standalone test.
+# It is only exercised via @scenario in test_xdist_html_reporting.py.
+collect_ignore_glob = ["_*.feature"]
 
 import pytest
 from cucumber_messages import Envelope  # type:ignore[attr-defined]
@@ -85,6 +92,109 @@ def run_pytest(testdir: "Testdir", step):
 def _(testdir: "Testdir", step):
     options_dict = data_table_to_dicts(step.data_table)
     yield testdir.run(shutil.which("npm"), "install", "--silent", *options_dict.get("packages", []))
+
+
+@given("pytest-xdist is available")
+def _require_xdist():
+    pytest.importorskip("xdist")
+
+
+_REMOTE_XDIST_FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "remote_xdist"
+_REMOTE_XDIST_REPORT_NAME = "remote-xdist.ndjson"
+# Human-friendly aliases for execnet gateway mode names.
+# The feature files use the alias; docker-compose receives the canonical execnet keyword.
+_REMOTE_MODE_ALIASES: dict[str, str] = {
+    "relay": "via",  # 'relay' is the readable name for execnet's 'via' proxy-chain topology
+}
+
+
+@step("Docker is available")
+def _require_docker():
+    if shutil.which("docker") is None:
+        pytest.skip("Docker is unavailable.")
+
+
+@step(
+    re.compile(r'run pytest across xdist workers over (?P<remote_mode>\w+) gateway'),
+    target_fixture="remote_xdist_result",
+)
+def _run_remote_xdist(remote_mode: str, tmp_path: Path):
+    execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
+    repo_root = Path(__file__).resolve().parents[2]
+    with tempfile.TemporaryDirectory(prefix="pytest-bdd-remote-artifacts-", dir=repo_root) as artifact_dir:
+        env = {
+            **os.environ,
+            "BUILDKIT_PROGRESS": "plain",
+            "REPO_ROOT": str(repo_root),
+            "ARTIFACT_DIR": artifact_dir,
+            "REPORT_NAME": _REMOTE_XDIST_REPORT_NAME,
+            "VERIFY_REPORT_MODE": "success",
+            "PYTEST_REMOTE_MODE": execnet_mode,
+            "PYTEST_BDD_MESSAGES_FAIL_WORKERS": "",
+            "COMPOSE_PROJECT_NAME": (
+                f"pytestbddremote{execnet_mode}{tmp_path.name.replace('-', '').replace('_', '')}"
+            ).lower(),
+        }
+        compose_cmd = [
+            "docker",
+            "compose",
+            "-f",
+            str(_REMOTE_XDIST_FIXTURE_DIR / "docker-compose.yml"),
+        ]
+        try:
+            result = subprocess.run(  # noqa: S603
+                [*compose_cmd, "up", "--build", "--abort-on-container-exit", "--exit-code-from", "controller"],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+        finally:
+            subprocess.run(  # noqa: S603
+                [*compose_cmd, "down", "--volumes", "--remove-orphans"],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        artifact_report = Path(artifact_dir, _REMOTE_XDIST_REPORT_NAME)
+        dest = tmp_path / _REMOTE_XDIST_REPORT_NAME
+        if artifact_report.exists():
+            shutil.copy2(artifact_report, dest)
+    return {"result": result, "report": dest, "remote_mode": execnet_mode}
+
+
+@then("the distributed run succeeds and a consolidated NDJSON report is produced")
+def _assert_remote_run_succeeds(remote_xdist_result):
+    from tests.messages.message_stream_assertions import (
+        count_payload_kinds,
+        gateway_modes_for_payloads,
+        parse_ndjson_messages,
+        worker_ids_for_payloads,
+    )
+    from pytest_bdd.model.message_validation import validate_message_stream
+    from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
+
+    result = remote_xdist_result["result"]
+    report = remote_xdist_result["report"]
+    remote_mode = remote_xdist_result["remote_mode"]
+
+    assert result.returncode == 0, result.stdout + "\n" + result.stderr
+    assert report.exists(), f"NDJSON report not found at {report}"
+
+    messages = parse_ndjson_messages(report)
+    validation_result = validate_message_stream(messages, track_coverage=False)
+    payload_counts = count_payload_kinds(messages)
+    worker_ids = worker_ids_for_payloads(messages, CucumberTestCaseStarted)
+    gateway_modes = gateway_modes_for_payloads(messages, CucumberTestCaseStarted)
+
+    assert validation_result.status == "pass"
+    assert payload_counts["meta"] == 1
+    assert payload_counts["test_run_started"] == 1
+    assert payload_counts["test_run_finished"] == 1
+    assert len(worker_ids) >= 2
+    assert remote_mode in gateway_modes
 
 
 @step("pytest outcome must contain tests with statuses:")

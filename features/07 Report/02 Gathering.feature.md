@@ -47,8 +47,8 @@ Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/h
 * When run pytest
 
     <!-- markdownlint-disable-next-line MD013 -->
-    | cli_args   | -p | no:pytest-bdd-gherkin-message-reporter | -p | pytest_bdd.plugin.gherkin_message_reporter.entrypoint | --cucumber-html | out.html |
-    |------------|----|-----------------------------------------|----|--------------------------------------------------------|-----------------|----------|
-    | subprocess | true | | | | | |
+    | cli_args   | --cucumber-html | out.html |
+    |------------|-----------------|----------|
+    | subprocess | true | |
 
 * Then File "out.html" is not empty

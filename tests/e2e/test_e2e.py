@@ -4,9 +4,9 @@ from tests.messages.message_capability_fixtures import make_mapping_rule
 
 
 def _exclude_allure_features(config, feature, pickle):  # noqa: ARG001
-    feature_uri = getattr(feature, "uri", "")
+    feature_uri = str(getattr(feature, "uri", "")).lower()
     feature_name = str(getattr(getattr(feature, "feature", None), "name", "")).lower()
-    return "report/allure/" not in str(feature_uri).lower() and not feature_name.startswith("allure ")
+    return "allure" not in feature_uri and not feature_name.startswith("allure ")
 
 
 test = scenarios(".", filter_=_exclude_allure_features)

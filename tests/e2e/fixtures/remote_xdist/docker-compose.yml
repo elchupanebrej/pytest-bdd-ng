@@ -1,0 +1,39 @@
+services:
+  controller:
+    image: pytest-bdd-remote-xdist-controller:local
+    build:
+      context: ${REPO_ROOT}
+      dockerfile: tests/e2e/fixtures/remote_xdist/controller.Dockerfile
+    environment:
+      PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
+      PYTEST_BDD_MESSAGES_FAIL_WORKERS: ${PYTEST_BDD_MESSAGES_FAIL_WORKERS:-}
+      REPORT_PATH: /artifacts/${REPORT_NAME}
+      VERIFY_REPORT_MODE: ${VERIFY_REPORT_MODE:-success}
+    depends_on:
+      - proxy
+      - worker1
+      - worker2
+    volumes:
+      - ${ARTIFACT_DIR}:/artifacts
+
+  proxy:
+    image: pytest-bdd-remote-xdist-worker:local
+    environment:
+      PYTEST_REMOTE_MODE: proxy
+    depends_on:
+      - worker1
+
+  worker1:
+    image: pytest-bdd-remote-xdist-worker:local
+    build:
+      context: ${REPO_ROOT}
+      dockerfile: tests/e2e/fixtures/remote_xdist/worker.Dockerfile
+    environment:
+      PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
+
+  worker2:
+    image: pytest-bdd-remote-xdist-worker:local
+    environment:
+      PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
+    depends_on:
+      - worker1

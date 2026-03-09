@@ -49,13 +49,7 @@ MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
 
 
 def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
-    return testdir.runpytest(
-        "-p",
-        f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
-        "-p",
-        MESSAGE_REPORTER_PLUGIN,
-        *args,
-    )
+    return testdir.runpytest_subprocess(*args)
 
 
 def unfold_message(message: Message):

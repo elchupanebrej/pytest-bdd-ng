@@ -15,6 +15,7 @@ from cucumber_messages import (
     AttachmentContentEncoding,  # type:ignore[attr-defined]
     Hook,  # type:ignore[attr-defined]
 )
+from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 from cucumber_messages import TestStepFinished as CucumberTestStepFinished  # type:ignore[attr-defined]
 from deepdiff import DeepDiff  # type:ignore[import-untyped]
 
@@ -28,7 +29,7 @@ from .message_model_coverage import (
     is_path_populated,
     load_oracle_payload_tree,
 )
-from .message_stream_assertions import parse_ndjson_messages
+from .message_stream_assertions import count_payload_kinds, parse_ndjson_messages, worker_ids_for_payloads
 
 if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Testdir
@@ -98,6 +99,7 @@ def _generate_feature_suite_messages(
     tmp_path: Path,
     *,
     cucumber_html_path: Path | None = None,
+    xdist_workers: int | None = None,
 ) -> list[object]:
     GherkinMessageReporter.parameter_type_registry.clear()
     GherkinMessageReporter.hook_registry.clear()
@@ -241,17 +243,15 @@ def _generate_feature_suite_messages(
 
     ndjson_path = tmp_path / "messages-feature-suite.ndjson"
     cli_args = [
-        "-p",
-        f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
-        "-p",
-        MESSAGE_REPORTER_PLUGIN,
         "--messages-ndjson",
         str(ndjson_path),
     ]
     if cucumber_html_path is not None:
         cli_args.extend(["--cucumber-html", str(cucumber_html_path)])
+    if xdist_workers is not None:
+        cli_args.extend(["-n", str(xdist_workers)])
 
-    result = testdir.runpytest(*cli_args)
+    result = testdir.runpytest_subprocess(*cli_args)
     result.assert_outcomes(passed=2, failed=1)
 
     messages = parse_ndjson_messages(ndjson_path)
@@ -345,6 +345,25 @@ def test_feature_driven_message_suite_covers_optional_field_depth_and_outcomes(
         payloads_by_kind["gherkin_document"],
         ("feature", "children", "scenario", "steps", "doc_string", "content"),
     )
+
+
+def test_feature_driven_message_suite_consolidates_xdist_output_into_one_stream(
+    testdir: Testdir,
+    tmp_path: Path,
+) -> None:
+    pytest.importorskip("xdist")
+
+    messages = _generate_feature_suite_messages(testdir, tmp_path, xdist_workers=2)
+    payload_counts = count_payload_kinds(messages)
+    worker_ids = worker_ids_for_payloads(messages, CucumberTestCaseStarted)
+
+    assert payload_counts["meta"] == 1
+    assert payload_counts["gherkin_document"] == 1
+    assert payload_counts["source"] == 1
+    assert payload_counts["pickle"] == 3
+    assert payload_counts["test_run_started"] == 1
+    assert payload_counts["test_run_finished"] == 1
+    assert worker_ids.issuperset({"gw0", "gw1"})
 
 
 @pytest.mark.playwright
