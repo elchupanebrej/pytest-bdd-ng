@@ -11,11 +11,17 @@ __pycache__/
 venv/
 .tox/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 coverage/
 dist/
 build/
 *.egg-info/
+.tmp/
+.codex/
+.agents/
+.opencode/
 .env*
 *.log*
 .DS_Store

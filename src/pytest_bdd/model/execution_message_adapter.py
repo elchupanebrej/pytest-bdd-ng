@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -40,6 +41,55 @@ class ExecutionProjection:
 
 
 class ExecutionMessageAdapter:
+    @staticmethod
+    def _is_reference_key(key: str) -> bool:
+        if key == "workerId":
+            return False
+        return key.endswith(("Id", "Ids", "_id", "_ids"))
+
+    @classmethod
+    def _transform_ids(
+        cls,
+        value: Any,
+        *,
+        transform: Any,
+    ) -> Any:
+        if isinstance(value, dict):
+            transformed: dict[str, Any] = {}
+            for key, item in value.items():
+                if key == "id" and isinstance(item, str):
+                    transformed[key] = transform(item)
+                    continue
+                if cls._is_reference_key(key):
+                    if isinstance(item, str):
+                        transformed[key] = transform(item)
+                        continue
+                    if isinstance(item, list):
+                        transformed[key] = [
+                            transform(candidate) if isinstance(candidate, str) else candidate for candidate in item
+                        ]
+                        continue
+                transformed[key] = cls._transform_ids(item, transform=transform)
+            return transformed
+        if isinstance(value, list):
+            return [cls._transform_ids(item, transform=transform) for item in value]
+        return value
+
+    @classmethod
+    def namespace_dict_ids(cls, envelope_dict: dict[str, Any], *, namespace: str) -> dict[str, Any]:
+        prefix = f"{namespace}:"
+
+        def _namespace(value: str) -> str:
+            return value if value.startswith(prefix) else f"{prefix}{value}"
+
+        return cls._transform_ids(deepcopy(envelope_dict), transform=_namespace)
+
+    @classmethod
+    def rewrite_dict_ids(cls, envelope_dict: dict[str, Any], remap: dict[str, str]) -> dict[str, Any]:
+        if not remap:
+            return deepcopy(envelope_dict)
+        return cls._transform_ids(deepcopy(envelope_dict), transform=lambda value: remap.get(value, value))
+
     @staticmethod
     def serialize(
         envelope: EventEnvelope,

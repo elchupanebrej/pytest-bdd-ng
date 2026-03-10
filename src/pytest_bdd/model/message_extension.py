@@ -92,6 +92,28 @@ NOT_APPLICABLE_STATUS_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
     payload_kind for payload_kind in PAYLOAD_KINDS if payload_kind not in STATUS_CAPABLE_PAYLOAD_KINDS
 )
 
+CONTROLLER_SINGULAR_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
+    "meta",
+    "test_run_started",
+    "test_run_finished",
+)
+
+STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
+    "source",
+    "gherkin_document",
+    "pickle",
+    "step_definition",
+    "parameter_type",
+    "hook",
+    "test_case",
+)
+
+EXECUTION_PRESERVED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
+    payload_kind
+    for payload_kind in PAYLOAD_KINDS
+    if payload_kind not in CONTROLLER_SINGULAR_PAYLOAD_KINDS + STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS
+)
+
 
 @dataclass(frozen=True, slots=True)
 class LifecycleCorrelation:
@@ -108,6 +130,18 @@ class EnvelopeStatus:
     implementation_comment: str | None
     comment_present: bool
     hook_origin: str | None
+
+
+def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
+    if payload_kind is None:
+        return None
+    if payload_kind in CONTROLLER_SINGULAR_PAYLOAD_KINDS:
+        return "controller_singular"
+    if payload_kind in STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS:
+        return "structural_deduplicated"
+    if payload_kind in EXECUTION_PRESERVED_PAYLOAD_KINDS:
+        return "execution_preserved"
+    return None
 
 
 def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:

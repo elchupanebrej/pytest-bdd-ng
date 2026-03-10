@@ -17,9 +17,7 @@ def test_eol_py39_and_pre70_pytest_factors_are_removed():
 def test_extract_factors_from_tox_ini_supports_brace_expansions(tmp_path):
     tox_ini = tmp_path / "tox.ini"
     tox_ini.write_text(
-        "[tox]\n"
-        "env_list =\n"
-        "    py{py311, py310}-pytest{latest,70}-coverage-lin\n",
+        "[tox]\nenv_list =\n    py{py311, py310}-pytest{latest,70}-coverage-lin\n",
         encoding="utf-8",
     )
 

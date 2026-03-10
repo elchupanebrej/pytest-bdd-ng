@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from queue import Queue
 from types import SimpleNamespace
 
+import pytest
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import (
     HookType,
@@ -29,6 +30,7 @@ from pytest_bdd.model.scenario_run import (
     RunStatus,
     ScenarioRun,
 )
+from pytest_bdd.plugin.gherkin_message_reporter import entrypoint
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 
@@ -168,7 +170,10 @@ def test_reporter_emits_schema_compatible_step_definition_json(tmp_path) -> None
 
     envelope_registry = EnvelopeRegistry.from_stash(config.stash)
     assert envelope_registry.envelopes == [envelope]
-    assert envelope_registry.envelopes[0].step_definition.pattern.type == StepDefinitionPatternType.pytest_bdd_parse_expression
+    assert (
+        envelope_registry.envelopes[0].step_definition.pattern.type
+        == StepDefinitionPatternType.pytest_bdd_parse_expression
+    )
 
 
 def test_reporter_reports_each_step_definition_only_once() -> None:
@@ -198,7 +203,9 @@ def test_reporter_reports_each_step_definition_only_once() -> None:
 
     reporter._emit_envelope = lambda _config, message: emitted_messages.append(message)  # type: ignore[method-assign]
     request = SimpleNamespace(
-        getfixturevalue=lambda name: _FakeStepDefinitionRegistry(items=[_FakeDefinition()]) if name == "step_registry" else None
+        getfixturevalue=lambda name: _FakeStepDefinitionRegistry(items=[_FakeDefinition()])
+        if name == "step_registry"
+        else None
     )
     config = SimpleNamespace()
 
@@ -249,8 +256,8 @@ window.CUCUMBER_MESSAGES = [{{messages}}];
 
     assert "<title>Cucumber</title>" in rendered
     assert 'href="data:image/x-icon;base64,abc"' in rendered
-    assert '\\x3C!-- hidden -->' in rendered
-    assert '<!-- hidden -->' not in rendered.split("window.CUCUMBER_MESSAGES = [", 1)[1].split("];", 1)[0]
+    assert "\\x3C!-- hidden -->" in rendered
+    assert "<!-- hidden -->" not in rendered.split("window.CUCUMBER_MESSAGES = [", 1)[1].split("];", 1)[0]
 
 
 def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, tmp_path) -> None:
@@ -276,3 +283,69 @@ def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, t
         GherkinMessageReporter.AFTER_TEST_RUN_HOOK_ID,
     ]
     assert [hook.type for hook in hook_messages] == [HookType.before_test_run, HookType.after_test_run]
+
+
+def test_reporter_detects_xdist_worker_from_environment(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
+
+    reporter = GherkinMessageReporter(
+        config=SimpleNamespace(
+            option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
+            rootpath=tmp_path,
+        )
+    )
+
+    assert reporter.is_xdist_worker is True
+    assert reporter._xdist_worker_temp_messages_path is not None
+    assert reporter.messages_file_path == reporter._xdist_worker_temp_messages_path
+
+
+def test_entrypoint_uses_upstream_remote_module_when_reporting_disabled() -> None:
+    pytest.importorskip("xdist.remote")
+
+    class _PluginManager:
+        def register(self, *_args, **_kwargs) -> None:
+            return None
+
+        def unregister(self, *_args, **_kwargs) -> None:
+            return None
+
+    config = SimpleNamespace(
+        option=SimpleNamespace(messages_ndjson_path=None, cucumber_html_path=None),
+        pluginmanager=_PluginManager(),
+    )
+
+    entrypoint.pytest_configure(config)
+
+    try:
+        remote_module = entrypoint.pytest_xdist_getremotemodule()
+    finally:
+        entrypoint.pytest_unconfigure(config)
+
+    assert remote_module.__name__ == "xdist.remote"
+
+
+def test_entrypoint_uses_custom_remote_module_when_reporting_enabled(tmp_path) -> None:
+    pytest.importorskip("xdist.remote")
+
+    class _PluginManager:
+        def register(self, *_args, **_kwargs) -> None:
+            return None
+
+        def unregister(self, *_args, **_kwargs) -> None:
+            return None
+
+    config = SimpleNamespace(
+        option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
+        pluginmanager=_PluginManager(),
+        rootpath=tmp_path,
+    )
+
+    entrypoint.pytest_configure(config)
+
+    try:
+        remote_module = entrypoint.pytest_xdist_getremotemodule()
+    finally:
+        entrypoint.pytest_unconfigure(config)
+
+    assert remote_module.__name__ == "pytest_bdd.plugin.gherkin_message_reporter.xdist_remote"

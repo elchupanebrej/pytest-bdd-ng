@@ -104,4 +104,8 @@ def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
     assert len(resolved) == 1
     assert binding is not None
     assert len(binding.pickles) == 1
-    assert hook.events[:3] == [("source", gherkin_document.uri), ("feature", gherkin_document.uri), ("pickle", binding.pickles[0].id)]
+    assert hook.events[:3] == [
+        ("source", gherkin_document.uri),
+        ("feature", gherkin_document.uri),
+        ("pickle", binding.pickles[0].id),
+    ]

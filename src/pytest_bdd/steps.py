@@ -77,6 +77,15 @@ if TYPE_CHECKING:
     from pytest_bdd.compatibility.typing import TypeAlias
 
 
+def _resolve_callable_source_location(func: Callable[..., Any]) -> tuple[str, int]:
+    source_file = getfile(func)
+    try:
+        source_line = getsourcelines(func)[1]
+    except (OSError, TypeError):
+        source_line = getattr(getattr(func, "__code__", None), "co_firstlineno", 1) or 1
+    return source_file, int(source_line)
+
+
 def given(
     parserlike: Any,
     anonymous_group_names: Iterable[str] | None = None,
@@ -424,15 +433,16 @@ class StepDefinitionManager:
                         raise TypeError(msg) from exc
 
                 pattern = StepDefinitionPattern(source=str(self.parser), type=expression_type)
+                source_file, source_line = _resolve_callable_source_location(self.func)
                 message = self.__cache[id(id_generator)] = StepDefinition(
                     id=self.id,
                     pattern=pattern,
                     source_reference=SourceReference(  # type: ignore[call-arg] # migration to pydantic2
                         uri=relpath(
-                            getfile(self.func),
+                            source_file,
                             str(get_config_root_path(cast(Config, config))),
                         ),
-                        location=Location(line=getsourcelines(self.func)[1], column=1),
+                        location=Location(line=source_line, column=1),
                         java_method=JavaMethod(
                             class_name="pytest_bdd.steps.StepDefinition",
                             method_name=str(self.func.__name__),
@@ -440,7 +450,7 @@ class StepDefinitionManager:
                         ),
                         java_stack_trace_element=JavaStackTraceElement(
                             class_name="pytest_bdd.steps.StepDefinition",
-                            file_name=Path(getfile(self.func)).name,
+                            file_name=Path(source_file).name,
                             method_name=str(self.func.__name__),
                         ),
                     ),

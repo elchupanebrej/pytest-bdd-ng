@@ -116,6 +116,7 @@
 - [X] T031 [P] Refresh feature documentation for GitHub CI validation and Python-first helper guidance in `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/research.md`, `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/data-model.md`, `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/contracts/xdist-worker-controller-boundary.md`, `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/contracts/xdist-consolidated-stream.md`, and `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/quickstart.md`
 - [X] T032 Run focused pytest validation from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/011-merge-xdist-reporting/quickstart.md`
 - [X] T033 Run tox remote matrix validation from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tox.ini` and pre-commit validation from `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.pre-commit-config.yaml`
+- [X] T034 Add an e2e test defined in `.feature` files presenting actual usage with pytest-xdist and HTML reporting from consolidated messages in `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/xdist_html_reporting.feature` and `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_xdist_html_reporting.py`
 
 ---
 

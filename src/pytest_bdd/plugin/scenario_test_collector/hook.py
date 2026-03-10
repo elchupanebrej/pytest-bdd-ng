@@ -21,7 +21,9 @@ class ScenarioTestCollectorHookSpec:
         """Get parser for specific file path"""
 
     @pytest.hookspec(firstresult=True)
-    def pytest_bdd_convert_tag_to_marks(self, gherkin_document: GherkinDocument, pickle: Pickle, tag) -> Iterable[Mark] | None:
+    def pytest_bdd_convert_tag_to_marks(
+        self, gherkin_document: GherkinDocument, pickle: Pickle, tag
+    ) -> Iterable[Mark] | None:
         """Apply a tag (from a ``.feature`` file) to the given test item.
 
         The default implementation does the equivalent of

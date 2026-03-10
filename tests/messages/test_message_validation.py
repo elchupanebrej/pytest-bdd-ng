@@ -30,12 +30,14 @@ from cucumber_messages import (
 from cucumber_messages import TestStepStarted as CucumberTestStepStarted
 
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
+from pytest_bdd.model.message_consolidation import consolidate_message_fragments
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.model.message_validation import (
     collect_observed_capability_ids,
     validate_envelope_against_schema,
     validate_message_stream,
 )
+from tests.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment
 
 
 def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
@@ -272,3 +274,19 @@ def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
     result = validate_message_stream(envelopes, track_coverage=False)
 
     assert "ORPHAN_REFERENCE" not in {violation.code for violation in result.violations}
+
+
+def test_validate_message_stream_accepts_consolidated_xdist_output() -> None:
+    consolidated = consolidate_message_fragments(
+        [
+            _controller_fragment(),
+            _worker_fragment("gw0", "shared scenario"),
+            _worker_fragment("gw1", "shared scenario"),
+        ]
+    )
+
+    result = validate_message_stream(list(consolidated.envelopes), track_coverage=False)
+
+    assert result.status == "pass"
+    assert result.duplicate_lifecycle_id_count == 0
+    assert result.orphan_reference_count == 0

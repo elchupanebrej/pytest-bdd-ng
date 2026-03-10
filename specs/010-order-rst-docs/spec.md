@@ -1,8 +1,8 @@
 # Feature Specification: General-to-Specialized Documentation Order
 
-**Feature Branch**: `010-order-rst-docs`  
-**Created**: 2026-03-08  
-**Status**: Draft  
+**Feature Branch**: `010-order-rst-docs`
+**Created**: 2026-03-08
+**Status**: Draft
 **Input**: User description: "Нужно чтоб документация генерировалась в rst из feature файлов от более общих к более специализированным так как тесты выступают документацией для конечного пользователя. Желательно минимально менять механизм и по возможности обойтись нумерацией"
 
 ## Clarifications

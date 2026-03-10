@@ -167,8 +167,7 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
         set(re.findall(r"py(?:py)?(\d{2,3})", text)) | _extract_brace_factor_values(text=text, prefix="py")
     )
     pytest_factors = sorted(
-        set(re.findall(r"pytest(latest|\d{2,3})", text))
-        | _extract_brace_factor_values(text=text, prefix="pytest")
+        set(re.findall(r"pytest(latest|\d{2,3})", text)) | _extract_brace_factor_values(text=text, prefix="pytest")
     )
     return python_factors, pytest_factors
 

@@ -105,6 +105,48 @@ class MessageValidationResult:
         return self.status == "pass"
 
 
+@dataclass(frozen=True, slots=True)
+class XdistReportingCompatibilityResult:
+    status: Literal["pass", "fail"]
+    reason: str | None = None
+
+    @property
+    def is_valid(self) -> bool:
+        return self.status == "pass"
+
+
+def validate_xdist_reporting_compatibility(
+    *,
+    xdist_active: bool,
+    is_worker: bool,
+    is_controller: bool,
+    remote_module_available: bool,
+    controller_event_patch_installed: bool,
+    worker_sender_available: bool,
+) -> XdistReportingCompatibilityResult:
+    if not xdist_active:
+        return XdistReportingCompatibilityResult(status="pass")
+    if is_controller and not remote_module_available:
+        return XdistReportingCompatibilityResult(
+            status="fail",
+            reason="Distributed reporting requires pytest_xdist_getremotemodule, but the hook integration is unavailable.",
+        )
+    if is_controller and not controller_event_patch_installed:
+        return XdistReportingCompatibilityResult(
+            status="fail",
+            reason="Distributed reporting requires controller support for reporter-specific xdist channel events.",
+        )
+    if is_worker and not worker_sender_available:
+        return XdistReportingCompatibilityResult(
+            status="fail",
+            reason=(
+                "Distributed reporting requires the xdist remote-module adapter to expose a worker channel sender. "
+                "Falling back to a side-channel transport is not allowed."
+            ),
+        )
+    return XdistReportingCompatibilityResult(status="pass")
+
+
 def _is_non_empty_text(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
@@ -250,6 +292,52 @@ def _strip_nones(value: object) -> object:
     return value
 
 
+def validate_execnet_serializable_payload(
+    payload: object,
+    *,
+    path: tuple[str, ...] = (),
+) -> tuple[MessageValidationViolation, ...]:
+    if payload is None or isinstance(payload, (str, int, float, bool)):
+        return ()
+    if isinstance(payload, tuple):
+        payload = list(payload)
+    if isinstance(payload, list):
+        violations: list[MessageValidationViolation] = []
+        for index, item in enumerate(payload):
+            violations.extend(validate_execnet_serializable_payload(item, path=(*path, str(index))))
+        return tuple(violations)
+    if isinstance(payload, dict):
+        violations = []
+        for key, value in payload.items():
+            if not isinstance(key, str):
+                violations.append(
+                    MessageValidationViolation(
+                        code="INVALID_PAYLOAD_SHAPE",
+                        message=f"Execnet payload keys must be strings at {'.'.join(path) or '<root>'}.",
+                        json_path=path,
+                    )
+                )
+                continue
+            violations.extend(validate_execnet_serializable_payload(value, path=(*path, key)))
+        return tuple(violations)
+    return (
+        MessageValidationViolation(
+            code="INVALID_PAYLOAD_SHAPE",
+            message=(
+                f"Execnet payload contains unsupported type '{type(payload).__name__}' at {'.'.join(path) or '<root>'}."
+            ),
+            json_path=path,
+        ),
+    )
+
+
+def format_xdist_transport_compatibility_error(reason: str) -> str:
+    return (
+        "Distributed reporting requires the pytest-bdd xdist remote-module adapter and "
+        f"compatible worker/controller channel handling. {reason}"
+    )
+
+
 def validate_envelope_dict_against_schema(
     envelope_dict: dict[str, object],
 ) -> tuple[MessageValidationViolation, ...]:
@@ -263,7 +351,9 @@ def validate_envelope_dict_against_schema(
         )
     if _VALIDATOR is None:
         return ()
-    return tuple(_schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict))
+    return tuple(
+        _schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict)
+    )
 
 
 def validate_envelope_against_schema(

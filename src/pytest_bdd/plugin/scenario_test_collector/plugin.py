@@ -61,7 +61,9 @@ def _build_pickle_param(gherkin_document: GherkinDocument, pickle: Pickle, featu
     )
     marks = []
     for tag in sorted(tag.name.lstrip("@") for tag in pickle.tags):
-        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(gherkin_document=gherkin_document, pickle=pickle, tag=tag)
+        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(
+            gherkin_document=gherkin_document, pickle=pickle, tag=tag
+        )
         if tag_marks is not None:
             marks.extend(tag_marks)
     table_rows_breadcrumb = binding.pickle_table_rows_breadcrumb(pickle)

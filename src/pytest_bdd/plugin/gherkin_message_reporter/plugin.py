@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
 from base64 import b64encode
@@ -76,16 +77,29 @@ from pytest_bdd.compatibility.pytest import (
     is_testrun_success,
 )
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
+from pytest_bdd.model.message_consolidation import (
+    MessageFragment,
+    consolidate_message_fragments,
+)
 from pytest_bdd.model.message_converter import envelope_from_dict, message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule, resolve_outcome_mapping
 from pytest_bdd.model.message_registry import EnvelopeRegistry
 from pytest_bdd.model.message_serialization import MessageSerializationProfile
+from pytest_bdd.model.message_transport import (
+    REPORTING_BATCH_EVENT,
+    ReportingTransportClient,
+    ReportingTransportSession,
+    WorkerCompletionManifest,
+    resolve_reporting_event_sender,
+    resolve_reporting_gateway_mode,
+)
 from pytest_bdd.model.message_validation import (
     default_outcome_mapping_rules,
     observed_outcome_from_envelope,
     validate_envelope_dict_against_schema,
     validate_message_stream,
+    validate_xdist_reporting_compatibility,
 )
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.pickle_runner.run_access import (
@@ -105,6 +119,60 @@ if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
 logger = logging.getLogger(__name__)
+_XDIST_CONTROLLER_PATCHED = False
+
+
+def _is_xdist_worker_process(config: Config) -> bool:
+    if hasattr(config, "workerinput"):
+        return True
+    worker_id = str(os.environ.get("PYTEST_XDIST_WORKER", "")).strip()
+    return bool(worker_id) and worker_id != "master"
+
+
+def _ensure_xdist_controller_batch_patch() -> bool:
+    global _XDIST_CONTROLLER_PATCHED
+    if _XDIST_CONTROLLER_PATCHED:
+        return True
+    try:
+        import xdist.workermanage as workermanage
+    except ImportError:
+        return False
+
+    original = workermanage.WorkerController.process_from_remote
+    if getattr(original, "__pytest_bdd_reporting_patch__", False):
+        _XDIST_CONTROLLER_PATCHED = True
+        return True
+
+    marker_end = workermanage.Marker.END
+
+    def patched_process_from_remote(self: Any, eventcall: Any) -> None:
+        if eventcall is not marker_end:
+            event_name, kwargs = eventcall
+            if event_name == REPORTING_BATCH_EVENT:
+                batch_payload = kwargs.get("batch")
+                try:
+                    if not isinstance(batch_payload, dict):
+                        raise TypeError("xdist reporter batch payload must be a dictionary")
+                    self.config.hook.pytest_bdd_xdist_message_batch(
+                        config=self.config,
+                        node=self,
+                        batch=batch_payload,
+                    )
+                except KeyboardInterrupt:
+                    raise
+                except BaseException:
+                    excinfo = pytest.ExceptionInfo.from_current()
+                    print("!" * 20, excinfo)
+                    self.config.notify_exception(excinfo)
+                    self.shutdown()
+                    self.notify_inproc("errordown", node=self, error=excinfo)
+                return None
+        return original(self, eventcall)
+
+    patched_process_from_remote.__pytest_bdd_reporting_patch__ = True
+    workermanage.WorkerController.process_from_remote = patched_process_from_remote
+    _XDIST_CONTROLLER_PATCHED = True
+    return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,8 +196,15 @@ class GherkinMessageReporter:
     process_messages_io_queue: Queue[str]
     process_messages_stop_event: Event
     process_messages_thread: Thread
+    final_messages_file_path: Path
     messages_file_path: Path
     is_messages_file_temp: bool
+    xdist_fragment_dir: Path | None
+    _xdist_fragment_records: dict[str, dict[str, Any]]
+    xdist_transport_session: ReportingTransportSession | None
+    xdist_transport_client: ReportingTransportClient | None
+    _xdist_worker_temp_messages_path: Path | None
+    _xdist_compatibility_error: str | None
     _disabled_warning_emitted: bool
     _outcome_mapping_rules: list[OutcomeMappingRule]
     _mapping_diagnostics_count: int
@@ -142,6 +217,14 @@ class GherkinMessageReporter:
         self._mapping_diagnostics_count = 0
         self._emitted_step_definition_ids = set()
         self._emitted_run_hook_definition_ids = set()
+        self._xdist_fragment_records = {}
+        self.xdist_fragment_dir = None
+        self.xdist_transport_session = None
+        self.xdist_transport_client = None
+        self._xdist_worker_temp_messages_path = None
+        self._xdist_compatibility_error = None
+        self.is_xdist_worker = _is_xdist_worker_process(self.config)
+        self.is_xdist_controller = False
 
         self.is_disabled = all(
             [
@@ -157,10 +240,18 @@ class GherkinMessageReporter:
         if self.is_messages_file_temp:
             handle, messages_file_path_raw = tempfile.mkstemp()
             os.close(handle)
-            self.messages_file_path = Path(messages_file_path_raw)
+            self.final_messages_file_path = Path(messages_file_path_raw)
         else:
-            self.messages_file_path = self._resolve_output_path(self.config.option.messages_ndjson_path)
-            self.messages_file_path.parent.mkdir(parents=True, exist_ok=True)
+            self.final_messages_file_path = self._resolve_output_path(self.config.option.messages_ndjson_path)
+            self.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.messages_file_path = self.final_messages_file_path
+        if self.is_xdist_worker:
+            handle, messages_file_path_raw = tempfile.mkstemp(prefix="pytest-bdd-xdist-worker-", suffix=".ndjson")
+            os.close(handle)
+            self._xdist_worker_temp_messages_path = Path(messages_file_path_raw)
+            self.messages_file_path = self._xdist_worker_temp_messages_path
+            self._ensure_xdist_worker_transport_client(require_sender=False)
 
         if self.config.option.cucumber_html_path is not None:
             html_report_path = self._resolve_output_path(self.config.option.cucumber_html_path)
@@ -174,6 +265,152 @@ class GherkinMessageReporter:
             path = get_config_root_path(self.config) / path
         return path.resolve()
 
+    @staticmethod
+    def _node_worker_id(node: Any) -> str:
+        gateway = getattr(node, "gateway", None)
+        gateway_id = getattr(gateway, "id", None)
+        return str(gateway_id or "worker")
+
+    @staticmethod
+    def _node_gateway_mode(node: Any) -> str:
+        gateway = getattr(node, "gateway", None)
+        spec = getattr(gateway, "spec", None)
+        if spec is None:
+            return "popen"
+        if getattr(spec, "via", None):
+            return "via"
+        if getattr(spec, "ssh", None):
+            return "ssh"
+        if getattr(spec, "socket", None):
+            return "socket"
+        return "popen"
+
+    @staticmethod
+    def _transport_fail_worker_ids() -> set[str]:
+        raw_value = str(os.environ.get("PYTEST_BDD_MESSAGES_FAIL_WORKERS", "")).strip()
+        if not raw_value:
+            return set()
+        return {worker_id.strip() for worker_id in raw_value.split(",") if worker_id.strip()}
+
+    def _ensure_xdist_worker_transport_client(self, *, require_sender: bool) -> None:
+        self.is_xdist_worker = _is_xdist_worker_process(self.config)
+        if not self.is_xdist_worker or self.xdist_transport_client is not None:
+            return
+        workerinput = cast(dict[str, Any], getattr(self.config, "workerinput", {}))
+        transport_worker_id = workerinput.get(
+            "pytest_bdd_messages_fragment_worker_id",
+            os.environ.get("PYTEST_XDIST_WORKER", "worker"),
+        )
+        gateway_mode = str(
+            workerinput.get("pytest_bdd_messages_gateway_mode") or ""
+        ).strip() or resolve_reporting_gateway_mode(self.config)
+        sender = resolve_reporting_event_sender(self.config)
+        if sender is None:
+            if require_sender:
+                self._xdist_compatibility_error = (
+                    "Distributed reporting requires the xdist remote-module adapter; "
+                    "worker channel sender was not installed."
+                )
+            return
+        self.xdist_transport_client = ReportingTransportClient(
+            worker_id=str(transport_worker_id),
+            sender=sender,
+            gateway_mode=gateway_mode or None,
+        )
+        self._xdist_compatibility_error = None
+
+    def _current_reporting_worker_id(self, config: Config) -> str:
+        worker_id = str(os.environ.get("PYTEST_XDIST_WORKER", "master"))
+        gateway_mode = resolve_reporting_gateway_mode(config)
+        if gateway_mode is None or gateway_mode == "popen" or worker_id == "master":
+            return worker_id
+        return f"{gateway_mode}:{worker_id}"
+
+    def _activate_xdist_controller_mode(self) -> None:
+        if self.is_disabled or self.is_xdist_worker or self.is_xdist_controller:
+            return
+        if not _ensure_xdist_controller_batch_patch():
+            self._xdist_compatibility_error = (
+                "pytest-xdist is active but controller batch-event integration could not be installed."
+            )
+            return
+        self.is_xdist_controller = True
+        self.xdist_transport_session = ReportingTransportSession()
+        self.xdist_fragment_dir = self.final_messages_file_path.parent / (
+            f".{self.final_messages_file_path.name}.pytest-bdd-xdist"
+        )
+        if self.xdist_fragment_dir.exists():
+            shutil.rmtree(self.xdist_fragment_dir)
+        self.xdist_fragment_dir.mkdir(parents=True, exist_ok=True)
+        self.messages_file_path = self.xdist_fragment_dir / "controller.ndjson"
+        self._xdist_fragment_records["master"] = {
+            "worker_id": "master",
+            "role": "controller",
+            "path": self.messages_file_path,
+            "complete": False,
+            "manifest_received": True,
+        }
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_configure_node(self, node: Any) -> None:
+        if self.is_disabled:
+            return
+        self._activate_xdist_controller_mode()
+        if not self.is_xdist_controller or self.xdist_transport_session is None:
+            return
+        worker_id = self._node_worker_id(node)
+        self.xdist_transport_session.register_expected_worker(worker_id)
+        node.workerinput["pytest_bdd_messages_fragment_worker_id"] = worker_id
+        node.workerinput["pytest_bdd_messages_gateway_mode"] = self._node_gateway_mode(node)
+        node.workerinput["pytest_bdd_messages_force_publish_failure"] = worker_id in self._transport_fail_worker_ids()
+        self._xdist_fragment_records[worker_id] = {
+            "worker_id": worker_id,
+            "role": "worker",
+            "path": None,
+            "complete": False,
+            "manifest_received": False,
+        }
+
+    def pytest_bdd_xdist_message_batch(self, config: Config, node: Any, batch: dict[str, Any]) -> None:
+        _ = config, node
+        if self.is_disabled or not self.is_xdist_controller or self.xdist_transport_session is None:
+            return
+        self.xdist_transport_session.receive_remote_event(REPORTING_BATCH_EVENT, {"batch": batch})
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_testnodedown(self, node: Any, error: object | None) -> None:
+        if self.is_disabled:
+            return
+        if not self.is_xdist_controller:
+            return
+        workeroutput = cast(dict[str, Any], getattr(node, "workeroutput", {}))
+        worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or self._node_worker_id(node))
+        existing_record = self._xdist_fragment_records.get(
+            worker_id,
+            {
+                "worker_id": worker_id,
+                "role": "worker",
+                "path": None,
+                "complete": False,
+                "manifest_received": False,
+            },
+        )
+        manifest_payload = workeroutput.get("pytest_bdd_messages_manifest")
+        if isinstance(manifest_payload, dict):
+            manifest = WorkerCompletionManifest.from_dict(manifest_payload)
+            if self.xdist_transport_session is not None:
+                self.xdist_transport_session.record_manifest(manifest)
+            existing_record["manifest_received"] = True
+            existing_record["complete"] = manifest.complete and error is None
+            existing_record["transferred_batch_count"] = manifest.transferred_batch_count
+            existing_record["last_batch_sequence"] = manifest.last_batch_sequence
+            existing_record["interruption_reason"] = manifest.interruption_reason
+        else:
+            existing_record["complete"] = False
+            existing_record["manifest_received"] = False
+            existing_record["interruption_reason"] = str(error) if error is not None else None
+        self._xdist_fragment_records[worker_id] = existing_record
+
     def start_process_messages_thread(self):
         self.process_messages_io_queue = Queue()
         self.process_messages_stop_event = Event()
@@ -183,6 +420,7 @@ class GherkinMessageReporter:
                 self.process_messages_io_queue,
                 self.process_messages_stop_event,
                 self.messages_file_path,
+                self.xdist_transport_client if self.is_xdist_worker else None,
             ),
             daemon=True,
         )
@@ -233,7 +471,12 @@ class GherkinMessageReporter:
         return "test_run_started" in payload_kinds and "test_run_finished" in payload_kinds
 
     @staticmethod
-    def process_messages(queue: Queue, stop_event: Event, messages_file_path: str | Path):
+    def process_messages(  # noqa: C901
+        queue: Queue,
+        stop_event: Event,
+        messages_file_path: str | Path,
+        transport_client: ReportingTransportClient | None = None,
+    ):
         messages_path = Path(messages_file_path)
         with tempfile.TemporaryDirectory() as tmpdirname:
             last_enter = False
@@ -242,6 +485,7 @@ class GherkinMessageReporter:
                     last_enter = True
 
                 lines = []
+                batch_envelopes: list[dict[str, Any]] = []
                 while not queue.empty():
                     try:
                         message_json = queue.get(timeout=1)
@@ -250,11 +494,13 @@ class GherkinMessageReporter:
                         continue
 
                     try:
-                        envelope_from_dict(json.loads(message_json))
+                        envelope_dict = json.loads(message_json)
+                        envelope_from_dict(envelope_dict)
                     except (TypeError, ValueError):
                         logger.exception("Failed to parse:\n%s\n", pformat(message_json))
                     else:
                         lines.append(f"{message_json}\n")
+                        batch_envelopes.append(envelope_dict)
                     finally:
                         queue.task_done()
                     sleep(0)
@@ -272,6 +518,26 @@ class GherkinMessageReporter:
                 except OSError:
                     logger.exception("Unable to write messages to '%s'", messages_path)
 
+                if transport_client is not None and batch_envelopes:
+                    failing_worker_ids = {
+                        worker_id.strip()
+                        for worker_id in str(os.environ.get("PYTEST_BDD_MESSAGES_FAIL_WORKERS", "")).split(",")
+                        if worker_id.strip()
+                    }
+                    if transport_client.worker_id in failing_worker_ids:
+                        transport_client.last_publish_error = "transport publication was disabled by test fixture"
+                        logger.warning(
+                            "Skipping remote transport batch publication for '%s' due to configured failure.",
+                            transport_client.worker_id,
+                        )
+                        continue
+                    try:
+                        transport_client.publish_envelopes(batch_envelopes)
+                    except RuntimeError:
+                        logger.exception(
+                            "Unable to publish remote transport batch for '%s'", transport_client.worker_id
+                        )
+
     @staticmethod
     def get_timestamp():
         timestamp = time_ns()
@@ -288,7 +554,7 @@ class GherkinMessageReporter:
         template_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "index.mustache.html")))
         template = template_path.read_text(encoding="utf-8")
 
-        with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
+        with self.final_messages_file_path.open(mode="r", encoding="utf-8") as f:
             messages = tuple(line.strip() for line in f if line.strip())
 
         html_report_path = Path(self.config.option.cucumber_html_path)
@@ -422,7 +688,7 @@ class GherkinMessageReporter:
                     id=before_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+                    worker_id=self._current_reporting_worker_id(cast(Config, config)),
                 )
             ),
         )
@@ -446,6 +712,26 @@ class GherkinMessageReporter:
         if self.is_disabled:
             self._emit_disabled_warning_once()
             return
+
+        self._ensure_xdist_worker_transport_client(require_sender=True)
+        pluginmanager = getattr(self.config, "pluginmanager", None)
+        dsession_plugin = pluginmanager.getplugin("dsession") if pluginmanager is not None else None
+
+        if not self.is_xdist_worker and dsession_plugin is not None and self.xdist_fragment_dir is None:
+            self._activate_xdist_controller_mode()
+
+        compatibility = validate_xdist_reporting_compatibility(
+            xdist_active=self.is_xdist_worker or dsession_plugin is not None,
+            is_worker=self.is_xdist_worker,
+            is_controller=self.is_xdist_controller,
+            remote_module_available=True,
+            controller_event_patch_installed=self._xdist_compatibility_error is None,
+            worker_sender_available=self.xdist_transport_client is not None,
+        )
+        if not compatibility.is_valid:
+            raise RuntimeError(str(compatibility.reason))
+        if self._xdist_compatibility_error is not None:
+            raise RuntimeError(self._xdist_compatibility_error)
 
         self.start_process_messages_thread()
 
@@ -555,7 +841,9 @@ class GherkinMessageReporter:
         if hook_id in self._emitted_run_hook_definition_ids:
             return
         self._emitted_run_hook_definition_ids.add(hook_id)
-        hook_method = type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
+        hook_method = (
+            type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
+        )
         source_file = getfile(hook_method)
         source_line = getsourcelines(hook_method)[1]
         self._emit_envelope(
@@ -590,7 +878,69 @@ class GherkinMessageReporter:
             logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
         return test_step_id
 
-    def pytest_sessionfinish(self, session, exitstatus):
+    @staticmethod
+    def _read_envelopes_from_path(messages_file_path: Path) -> list[Message]:
+        envelopes: list[Message] = []
+        if not messages_file_path.exists():
+            return envelopes
+        for line in messages_file_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            envelopes.append(envelope_from_dict(json.loads(line)))
+        return envelopes
+
+    def _write_final_messages_file(self, envelope_dicts: tuple[dict[str, Any], ...]) -> list[Message]:
+        self.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
+        self.final_messages_file_path.write_text(
+            "".join(f"{json.dumps(envelope_dict)}\n" for envelope_dict in envelope_dicts),
+            encoding="utf-8",
+        )
+        return self._read_envelopes_from_path(self.final_messages_file_path)
+
+    def _finalize_xdist_messages_file(self) -> list[Message]:
+        controller_fragment = MessageFragment.from_path(
+            worker_id="master",
+            role="controller",
+            path=self.messages_file_path,
+            complete=True,
+        )
+        transport_snapshot = (
+            self.xdist_transport_session.snapshot() if self.xdist_transport_session is not None else None
+        )
+        worker_ids = set()
+        if transport_snapshot is not None:
+            worker_ids.update(transport_snapshot.expected_worker_ids)
+            worker_ids.update(transport_snapshot.batches_by_worker.keys())
+            worker_ids.update(transport_snapshot.manifests_by_worker.keys())
+        worker_ids.update(worker_id for worker_id in self._xdist_fragment_records if worker_id != "master")
+        fragment_specs = [controller_fragment]
+        for worker_id in sorted(worker_ids):
+            batches = () if transport_snapshot is None else transport_snapshot.batches_by_worker.get(worker_id, ())
+            manifest = None if transport_snapshot is None else transport_snapshot.manifests_by_worker.get(worker_id)
+            fragment_specs.append(
+                MessageFragment.from_envelopes(
+                    worker_id=worker_id,
+                    role="worker",
+                    envelopes=tuple(envelope_dict for batch in batches for envelope_dict in batch.envelopes),
+                    complete=manifest.complete if manifest is not None else False,
+                    manifest_received=manifest is not None,
+                    transferred_batch_count=(
+                        manifest.transferred_batch_count if manifest is not None else len(batches)
+                    ),
+                    last_batch_sequence=(
+                        manifest.last_batch_sequence
+                        if manifest is not None
+                        else (batches[-1].batch_sequence if batches else None)
+                    ),
+                    interruption_reason=manifest.interruption_reason if manifest is not None else None,
+                )
+            )
+        consolidated_stream = consolidate_message_fragments(fragment_specs)
+        for diagnostic in consolidated_stream.diagnostics:
+            logger.warning("%s", diagnostic.message)
+        return self._write_final_messages_file(consolidated_stream.envelope_dicts)
+
+    def pytest_sessionfinish(self, session, exitstatus):  # noqa: C901
         if self.is_disabled:
             return
         config = session.config
@@ -616,7 +966,7 @@ class GherkinMessageReporter:
                     id=after_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+                    worker_id=self._current_reporting_worker_id(cast(Config, config)),
                 )
             ),
         )
@@ -649,13 +999,44 @@ class GherkinMessageReporter:
         )
 
         self.finish_process_messages_thread()
+        if self.is_xdist_worker:
+            workeroutput = cast(dict[str, Any], getattr(config, "workeroutput", {}))
+            workerinput = cast(dict[str, Any], getattr(config, "workerinput", {}))
+            worker_id = workerinput.get(
+                "pytest_bdd_messages_fragment_worker_id",
+                os.environ.get("PYTEST_XDIST_WORKER", "worker"),
+            )
+            gateway_mode = str(workerinput.get("pytest_bdd_messages_gateway_mode") or "").strip() or None
+            if self.xdist_transport_client is not None:
+                workeroutput["pytest_bdd_messages_manifest"] = self.xdist_transport_client.build_manifest(
+                    complete=True
+                ).as_dict()
+            else:
+                workeroutput["pytest_bdd_messages_manifest"] = WorkerCompletionManifest(
+                    worker_id=str(worker_id),
+                    complete=False,
+                    last_batch_sequence=None,
+                    transferred_batch_count=0,
+                    transferred_envelope_count=0,
+                    interruption_reason="transport client was not initialized",
+                    gateway_mode=gateway_mode,
+                ).as_dict()
+            workeroutput["pytest_bdd_messages_fragment_worker_id"] = str(worker_id)
+            if self._xdist_worker_temp_messages_path is not None and self._xdist_worker_temp_messages_path.exists():
+                self._xdist_worker_temp_messages_path.unlink()
+            return
 
-        envelopes: list[Message] = []
-        if self.messages_file_path.exists():
-            for line in self.messages_file_path.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                envelopes.append(envelope_from_dict(json.loads(line)))
+        if self.is_xdist_controller:
+            self._xdist_fragment_records["master"] = {
+                "worker_id": "master",
+                "role": "controller",
+                "path": self.messages_file_path,
+                "complete": True,
+                "manifest_received": True,
+            }
+            envelopes = self._finalize_xdist_messages_file()
+        else:
+            envelopes = self._read_envelopes_from_path(self.final_messages_file_path)
         validation_result = validate_message_stream(
             envelopes,
             latest_protocol_version=str(get_distribution_version("cucumber-messages")),
@@ -676,7 +1057,9 @@ class GherkinMessageReporter:
         if self.config.option.cucumber_html_path is not None:
             self.generate_html_report()
         if self.is_messages_file_temp:
-            Path(self.messages_file_path).unlink()
+            Path(self.final_messages_file_path).unlink()
+        if self.xdist_fragment_dir is not None and self.xdist_fragment_dir.exists():
+            shutil.rmtree(self.xdist_fragment_dir)
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
@@ -1125,7 +1508,7 @@ class GherkinMessageReporter:
         if test_case_id is None:
             return
         attempt_index = getattr(request.node, "execution_count", 0)
-        worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
+        worker_id = self._current_reporting_worker_id(cast(Config, config))
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
             id=next(IdGenerator.from_stash(cast(Config, config).stash)),

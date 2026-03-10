@@ -89,3 +89,83 @@ def assert_fixed_matrix_mapping_is_valid(
     assert result.ambiguous_outcomes == ()
     assert result.unmapped_outcomes == ()
     assert result.missing_required_matrix_cases == ()
+
+
+def payload_kinds(messages: Iterable[Message]) -> list[str]:
+    result: list[str] = []
+    for message in messages:
+        for attr in UNFOLDABLE_ATTRS:
+            if getattr(message, attr, None) is not None:
+                result.append(attr)
+                break
+    return result
+
+
+def count_payload_kinds(messages: Iterable[Message]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for payload_kind in payload_kinds(messages):
+        counts[payload_kind] = counts.get(payload_kind, 0) + 1
+    return counts
+
+
+def payload_attr_values(
+    messages: Iterable[Message],
+    payload_type: type[_MessagePayload],
+    attr_name: str,
+) -> set[str]:
+    values: set[str] = set()
+    for payload in filter_payloads(unfold_messages(messages), payload_type):
+        value = getattr(payload, attr_name, None)
+        if isinstance(value, str) and value:
+            values.add(value)
+    return values
+
+
+def _split_worker_gateway(worker_id: str) -> tuple[str | None, str]:
+    gateway_mode, separator, normalized_worker_id = worker_id.partition(":")
+    if separator and gateway_mode in {"socket", "via", "ssh", "popen"} and normalized_worker_id:
+        return gateway_mode, normalized_worker_id
+    return None, worker_id
+
+
+def worker_ids_for_payloads(messages: Iterable[Message], payload_type: type[_MessagePayload]) -> set[str]:
+    worker_ids: set[str] = set()
+    for worker_id in payload_attr_values(messages, payload_type, "worker_id"):
+        _gateway_mode, normalized_worker_id = _split_worker_gateway(worker_id)
+        worker_ids.add(normalized_worker_id)
+    return worker_ids
+
+
+def gateway_modes_for_payloads(messages: Iterable[Message], payload_type: type[_MessagePayload]) -> set[str]:
+    gateway_modes = payload_attr_values(messages, payload_type, "gateway_mode")
+    if gateway_modes:
+        return gateway_modes
+    derived_gateway_modes: set[str] = set()
+    for worker_id in payload_attr_values(messages, payload_type, "worker_id"):
+        gateway_mode, _normalized_worker_id = _split_worker_gateway(worker_id)
+        if gateway_mode is not None:
+            derived_gateway_modes.add(gateway_mode)
+    return derived_gateway_modes
+
+
+def worker_ids_with_prefix(messages: Iterable[Message], payload_type: type[_MessagePayload], prefix: str) -> set[str]:
+    return {worker_id for worker_id in worker_ids_for_payloads(messages, payload_type) if worker_id.startswith(prefix)}
+
+
+def assert_single_output_file(paths: Iterable[Path]) -> Path:
+    concrete_paths = [path for path in paths if path.exists()]
+    assert len(concrete_paths) == 1
+    return concrete_paths[0]
+
+
+def message_json_lines(path: Path) -> list[dict[str, object]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def diagnostic_messages(lines: Iterable[dict[str, object]]) -> list[str]:
+    messages: list[str] = []
+    for line in lines:
+        diagnostic_message = line.get("diagnosticMessage")
+        if isinstance(diagnostic_message, str):
+            messages.append(diagnostic_message)
+    return messages

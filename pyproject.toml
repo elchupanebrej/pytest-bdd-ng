@@ -124,11 +124,12 @@ struct-bdd = [
 test = [
   "allure-python-commons-test",
   "deepdiff",
-  "execnet",
+  "execnet>=2.1.2",
   "jq;platform_system!='Windows'",
   "packaging",
   "PyHamcrest",
   "pytest-httpserver",
+  "pytest-xdist>=3.8.0",
   "python-coveralls",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
   "ruff"
