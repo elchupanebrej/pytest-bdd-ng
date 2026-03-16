@@ -17,8 +17,11 @@ __pycache__/
 # Packages
 *.egg
 *.egg-info
+*.egg-info/
 dist
+dist/
 build
+build/
 _build
 eggs
 parts
@@ -35,7 +38,10 @@ pip-log.txt
 
 # Unit test / coverage reports
 .coverage
+.coverage.*
 .tox
+coverage/
+htmlcov/
 nosetests.xml
 
 # Translations
@@ -46,6 +52,8 @@ nosetests.xml
 .project
 .pydevproject
 .pytest_cache
+.mypy_cache/
+.ruff_cache/
 .ropeproject
 
 # Sublime
@@ -53,6 +61,7 @@ nosetests.xml
 
 #PyCharm
 /.idea
+.idea/
 
 # virtualenv
 /.Python
@@ -84,3 +93,10 @@ venv/
 # Node workspace artifacts
 node_modules/
 /artifacts/
+
+# Local live-reporting artifacts
+/messages.ndjson
+/output.txt
+/result.html
+/test_stream.ndjson
+/pytest-bdd-remote-artifacts-*/
