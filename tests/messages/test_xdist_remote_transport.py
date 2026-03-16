@@ -1,16 +1,25 @@
 from __future__ import annotations
 
+from queue import Empty
+from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
 from pytest_bdd.model.message_consolidation import MessageFragment, consolidate_message_fragments
 from pytest_bdd.model.message_transport import (
     REPORTING_BATCH_EVENT,
+    REPORTING_TRANSPORT_BINDING_STASH_KEY,
     ReportingTransportClient,
     ReportingTransportSession,
+    install_reporting_event_sender,
+    resolve_reporting_event_sender,
+    resolve_reporting_gateway_mode,
 )
 from pytest_bdd.model.message_validation import validate_message_stream, validate_xdist_reporting_compatibility
+from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_reporting_worker_identity
+from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
 from tests.messages.message_stream_assertions import worker_ids_for_payloads
 from tests.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment
 
@@ -21,6 +30,62 @@ def _session_sender(session: ReportingTransportSession):
         session.receive_remote_event(event_name, kwargs)
 
     return sender
+
+
+def _build_dummy_transport_service(
+    *,
+    messages_file_path,
+    force_transport_publish_failure: bool,
+    process_messages,
+):
+    class DummyTransportService(TransportService):
+        is_xdist_worker = False
+        xdist_transport_client = None
+        _live_formatter_process = None
+        _live_formatter_temp_dir = None
+        _live_formatter_stdout_thread = None
+        _live_formatter_stderr_thread = None
+
+        def __init__(self):
+            live_formatter_service = SimpleNamespace(
+                _finalize_live_formatter_process=lambda _process: None,
+                _join_live_formatter_threads=lambda: None,
+                _close_live_formatter_stream=lambda _stream: None,
+            )
+            reporter = SimpleNamespace(
+                services=(),
+                messages_file_path=messages_file_path,
+                _xdist_force_publish_failure=force_transport_publish_failure,
+                _process_messages_thread_error=None,
+                is_xdist_worker=False,
+                xdist_transport_client=None,
+                _live_formatter_process=None,
+                _live_formatter_temp_dir=None,
+                _live_formatter_stdout_thread=None,
+                _live_formatter_stderr_thread=None,
+                live_formatter_service=live_formatter_service,
+            )
+            super().__init__(reporter, live_formatter_service=live_formatter_service)
+            reporter.services = (self,)
+
+        @staticmethod
+        def process_messages(
+            queue,
+            stop_event,
+            messages_file_path,
+            transport_client=None,
+            *,
+            force_transport_publish_failure=False,
+        ):
+            return process_messages(
+                queue,
+                stop_event,
+                messages_file_path,
+                transport_client=transport_client,
+                force_transport_publish_failure=force_transport_publish_failure,
+            )
+
+    return DummyTransportService()
 
 
 def test_remote_transport_batches_finalize_without_shared_filesystem() -> None:
@@ -57,6 +122,15 @@ def test_remote_transport_batches_finalize_without_shared_filesystem() -> None:
         diagnostic.code == "missing_worker_fragment" and diagnostic.worker_id == "gw0"
         for diagnostic in consolidated.diagnostics
     )
+
+
+def test_reporting_identity_ignores_inherited_xdist_environment(monkeypatch) -> None:
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw7")
+    monkeypatch.setenv("PYTEST_XDIST_WORKER_COUNT", "2")
+    worker_id, gateway_mode = _resolve_reporting_worker_identity(SimpleNamespace())
+
+    assert worker_id == "master"
+    assert gateway_mode is None
 
 
 def test_remote_transport_missing_manifest_and_interruption_are_diagnosed() -> None:
@@ -147,6 +221,98 @@ def test_remote_transport_compatibility_requires_worker_sender_and_controller_pa
     )
 
     assert worker_result.is_valid is False
-    assert worker_result.reason is not None and "worker channel sender" in worker_result.reason
+    assert worker_result.reason is not None
+    assert "worker channel sender" in worker_result.reason
     assert controller_result.is_valid is False
-    assert controller_result.reason is not None and "controller support" in controller_result.reason
+    assert controller_result.reason is not None
+    assert "controller support" in controller_result.reason
+
+
+def test_install_reporting_event_sender_stores_binding_in_config_stash() -> None:
+    config = SimpleNamespace(stash={})
+
+    def sender(event_name: str, **kwargs: Any) -> None:
+        _ = event_name, kwargs
+
+    install_reporting_event_sender(config, sender, gateway_mode="socket")
+
+    assert resolve_reporting_event_sender(config) is sender
+    assert resolve_reporting_gateway_mode(config) == "socket"
+    assert REPORTING_TRANSPORT_BINDING_STASH_KEY in config.stash
+    assert getattr(config, REPORTING_TRANSPORT_BINDING_STASH_KEY, None) is None
+
+
+def test_install_reporting_event_sender_initializes_missing_config_stash() -> None:
+    config = SimpleNamespace()
+
+    def sender(event_name: str, **kwargs: Any) -> None:
+        _ = event_name, kwargs
+
+    install_reporting_event_sender(config, sender)
+
+    assert hasattr(config, "stash")
+    assert resolve_reporting_event_sender(config) is sender
+    assert resolve_reporting_gateway_mode(config) is None
+
+
+def test_process_messages_thread_passes_force_failure_flag(tmp_path) -> None:
+    observed: dict[str, object] = {}
+
+    def process_messages(
+        queue,
+        stop_event,
+        messages_file_path,
+        transport_client=None,
+        *,
+        force_transport_publish_failure=False,
+    ):
+        observed["messages_file_path"] = messages_file_path
+        observed["transport_client"] = transport_client
+        observed["force_transport_publish_failure"] = force_transport_publish_failure
+        while not (stop_event.is_set() and queue.unfinished_tasks == 0):
+            try:
+                queue.get(timeout=0.1)
+            except Empty:
+                continue
+            queue.task_done()
+
+    runtime = _build_dummy_transport_service(
+        messages_file_path=tmp_path / "messages.ndjson",
+        force_transport_publish_failure=True,
+        process_messages=process_messages,
+    )
+
+    runtime.start_process_messages_thread()
+    runtime.reporter.process_messages_io_queue.put_nowait("{}")
+    runtime.finish_process_messages_thread()
+
+    assert observed["messages_file_path"] == tmp_path / "messages.ndjson"
+    assert observed["transport_client"] is None
+    assert observed["force_transport_publish_failure"] is True
+    assert runtime.reporter._process_messages_thread_error is None
+
+
+def test_finish_process_messages_thread_fails_fast_when_writer_thread_crashes(tmp_path) -> None:
+    def process_messages(
+        queue,
+        stop_event,
+        messages_file_path,
+        transport_client=None,
+        *,
+        force_transport_publish_failure=False,
+    ):
+        _ = queue, stop_event, messages_file_path, transport_client, force_transport_publish_failure
+        msg = "boom"
+        raise RuntimeError(msg)
+
+    runtime = _build_dummy_transport_service(
+        messages_file_path=tmp_path / "messages.ndjson",
+        force_transport_publish_failure=False,
+        process_messages=process_messages,
+    )
+
+    runtime.start_process_messages_thread()
+    runtime.reporter.process_messages_io_queue.put_nowait("{}")
+
+    with pytest.raises(RuntimeError, match="crashed before queued envelopes were drained"):
+        runtime.finish_process_messages_thread()

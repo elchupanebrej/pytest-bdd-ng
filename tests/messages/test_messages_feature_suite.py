@@ -20,7 +20,6 @@ from cucumber_messages import TestStepFinished as CucumberTestStepFinished  # ty
 from deepdiff import DeepDiff  # type:ignore[import-untyped]
 
 from pytest_bdd.model.message_extension import PAYLOAD_KINDS, get_payload_kind, has_single_payload
-from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 from .message_model_coverage import (
     build_expected_coverage_tree,
@@ -101,10 +100,6 @@ def _generate_feature_suite_messages(
     cucumber_html_path: Path | None = None,
     xdist_workers: int | None = None,
 ) -> list[object]:
-    GherkinMessageReporter.parameter_type_registry.clear()
-    GherkinMessageReporter.hook_registry.clear()
-    GherkinMessageReporter.hook_registration_registry.clear()
-
     testdir.makefile(
         ".ini",
         # language=ini

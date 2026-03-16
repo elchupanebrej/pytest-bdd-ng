@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from pytest_bdd import scenario
+
+pytestmark = [pytest.mark.long_running]
+
+
+@scenario(
+    Path(__file__).resolve().parents[2] / "features" / "07 Report" / "02 Gathering.feature.md",
+    "HTML report could be produced on the feature run",
+)
+def test_html_report_generation_from_markdown_doc():
+    pass

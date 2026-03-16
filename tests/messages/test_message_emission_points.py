@@ -5,8 +5,15 @@ from pathlib import Path
 
 from pytest_bdd.model.message_extension import PAYLOAD_KINDS
 
-PLUGIN_PATH = (
-    Path(__file__).resolve().parents[2] / "src" / "pytest_bdd" / "plugin" / "gherkin_message_reporter" / "plugin.py"
+REPORTER_RUNTIME_DIR = (
+    Path(__file__).resolve().parents[2] / "src" / "pytest_bdd" / "plugin" / "gherkin_message_reporter"
+)
+RUNTIME_MODULE_PATHS = (
+    REPORTER_RUNTIME_DIR / "lifecycle_runtime.py",
+    REPORTER_RUNTIME_DIR / "hook_catalog_runtime.py",
+    REPORTER_RUNTIME_DIR / "step_catalog_runtime.py",
+    REPORTER_RUNTIME_DIR / "scenario_runtime.py",
+    REPORTER_RUNTIME_DIR / "attachment_runtime.py",
 )
 
 EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
@@ -118,18 +125,17 @@ def _payloads_emitted_by_method(method: ast.FunctionDef) -> set[str]:
 
 
 def _collect_message_payload_emissions_by_method() -> dict[str, set[str]]:
-    module = ast.parse(PLUGIN_PATH.read_text(encoding="utf-8"), filename=str(PLUGIN_PATH))
-    class_def = next(
-        node for node in module.body if isinstance(node, ast.ClassDef) and node.name == "GherkinMessageReporter"
-    )
-
     emissions_by_method: dict[str, set[str]] = {}
-    for method in class_def.body:
-        if not isinstance(method, ast.FunctionDef):
-            continue
-        emitted = _payloads_emitted_by_method(method)
-        if emitted:
-            emissions_by_method[method.name] = emitted
+    for module_path in RUNTIME_MODULE_PATHS:
+        module = ast.parse(module_path.read_text(encoding="utf-8"), filename=str(module_path))
+        class_defs = [node for node in module.body if isinstance(node, ast.ClassDef)]
+        for class_def in class_defs:
+            for method in class_def.body:
+                if not isinstance(method, ast.FunctionDef):
+                    continue
+                emitted = _payloads_emitted_by_method(method)
+                if emitted:
+                    emissions_by_method[method.name] = emitted
     return emissions_by_method
 
 

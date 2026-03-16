@@ -1,6 +1,6 @@
 import os
 import shutil
-import subprocess
+import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 
@@ -9,7 +9,14 @@ def main():
     remote_mode = os.environ.get("PYTEST_REMOTE_MODE", "socket")
 
     if remote_mode in ("socket", "via", "proxy"):
-        os.execlp("python", "python", "-m", "execnet.script.socketserver", "0.0.0.0:8888")
+        python_executable = sys.executable
+        os.execl(  # noqa: S606
+            python_executable,
+            python_executable,
+            "-m",
+            "execnet.script.socketserver",
+            "0.0.0.0:8888",
+        )
     elif remote_mode == "ssh":
         Path("/run/sshd").mkdir(parents=True, exist_ok=True)
         ssh_dir = Path("/root/.ssh")
@@ -22,8 +29,8 @@ def main():
             shutil.copy2(pub_key, auth_keys)
             auth_keys.chmod(0o600)
 
-        subprocess.run(["ssh-keygen", "-A"], check=True)
-        os.execlp("/usr/sbin/sshd", "/usr/sbin/sshd", "-D", "-e")
+        subprocess.run(["ssh-keygen", "-A"], check=True)  # noqa: S607
+        os.execl("/usr/sbin/sshd", "/usr/sbin/sshd", "-D", "-e")  # noqa: S606
     else:
         sys.exit(f"Unsupported PYTEST_REMOTE_MODE: {remote_mode}")
 
