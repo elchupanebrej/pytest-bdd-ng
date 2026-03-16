@@ -3,8 +3,12 @@ from typing import Literal
 
 from cucumber_messages import DataTable, TestStep  # type:ignore[attr-defined]
 
-from docs.tutorial.src.catalog import Book, Catalog
 from pytest_bdd import given, then, when
+
+try:
+    from tutorial.src.catalog import Book, Catalog
+except ModuleNotFoundError:  # pragma: no cover - repository-local tutorial layout
+    from docs.tutorial.src.catalog import Book, Catalog
 
 
 def get_books_from_data_table(data_table: DataTable):

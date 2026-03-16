@@ -5,7 +5,12 @@
 
   Each scenario uses Docker containers with independent filesystems — no shared
   volume between the controller and worker — intentionally testing that the
-  xdist/execnet channel is the sole reporting transport.
+  xdist/execnet channel is the sole reporting transport. The same boundary also
+  centralizes live formatter ownership on the controller/main authority so
+  worker processes never render competing formatter output. No manual `-s` or
+  `--capture=no` override is required when the controller requests a terminal
+  formatter, and formatter discovery continues to come from the canonical
+  pytest plugin inventory rather than package scanning.
 
 ## Scenario: Consolidated report is produced when workers communicate over execnet socket
 
