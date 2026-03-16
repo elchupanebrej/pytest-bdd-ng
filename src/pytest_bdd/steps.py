@@ -67,7 +67,7 @@ from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_conf
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser
 from pytest_bdd.plugin.pickle_runner.const import Steps
-from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import IdGenerator, format_as_python_identifier
@@ -413,7 +413,7 @@ class StepDefinitionManager:
                 fixture_names.update(bypassed_params)
             return fixture_names
 
-        def as_message(self, config: Config | HasPytestBDDStash):
+        def as_message(self, config: Config | HasPytestStash):
             id_generator = IdGenerator.from_stash(config.stash)
             try:
                 message = self.__cache[id(id_generator)]

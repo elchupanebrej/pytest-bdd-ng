@@ -24,7 +24,7 @@ from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding
 from pytest_bdd.types.exception import FeatureConcreteParseError
-from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.types.protocol import HasPytestStash
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser  # noqa: F401
@@ -63,7 +63,7 @@ class BaseParser(ParserProtocol):
         return SourceReference(**source_kwargs)
 
     @staticmethod
-    def emit_parse_error(config: Config | HasPytestBDDStash, *, message: str, line: int, column: int, uri: str):
+    def emit_parse_error(config: Config | HasPytestStash, *, message: str, line: int, column: int, uri: str):
         hook_handler = getattr(config, "hook", None)
         if hook_handler is None:
             return
@@ -103,20 +103,21 @@ class BaseParser(ParserProtocol):
 
     def build_feature(
         self,
-        _config: Config | HasPytestBDDStash,
+        _config: Config | HasPytestStash,
         gherkin_document_raw_dict,
         filename: str,
     ) -> GherkinDocument:
         gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
         gherkin_document._pytest_bdd_filename = filename
-        return gherkin_document
+        # TODO: here must adapter layer not just direct casting
+        return cast(GherkinDocument, gherkin_document)
 
 
 @attrs
 class GherkinParser(BaseParser):
     def parse(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
         *args,
@@ -159,7 +160,7 @@ class GherkinParser(BaseParser):
 class MarkdownGherkinParser(BaseParser):
     def parse(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
         *args,  # noqa: ARG002 overload

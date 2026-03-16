@@ -5,7 +5,7 @@ from attr import attrib, attrs
 from cucumber_messages import GherkinDocument  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 
 
@@ -16,7 +16,7 @@ class ParserProtocol(Protocol):
 
     def parse(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
         *args,

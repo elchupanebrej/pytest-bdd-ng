@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Final, Literal, cast
+from typing import Any, Final, Literal, cast
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from jsonschema import ValidationError, validators
@@ -31,7 +31,7 @@ from .message_serialization import MessageSerializationProfile
 from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASES, normalize_capability_status
 
 
-def _build_schema_validator() -> tuple[object | None, str | None]:
+def _build_schema_validator() -> tuple[Any | None, str | None]:
     try:
         schema_dir, envelope_schema = load_envelope_schema()
     except (FileNotFoundError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -168,10 +168,10 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
     if payload_kind == "test_case_finished":
         implementation_status = getattr(payload, "implementation_status", None)
         if implementation_status is not None:
-            normalized = normalize_capability_status(str(implementation_status))
-            if normalized == "Not-Acceptable":
+            capability_status = normalize_capability_status(str(implementation_status))
+            if capability_status == "Not-Acceptable":
                 return "failed"
-            if normalized in {"Implemented", "Partly-Applicable", "Not-Applicable", "Non-Implementable"}:
+            if capability_status in {"Implemented", "Partly-Applicable", "Not-Applicable", "Non-Implementable"}:
                 return "passed"
         will_be_retried = getattr(payload, "will_be_retried", None)
         if isinstance(will_be_retried, bool) and will_be_retried:
@@ -184,8 +184,8 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
     if payload_kind == "test_run_hook_finished":
         result = getattr(payload, "result", None)
         result_status = getattr(result, "status", None) if result is not None else None
-        normalized = _normalize_outcome_status(result_status)
-        return "passed" if normalized is None else normalized
+        outcome_status = _normalize_outcome_status(result_status)
+        return "passed" if outcome_status is None else outcome_status
     if payload_kind in {"attachment", "external_attachment"}:
         return "passed"
     return None

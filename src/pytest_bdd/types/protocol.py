@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 
 @runtime_checkable
-class HasPytestBDDStash(Protocol):
+class HasPytestStash(Protocol):
     stash: Stash
 
 

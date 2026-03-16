@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -17,9 +17,10 @@ T = TypeVar("T", bound="StashBound")
 class StashAccess:
     @staticmethod
     def _stash_get(stash: Stash, key: str) -> Any | None:
-        if hasattr(stash, "get"):
-            return stash.get(key, None)
-        return stash[key] if key in stash else None  # noqa: SIM401
+        stash_any = cast(Any, stash)
+        if hasattr(stash_any, "get"):
+            return stash_any.get(key, None)
+        return stash_any[key] if key in stash_any else None  # noqa: SIM401
 
     @classmethod
     def get_optional(cls, stash: Stash, stash_type: type[T]) -> T | None:
@@ -43,7 +44,7 @@ class StashAccess:
 
     @classmethod
     def set(cls, stash: Stash, value: T) -> T:
-        stash[value.STASH_KEY] = value
+        cast(Any, stash)[value.STASH_KEY] = value
         return value
 
     @classmethod

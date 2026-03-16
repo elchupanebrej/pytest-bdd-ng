@@ -150,6 +150,12 @@ class PickleRunner:
         except ValueError:
             pass
         else:
+            if scenario_run is None:
+                msg = (
+                    f"Active scenario run is unavailable while invoking lifecycle hook {hook_name!r}. "
+                    "Pickle-runner lifecycle state is corrupted or was not initialized."
+                )
+                raise RuntimeError(msg)
             apply_transition(
                 scenario_run,
                 hook_phase=hook_phase,
@@ -428,15 +434,16 @@ class PickleRunner:
         if step is None:
             msg = "Execution context does not provide active step for matching"
             raise RuntimeError(msg)
+        request = cast(FixtureRequest, self.request)
         try:
-            return self.request.config.hook.pytest_bdd_match_step_definition_to_step(
-                request=self.request,
+            return request.config.hook.pytest_bdd_match_step_definition_to_step(
+                request=request,
                 run=run,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(self.gherkin_document, self.pickle, step)
             with suppress(Exception):
-                step_registry = self.request.getfixturevalue("step_registry")
+                step_registry = request.getfixturevalue("step_registry")
                 undefined_info = None
                 while step_registry is not None:
                     for step_definition in step_registry:

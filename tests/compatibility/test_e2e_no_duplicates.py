@@ -27,3 +27,17 @@ def test_no_duplicates_when_user_facing_tests_removed(tmp_path: Path):
 
     assert summary.duplicates_in_tests == 0
     assert summary.threshold_met is True
+
+
+def test_e2e_doc_tests_do_not_count_as_migration_duplicates(tmp_path: Path):
+    feature_dir = tmp_path / "features" / "Feature"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "cucumber-formatter-reports.feature.md").write_text("Feature: report docs\n", encoding="utf-8")
+
+    e2e_dir = tmp_path / "tests" / "e2e"
+    e2e_dir.mkdir(parents=True)
+    (e2e_dir / "test_report_doc_cucumber_formatters.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
+
+    summary = build_migration_coverage_summary(tmp_path / "tests", tmp_path / "features", threshold_percent=80)
+
+    assert summary.duplicates_in_tests == 0

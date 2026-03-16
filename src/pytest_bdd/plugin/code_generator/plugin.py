@@ -173,12 +173,12 @@ def process_pickle_steps(
         try:
             scenario_run.step_object = step
             scenario_run.previous_step_object = previous_step
-            run = scenario_run.run
-            if run is None:
+            scenario_root = scenario_run.run
+            if scenario_root is None:
                 continue
             item_request.config.hook.pytest_bdd_match_step_definition_to_step(
                 request=item_request,
-                run=run,
+                run=scenario_root,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError:
             non_matched_feature_pickle_steps.append(((feature_binding, pickle), step))

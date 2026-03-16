@@ -1,15 +1,41 @@
+from types import SimpleNamespace
+
 from pytest_bdd import scenarios
 from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_outcome_mappings
 from tests.messages.message_capability_fixtures import make_mapping_rule
 
+_EXCLUDED_TAGS = {"allure", "docker", "long_running", "xdist"}
+_EXCLUDED_FEATURE_URI_FRAGMENTS = ("07 report/08 xdist remote network reporting.feature.md",)
+_EXCLUDED_FEATURE_SCENARIOS = {
+    (
+        "07 report/02 gathering.feature.md",
+        "html report could be produced on the feature run",
+    ),
+}
 
-def _exclude_allure_features(config, feature, pickle):  # noqa: ARG001
+
+def _iter_tag_names(feature, pickle):
+    yield from (str(tag.name).lstrip("@").lower() for tag in getattr(getattr(feature, "feature", None), "tags", ()))
+    yield from (str(tag.name).lstrip("@").lower() for tag in getattr(pickle, "tags", ()))
+
+
+def _exclude_default_bdd_features(config, feature, pickle):  # noqa: ARG001
     feature_uri = str(getattr(feature, "uri", "")).lower()
     feature_name = str(getattr(getattr(feature, "feature", None), "name", "")).lower()
-    return "allure" not in feature_uri and not feature_name.startswith("allure ")
+    scenario_name = str(getattr(pickle, "name", "")).lower()
+    tag_names = set(_iter_tag_names(feature, pickle))
+    return (
+        "allure" not in feature_uri
+        and not feature_name.startswith("allure ")
+        and not any(fragment in feature_uri for fragment in _EXCLUDED_FEATURE_URI_FRAGMENTS)
+        and not any(
+            fragment in feature_uri and scenario == scenario_name for fragment, scenario in _EXCLUDED_FEATURE_SCENARIOS
+        )
+        and tag_names.isdisjoint(_EXCLUDED_TAGS)
+    )
 
 
-test = scenarios(".", filter_=_exclude_allure_features)
+test = scenarios(".", filter_=_exclude_default_bdd_features)
 
 
 def _fixed_rules():
@@ -62,3 +88,84 @@ def test_messages_fixed_release_readiness_matrix_rejects_missing_parallel_worker
 
     assert result.status == "fail"
     assert "missing_parallel_worker_scenario" in result.missing_required_matrix_cases
+
+
+def test_default_bdd_filter_excludes_tagged_long_running_scenarios() -> None:
+    def _tag(name: str):
+        return SimpleNamespace(name=name)
+
+    def _document(*, name: str, tags: list[str], uri: str = "file:test.feature"):
+        return SimpleNamespace(
+            uri=uri,
+            feature=SimpleNamespace(
+                name=name,
+                tags=[_tag(tag) for tag in tags],
+            ),
+        )
+
+    def _pickle(*tags: str):
+        return SimpleNamespace(tags=[_tag(tag) for tag in tags])
+
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(name="fast suite", tags=["@xdist"]),
+            _pickle(),
+        )
+        is False
+    )
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(name="fast suite", tags=[]),
+            _pickle("@docker"),
+        )
+        is False
+    )
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(name="fast suite", tags=[]),
+            _pickle(),
+        )
+        is True
+    )
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(
+                name="xdist html reporting",
+                tags=[],
+                uri="file:07 Report/07 xdist HTML reporting.feature.md",
+            ),
+            _pickle(),
+        )
+        is True
+    )
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(
+                name="report gathering outputs",
+                tags=[],
+                uri="file:07 Report/02 Gathering.feature.md",
+            ),
+            SimpleNamespace(
+                name="HTML report could be produced on the feature run",
+                tags=[],
+            ),
+        )
+        is False
+    )
+    assert (
+        _exclude_default_bdd_features(
+            None,
+            _document(
+                name="cucumber formatter reports",
+                tags=[],
+                uri="file:07 Report/09 Cucumber formatter reports.feature.md",
+            ),
+            _pickle(),
+        )
+        is True
+    )

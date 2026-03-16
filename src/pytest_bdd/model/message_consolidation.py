@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from .execution_message_adapter import ExecutionMessageAdapter
 from .message_converter import envelope_from_dict
@@ -127,7 +127,7 @@ def _semantic_clone(value: Any, *, strip_reference_ids: bool) -> Any:
 
 def _payload_root(envelope_dict: dict[str, Any], payload_kind: str) -> dict[str, Any]:
     if payload_kind in envelope_dict and isinstance(envelope_dict[payload_kind], dict):
-        return envelope_dict[payload_kind]
+        return cast(dict[str, Any], envelope_dict[payload_kind])
     camel_case_payload_kind = payload_kind.split("_")[0] + "".join(part.title() for part in payload_kind.split("_")[1:])
     payload = envelope_dict.get(camel_case_payload_kind)
     return payload if isinstance(payload, dict) else {}

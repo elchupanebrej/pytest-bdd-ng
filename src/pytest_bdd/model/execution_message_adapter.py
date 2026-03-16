@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
@@ -82,13 +82,16 @@ class ExecutionMessageAdapter:
         def _namespace(value: str) -> str:
             return value if value.startswith(prefix) else f"{prefix}{value}"
 
-        return cls._transform_ids(deepcopy(envelope_dict), transform=_namespace)
+        return cast(dict[str, Any], cls._transform_ids(deepcopy(envelope_dict), transform=_namespace))
 
     @classmethod
     def rewrite_dict_ids(cls, envelope_dict: dict[str, Any], remap: dict[str, str]) -> dict[str, Any]:
         if not remap:
-            return deepcopy(envelope_dict)
-        return cls._transform_ids(deepcopy(envelope_dict), transform=lambda value: remap.get(value, value))
+            return cast(dict[str, Any], deepcopy(envelope_dict))
+        return cast(
+            dict[str, Any],
+            cls._transform_ids(deepcopy(envelope_dict), transform=lambda value: remap.get(value, value)),
+        )
 
     @staticmethod
     def serialize(

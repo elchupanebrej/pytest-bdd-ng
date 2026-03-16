@@ -5,6 +5,8 @@ from pathlib import Path
 
 from jsonschema import validators
 
+from pytest_bdd.script import message_capability_governance
+
 CLI_SCHEMA_PATH = (
     Path(__file__).resolve().parents[2]
     / "specs"
@@ -58,3 +60,29 @@ def test_governance_cli_contract_requires_runtime_required_file_when_flag_enable
 
     assert errors
     assert any("runtime_required_capabilities_file" in error.message for error in errors)
+
+
+def test_discover_governance_schema_path_prefers_canonical_repo_contract(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    canonical_schema_path = (
+        repo_root / "specs" / "008-maximize-messages-coverage" / "contracts" / "governance-report.schema.json"
+    )
+    canonical_schema_path.parent.mkdir(parents=True, exist_ok=True)
+    canonical_schema_path.write_text('{"type": "object"}', encoding="utf-8")
+
+    decoy_root = tmp_path / "zzz-root"
+    decoy_schema_path = decoy_root / "specs" / "999-zed" / "contracts" / "governance-report.schema.json"
+    decoy_schema_path.parent.mkdir(parents=True, exist_ok=True)
+    decoy_schema_path.write_text('{"type": "object"}', encoding="utf-8")
+
+    monkeypatch.setattr(message_capability_governance, "_repo_root", lambda: repo_root)
+    monkeypatch.setattr(
+        message_capability_governance,
+        "_candidate_repo_roots",
+        lambda: (decoy_root, repo_root),
+    )
+
+    assert message_capability_governance.discover_governance_schema_path() == canonical_schema_path.resolve()

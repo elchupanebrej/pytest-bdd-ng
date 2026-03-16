@@ -47,17 +47,39 @@ ALLOWED_IMPACTS: Final[set[str]] = {
 }
 ALLOWED_RELEVANCE: Final[set[str]] = {"relevant", "out_of_scope"}
 DEFAULT_GOVERNANCE_SCHEMA_GLOB: Final[str] = "specs/*/contracts/governance-report.schema.json"
+DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH: Final[Path] = Path(
+    "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json"
+)
 
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def _candidate_repo_roots() -> tuple[Path, ...]:
+    cwd = Path.cwd().resolve()
+    repo_root = _repo_root().resolve()
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    for base in (cwd, repo_root):
+        for candidate in (base, *base.parents):
+            if candidate not in seen:
+                seen.add(candidate)
+                candidates.append(candidate)
+    return tuple(candidates)
+
+
 def discover_governance_schema_path() -> Path | None:
-    candidates = sorted(_repo_root().glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB))
+    canonical_path = (_repo_root().resolve() / DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH).resolve()
+    if canonical_path.exists():
+        return canonical_path
+    candidates: list[Path] = []
+    for root in _candidate_repo_roots():
+        candidates.extend(sorted(root.glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB)))
     if not candidates:
         return None
-    return candidates[-1]
+    normalized_candidates = sorted({candidate.resolve() for candidate in candidates}, key=lambda path: str(path))
+    return normalized_candidates[0]
 
 
 def load_governance_report_schema(schema_path: Path | None = None) -> dict[str, Any]:
@@ -65,7 +87,7 @@ def load_governance_report_schema(schema_path: Path | None = None) -> dict[str, 
     if effective_path is None:
         msg = "Unable to locate governance report schema."
         raise FileNotFoundError(msg)
-    return _load_json(effective_path)
+    return cast(dict[str, Any], _load_json(effective_path))
 
 
 def validate_governance_report_payload(payload: dict[str, Any], schema_path: Path | None = None) -> None:
@@ -82,7 +104,7 @@ def validate_governance_report_payload(payload: dict[str, Any], schema_path: Pat
 
 
 def _load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return cast(Any, json.loads(path.read_text(encoding="utf-8")))
 
 
 def _load_capabilities(path: Path) -> list[MessageCapability]:

@@ -178,8 +178,7 @@ class Join(BaseModel):
                                         yield value
                                         break
 
-                        values = list(values_gen())
-                        yield values
+                        yield list(values_gen())
             else:
                 yield from (
                     list(chain.from_iterable(values_combination))

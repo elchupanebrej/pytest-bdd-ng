@@ -31,7 +31,7 @@ from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
-from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.url import is_local_url
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
     ) -> Iterable[tuple[GherkinDocument, Source]]:  # pragma: no cover
         ...
 
@@ -64,7 +64,7 @@ class ScenarioLocatorReadObserver(Protocol):
 class ScenarioLocatorResolver(Protocol):
     def resolve(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ) -> Iterable[tuple[GherkinDocument, Pickle, Source]]:  # pragma: no cover
@@ -89,7 +89,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
     def _bind_feature(
         gherkin_document: GherkinDocument,
         source: Source,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
     ):
         run = Run.from_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
@@ -98,7 +98,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
 
     def resolve(
         self,
-        config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ):
@@ -131,7 +131,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Config | HasPytestBDDStash):
+    def resolve_features(self, config: Config | HasPytestStash):
         urls = self._build_urls()
         if not urls:
             return
@@ -233,7 +233,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
     )
 
-    def _resolve_features_base_dir(self, config: Config | HasPytestBDDStash):
+    def _resolve_features_base_dir(self, config: Config | HasPytestStash):
         try:
             if self.features_base_dir is None:
                 # TODO: refactor, move out from class usage to initialization or higher
@@ -284,7 +284,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Config | HasPytestBDDStash):
+    def resolve_features(self, config: Config | HasPytestStash):
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths = set()
 

@@ -6,6 +6,7 @@ from typing import Any
 
 from pytest_bdd.model.coverage.inventory import generate_inventory, inventory_to_capability_payload
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
+from pytest_bdd.script.message_capability_governance import discover_governance_schema_path
 
 FEATURE_CONTRACT_DIR = Path(__file__).resolve().parents[2] / "specs" / "008-maximize-messages-coverage" / "contracts"
 OPENAPI_CONTRACT_PATH = FEATURE_CONTRACT_DIR / "messages-capability-governance.openapi.yaml"
@@ -135,3 +136,7 @@ def test_inventory_export_emits_unique_canonical_capability_ids() -> None:
 
     assert len(capability_ids) == len(set(capability_ids))
     assert all("_" not in capability_id.split(".", 1)[0] for capability_id in capability_ids)
+
+
+def test_governance_schema_discovery_matches_contract_fixture() -> None:
+    assert discover_governance_schema_path() == GOVERNANCE_SCHEMA_PATH.resolve()

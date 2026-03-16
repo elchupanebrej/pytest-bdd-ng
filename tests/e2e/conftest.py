@@ -1,32 +1,48 @@
 import json
 import os
 import re
+import shlex
 import shutil
-import subprocess  # noqa: S404
 import string
+import subprocess  # noqa: S404
+import sys
 import tempfile
 from functools import reduce
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# Prevent the private fixture feature file from being collected as a standalone test.
-# It is only exercised via @scenario in test_xdist_html_reporting.py.
-collect_ignore_glob = ["_*.feature"]
-
 import pytest
 from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
 
-from pytest_bdd import given, step, then
+from pytest_bdd import given, parsers, step, then, when
 from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
 from pytest_bdd.util.data_table import data_table_to_dicts
 from pytest_bdd.util.toolz_extra import compose
+from tests.support.cucumber_formatters import (
+    install_fake_node,
+    requests_terminal_formatter_output,
+    run_pytest_via_real_entrypoint,
+)
+from tests.support.docker import require_docker_daemon
+from tests.support.pytest_results import (
+    attach_command_result_outputs,
+    combined_result_output,
+    resolve_pytester_run_mode,
+    run_quietly,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
+
+# Prevent the private fixture feature file from being collected as a standalone test.
+# It is only exercised via @scenario in test_xdist_html_reporting.py.
+collect_ignore_glob = ["_*.feature"]
+
+_CUCUMBER_FORMATTER_REPORT_FEATURE_URI = "file:07 Report/09 Cucumber formatter reports.feature.md"
 
 try:
     import jq  # type: ignore[import-untyped]
@@ -37,6 +53,18 @@ except ImportError:  # pragma: no cover - platform-specific availability
 @pytest.fixture
 def httpserver_port(httpserver):
     return httpserver.port
+
+
+@pytest.fixture(autouse=True)
+def ensure_fake_node_for_cucumber_formatter_report_docs(
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+    tmp_path: Path,
+) -> None:
+    nodeid = getattr(request.node, "nodeid", "")
+    if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI not in nodeid:
+        return
+    install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
 
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))
@@ -59,6 +87,12 @@ def write_file(name, extension, tmp_path: Path, step):
     (tmp_path / f"{name}{extension}").write_text(content)
 
 
+def _resolve_test_output_path(testdir: "Testdir", file_path: Path) -> Path:
+    if file_path.is_absolute():
+        return file_path
+    return Path(str(testdir.tmpdir)) / file_path
+
+
 @given(
     re.compile(r'Localserver endpoint "(?P<endpoint>.+)" responding content:'),
 )
@@ -77,21 +111,83 @@ def _(testdir, step):
 
 
 @step("run pytest", target_fixture="pytest_result")
-def run_pytest(testdir: "Testdir", step):
+def run_pytest(testdir: "Testdir", step, attach):
     options_dict = data_table_to_dicts(step.data_table)
-    testrunner = (
-        testdir.runpytest_inprocess if options_dict.get("subprocess", [False])[0] == "true" else testdir.runpytest
-    )
+    cli_args = list(options_dict.get("cli_args", []))
+    run_mode = resolve_pytester_run_mode(options_dict)
+    # Most e2e scenarios validate nested pytest output after the fact. Running those
+    # child sessions as captured subprocesses keeps the outer live formatter as the
+    # only terminal writer while still exposing stdout/stderr through attachments.
+    if run_mode == "subprocess" and requests_terminal_formatter_output(*cli_args):
+        outcome = run_pytest_via_real_entrypoint(testdir, *cli_args)
+        harness_stdout = ""
+        harness_stderr = ""
+    else:
+        testrunner = testdir.runpytest_inprocess if run_mode == "inprocess" else testdir.runpytest_subprocess
+        outcome, harness_stdout, harness_stderr = run_quietly(testrunner, *cli_args)
 
-    outcome = testrunner(*options_dict.get("cli_args", []))
+    attach_command_result_outputs(
+        attach,
+        outcome,
+        label="nested-pytest",
+        command="pytest " + " ".join(cli_args),
+        harness_stdout=harness_stdout,
+        harness_stderr=harness_stderr,
+    )
 
     yield outcome
 
 
+def _coerce_pytest_return_code(pytest_result) -> int:
+    return_code = getattr(pytest_result, "ret", None)
+    if return_code is None:
+        return_code = pytest_result.returncode
+    return int(return_code)
+
+
+def _coerce_pytest_stream_text(stream) -> str:
+    if isinstance(stream, str):
+        return stream
+    str_method = getattr(stream, "str", None)
+    if callable(str_method):
+        return str_method()
+    lines = getattr(stream, "lines", None)
+    if isinstance(lines, list):
+        return "\n".join(lines)
+    return str(stream)
+
+
+def _parse_outcome_counts(pytest_result) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for raw_count, raw_status in re.findall(
+        r"(\d+)\s+(passed|failed|skipped|error|errors|xpassed|xfailed)",
+        combined_result_output(pytest_result),
+    ):
+        status = "errors" if raw_status in {"error", "errors"} else raw_status
+        counts[status] = max(counts.get(status, 0), int(raw_count))
+    return counts
+
+
 @given("Install npm packages")
-def _(testdir: "Testdir", step):
+def _(testdir: "Testdir", step, attach):
     options_dict = data_table_to_dicts(step.data_table)
-    yield testdir.run(shutil.which("npm"), "install", "--silent", *options_dict.get("packages", []))
+    packages = list(options_dict.get("packages", []))
+    result, harness_stdout, harness_stderr = run_quietly(
+        testdir.run,
+        shutil.which("npm"),
+        "install",
+        "--silent",
+        *packages,
+    )
+    attach_command_result_outputs(
+        attach,
+        result,
+        label="npm-install",
+        command="npm install --silent " + " ".join(packages),
+        harness_stdout=harness_stdout,
+        harness_stderr=harness_stderr,
+    )
+    yield result
 
 
 @given("pytest-xdist is available")
@@ -110,15 +206,15 @@ _REMOTE_MODE_ALIASES: dict[str, str] = {
 
 @step("Docker is available")
 def _require_docker():
-    if shutil.which("docker") is None:
-        pytest.skip("Docker is unavailable.")
+    require_docker_daemon()
 
 
 @step(
-    re.compile(r'run pytest across xdist workers over (?P<remote_mode>\w+) gateway'),
+    re.compile(r"run pytest across xdist workers over (?P<remote_mode>\w+) gateway"),
     target_fixture="remote_xdist_result",
 )
-def _run_remote_xdist(remote_mode: str, tmp_path: Path):
+def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
+    require_docker_daemon()
     execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
     repo_root = Path(__file__).resolve().parents[2]
     with tempfile.TemporaryDirectory(prefix="pytest-bdd-remote-artifacts-", dir=repo_root) as artifact_dir:
@@ -130,7 +226,7 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path):
             "REPORT_NAME": _REMOTE_XDIST_REPORT_NAME,
             "VERIFY_REPORT_MODE": "success",
             "PYTEST_REMOTE_MODE": execnet_mode,
-            "PYTEST_BDD_MESSAGES_FAIL_WORKERS": "",
+            "PYTEST_BDD_TRANSPORT_FAIL_WORKERS": "",
             "COMPOSE_PROJECT_NAME": (
                 f"pytestbddremote{execnet_mode}{tmp_path.name.replace('-', '').replace('_', '')}"
             ).lower(),
@@ -150,13 +246,25 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path):
                 env=env,
             )
         finally:
-            subprocess.run(  # noqa: S603
+            down_result = subprocess.run(  # noqa: S603
                 [*compose_cmd, "down", "--volumes", "--remove-orphans"],
                 check=False,
                 capture_output=True,
                 text=True,
                 env=env,
             )
+        attach_command_result_outputs(
+            attach,
+            result,
+            label=f"remote-xdist-{execnet_mode}-compose-up",
+            command="docker compose up --build --abort-on-container-exit --exit-code-from controller",
+        )
+        attach_command_result_outputs(
+            attach,
+            down_result,
+            label=f"remote-xdist-{execnet_mode}-compose-down",
+            command="docker compose down --volumes --remove-orphans",
+        )
 
         artifact_report = Path(artifact_dir, _REMOTE_XDIST_REPORT_NAME)
         dest = tmp_path / _REMOTE_XDIST_REPORT_NAME
@@ -167,14 +275,15 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path):
 
 @then("the distributed run succeeds and a consolidated NDJSON report is produced")
 def _assert_remote_run_succeeds(remote_xdist_result):
+    from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
+
+    from pytest_bdd.model.message_validation import validate_message_stream
     from tests.messages.message_stream_assertions import (
         count_payload_kinds,
         gateway_modes_for_payloads,
         parse_ndjson_messages,
         worker_ids_for_payloads,
     )
-    from pytest_bdd.model.message_validation import validate_message_stream
-    from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
     result = remote_xdist_result["result"]
     report = remote_xdist_result["report"]
@@ -203,7 +312,18 @@ def check_pytest_test_statuses(pytest_result, step):
     outcomes_kwargs_values = map(compose(int, attrgetter("value")), step.data_table.rows[1].cells)
     outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values, strict=False))
 
-    assert_outcomes(pytest_result, **outcome_result)
+    if hasattr(pytest_result, "assert_outcomes"):
+        assert_outcomes(pytest_result, **outcome_result)
+        return
+
+    parsed_counts = _parse_outcome_counts(pytest_result)
+    for outcome_name, expected_count in outcome_result.items():
+        assert parsed_counts.get(outcome_name, 0) == expected_count, combined_result_output(pytest_result)
+
+
+@step("pytest exits with test failures")
+def check_pytest_test_failures(pytest_result):
+    assert _coerce_pytest_return_code(pytest_result) == pytest.ExitCode.TESTS_FAILED
 
 
 @step("pytest outcome must match lines:")
@@ -215,10 +335,58 @@ def check_pytest_stdout_lines(pytest_result, step):
         )
     )
 
-    pytest_result.stdout.fnmatch_lines(lines)
+    stdout_text = _coerce_pytest_stream_text(getattr(pytest_result, "stdout", ""))
+    fnmatch_lines = getattr(getattr(pytest_result, "stdout", None), "fnmatch_lines", None)
+    if callable(fnmatch_lines):
+        fnmatch_lines(lines)
+        return
+    for line in lines:
+        assert re.search(re.escape(line).replace("\\*", ".*"), stdout_text), stdout_text
 
 
-@given(re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""))
+@when(parsers.parse("run `{command}`"), target_fixture="renderer_result")
+def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[str]:
+    command_args = shlex.split(command)
+    if command_args and command_args[0] == "python":
+        command_args[0] = sys.executable
+    env = dict(os.environ)
+    repo_root = Path(__file__).resolve().parents[2]
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo_root / "src"), env.get("PYTHONPATH", "")]))
+    result = subprocess.run(  # noqa: S603
+        command_args,
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=str(testdir.tmpdir),
+        env=env,
+    )
+    attach_command_result_outputs(attach, result, label="standalone-renderer", command=command)
+    return result
+
+
+@then("the renderer terminal output includes:")
+def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> None:
+    lines = [row.cells[0].value for row in step.data_table.rows]
+    output_fragments: list[str] = []
+
+    if "renderer_result" in request.fixturenames:
+        renderer_result = request.getfixturevalue("renderer_result")
+        output_fragments.extend([renderer_result.stdout, renderer_result.stderr])
+    if "pytest_result" in request.fixturenames:
+        pytest_result = request.getfixturevalue("pytest_result")
+        output_fragments.extend(
+            [
+                _coerce_pytest_stream_text(getattr(pytest_result, "stdout", "")),
+                _coerce_pytest_stream_text(getattr(pytest_result, "stderr", "")),
+            ]
+        )
+
+    combined_output = "\n".join(fragment for fragment in output_fragments if fragment)
+    for line in lines:
+        assert re.search(re.escape(line).replace("\\*", ".*"), combined_output), combined_output
+
+
+@given(re.compile(r'Copy path from "(?P<initial_path>[^"]+)" to test path "(?P<final_path>[^"]+)"'))
 def copy_path(request, testdir: "Testdir", initial_path, final_path):
     full_initial_path = (Path(request.config.rootdir) / Path(initial_path).as_posix()).resolve(strict=True)
     full_final_path = Path(testdir.tmpdir) / Path(final_path).as_posix()
@@ -230,39 +398,48 @@ def copy_path(request, testdir: "Testdir", initial_path, final_path):
 
 
 @then(
-    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has \"(?P<line_count>(\w|\\|.)+)\" lines"),
+    re.compile(r'File "(?P<file_path>[^"]+)" has "(?P<line_count>\d+)" lines'),
     converters={"line_count": int, "file_path": Path},
 )
-def _(file_path: Path, line_count: int):
-    with file_path.open("r") as fp:
+def _(file_path: Path, line_count: int, testdir: "Testdir"):
+    output_path = _resolve_test_output_path(testdir, file_path)
+    with output_path.open("r") as fp:
         real_line_count = reduce(lambda _, last: last, map(itemgetter(0), enumerate(fp, start=1)), 0)  # type: ignore[no-any-return]
     assert line_count == real_line_count
 
 
 @then(
-    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has at least \"(?P<line_count>(\w|\\|.)+)\" lines"),
+    re.compile(r'File "(?P<file_path>[^"]+)" has at least "(?P<line_count>\d+)" lines'),
     converters={"line_count": int, "file_path": Path},
 )
-def _(file_path: Path, line_count: int):
-    with file_path.open("r") as fp:
+def _(file_path: Path, line_count: int, testdir: "Testdir"):
+    output_path = _resolve_test_output_path(testdir, file_path)
+    with output_path.open("r") as fp:
         real_line_count = reduce(lambda _, last: last, map(itemgetter(0), enumerate(fp, start=1)), 0)  # type: ignore[no-any-return]
     assert real_line_count >= line_count
 
 
 @then(
-    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
+    re.compile(r'File "(?P<file_path>[^"]+)" is not empty'),
     converters={"file_path": Path},
 )
 def _(file_path: Path, testdir):
-    assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
+    assert _resolve_test_output_path(testdir, file_path).stat().st_size != 0
+
+
+@then(parsers.parse('File "{file_path}" contains the line "{line}"'))
+def file_contains_line(testdir, file_path: str, line: str) -> None:
+    output_path = _resolve_test_output_path(testdir, Path(file_path))
+    assert line in output_path.read_text(encoding="utf-8")
 
 
 @then(
-    re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"),
+    re.compile(r'Report "(?P<file_path>[^"]+)" parsable into messages'),
     converters={"file_path": Path},
 )
-def _(file_path: Path):
-    with file_path.open(mode="r") as ast_file:
+def _(file_path: Path, testdir: "Testdir"):
+    output_path = _resolve_test_output_path(testdir, file_path)
+    with output_path.open(mode="r") as ast_file:
         try:
             for raw_datum in ast_file:
                 message_converter.from_dict(json.loads(raw_datum), Envelope)

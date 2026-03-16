@@ -177,8 +177,10 @@ def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str
     if "language" in rationale and ("model" in rationale or "runtime" in rationale):
         return ()
     return (
-        "partly-applicable rationale must explain language/runtime model mismatch "
-        "(for example: no native language-equivalent model in current runtime)",
+        (
+            "partly-applicable rationale must explain language/runtime model mismatch "
+            "(for example: no native language-equivalent model in current runtime)"
+        ),
     )
 
 

@@ -54,7 +54,10 @@ class FeatureExamplesNotValidError(ScenarioValidationError):
 class StepDefinitionNotFoundError(Exception):
     """Step definition not found."""
 
+    undefined_parameter_type: tuple[str, str] | None
+
     def __init__(self, feature, scenario, step, *args):
+        self.undefined_parameter_type = None
         super().__init__(
             f'Step definition is not found: "{step.text}". '
             f'Step keyword: "{step.keyword}". '

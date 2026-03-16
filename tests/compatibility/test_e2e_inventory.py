@@ -26,3 +26,25 @@ def test_discovers_user_facing_tests_from_tests_feature_folder(tmp_path: Path):
 
     assert "no-scenario" in ids
     assert "other" not in ids
+
+
+def test_e2e_report_doc_tests_are_not_treated_as_migration_candidates(tmp_path: Path):
+    e2e_dir = tmp_path / "tests" / "e2e"
+    e2e_dir.mkdir(parents=True)
+    (e2e_dir / "test_report_doc_cucumber_formatters.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
+    (tmp_path / "tests" / "feature").mkdir(parents=True)
+
+    ids = discover_user_facing_test_scenario_ids(tmp_path / "tests")
+
+    assert "report-doc-cucumber-formatters" not in ids
+
+
+def test_e2e_xdist_html_tests_are_not_treated_as_migration_candidates(tmp_path: Path):
+    e2e_dir = tmp_path / "tests" / "e2e"
+    e2e_dir.mkdir(parents=True)
+    (e2e_dir / "test_xdist_html_reporting.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
+    (tmp_path / "tests" / "feature").mkdir(parents=True)
+
+    ids = discover_user_facing_test_scenario_ids(tmp_path / "tests")
+
+    assert "xdist-html-reporting" not in ids

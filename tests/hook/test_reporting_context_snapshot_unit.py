@@ -72,3 +72,19 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
     assert snapshot.run_id == "run-stash"
     assert snapshot.active_set.run.object_id == "run-stash"
     assert snapshot.fallback_reason == "hierarchy-missing"
+
+
+def test_snapshot_marks_missing_active_scenario_run_explicitly() -> None:
+    request = _build_request()
+    run_root = Run(
+        id="run-stash",
+        run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
+        status=RunStatus.ok,
+    )
+    run_root.set_in_stash(request.config.stash)
+
+    snapshot = build_reporting_context_snapshot(request=request)
+
+    assert snapshot is not None
+    assert snapshot.resolved_from_hierarchy is True
+    assert snapshot.fallback_reason == "run_has_no_active_scenario"

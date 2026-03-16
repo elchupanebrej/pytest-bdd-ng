@@ -1,12 +1,13 @@
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 from attr import attrib, attrs
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import HasPytestBDDStash
+from pytest_bdd.types.protocol import HasPytestStash
 
 from .model import Step
 from .model_builder import GherkinDocumentBuilder
@@ -35,12 +36,13 @@ class StructBDDParser(ParserProtocol):
 
     def parse(
         self,
-        _config: Config | HasPytestBDDStash,
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
         *args,
         **kwargs,
-    ):
+    ) -> tuple[Any, str]:
+        _ = config
         encoding = kwargs.pop("encoding", "utf-8")
         mode = kwargs.pop("mode", "r")
         with path.open(mode=mode, encoding=encoding) as feature_file:

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,
@@ -12,6 +14,7 @@ from pytest_bdd.model.scenario_run import (
     RunStatus,
     ScenarioRun,
 )
+from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
 from pytest_bdd.plugin.pickle_runner.run_transitions import apply_transition
 
 
@@ -105,3 +108,27 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     assert context.run.reporting_state.active_test_case_started_id == "case-started-1"
     assert context.run.reporting_state.active_test_step_id == "step-1"
     assert context.reference_resolver.missing_reference_diagnostics == ["missing-ast-node"]
+
+
+def test_pickle_runner_raises_when_lifecycle_hook_has_no_active_scenario_run() -> None:
+    runner = PickleRunner()
+    run_ref = LifecycleObjectRef(kind="run", object_id="run", is_active=True)
+    run = Run(id="run-1", run_ref=run_ref, status=RunStatus.ok)
+    config = type(
+        "_Config",
+        (),
+        {
+            "stash": {},
+            "hook": type("_Hook", (), {"pytest_bdd_before_scenario": staticmethod(lambda **_kwargs: None)})(),
+        },
+    )()
+    run.set_in_stash(config.stash)
+    request = type("_Request", (), {"config": config})()
+
+    with pytest.raises(RuntimeError, match=r"Active scenario run.*pytest_bdd_before_scenario"):
+        runner._invoke_bdd_hook(
+            hook_name="pytest_bdd_before_scenario",
+            request=request,
+            gherkin_document=_Dummy("feature", "f-1"),
+            pickle=_Dummy("scenario", "s-1"),
+        )
