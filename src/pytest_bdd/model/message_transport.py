@@ -2,17 +2,36 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
-from dataclasses import dataclass, field
 from threading import Lock
 from time import monotonic, sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from attrs import define, field, frozen
+
+from pytest_bdd.model.stash_access import StashBound
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
 REPORTING_BATCH_EVENT = "pytest_bdd_message_chunk"
-REPORTING_EVENT_SENDER_ATTR = "_pytest_bdd_xdist_event_sender"
-REPORTING_GATEWAY_MODE_ATTR = "_pytest_bdd_xdist_gateway_mode"
+REPORTING_TRANSPORT_BINDING_STASH_KEY = "_pytest_bdd_xdist_transport_binding"
+
+
+@frozen
+class ReportingEventSenderBinding(StashBound):
+    STASH_KEY: ClassVar[str] = REPORTING_TRANSPORT_BINDING_STASH_KEY
+    sender: Callable[..., None]
+    gateway_mode: str | None = None
+
+
+def _config_stash(config: Any) -> Any:
+    stash = getattr(config, "stash", None)
+    if stash is None:
+        stash = {}
+        config.stash = stash
+    return stash
 
 
 def install_reporting_event_sender(
@@ -21,22 +40,29 @@ def install_reporting_event_sender(
     *,
     gateway_mode: str | None = None,
 ) -> None:
-    setattr(config, REPORTING_EVENT_SENDER_ATTR, sender)
-    if gateway_mode is not None:
-        setattr(config, REPORTING_GATEWAY_MODE_ATTR, gateway_mode)
+    ReportingEventSenderBinding(
+        sender=sender,
+        gateway_mode=gateway_mode,
+    ).set_in_stash(_config_stash(config))
 
 
 def resolve_reporting_event_sender(config: Any) -> Callable[..., None] | None:
-    sender = getattr(config, REPORTING_EVENT_SENDER_ATTR, None)
+    binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
+    if binding is None:
+        return None
+    sender = binding.sender
     return sender if callable(sender) else None
 
 
 def resolve_reporting_gateway_mode(config: Any) -> str | None:
-    gateway_mode = getattr(config, REPORTING_GATEWAY_MODE_ATTR, None)
+    binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
+    if binding is None:
+        return None
+    gateway_mode = binding.gateway_mode
     return gateway_mode if isinstance(gateway_mode, str) and gateway_mode else None
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class WorkerChunkBatch:
     worker_id: str
     batch_sequence: int
@@ -70,7 +96,7 @@ class WorkerChunkBatch:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class WorkerCompletionManifest:
     worker_id: str
     complete: bool
@@ -108,19 +134,19 @@ class WorkerCompletionManifest:
         )
 
 
-@dataclass(slots=True)
+@define
 class ReportingTransportSnapshot:
     expected_worker_ids: tuple[str, ...]
     batches_by_worker: dict[str, tuple[WorkerChunkBatch, ...]]
     manifests_by_worker: dict[str, WorkerCompletionManifest]
 
 
-@dataclass(slots=True)
+@define
 class ReportingTransportSession:
-    _lock: Lock = field(init=False, default_factory=Lock, repr=False)
-    _expected_worker_ids: set[str] = field(init=False, default_factory=set, repr=False)
-    _batches_by_worker: dict[str, list[WorkerChunkBatch]] = field(init=False, default_factory=dict, repr=False)
-    _manifests_by_worker: dict[str, WorkerCompletionManifest] = field(init=False, default_factory=dict, repr=False)
+    _lock: Lock = field(init=False, factory=Lock, repr=False)
+    _expected_worker_ids: set[str] = field(init=False, factory=set, repr=False)
+    _batches_by_worker: dict[str, list[WorkerChunkBatch]] = field(init=False, factory=dict, repr=False)
+    _manifests_by_worker: dict[str, WorkerCompletionManifest] = field(init=False, factory=dict, repr=False)
 
     def register_expected_worker(self, worker_id: str) -> None:
         with self._lock:
@@ -176,7 +202,7 @@ class ReportingTransportSession:
         return self.batches_for_worker(worker_id)
 
 
-@dataclass(slots=True)
+@define
 class ReportingTransportClient:
     worker_id: str
     sender: Callable[..., None]

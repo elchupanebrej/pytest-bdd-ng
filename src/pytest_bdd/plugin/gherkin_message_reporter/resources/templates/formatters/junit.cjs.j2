@@ -1,0 +1,19 @@
+'use strict';
+
+const { resolveJUnitXmlPrinterClass } = require('./support.cjs');
+
+class JunitFormatterAdapter {
+  constructor(options) {
+    const JUnitXmlPrinter = resolveJUnitXmlPrinterClass();
+    this.printer = new JUnitXmlPrinter(options.parsedArgvOptions?.junit || {}, options.stream.write.bind(options.stream));
+    options.eventBroadcaster.on('envelope', (envelope) => {
+      this.printer.update(envelope);
+    });
+  }
+
+  finished() {
+    return Promise.resolve();
+  }
+}
+
+module.exports = JunitFormatterAdapter;

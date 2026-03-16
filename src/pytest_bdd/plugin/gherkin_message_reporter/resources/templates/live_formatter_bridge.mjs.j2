@@ -1,0 +1,567 @@
+'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+const { EventEmitter } = require('node:events');
+const cucumber = require('@cucumber/cucumber');
+const cucumberExpressions = require(
+  require.resolve('@cucumber/cucumber-expressions', {
+    paths: [path.dirname(require.resolve('@cucumber/cucumber'))],
+  })
+);
+const { ParameterType, ParameterTypeRegistry } = cucumberExpressions;
+
+function loadFormatterSpecifier(formatterRequest) {
+  const runtime = formatterRequest.runtime || {};
+  if (runtime.kind === 'module') {
+    const runtimeModulePath = runtime.modulePath;
+    if (typeof runtimeModulePath !== 'string' || !runtimeModulePath) {
+      throw new Error(`Formatter ${formatterRequest.formatter} declared runtime.kind=module without modulePath.`);
+    }
+    const loaded = require(path.join(__dirname, runtimeModulePath));
+    if (typeof runtime.exportName === 'string' && runtime.exportName && loaded && loaded[runtime.exportName]) {
+      return loaded[runtime.exportName];
+    }
+    return loaded && loaded.default ? loaded.default : loaded;
+  }
+  const specifier = runtime.specifier || formatterRequest.formatter;
+  if (typeof specifier !== 'string' || !specifier) {
+    throw new Error(`Formatter ${formatterRequest.formatter} did not provide a valid runtime specifier.`);
+  }
+  return specifier;
+}
+
+function cleanupStream(stream) {
+  return new Promise((resolve, reject) => {
+    if (stream === process.stdout || stream === process.stderr || stream.__pytestBddLiveTerminalStream === true) {
+      resolve();
+      return;
+    }
+    stream.end((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function createLiveTerminalStream() {
+  const { Writable } = require('stream');
+  function writeAnsi(sequence) {
+    fs.writeSync(process.stdout.fd, Buffer.from(sequence, 'utf8'));
+  }
+  const liveStream = new Writable({
+    write(chunk, encoding, callback) {
+      try {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+        fs.writeSync(process.stdout.fd, buffer);
+        callback();
+      } catch (error) {
+        callback(error);
+      }
+    },
+  });
+  const configuredColumns = Number.parseInt(process.env.PYTEST_BDD_LIVE_FORMATTER_STDOUT_COLUMNS || '80', 10);
+  const configuredRows = Number.parseInt(process.env.PYTEST_BDD_LIVE_FORMATTER_STDOUT_ROWS || '24', 10);
+  liveStream.__pytestBddLiveTerminalStream = true;
+  liveStream.isTTY = process.env.PYTEST_BDD_LIVE_FORMATTER_STDOUT_ISATTY === '1';
+  liveStream.columns = Number.isFinite(configuredColumns) && configuredColumns > 0 ? configuredColumns : 80;
+  liveStream.rows = Number.isFinite(configuredRows) && configuredRows > 0 ? configuredRows : 24;
+  try {
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: liveStream.isTTY });
+  } catch (error) {}
+  try {
+    Object.defineProperty(process.stdout, 'columns', { configurable: true, value: liveStream.columns });
+  } catch (error) {}
+  try {
+    Object.defineProperty(process.stdout, 'rows', { configurable: true, value: liveStream.rows });
+  } catch (error) {}
+  liveStream.cursorTo = (x = 0, y, callback) => {
+    try {
+      if (typeof y === 'number') {
+        writeAnsi(`\u001b[${y + 1};${x + 1}H`);
+      } else if (x === 0) {
+        writeAnsi('\r');
+      } else {
+        writeAnsi(`\u001b[${x + 1}G`);
+      }
+      if (typeof callback === 'function') {
+        callback(null);
+      }
+      return true;
+    } catch (error) {
+      if (typeof callback === 'function') {
+        callback(error);
+      }
+      return false;
+    }
+  };
+  liveStream.clearLine = (dir = 0, callback) => {
+    const sequenceByDirection = new Map([
+      [-1, '\u001b[1K'],
+      [0, '\u001b[2K'],
+      [1, '\u001b[0K'],
+    ]);
+    try {
+      writeAnsi(sequenceByDirection.get(dir) || '\u001b[2K');
+      if (typeof callback === 'function') {
+        callback(null);
+      }
+      return true;
+    } catch (error) {
+      if (typeof callback === 'function') {
+        callback(error);
+      }
+      return false;
+    }
+  };
+  liveStream.moveCursor = (dx = 0, dy = 0, callback) => {
+    try {
+      if (dx > 0) {
+        writeAnsi(`\u001b[${dx}C`);
+      } else if (dx < 0) {
+        writeAnsi(`\u001b[${Math.abs(dx)}D`);
+      }
+      if (dy > 0) {
+        writeAnsi(`\u001b[${dy}B`);
+      } else if (dy < 0) {
+        writeAnsi(`\u001b[${Math.abs(dy)}A`);
+      }
+      if (typeof callback === 'function') {
+        callback(null);
+      }
+      return true;
+    } catch (error) {
+      if (typeof callback === 'function') {
+        callback(error);
+      }
+      return false;
+    }
+  };
+  return liveStream;
+}
+
+function createOutputStream(outputPath) {
+  if (!outputPath) {
+    return createLiveTerminalStream();
+  }
+  return fs.createWriteStream(outputPath);
+}
+
+function resolveExpressionConstructorName(patternType) {
+  const normalized = String(patternType || '').toUpperCase();
+  if (normalized.includes('REGULAR')) {
+    return 'RegularExpression';
+  }
+  return 'CucumberExpression';
+}
+
+function resolveSourceReferenceUri(sourceReference) {
+  return typeof sourceReference?.uri === 'string' ? sourceReference.uri : '';
+}
+
+function resolveSourceReferenceLine(sourceReference) {
+  return Number(sourceReference?.location?.line || 0);
+}
+
+function buildExpression(spec) {
+  return {
+    source: spec.pattern || '',
+    constructor: { name: spec.expressionConstructorName || 'RegularExpression' },
+  };
+}
+
+function buildSupportCodeLibrary(spec) {
+  const parameterTypeRegistry = new ParameterTypeRegistry();
+  for (const parameterType of spec.parameterTypes || []) {
+    if (parameterType.name && parameterTypeRegistry.lookupByTypeName(parameterType.name)) {
+      continue;
+    }
+    try {
+      parameterTypeRegistry.defineParameterType(
+        new ParameterType(
+          parameterType.name,
+          parameterType.regularExpressions || [],
+          String,
+          (...match) => match[0],
+          parameterType.useForSnippets !== false,
+          Boolean(parameterType.preferForRegularExpressionMatch),
+          false
+        )
+      );
+    } catch (error) {
+      const message = error && error.message ? String(error.message) : String(error);
+      if (!message.includes('already')) {
+        throw error;
+      }
+    }
+  }
+
+  const hookBuckets = {
+    beforeTestCaseHookDefinitions: [],
+    afterTestCaseHookDefinitions: [],
+    beforeTestStepHookDefinitions: [],
+    afterTestStepHookDefinitions: [],
+    beforeTestRunHookDefinitions: [],
+    afterTestRunHookDefinitions: [],
+  };
+
+  for (const hook of spec.hooks || []) {
+    const baseHook = {
+      id: hook.id,
+      line: hook.line || 0,
+      name: hook.name || '',
+      options: { name: hook.name || undefined, tags: hook.tagExpression || undefined },
+      order: 0,
+      tagExpression: hook.tagExpression || '',
+      uri: hook.uri || '',
+    };
+    if (hook.type === 'before_test_case') {
+      hookBuckets.beforeTestCaseHookDefinitions.push(baseHook);
+    } else if (hook.type === 'after_test_case') {
+      hookBuckets.afterTestCaseHookDefinitions.push(baseHook);
+    } else if (hook.type === 'before_test_step') {
+      hookBuckets.beforeTestStepHookDefinitions.push(baseHook);
+    } else if (hook.type === 'after_test_step') {
+      hookBuckets.afterTestStepHookDefinitions.push(baseHook);
+    } else if (hook.type === 'before_test_run') {
+      hookBuckets.beforeTestRunHookDefinitions.push(baseHook);
+    } else if (hook.type === 'after_test_run') {
+      hookBuckets.afterTestRunHookDefinitions.push(baseHook);
+    }
+  }
+
+  return {
+    originalCoordinates: {
+      importPaths: [],
+      loaders: [],
+      requireModules: [],
+      requirePaths: [],
+    },
+    afterTestCaseHookDefinitions: hookBuckets.afterTestCaseHookDefinitions,
+    afterTestStepHookDefinitions: hookBuckets.afterTestStepHookDefinitions,
+    afterTestRunHookDefinitions: hookBuckets.afterTestRunHookDefinitions,
+    beforeTestCaseHookDefinitions: hookBuckets.beforeTestCaseHookDefinitions,
+    beforeTestStepHookDefinitions: hookBuckets.beforeTestStepHookDefinitions,
+    beforeTestRunHookDefinitions: hookBuckets.beforeTestRunHookDefinitions,
+    defaultTimeout: 0,
+    stepDefinitions: (spec.stepDefinitions || []).map((stepDefinition, index) => ({
+      code: function generatedStepDefinition() {},
+      expression: buildExpression(stepDefinition),
+      id: stepDefinition.id,
+      keyword: 'Given',
+      line: stepDefinition.line || 0,
+      options: {},
+      order: index,
+      pattern: stepDefinition.pattern || '',
+      unwrappedCode: {
+        toString() {
+          return stepDefinition.code || stepDefinition.pattern || stepDefinition.id;
+        },
+      },
+      uri: stepDefinition.uri || '',
+    })),
+    undefinedParameterTypes: [],
+    parameterTypeRegistry,
+    World: function World() {},
+    parallelCanAssign: () => true,
+  };
+}
+
+function createSupportCodeEnvelopeRecorder(supportCodeLibrary, supportCodeSpec) {
+  const seenStepDefinitionIds = new Set((supportCodeSpec.stepDefinitions || []).map((stepDefinition) => String(stepDefinition.id)));
+  const seenHookIds = new Set((supportCodeSpec.hooks || []).map((hook) => String(hook.id)));
+  const seenParameterTypeNames = new Set(
+    (supportCodeSpec.parameterTypes || [])
+      .map((parameterType) => (parameterType && parameterType.name ? String(parameterType.name) : ''))
+      .filter(Boolean)
+  );
+
+  function recordParameterType(parameterType) {
+    const name = parameterType && parameterType.name ? String(parameterType.name) : '';
+    if (!name || seenParameterTypeNames.has(name)) {
+      return;
+    }
+    const regularExpressions = Array.isArray(parameterType.regularExpressions)
+      ? parameterType.regularExpressions.map((item) => String(item))
+      : typeof parameterType.regexp === 'string'
+        ? [parameterType.regexp]
+        : [];
+    try {
+      supportCodeLibrary.parameterTypeRegistry.defineParameterType(
+        new ParameterType(
+          name,
+          regularExpressions,
+          String,
+          (...match) => match[0],
+          parameterType.useForSnippets !== false,
+          Boolean(parameterType.preferForRegularExpressionMatch),
+          false
+        )
+      );
+      seenParameterTypeNames.add(name);
+    } catch (error) {
+      const message = error && error.message ? String(error.message) : String(error);
+      if (!message.includes('already')) {
+        throw error;
+      }
+    }
+  }
+
+  function recordStepDefinition(stepDefinition) {
+    const id = stepDefinition && stepDefinition.id ? String(stepDefinition.id) : '';
+    if (!id || seenStepDefinitionIds.has(id)) {
+      return;
+    }
+    const sourceReference = stepDefinition.sourceReference || {};
+    const pattern = stepDefinition.pattern || {};
+    const uri = resolveSourceReferenceUri(sourceReference);
+    const line = resolveSourceReferenceLine(sourceReference);
+    supportCodeLibrary.stepDefinitions.push({
+      code: function generatedStepDefinition() {},
+      expression: buildExpression({
+        pattern: typeof pattern.source === 'string' ? pattern.source : '',
+        expressionConstructorName: resolveExpressionConstructorName(pattern.type),
+      }),
+      id,
+      keyword: 'Given',
+      line,
+      options: {},
+      order: supportCodeLibrary.stepDefinitions.length,
+      pattern: typeof pattern.source === 'string' ? pattern.source : '',
+      unwrappedCode: {
+        toString() {
+          return uri || id;
+        },
+      },
+      uri,
+    });
+    seenStepDefinitionIds.add(id);
+  }
+
+  function recordHook(hook) {
+    const id = hook && hook.id ? String(hook.id) : '';
+    if (!id || seenHookIds.has(id)) {
+      return;
+    }
+    const sourceReference = hook.sourceReference || {};
+    const normalizedType = String(hook.type || '')
+      .split('.')
+      .pop()
+      .toLowerCase();
+    const baseHook = {
+      id,
+      line: resolveSourceReferenceLine(sourceReference),
+      name: typeof hook.name === 'string' ? hook.name : '',
+      options: { name: hook.name || undefined, tags: undefined },
+      order: 0,
+      tagExpression: '',
+      uri: resolveSourceReferenceUri(sourceReference),
+    };
+    if (normalizedType === 'before_test_case') {
+      supportCodeLibrary.beforeTestCaseHookDefinitions.push(baseHook);
+    } else if (normalizedType === 'after_test_case') {
+      supportCodeLibrary.afterTestCaseHookDefinitions.push(baseHook);
+    } else if (normalizedType === 'before_test_step') {
+      supportCodeLibrary.beforeTestStepHookDefinitions.push(baseHook);
+    } else if (normalizedType === 'after_test_step') {
+      supportCodeLibrary.afterTestStepHookDefinitions.push(baseHook);
+    } else if (normalizedType === 'before_test_run') {
+      supportCodeLibrary.beforeTestRunHookDefinitions.push(baseHook);
+    } else if (normalizedType === 'after_test_run') {
+      supportCodeLibrary.afterTestRunHookDefinitions.push(baseHook);
+    }
+    seenHookIds.add(id);
+  }
+
+  return {
+    record(envelope) {
+      if (envelope.stepDefinition) {
+        recordStepDefinition(envelope.stepDefinition);
+      } else if (envelope.hook) {
+        recordHook(envelope.hook);
+      } else if (envelope.parameterType) {
+        recordParameterType(envelope.parameterType);
+      }
+    },
+  };
+}
+
+function buildSyntheticMissingTestStepResult(status, message) {
+  const result = {
+    duration: { seconds: 0, nanos: 0 },
+    status,
+  };
+  if (message) {
+    result.message = message;
+  }
+  return result;
+}
+
+function createEnvelopeNormalizer() {
+  const testCasesById = new Map();
+  const testCaseIdsByStartedId = new Map();
+  const startedStepIdsByAttempt = new Map();
+  const finishedStepResultsByAttempt = new Map();
+
+  function ensureAttemptState(testCaseStartedId) {
+    if (!startedStepIdsByAttempt.has(testCaseStartedId)) {
+      startedStepIdsByAttempt.set(testCaseStartedId, new Set());
+    }
+    if (!finishedStepResultsByAttempt.has(testCaseStartedId)) {
+      finishedStepResultsByAttempt.set(testCaseStartedId, new Map());
+    }
+    return {
+      startedStepIds: startedStepIdsByAttempt.get(testCaseStartedId),
+      finishedStepResults: finishedStepResultsByAttempt.get(testCaseStartedId),
+    };
+  }
+
+  function synthesizeMissingTestStepFinishedEnvelopes(testCaseFinished) {
+    const testCaseStartedId = testCaseFinished.testCaseStartedId;
+    if (!testCaseStartedId) {
+      return [];
+    }
+
+    const testCaseId = testCaseIdsByStartedId.get(testCaseStartedId);
+    if (!testCaseId) {
+      return [];
+    }
+
+    const testCase = testCasesById.get(testCaseId);
+    if (!testCase || !Array.isArray(testCase.testSteps)) {
+      return [];
+    }
+
+    const { startedStepIds, finishedStepResults } = ensureAttemptState(testCaseStartedId);
+    const syntheticEnvelopes = [];
+    for (const testStep of testCase.testSteps) {
+      if (!testStep || typeof testStep !== 'object' || !testStep.pickleStepId || !testStep.id) {
+        continue;
+      }
+      const testStepId = String(testStep.id);
+      if (finishedStepResults.has(testStepId)) {
+        continue;
+      }
+
+      const testStepResult = startedStepIds.has(testStepId)
+        ? buildSyntheticMissingTestStepResult(
+            'FAILED',
+            'Synthetic pytest-bdd-ng adapter result: testCaseFinished arrived before testStepFinished for a started pickle step.'
+          )
+        : buildSyntheticMissingTestStepResult('SKIPPED');
+
+      finishedStepResults.set(testStepId, testStepResult);
+      syntheticEnvelopes.push({
+        testStepFinished: {
+          testCaseStartedId,
+          testStepId,
+          testStepResult,
+          timestamp: testCaseFinished.timestamp,
+        },
+      });
+    }
+    return syntheticEnvelopes;
+  }
+
+  return {
+    normalize(envelope) {
+      if (envelope.testCase && envelope.testCase.id) {
+        testCasesById.set(String(envelope.testCase.id), envelope.testCase);
+      } else if (envelope.testCaseStarted && envelope.testCaseStarted.id) {
+        const testCaseStartedId = String(envelope.testCaseStarted.id);
+        if (envelope.testCaseStarted.testCaseId) {
+          testCaseIdsByStartedId.set(testCaseStartedId, String(envelope.testCaseStarted.testCaseId));
+        }
+        ensureAttemptState(testCaseStartedId);
+      } else if (envelope.testStepStarted && envelope.testStepStarted.testCaseStartedId && envelope.testStepStarted.testStepId) {
+        const testCaseStartedId = String(envelope.testStepStarted.testCaseStartedId);
+        const { startedStepIds } = ensureAttemptState(testCaseStartedId);
+        startedStepIds.add(String(envelope.testStepStarted.testStepId));
+      } else if (envelope.testStepFinished && envelope.testStepFinished.testCaseStartedId && envelope.testStepFinished.testStepId) {
+        const testCaseStartedId = String(envelope.testStepFinished.testCaseStartedId);
+        const { finishedStepResults } = ensureAttemptState(testCaseStartedId);
+        finishedStepResults.set(String(envelope.testStepFinished.testStepId), envelope.testStepFinished.testStepResult);
+      } else if (envelope.testCaseFinished) {
+        return [...synthesizeMissingTestStepFinishedEnvelopes(envelope.testCaseFinished), envelope];
+      }
+      return [envelope];
+    },
+  };
+}
+
+async function main() {
+  const payloadPath = process.argv[2];
+  if (!payloadPath) {
+    throw new Error('Formatter payload path is required.');
+  }
+  const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+  const formatterHelpers = cucumber.formatterHelpers || {};
+  const EventDataCollector = formatterHelpers.EventDataCollector || cucumber.EventDataCollector;
+  const FormatterBuilder = cucumber.FormatterBuilder;
+  if (typeof EventDataCollector !== 'function' || !FormatterBuilder) {
+    throw new Error('Cucumber formatter helpers are unavailable in @cucumber/cucumber.');
+  }
+
+  const eventBroadcaster = new EventEmitter();
+  const eventDataCollector = new EventDataCollector(eventBroadcaster);
+  const envelopeNormalizer = createEnvelopeNormalizer();
+  const supportCodeSpec = payload.supportCode || {};
+  const supportCodeLibrary = buildSupportCodeLibrary(supportCodeSpec);
+  const supportCodeEnvelopeRecorder = createSupportCodeEnvelopeRecorder(supportCodeLibrary, supportCodeSpec);
+  const formatterCleanups = [];
+
+  for (const formatterRequest of payload.formatters || []) {
+    const stream = createOutputStream(formatterRequest.outputPath);
+    const formatter = await FormatterBuilder.build(loadFormatterSpecifier(formatterRequest), {
+      env: process.env,
+      cwd: payload.cwd || process.cwd(),
+      eventBroadcaster,
+      eventDataCollector,
+      log: stream.write.bind(stream),
+      parsedArgvOptions: payload.formatOptions || {},
+      stream,
+      cleanup: () => cleanupStream(stream),
+      supportCodeLibrary,
+    });
+    formatterCleanups.push(() => formatter.finished());
+  }
+
+  if (payload.messagesPath) {
+    const lines = fs.readFileSync(payload.messagesPath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      for (const envelope of envelopeNormalizer.normalize(JSON.parse(line))) {
+        supportCodeEnvelopeRecorder.record(envelope);
+        eventBroadcaster.emit('envelope', envelope);
+      }
+    }
+  } else {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      for (const envelope of envelopeNormalizer.normalize(JSON.parse(line))) {
+        supportCodeEnvelopeRecorder.record(envelope);
+        eventBroadcaster.emit('envelope', envelope);
+      }
+    }
+  }
+
+  for (const cleanup of formatterCleanups) {
+    await cleanup();
+  }
+}
+
+main().catch((error) => {
+  const message = error && error.stack ? String(error.stack) : String(error);
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+});

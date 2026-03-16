@@ -1,0 +1,39 @@
+'use strict';
+
+const {
+  formatProgressCharacter,
+  resolveSummaryFormatterClass,
+  selectWorseProgressStatus,
+} = require('./support.cjs');
+
+class ProgressFormatterAdapter {
+  constructor(options) {
+    this.attemptStatuses = new Map();
+    options.eventBroadcaster.on('envelope', (envelope) => {
+      if (envelope.testCaseStarted && envelope.testCaseStarted.id) {
+        this.attemptStatuses.set(String(envelope.testCaseStarted.id), 'UNKNOWN');
+      } else if (envelope.testStepFinished && envelope.testStepFinished.testCaseStartedId) {
+        const attemptId = String(envelope.testStepFinished.testCaseStartedId);
+        const status = envelope.testStepFinished.testStepResult && envelope.testStepFinished.testStepResult.status;
+        this.attemptStatuses.set(
+          attemptId,
+          selectWorseProgressStatus(this.attemptStatuses.get(attemptId), status),
+        );
+      } else if (envelope.testCaseFinished && envelope.testCaseFinished.testCaseStartedId) {
+        const attemptId = String(envelope.testCaseFinished.testCaseStartedId);
+        const status = this.attemptStatuses.get(attemptId) || 'UNKNOWN';
+        options.stream.write(formatProgressCharacter(this.summaryFormatter, status));
+      } else if (envelope.testRunFinished) {
+        options.stream.write('\n\n');
+      }
+    });
+    const SummaryFormatter = resolveSummaryFormatterClass();
+    this.summaryFormatter = new SummaryFormatter(options);
+  }
+
+  finished() {
+    return Promise.resolve();
+  }
+}
+
+module.exports = ProgressFormatterAdapter;
