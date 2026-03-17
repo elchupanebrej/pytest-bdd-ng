@@ -5,10 +5,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY . /app
+COPY pyproject.toml README.rst /app/
+COPY src /app/src/
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install -e '.[test]' pytest-xdist \
-    && install -d -m 700 /root/.ssh /etc/pytest-bdd /etc/ssh/sshd_config.d /run/sshd \
+    && python -m pip install -e '.[test]' pytest-xdist
+
+COPY . /app
+
+RUN install -d -m 700 /root/.ssh /etc/pytest-bdd /etc/ssh/sshd_config.d /run/sshd \
     && cp /app/tests/e2e/fixtures/remote_xdist/ssh/id_ed25519.pub /etc/pytest-bdd/controller_ed25519.pub \
     && chmod 644 /etc/pytest-bdd/controller_ed25519.pub \
     && printf '%s\n' \

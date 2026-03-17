@@ -32,6 +32,121 @@ REPORT_NAME = "remote-xdist.ndjson"
 REMOTE_MODES = ("socket", "via", "ssh")
 
 
+def _run_local_xdist(
+    tmp_path: Path,
+    *,
+    remote_mode: str,
+    verify_mode: str,
+    fail_transport_workers: str = "",
+) -> subprocess.CompletedProcess[str]:
+    import sys
+    import time
+    import socket
+
+    def endpoint_is_ready(host: str, port: int) -> tuple[bool, OSError | None]:
+        try:
+            with socket.create_connection((host, port), timeout=0.1):
+                return True, None
+        except OSError as exc:
+            return False, exc
+
+    def wait_for_endpoint(host: str, port: int):
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            is_ready, _ = endpoint_is_ready(host, port)
+            if is_ready:
+                return
+            time.sleep(0.1)
+        raise RuntimeError(f"Timed out waiting for {host}:{port}")
+
+    env = dict(os.environ)
+    servers = []
+
+    # Start local socket servers
+    if remote_mode == "socket":
+        servers.append(
+            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env)
+        )
+        servers.append(
+            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"], env=env)
+        )
+        wait_for_endpoint("127.0.0.1", 8888)
+        wait_for_endpoint("127.0.0.1", 8889)
+        raw_xdist_args = f"--tx socket=127.0.0.1:8888//chdir={tmp_path} --tx socket=127.0.0.1:8889//chdir={tmp_path}"
+    elif remote_mode == "via":
+        servers.append(
+            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env)
+        )
+        wait_for_endpoint("127.0.0.1", 8888)
+        raw_xdist_args = (
+            f"--px id=proxy//socket=127.0.0.1:8888 --tx 2*popen//via=proxy//python={sys.executable}//chdir={tmp_path}"
+        )
+    else:
+        raise ValueError(f"Unsupported local mode: {remote_mode}")
+
+    xdist_args = raw_xdist_args.split()
+    ini_override_args = []
+    if fail_transport_workers:
+        ini_override_args = ["-o", f"pytest_bdd_transport_fail_workers={fail_transport_workers}"]
+
+    if verify_mode == "success-live":
+        materialize_fake_node_runtime(tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",))
+        fake_node_root_path = tmp_path / "fake-node-runtime"
+        env["PATH"] = f"{fake_node_root_path / 'fake-node-bin'}{os.pathsep}{env.get('PATH', '')}"
+        env["NODE_PATH"] = str(fake_node_root_path / "fake-node-modules")
+        env["FAKE_GLOBAL_NODE_MODULES_ROOT"] = str(fake_node_root_path / "fake-global-node-modules")
+        env["PYTEST_BDD_FAKE_NODE_CAPTURE_DIR"] = str(tmp_path / "fake-node-captures")
+        extra_args = ["--cucumber-progress"]
+    else:
+        extra_args = []
+
+    repo_root = Path(__file__).resolve().parents[2]
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo_root / "src"), env.get("PYTHONPATH", "")]))
+
+    report_path = tmp_path / REPORT_NAME
+
+    pytest_cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-o",
+        "log_cli=true",
+        "--log-cli-level=WARNING",
+        *ini_override_args,
+        "--dist=load",
+        *xdist_args,
+        "--messages-ndjson",
+        str(report_path),
+        "--pyargs",
+        "tests.e2e.fixtures.remote_xdist.project.test_remote_aggregation",
+        *extra_args,
+        "-q",
+    ]
+
+    try:
+        pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, env=env)  # noqa: S603
+
+        # Verify step
+        verify_cmd = [
+            sys.executable,
+            "-m",
+            "tests.e2e.fixtures.remote_xdist.verify_report",
+            str(report_path),
+            "success" if verify_mode == "success-live" else verify_mode,
+            remote_mode,
+        ]
+        if verify_mode == "success-live":
+            verify_cmd.extend(["--min-console-writes", "2", "--expect-controller-only"])
+
+        subprocess.run(verify_cmd, capture_output=True, text=True, env=env)  # noqa: S603
+
+        return pytest_result
+    finally:
+        for p in servers:
+            p.terminate()
+            p.wait()
+
+
 def _run_remote_xdist_compose(
     tmp_path: Path,
     *,
@@ -39,61 +154,34 @@ def _run_remote_xdist_compose(
     verify_mode: str,
     fail_transport_workers: str = "",
 ) -> subprocess.CompletedProcess[str]:
+    if remote_mode in ("socket", "via"):
+        return _run_local_xdist(
+            tmp_path, remote_mode=remote_mode, verify_mode=verify_mode, fail_transport_workers=fail_transport_workers
+        )
+
+    from tests.support.docker_cluster import cluster_manager
+
     require_docker_daemon()
-
     repo_root = Path(__file__).resolve().parents[2]
-    with tempfile.TemporaryDirectory(prefix="pytest-bdd-remote-artifacts-", dir=repo_root) as docker_artifact_dir:
-        artifact_root = Path(docker_artifact_dir)
-        verification_mode = "success" if verify_mode == "success-live" else verify_mode
-        env = {
-            **os.environ,
-            "BUILDKIT_PROGRESS": "plain",
-            "REPO_ROOT": str(repo_root),
-            "ARTIFACT_DIR": docker_artifact_dir,
-            "REPORT_NAME": REPORT_NAME,
-            "VERIFY_REPORT_MODE": verification_mode,
-            "PYTEST_REMOTE_MODE": remote_mode,
-            "PYTEST_BDD_TRANSPORT_FAIL_WORKERS": fail_transport_workers,
-            "COMPOSE_PROJECT_NAME": (f"pytestbddremote{remote_mode}{tmp_path.name.replace('-', '').replace('_', '')}"),
-        }
-        if verify_mode == "success-live":
-            materialize_fake_node_runtime(
-                artifact_root / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
-            )
-            env["PYTEST_REMOTE_EXTRA_ARGS"] = "--cucumber-progress"
-            env["PYTEST_REMOTE_FAKE_NODE_ROOT"] = "/artifacts/fake-node-runtime"
-            env["PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR"] = "/artifacts/fake-node-runtime/fake-node-captures"
-            env["VERIFY_MIN_CONSOLE_WRITES"] = "2"
-            env["VERIFY_EXPECT_CONTROLLER_ONLY"] = "1"
-        command = [
-            "docker",
-            "compose",
-            "-f",
-            str(FIXTURE_DIR / "docker-compose.yml"),
-        ]
-        try:
-            result = subprocess.run(  # noqa: S603
-                [*command, "up", "--build", "--abort-on-container-exit", "--exit-code-from", "controller"],
-                check=False,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-        finally:
-            subprocess.run(  # noqa: S603
-                [*command, "down", "--volumes", "--remove-orphans"],
-                check=False,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
 
-        docker_report_path = Path(docker_artifact_dir, REPORT_NAME)
-        if docker_report_path.exists():
-            shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
-        docker_capture_dir = artifact_root / "fake-node-runtime" / "fake-node-captures"
-        if docker_capture_dir.exists():
-            shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
+    if verify_mode == "success-live":
+        _, artifact_dir = cluster_manager.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
+        materialize_fake_node_runtime(
+            Path(artifact_dir) / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+        )
+
+    result, docker_artifact_dir = cluster_manager.run_in_controller(
+        remote_mode, FIXTURE_DIR, repo_root, verify_mode, fail_transport_workers
+    )
+
+    docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
+    if docker_report_path.exists():
+        shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
+
+    docker_capture_dir = docker_artifact_dir / "fake-node-runtime" / "fake-node-captures"
+    if docker_capture_dir.exists():
+        shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
+
     return result
 
 

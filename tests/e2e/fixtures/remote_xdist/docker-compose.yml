@@ -4,6 +4,7 @@ services:
     build:
       context: ${REPO_ROOT}
       dockerfile: tests/e2e/fixtures/remote_xdist/controller.Dockerfile
+    entrypoint: ["sleep", "infinity"]
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
       PYTEST_BDD_TRANSPORT_FAIL_WORKERS: ${PYTEST_BDD_TRANSPORT_FAIL_WORKERS:-}

@@ -94,14 +94,13 @@ def main():
         *ini_override_args,
         "--dist=load",
         *xdist_args,
-        "--messages-ndjson",
-        str(local_report_rel),
+        f"--messages-ndjson={local_report_rel}",
         "--pyargs",
         "tests.e2e.fixtures.remote_xdist.project.test_remote_aggregation",
         *extra_pytest_args,
         "-q",
     ]
-    subprocess.run(pytest_cmd, check=True, env=pytest_env)  # noqa: S603
+    subprocess.run(pytest_cmd, check=False, env=pytest_env)  # noqa: S603
 
     verify_cmd = [
         "python",

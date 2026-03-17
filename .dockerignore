@@ -4,6 +4,7 @@
 Dockerfile*
 node_modules/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -11,6 +12,7 @@ __pycache__/
 venv/
 .tox/
 .pytest_cache/
+**/.pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -27,3 +29,4 @@ build/
 .DS_Store
 .idea/
 .vscode/
+pytest-bdd-remote-*

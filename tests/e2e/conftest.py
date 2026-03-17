@@ -214,62 +214,22 @@ def _require_docker():
     target_fixture="remote_xdist_result",
 )
 def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
-    require_docker_daemon()
-    execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
-    repo_root = Path(__file__).resolve().parents[2]
-    with tempfile.TemporaryDirectory(prefix="pytest-bdd-remote-artifacts-", dir=repo_root) as artifact_dir:
-        env = {
-            **os.environ,
-            "BUILDKIT_PROGRESS": "plain",
-            "REPO_ROOT": str(repo_root),
-            "ARTIFACT_DIR": artifact_dir,
-            "REPORT_NAME": _REMOTE_XDIST_REPORT_NAME,
-            "VERIFY_REPORT_MODE": "success",
-            "PYTEST_REMOTE_MODE": execnet_mode,
-            "PYTEST_BDD_TRANSPORT_FAIL_WORKERS": "",
-            "COMPOSE_PROJECT_NAME": (
-                f"pytestbddremote{execnet_mode}{tmp_path.name.replace('-', '').replace('_', '')}"
-            ).lower(),
-        }
-        compose_cmd = [
-            "docker",
-            "compose",
-            "-f",
-            str(_REMOTE_XDIST_FIXTURE_DIR / "docker-compose.yml"),
-        ]
-        try:
-            result = subprocess.run(  # noqa: S603
-                [*compose_cmd, "up", "--build", "--abort-on-container-exit", "--exit-code-from", "controller"],
-                check=False,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-        finally:
-            down_result = subprocess.run(  # noqa: S603
-                [*compose_cmd, "down", "--volumes", "--remove-orphans"],
-                check=False,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-        attach_command_result_outputs(
-            attach,
-            result,
-            label=f"remote-xdist-{execnet_mode}-compose-up",
-            command="docker compose up --build --abort-on-container-exit --exit-code-from controller",
-        )
-        attach_command_result_outputs(
-            attach,
-            down_result,
-            label=f"remote-xdist-{execnet_mode}-compose-down",
-            command="docker compose down --volumes --remove-orphans",
-        )
+    from tests.e2e.test_xdist_remote_message_aggregation import _run_remote_xdist_compose
 
-        artifact_report = Path(artifact_dir, _REMOTE_XDIST_REPORT_NAME)
-        dest = tmp_path / _REMOTE_XDIST_REPORT_NAME
-        if artifact_report.exists():
-            shutil.copy2(artifact_report, dest)
+    execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
+
+    result = _run_remote_xdist_compose(
+        tmp_path, remote_mode=execnet_mode, verify_mode="success", fail_transport_workers=""
+    )
+
+    attach_command_result_outputs(
+        attach,
+        result,
+        label=f"remote-xdist-{execnet_mode}",
+        command="pytest xdist remote execution",
+    )
+
+    dest = tmp_path / _REMOTE_XDIST_REPORT_NAME
     return {"result": result, "report": dest, "remote_mode": execnet_mode}
 
 
