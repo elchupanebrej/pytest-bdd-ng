@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+
+from attrs import frozen
 
 EMPTY_HEADING_TITLE_CODE = "EMPTY_HEADING_TITLE"
 
@@ -26,7 +27,7 @@ class HeadingType(str, Enum):
         return "Scenario Outline"
 
 
-@dataclass(frozen=True)
+@frozen
 class ParsedHeadingRecord:
     """Single parsed heading located in a feature document."""
 
@@ -37,7 +38,7 @@ class ParsedHeadingRecord:
     column: int | None = None
 
 
-@dataclass(frozen=True)
+@frozen
 class HeadingValidationPolicy:
     """Rule set for heading title validation."""
 
@@ -59,7 +60,7 @@ class HeadingValidationPolicy:
         return normalized
 
 
-@dataclass(frozen=True)
+@frozen
 class HeadingValidationViolation:
     """Validation violation emitted for one heading."""
 
@@ -82,7 +83,7 @@ class HeadingValidationViolation:
         }
 
 
-@dataclass(frozen=True)
+@frozen
 class HeadingValidationRun:
     """Result of repository heading validation scan."""
 
@@ -109,7 +110,7 @@ class HeadingValidationRun:
         }
 
 
-@dataclass(frozen=True)
+@frozen
 class BaselineAuditSummary:
     """Baseline compliance summary for repository features tree."""
 

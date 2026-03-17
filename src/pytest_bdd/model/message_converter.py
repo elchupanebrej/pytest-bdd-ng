@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict as dataclass_asdict
+from dataclasses import is_dataclass
 from datetime import datetime
 from typing import Any, cast
 
+from attrs import asdict as attrs_asdict
+from attrs import has as attrs_has
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import json_converter  # type:ignore[import-untyped]
 
@@ -27,8 +30,10 @@ def envelope_from_dict(payload: dict[str, Any]) -> Message:
 
 
 def governance_value_to_dict(value: Any) -> Any:
+    if attrs_has(type(value)) and not isinstance(value, type):
+        return governance_value_to_dict(attrs_asdict(value))
     if is_dataclass(value) and not isinstance(value, type):
-        return governance_value_to_dict(asdict(value))
+        return governance_value_to_dict(dataclass_asdict(value))
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, dict):

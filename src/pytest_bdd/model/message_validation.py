@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import Any, Final, Literal, cast
 
+from attrs import frozen
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from jsonschema import ValidationError, validators
 from referencing import Registry, Resource
@@ -82,7 +82,7 @@ OUTCOME_SCOPE_BY_PAYLOAD_KIND: Final[dict[str, OutcomeScope]] = {
 }
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class MessageValidationViolation:
     code: ValidationCode
     message: str
@@ -91,7 +91,7 @@ class MessageValidationViolation:
     validator: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class MessageValidationResult:
     status: Literal["pass", "fail"]
     orphan_reference_count: int
@@ -105,7 +105,7 @@ class MessageValidationResult:
         return self.status == "pass"
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class XdistReportingCompatibilityResult:
     status: Literal["pass", "fail"]
     reason: str | None = None

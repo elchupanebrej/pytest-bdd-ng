@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final, Literal
+
+from attrs import frozen
 
 MatrixProfile = Literal["fixed_release_readiness_v1"]
 OutcomeScope = Literal["run", "scenario", "step", "hook", "attachment"]
@@ -35,7 +36,7 @@ OUTCOME_SCOPE_ALIASES: Final[dict[str, OutcomeScope]] = {
 }
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class OutcomeMappingRule:
     mapping_id: str
     outcome_scope: OutcomeScope
@@ -45,7 +46,7 @@ class OutcomeMappingRule:
     mapping_rationale: str
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class ObservedOutcome:
     outcome_scope: OutcomeScope
     outcome_status: OutcomeStatus
@@ -53,7 +54,7 @@ class ObservedOutcome:
     is_parallel_worker: bool = False
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class MappingValidationResult:
     status: Literal["pass", "fail"]
     matrix_profile: MatrixProfile

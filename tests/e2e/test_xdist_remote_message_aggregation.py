@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess  # noqa: S404
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -39,9 +38,9 @@ def _run_local_xdist(
     verify_mode: str,
     fail_transport_workers: str = "",
 ) -> subprocess.CompletedProcess[str]:
+    import socket
     import sys
     import time
-    import socket
 
     def endpoint_is_ready(host: str, port: int) -> tuple[bool, OSError | None]:
         try:

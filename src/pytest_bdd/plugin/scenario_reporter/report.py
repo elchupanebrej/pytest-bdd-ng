@@ -1,7 +1,7 @@
 import time
 from typing import Any, Final, Literal
 
-from attr import Factory, attrib, attrs
+from attrs import define, field
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, ReportingContextSnapshot
@@ -17,19 +17,14 @@ def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) 
     return "failed" if failed_fallback else "passed"
 
 
+@define(eq=False)
 class StepReport:
     """Step execution report."""
 
-    failed = False
-    stopped = None
-
-    def __init__(self, step: PickleStep) -> None:
-        """Step report constructor.
-
-        :param Step step: Step.
-        """
-        self.step = step
-        self.started = time.perf_counter()
+    step: PickleStep = field()
+    started: float = field(factory=time.perf_counter)
+    failed: bool = field(default=False)
+    stopped: float | None = field(default=None)
 
     def serialize(self, feature_binding: FeatureRuntimeBinding) -> dict[str, Any]:
         """Serialize the step execution report.
@@ -75,14 +70,14 @@ class StepReport:
         return self.stopped - self.started
 
 
-@attrs
+@define
 class ScenarioReport:
     """Pickle execution report."""
 
-    feature_binding: FeatureRuntimeBinding = attrib()
-    pickle: Pickle = attrib()
-    step_reports: list[StepReport] = attrib(default=Factory(list))
-    context_snapshot: ReportingContextSnapshot | None = attrib(default=None)
+    feature_binding: FeatureRuntimeBinding = field()
+    pickle: Pickle = field()
+    step_reports: list[StepReport] = field(factory=list)
+    context_snapshot: ReportingContextSnapshot | None = field(default=None)
 
     @property
     def current_step_report(self) -> StepReport:

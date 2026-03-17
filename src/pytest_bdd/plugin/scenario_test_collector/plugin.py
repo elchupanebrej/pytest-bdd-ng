@@ -1,7 +1,6 @@
 import mimetypes
 from collections.abc import Collection, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
 from functools import partial
 from itertools import starmap
 from operator import contains
@@ -10,6 +9,7 @@ from types import ModuleType
 from unittest.mock import patch
 
 import pytest
+from attrs import define
 from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
@@ -76,7 +76,7 @@ def _build_pickle_param(gherkin_document: GherkinDocument, pickle: Pickle, featu
     )
 
 
-@dataclass(kw_only=True)
+@define(kw_only=True)
 class _ScenarioCollectionReadObserver:
     config: Config
 

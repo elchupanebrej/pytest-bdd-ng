@@ -2,7 +2,7 @@ from itertools import filterfalse
 from operator import attrgetter
 from typing import Any, cast
 
-from attr import attrib, attrs
+from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Comment,
     DataTable,
@@ -26,7 +26,7 @@ from .model import StepPrototype as StructStep
 from .model import Table as StructTable
 
 
-@attrs
+@define
 class _ASTBuilder:
     model: Any
 
@@ -34,9 +34,9 @@ class _ASTBuilder:
         raise NotImplementedError
 
 
-@attrs
+@define
 class GherkinDocumentBuilder(_ASTBuilder):
-    model: StructStep = attrib()
+    model: StructStep = field()
 
     def build(self, id_generator):
         comments = [
@@ -59,9 +59,9 @@ class GherkinDocumentBuilder(_ASTBuilder):
         return gherkin_document
 
 
-@attrs
+@define
 class StepToFeatureASTBuilder(_ASTBuilder):
-    model: StructStep = attrib()
+    model: StructStep = field()
 
     def build(self, id_generator):
         return Feature(
@@ -192,9 +192,9 @@ class StepToFeatureASTBuilder(_ASTBuilder):
         return list(_())
 
 
-@attrs
+@define
 class ExampleASTBuilder(_ASTBuilder):
-    model: StructJoin | StructTable = attrib()
+    model: StructJoin | StructTable = field()
 
     def build(self, id_generator):
         return Examples(

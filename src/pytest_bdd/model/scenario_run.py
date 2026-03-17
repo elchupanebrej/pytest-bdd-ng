@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
+from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     GherkinDocument,
     Pickle,
@@ -58,7 +58,7 @@ class RunStatus(StrEnum):
     interrupted = "interrupted"
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class LifecycleObjectRef:
     kind: LifecycleKind
     object_id: str
@@ -76,7 +76,7 @@ class LifecycleObjectRef:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ActiveObjectSet:
     run: LifecycleObjectRef
     captured_at_stage: RunStage
@@ -96,14 +96,14 @@ class ActiveObjectSet:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ReportingLifecycleState:
     run_started_id: str | None = None
     test_run_hook_started_id: str | None = None
     active_test_case_id: str | None = None
     active_test_case_started_id: str | None = None
     active_test_step_id: str | None = None
-    runtime_step_to_pickle_step_id: dict[int, str] = field(default_factory=dict)
+    runtime_step_to_pickle_step_id: dict[int, str] = field(factory=dict)
     scenario_attempt_context: dict[str, str | int] | None = None
     step_started_timestamp: Any | None = None
     step_finished_timestamp: Any | None = None
@@ -131,9 +131,9 @@ class ReportingLifecycleState:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ReferenceResolverState:
-    missing_reference_diagnostics: list[str] = field(default_factory=list)
+    missing_reference_diagnostics: list[str] = field(factory=list)
 
     def add_missing_reference(self, message: str) -> None:
         self.missing_reference_diagnostics.append(message)
@@ -147,7 +147,7 @@ class ReferenceResolverState:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ContextErrorState:
     code: Literal["object_inactive", "transition_order_violation", "context_not_initialized"]
     message: str
@@ -165,12 +165,12 @@ class ContextErrorState:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class FeatureRuntimeBinding:
     uri: str
     filename: str
     gherkin_document: GherkinDocument
-    run: Run = field(repr=False, compare=False)
+    run: Run = field(repr=False, eq=False)
     source: Source | None = None
     pickles: tuple[Pickle, ...] = ()
 
@@ -347,7 +347,7 @@ class FeatureRuntimeBinding:
         return sorted(str(tag.name).lstrip(TAG_PREFIX) for tag in tags)
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class Run(StashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
 
@@ -355,16 +355,16 @@ class Run(StashBound):
     run_ref: LifecycleObjectRef
     status: RunStatus
     transition_index: int = 0
-    identifiable_registry: IdentifiableObjectRegistry = field(default_factory=IdentifiableObjectRegistry, repr=False)
-    feature_bindings_by_uri: dict[str, FeatureRuntimeBinding] = field(default_factory=dict, repr=False)
+    identifiable_registry: IdentifiableObjectRegistry = field(factory=IdentifiableObjectRegistry, repr=False)
+    feature_bindings_by_uri: dict[str, FeatureRuntimeBinding] = field(factory=dict, repr=False)
     active_feature_id: str | None = None
     active_feature_uri: str | None = None
     active_scenario_id: str | None = None
     active_step_id: str | None = None
-    scenario_runs_by_request: dict[str, ScenarioRun] = field(default_factory=dict, repr=False)
+    scenario_runs_by_request: dict[str, ScenarioRun] = field(factory=dict, repr=False)
     active_scenario_run: ScenarioRun | None = field(default=None, repr=False)
     last_error: ContextErrorState | None = None
-    reporting_state: ReportingLifecycleState = field(default_factory=ReportingLifecycleState)
+    reporting_state: ReportingLifecycleState = field(factory=ReportingLifecycleState)
 
     def advance_transition(self) -> None:
         self.transition_index += 1
@@ -625,7 +625,7 @@ class Run(StashBound):
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class RunNode:
     id: str
     parent_id: str
@@ -651,7 +651,7 @@ class RunNode:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ScenarioRun:
     id: str
     run_ref: LifecycleObjectRef
@@ -675,10 +675,10 @@ class ScenarioRun:
     pickle: Pickle | None = None
     step_object: PickleStep | None = None
     previous_step_object: Any | None = None
-    reference_resolver: ReferenceResolverState = field(default_factory=ReferenceResolverState)
+    reference_resolver: ReferenceResolverState = field(factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         self._active_kind_index = {
             "run": self.active_set.run,
             "feature": self.active_set.feature,
@@ -736,7 +736,7 @@ class ScenarioRun:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ReportingContextSnapshot:
     run_id: str
     active_set: ActiveObjectSet
@@ -754,7 +754,7 @@ class ReportingContextSnapshot:
         }
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class ExternalApiCompatibilityRecord:
     api_surface_id: str
     baseline_reference: str

@@ -1,8 +1,8 @@
 # Feature Specification: Distributed Reporting Stream
 
-**Feature Branch**: `011-merge-xdist-reporting`  
-**Created**: 2026-03-08  
-**Status**: Implemented  
+**Feature Branch**: `011-merge-xdist-reporting`
+**Created**: 2026-03-08
+**Status**: Implemented
 **Input**: User description: "Сообщения для репортинга должны собираться в единый поток при выполнении с pytest-xdist. Сообщения по сбору сценариев и шагов не должны дублироваться (будут одинаковыми между нодами и мастером), а вот сообщения про выполение - должны сливаться, чтоб можно было получить консолидированный репорт"
 
 ## Clarifications

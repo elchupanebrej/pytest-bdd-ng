@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from attrs import define, field
 
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
 
 SCHEMA_DIR = resolve_messages_schema_dir()
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class FieldMetadata:
     path: str
     type: str
@@ -19,10 +20,10 @@ class FieldMetadata:
     description: str = ""
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class CapabilityInventory:
-    payload_kinds: list[str] = field(default_factory=list)
-    fields: dict[tuple[str, str], FieldMetadata] = field(default_factory=dict)
+    payload_kinds: list[str] = field(factory=list)
+    fields: dict[tuple[str, str], FieldMetadata] = field(factory=dict)
 
 
 def to_camel_case_identifier(value: str) -> str:

@@ -1,7 +1,7 @@
 from operator import attrgetter
 from typing import Optional, Protocol, runtime_checkable
 
-from attr import attrib, attrs
+from attrs import define, field
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 from typing_extensions import Self
 
@@ -18,9 +18,9 @@ class TagExpression(Protocol):
         raise NotImplementedError  # pragma: no cover
 
 
-@attrs
+@define
 class _ModernTagExpression(TagExpression):
-    expression: Optional["Expression"] = attrib()
+    expression: Optional["Expression"] = field()
 
     @classmethod
     def parse(cls, expression: str):
@@ -31,7 +31,7 @@ class _ModernTagExpression(TagExpression):
             raise ValueError(msg) from e
 
 
-@attrs
+@define
 class _EnhancedMarksTagExpression(_ModernTagExpression):
     """Used for 8.3<=pytest"""
 
@@ -39,7 +39,7 @@ class _EnhancedMarksTagExpression(_ModernTagExpression):
         return self.expression.evaluate(MarkMatcher.from_markers(marks)) if self.expression is not None else True
 
 
-@attrs
+@define
 class _MarksTagExpression(_ModernTagExpression):
     """Used for 6.0<=pytest<8.3"""
 
@@ -55,9 +55,9 @@ MarksTagExpression: type[_EnhancedMarksTagExpression | _MarksTagExpression]
 MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 
-@attrs
+@define
 class GherkinTagExpression(TagExpression):
-    expression: TagExpressionParser = attrib()
+    expression: TagExpressionParser = field()
 
     @classmethod
     def parse(cls, expression):

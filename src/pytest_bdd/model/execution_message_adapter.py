@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass
 from typing import Any, cast
+
+from attrs import frozen
 
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
@@ -20,7 +21,7 @@ def _resolve_registry_index(
     return registry
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class ExecutionProjection:
     envelope: EventEnvelope
     payload_kind: PayloadKind

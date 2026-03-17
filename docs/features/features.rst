@@ -109,6 +109,9 @@ Report
     07 Report/03 Allure scenario.feature
     07 Report/04 Allure outline.feature
     07 Report/05 Cucumber JSON reporter.feature
+    07 Report/07 xdist HTML reporting.feature
+    07 Report/08 xdist remote network reporting.feature
+    07 Report/09 Cucumber formatter reports.feature
 
 Allure
 ~~~~~~

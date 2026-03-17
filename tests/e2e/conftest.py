@@ -6,7 +6,6 @@ import shutil
 import string
 import subprocess  # noqa: S404
 import sys
-import tempfile
 from functools import reduce
 from operator import attrgetter, itemgetter
 from pathlib import Path

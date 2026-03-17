@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 import aiohttp
 import certifi
-from attr import Factory, attrib, attrs
+from attrs import define, field
 from cucumber_messages import (
     GherkinDocument,
     Pickle,
@@ -74,9 +74,9 @@ class ScenarioLocatorResolver(Protocol):
 ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, GherkinDocument, Pickle], bool]
 
 
-@attrs
+@define
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
-    filter_: ScenarioLocatorFilterT | None = attrib(default=None, kw_only=True)
+    filter_: ScenarioLocatorFilterT | None = field(default=None, kw_only=True)
 
     def filter_scenarios(self, gherkin_document: GherkinDocument, pickles: Iterable[Pickle], config):
         return (
@@ -113,14 +113,14 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
                 yield gherkin_document, pickle, feature_source
 
 
-@attrs
+@define
 class UrlScenarioLocator(ScenarioLocatorFilterMixin):
-    url_paths = attrib()
-    encoding = attrib()
-    features_base_url = attrib()
-    mimetype = attrib()
-    parser_type = attrib()
-    parse_args = attrib()
+    url_paths = field()
+    encoding = field()
+    features_base_url = field()
+    mimetype = field()
+    parser_type = field()
+    parse_args = field()
 
     async def fetch(self, session: aiohttp.ClientSession, url):
         sslcontext = ssl.create_default_context(cafile=certifi.where())
@@ -217,19 +217,19 @@ class FileScenarioLocatorDefaults:
         return Args((), {})
 
 
-@attrs
+@define
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
     Defaults = FileScenarioLocatorDefaults
-    feature_paths: list[str | Path] = attrib(default=Factory(list))
-    encoding = attrib(
+    feature_paths: list[str | Path] = field(factory=list)
+    encoding = field(
         default=FileScenarioLocatorDefaults.encoding,
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
     )
-    features_base_dir: str | Path | None = attrib(default=None)
-    mimetype: str | Enum | None = attrib(default=None)
-    parser_type: type[ParserProtocol] | None = attrib(default=None)
-    parse_args: Args = attrib(
-        default=Factory(FileScenarioLocatorDefaults.parse_args),
+    features_base_dir: str | Path | None = field(default=None)
+    mimetype: str | Enum | None = field(default=None)
+    parser_type: type[ParserProtocol] | None = field(default=None)
+    parse_args: Args = field(
+        factory=FileScenarioLocatorDefaults.parse_args,
         converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
     )
 

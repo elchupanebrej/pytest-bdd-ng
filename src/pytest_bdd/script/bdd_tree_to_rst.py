@@ -11,7 +11,6 @@ import re
 import sys
 from collections import deque
 from collections.abc import Sequence
-from dataclasses import dataclass
 from filecmp import dircmp
 from functools import lru_cache, reduce
 from operator import truediv
@@ -21,6 +20,7 @@ from tempfile import TemporaryDirectory
 from typing import cast
 
 import pypandoc  # type: ignore[import-not-found, import-untyped]
+from attrs import frozen
 from docopt import docopt
 from jinja2 import Environment
 from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
@@ -34,14 +34,14 @@ ORDERING_PREFIX_PATTERN = re.compile(r"^(?P<prefix>\d+)[ _-]+(?P<label>.+)$")
 TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa: S701
 
 
-@dataclass(frozen=True)
+@frozen
 class ToctreeSection:
     heading: str
     depth: int
     entries: tuple[str, ...]
 
 
-@dataclass(frozen=True)
+@frozen
 class OrderedSource:
     path: Path
     kind: str

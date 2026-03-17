@@ -1,8 +1,8 @@
 # Feature Specification: Cucumber Formatter Support
 
-**Feature Branch**: `012-cucumber-formatters-support`  
+**Feature Branch**: `012-cucumber-formatters-support`
 **Created**: 2026-03-10
-**Status**: Draft  
+**Status**: Draft
 **Input**: User description: "Все репортеры из списка должны поддерживаться также как html реопртер - ключом в командной строке https://github.com/cucumber/cucumber-js/blob/main/docs/formatters.md"
 
 ## Clarifications

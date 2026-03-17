@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, Literal
+
+from attrs import frozen
 
 from .message_capability import MessageCapability, capability_is_relevant
 from .message_status_governance import (
@@ -21,7 +22,7 @@ ChecklistDelta = Literal["unchanged", "added", "changed", "removed"]
 ChecklistDisposition = Literal["approved", "blocked", "deferred"]
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class GovernanceChecklistEntry:
     capability_id: str
     status: CapabilityStatus
@@ -32,7 +33,7 @@ class GovernanceChecklistEntry:
     disposition: ChecklistDisposition
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class GovernanceChecklist:
     checklist_name: str
     entries: tuple[GovernanceChecklistEntry, ...]

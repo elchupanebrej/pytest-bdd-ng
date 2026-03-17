@@ -52,7 +52,7 @@ through its explicit public lifecycle contract.
 * Given Install npm packages
 
     | packages | @cucumber/html-formatter |
-    |----------|--------------------------| 
+    |----------|--------------------------|
 
 * When run pytest
 

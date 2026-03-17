@@ -1,8 +1,8 @@
 # Feature Specification: Live Formatter Rendering
 
-**Feature Branch**: `013-live-formatter-rendering`  
-**Created**: 2026-03-10  
-**Status**: Draft  
+**Feature Branch**: `013-live-formatter-rendering`
+**Created**: 2026-03-10
+**Status**: Draft
 **Input**: User description: "Formatters must use live incremental rendering: they has to consume stream of messages during run (and can report by their own approach). messages must be streamed to main thread during xdist run. only master thread uses formatter for messages reporting"
 
 ## Clarifications

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from contextlib import suppress
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
+
+from attrs import define, field
 
 from pytest_bdd.model.stash_access import StashBound
 from pytest_bdd.types.protocol import Identifiable
@@ -61,9 +62,9 @@ def _resolve_identifiable_id(candidate: Any) -> str | None:
     return identifier or None
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class IdentifiableObjectRegistry:
-    objects_by_id: dict[str, Identifiable] = field(default_factory=dict)
+    objects_by_id: dict[str, Identifiable] = field(factory=dict)
 
     def index_tree(self, root: Any) -> None:
         for candidate in _iter_object_graph(root):
@@ -76,12 +77,12 @@ class IdentifiableObjectRegistry:
         return self.objects_by_id.get(str(object_id))
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class EnvelopeRegistry(StashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
 
-    envelopes: list[EventEnvelope] = field(default_factory=list)
-    identifiable: IdentifiableObjectRegistry = field(default_factory=IdentifiableObjectRegistry)
+    envelopes: list[EventEnvelope] = field(factory=list)
+    identifiable: IdentifiableObjectRegistry = field(factory=IdentifiableObjectRegistry)
 
     def add_envelope(self, envelope: EventEnvelope) -> None:
         self.envelopes.append(envelope)

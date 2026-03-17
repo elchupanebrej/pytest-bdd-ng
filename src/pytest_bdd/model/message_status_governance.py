@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Final, Literal, cast
+
+from attrs import frozen
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -83,7 +84,7 @@ LEGACY_STATUS_ALIASES: Final[dict[str, CapabilityStatus]] = {
 }
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class CapabilityDecision:
     capability_id: str
     status: CapabilityStatus
@@ -96,20 +97,20 @@ class CapabilityDecision:
     recheck_trigger: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class DecisionValidationResult:
     accepted: bool
     missing_required_evidence_fields: tuple[str, ...]
     violations: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class StatusUniquenessResult:
     is_unique: bool
     duplicates: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class BlockerEvaluationResult:
     unresolved_blocker_capability_ids: tuple[str, ...]
     deferred_capability_ids: tuple[str, ...]

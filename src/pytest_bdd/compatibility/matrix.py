@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from itertools import product
 from typing import TYPE_CHECKING
+
+from attrs import frozen
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -41,7 +42,7 @@ REASON_EOL_PYTHON = "eol_python"
 REASON_EOL_PYTEST = "eol_pytest"
 
 
-@dataclass(frozen=True)
+@frozen
 class CompatibilityMatrixEntry:
     python_version: str
     pytest_version: str
@@ -53,7 +54,7 @@ class CompatibilityMatrixEntry:
     tox_env_name: str | None = None
 
 
-@dataclass(frozen=True)
+@frozen
 class MigrationCoverageSummary:
     total_user_facing_scenarios: int
     user_facing_in_features: int

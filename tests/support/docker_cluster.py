@@ -1,8 +1,8 @@
-import subprocess
 import atexit
-import tempfile
 import os
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 
@@ -49,7 +49,7 @@ class DockerClusterManager:
         env = {
             **os.environ,
             "COMPOSE_PROJECT_NAME": f"pytestbddremote{remote_mode}",
-            "REPORT_PATH": f"/artifacts/remote-xdist.ndjson",
+            "REPORT_PATH": "/artifacts/remote-xdist.ndjson",
             "VERIFY_REPORT_MODE": "success" if verify_mode == "success-live" else verify_mode,
             "PYTEST_REMOTE_MODE": remote_mode,
             "PYTEST_BDD_TRANSPORT_FAIL_WORKERS": fail_transport_workers,

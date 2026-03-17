@@ -2,7 +2,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from attr import attrib, attrs
+from attrs import define, field
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.parser import ParserProtocol
@@ -13,7 +13,7 @@ from .model import Step
 from .model_builder import GherkinDocumentBuilder
 
 
-@attrs
+@define
 class StructBDDParser(ParserProtocol):
     class KIND(StrEnum):
         HOCON = "hocon"
@@ -23,8 +23,8 @@ class StructBDDParser(ParserProtocol):
         TOML = "toml"
         YAML = "yaml"
 
-    kind = attrib(kw_only=True)
-    loader = attrib(kw_only=True)
+    kind = field(kw_only=True)
+    loader = field(kw_only=True)
 
     @kind.default
     def kind_default(self):

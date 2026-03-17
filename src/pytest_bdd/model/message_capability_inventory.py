@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable  # noqa: TC003
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from attrs import frozen
 
 from .message_capability import MessageCapability, capability_is_relevant
 
 SCHEMA_RELATIVE_DIR = Path("messages") / "jsonschema" / "src"
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class CapabilitySyncResult:
     total_relevant: int
     total_out_of_scope: int
@@ -19,7 +20,7 @@ class CapabilitySyncResult:
     capabilities: tuple[MessageCapability, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class MandatoryScopeReconciliation:
     inventory_capability_ids: tuple[str, ...]
     mandatory_capability_ids: tuple[str, ...]
@@ -38,7 +39,7 @@ class MandatoryScopeReconciliation:
         return bool(self.missing_mandatory_capability_ids)
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class CoverageScopeReconciliation:
     inventory_capability_ids: tuple[str, ...]
     runtime_required_capability_ids: tuple[str, ...]

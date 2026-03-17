@@ -1,16 +1,16 @@
-from dataclasses import dataclass, field
+from attrs import define, field
 
 from .inventory import canonical_capability_key
 
 
-@dataclass
+@define(slots=False)
 class ObservedCoverage:
     """Runtime data collected during test execution."""
 
     # Set of (payload_kind, field_path) that were actually populated
-    observed_fields: set[tuple[str, str]] = field(default_factory=set)
+    observed_fields: set[tuple[str, str]] = field(factory=set)
     # Map of (payload_kind, field_path) to the test case ID that provided the first evidence
-    evidence_scenarios: dict[tuple[str, str], str] = field(default_factory=dict)
+    evidence_scenarios: dict[tuple[str, str], str] = field(factory=dict)
 
     def record_field(
         self,

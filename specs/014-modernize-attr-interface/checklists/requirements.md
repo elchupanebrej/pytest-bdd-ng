@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Live Formatter Rendering
+# Specification Quality Checklist: Modernize `attrs` Interface Across the Library
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning
-**Created**: 2026-03-10
-**Feature**: [/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/013-live-formatter-rendering/spec.md](/Users/goloveshkokonstantin/Projects/pytest-bdd-ng/specs/013-live-formatter-rendering/spec.md)
+**Purpose**: Validate specification completeness and quality before proceeding to planning  
+**Created**: 2026-03-17  
+**Feature**: [spec.md](../spec.md)
 
 ## Content Quality
 
@@ -31,6 +31,5 @@
 
 ## Notes
 
-- Validated on 2026-03-10 against the generated specification.
-- No open clarification markers remain.
-- The specification keeps live reporting behavior user-facing and describes distributed execution in generic terms rather than implementation-specific tooling.
+- All items pass. Specification is ready for `/speckit.clarify` or `/speckit.plan`.
+- The Assumptions section explicitly documents scope boundaries (src/ vs tests/, fixture class exemption, attrs version baseline) to pre-empt planning ambiguity.

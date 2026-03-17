@@ -3,7 +3,7 @@ from inspect import getfile, getsourcelines
 from pathlib import Path
 from typing import cast
 
-from attr import attrs
+from attrs import define
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     JavaMethod,
@@ -113,7 +113,7 @@ class BaseParser(ParserProtocol):
         return cast(GherkinDocument, gherkin_document)
 
 
-@attrs
+@define
 class GherkinParser(BaseParser):
     def parse(
         self,
@@ -156,7 +156,7 @@ class GherkinParser(BaseParser):
         return feature, feature_file_data
 
 
-@attrs
+@define
 class MarkdownGherkinParser(BaseParser):
     def parse(
         self,

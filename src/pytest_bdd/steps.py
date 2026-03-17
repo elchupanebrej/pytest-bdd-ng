@@ -46,7 +46,7 @@ from warnings import warn
 
 import pytest
 from _pytest.fixtures import FixtureRequest
-from attr import Factory, attrib, attrs
+from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
     Feature,
     JavaMethod,
@@ -254,15 +254,16 @@ def step(
 class StepDefinitionManager:
     Model: "TypeAlias" = "Step"
 
-    @attrs
+    @define
     class Matcher:
-        config: Config = attrib()
-        feature: Feature = attrib(init=False)
-        pickle: Pickle = attrib(init=False)
-        step: Step = attrib(init=False)
-        previous_step: Step | None = attrib(init=False)
-        step_registry: "StepDefinitionManager.Registry" = attrib(init=False)
-        step_type_context = attrib(default=None)
+        config: Config = field()
+        request: Any = field(init=False)
+        feature: Feature = field(init=False)
+        pickle: Pickle = field(init=False)
+        step: Step = field(init=False)
+        previous_step: Step | None = field(init=False)
+        step_registry: "StepDefinitionManager.Registry" = field(init=False)
+        step_type_context = field(default=None)
 
         class MatchNotFoundError(RuntimeError):
             pass
@@ -359,20 +360,20 @@ class StepDefinitionManager:
                     with suppress(AttributeError):
                         yield from StepDefinitionManager.Matcher.find_step_definition_matches(registry.parent, matchers)
 
-    @attrs(eq=False)
+    @define(eq=False)
     class Definition:
-        func: Callable = attrib()
-        type_: str | PickleStepType | None = attrib()
-        parser: StepParser = attrib()
-        anonymous_group_names: Iterable[str] | None = attrib()
-        converters: dict[str, Callable] = attrib()
-        params_fixtures_mapping: Collection[str] | Mapping[str | Any, str | Any | None] | Any = attrib()
-        param_defaults: dict = attrib()
-        target_fixtures: Sequence[str] = attrib()
-        liberal: Any | None = attrib()
+        func: Callable = field()
+        type_: str | PickleStepType | None = field()
+        parser: StepParser = field()
+        anonymous_group_names: Iterable[str] | None = field()
+        converters: dict[str, Callable] = field()
+        params_fixtures_mapping: Collection[str] | Mapping[str | Any, str | Any | None] | Any = field()
+        param_defaults: dict = field()
+        target_fixtures: Sequence[str] = field()
+        liberal: Any | None = field()
 
-        id = attrib(init=False)
-        __cache: dict[int, StepDefinition] = attrib(default=Factory(dict))
+        id = field(init=False)
+        __cache: dict[int, StepDefinition] = field(factory=dict)
 
         @property
         def fixtures_mapped_from_step_definition(self):
@@ -474,10 +475,10 @@ class StepDefinitionManager:
     class NamespaceStepRegistryProtocol(Protocol):
         _step_registry: "StepDefinitionManager.Registry"
 
-    @attrs
+    @define
     class Registry:
-        registry: set["StepDefinitionManager.Definition"] = attrib(default=Factory(set))
-        parent: "StepDefinitionManager.Registry" = attrib(default=None, init=False)
+        registry: set["StepDefinitionManager.Definition"] = field(factory=set)
+        parent: "StepDefinitionManager.Registry" = field(default=None, init=False)
 
         @classmethod
         def inject_registry_fixture_and_register_steps(

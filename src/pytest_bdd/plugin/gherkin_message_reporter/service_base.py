@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from attrs import define, field
+
 if TYPE_CHECKING:
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 
+@define(eq=False)
 class ReporterServiceBase:
     plugin_suffix: ClassVar[str | None] = None
-
-    def __init__(self, reporter: GherkinMessageReporter) -> None:
-        self.reporter = reporter
+    reporter: GherkinMessageReporter = field()
 
     @property
     def plugin_name(self) -> str:

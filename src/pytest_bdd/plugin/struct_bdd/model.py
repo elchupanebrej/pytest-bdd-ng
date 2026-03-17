@@ -8,7 +8,7 @@ from operator import attrgetter, eq, is_not
 from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple, Union, cast
 
-from attr import attrib, attrs
+from attrs import define, field
 from cucumber_messages import Source, SourceMediaType, StepKeywordType  # type:ignore[attr-defined, import-untyped]
 from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
     AfterValidator,
@@ -300,12 +300,12 @@ class StepPrototype(Node):
     def build_by_action(cls, action, *args, **kwargs):
         return cls(*args, **kwargs, action=action)
 
-    @attrs
+    @define
     class Locator(ScenarioLocatorFilterMixin):
-        step: "StepPrototype" = attrib()
-        filename = attrib()
-        uri = attrib()
-        mimetype = attrib()
+        step: "StepPrototype" = field()
+        filename = field()
+        uri = field()
+        mimetype = field()
 
         def resolve_features(self, config):
             from pytest_bdd.plugin.struct_bdd.model_builder import (

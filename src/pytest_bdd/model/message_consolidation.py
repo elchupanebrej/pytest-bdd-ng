@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
+
+from attrs import define, frozen
 
 from .execution_message_adapter import ExecutionMessageAdapter
 from .message_converter import envelope_from_dict
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class ConsolidationDiagnostic:
     code: str
     severity: Literal["info", "warning", "error"]
@@ -32,7 +33,7 @@ class ConsolidationDiagnostic:
     affected_ids: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class MessageFragment:
     worker_id: str
     role: ParticipantRole
@@ -85,7 +86,7 @@ class MessageFragment:
         )
 
 
-@dataclass(slots=True)
+@define(slots=True)
 class _EnvelopeRecord:
     envelope_dict: dict[str, Any]
     payload_kind: str
@@ -97,7 +98,7 @@ class _EnvelopeRecord:
     discovery_index: int = 0
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class ConsolidatedMessageStream:
     envelopes: tuple[Any, ...]
     envelope_dicts: tuple[dict[str, Any], ...]

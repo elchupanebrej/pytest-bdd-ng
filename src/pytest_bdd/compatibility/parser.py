@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from attr import attrib, attrs
+from attrs import define, field
 from cucumber_messages import GherkinDocument  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import Config
@@ -10,9 +10,9 @@ from pytest_bdd.util.other import IdGenerator
 
 
 @runtime_checkable
-@attrs
+@define
 class ParserProtocol(Protocol):
-    id_generator: IdGenerator | None = attrib(default=None, kw_only=True)
+    id_generator: IdGenerator | None = field(default=None, kw_only=True)
 
     def parse(
         self,

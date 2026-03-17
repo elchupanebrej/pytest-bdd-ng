@@ -1,10 +1,10 @@
 from collections.abc import Callable, Iterable
 from contextlib import suppress
-from dataclasses import dataclass
 from inspect import signature
 from pathlib import Path
 from typing import Any, cast
 
+from attrs import define
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     GherkinDocument,
     Pickle,  # type:ignore[import-untyped]
@@ -42,7 +42,7 @@ def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
     return FeatureLocatorArgs(**cast(FeatureLocatorArgs, raw_mark_arguments.arguments))
 
 
-@dataclass
+@define(slots=False)
 class ScenarioLocatorBuilder:
     """A dataclass to encapsulate the logic of building scenario locators based on provided
     marks and configuration.

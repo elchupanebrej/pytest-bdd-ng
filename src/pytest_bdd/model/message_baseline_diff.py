@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Final, Literal
+
+from attrs import frozen
 
 if TYPE_CHECKING:
     from .message_capability import MessageCapability
@@ -11,7 +12,7 @@ BaselineCadence = Literal["weekly"]
 WEEKLY_CADENCE: Final[BaselineCadence] = "weekly"
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class BaselineComparisonSchedule:
     schedule_id: str
     cadence: BaselineCadence
@@ -19,7 +20,7 @@ class BaselineComparisonSchedule:
     next_run_at: datetime
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class BaselineDiffRecord:
     diff_run_id: str
     previous_baseline: str
@@ -30,7 +31,7 @@ class BaselineDiffRecord:
     generated_at: datetime
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class BaselineDiffExecutionResult:
     due: bool
     schedule: BaselineComparisonSchedule

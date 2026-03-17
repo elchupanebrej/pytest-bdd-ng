@@ -66,17 +66,10 @@ Dummy reporter based on
 
         <!-- markdownlint-disable-next-line MD013 -->
 
-   +----------+------+----------+----+----------+----------+----------+
-   | cli_args | -p   | no:pyt   | -p | pytes    | --cucum  | out.html |
-   |          |      | est-bdd- |    | t_bdd.pl | ber-html |          |
-   |          |      | gherkin- |    | ugin.ghe |          |          |
-   |          |      | message- |    | rkin_mes |          |          |
-   |          |      | reporter |    | sage_rep |          |          |
-   |          |      |          |    | orter.en |          |          |
-   |          |      |          |    | trypoint |          |          |
-   +==========+======+==========+====+==========+==========+==========+
-   | su       | true |          |    |          |          |          |
-   | bprocess |      |          |    |          |          |          |
-   +----------+------+----------+----+----------+----------+----------+
+   ========== =============== ========
+   cli_args   --cucumber-html out.html
+   ========== =============== ========
+   subprocess true            
+   ========== =============== ========
 
 -  Then File "out.html" is not empty

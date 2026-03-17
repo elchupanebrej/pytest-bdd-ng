@@ -16,14 +16,14 @@ discovery uses one canonical source per execution mode.
 
 ## Technical Context
 
-**Language/Version**: Python 3.10-3.14 with Node.js runtime available on `PATH`  
-**Primary Dependencies**: `pytest>=7`, `pluggy`, `pytest-xdist>=3.8.0`, `execnet`, `filelock`, `cucumber-messages`, `@cucumber/cucumber`, `@cucumber/pretty-formatter`  
-**Storage**: In-memory reporting state plus temporary rendered script assets and canonical NDJSON artifacts on disk  
-**Testing**: `pytest`, `tox`, `ruff`, contract tests, compatibility replay tests, hook and lifecycle tests, e2e formatter slices, xdist aggregation slices, documentation validation  
-**Target Platform**: Local Python library and CLI plugin runtime on macOS/Linux, with Docker-backed coverage for non-native distributed acceptance paths  
-**Project Type**: Python library and pytest plugin suite with CLI-compatible replay tooling  
-**Performance Goals**: In validation runs lasting at least 30 seconds, first visible formatter output appears before 25% of total elapsed time; live delivery does not block on post-run consolidation  
-**Constraints**: Controller-only rendering during distributed runs; no silent fallback to post-run-only rendering; formatter modules must be real pytest or pluggy plugins; reporter root must remain a narrow coordination boundary; entrypoint and runtime must communicate through one explicit lifecycle contract; runtime services must use explicit narrow dependencies instead of reporter-backed service-locator access; standalone replay must use a first-class application service boundary rather than synthetic pytest `Config` objects; generated helper scripts may remain inline only below 20 lines; supported runtime paths must not rely on package-scan formatter discovery when pytest11 or hook-based discovery is already available  
+**Language/Version**: Python 3.10-3.14 with Node.js runtime available on `PATH`
+**Primary Dependencies**: `pytest>=7`, `pluggy`, `pytest-xdist>=3.8.0`, `execnet`, `filelock`, `cucumber-messages`, `@cucumber/cucumber`, `@cucumber/pretty-formatter`
+**Storage**: In-memory reporting state plus temporary rendered script assets and canonical NDJSON artifacts on disk
+**Testing**: `pytest`, `tox`, `ruff`, contract tests, compatibility replay tests, hook and lifecycle tests, e2e formatter slices, xdist aggregation slices, documentation validation
+**Target Platform**: Local Python library and CLI plugin runtime on macOS/Linux, with Docker-backed coverage for non-native distributed acceptance paths
+**Project Type**: Python library and pytest plugin suite with CLI-compatible replay tooling
+**Performance Goals**: In validation runs lasting at least 30 seconds, first visible formatter output appears before 25% of total elapsed time; live delivery does not block on post-run consolidation
+**Constraints**: Controller-only rendering during distributed runs; no silent fallback to post-run-only rendering; formatter modules must be real pytest or pluggy plugins; reporter root must remain a narrow coordination boundary; entrypoint and runtime must communicate through one explicit lifecycle contract; runtime services must use explicit narrow dependencies instead of reporter-backed service-locator access; standalone replay must use a first-class application service boundary rather than synthetic pytest `Config` objects; generated helper scripts may remain inline only below 20 lines; supported runtime paths must not rely on package-scan formatter discovery when pytest11 or hook-based discovery is already available
 **Scale/Scope**: One live formatter session per run, one controller-owned distributed rendering authority, concurrent support for all currently exposed cucumber formatter requests across standard and xdist execution modes, and one supported standalone NDJSON replay service
 
 ## Constitution Check
