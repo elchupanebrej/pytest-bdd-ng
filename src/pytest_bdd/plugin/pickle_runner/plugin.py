@@ -238,7 +238,7 @@ class PickleRunner:
 
         if scenario_run is not None:
             if isinstance(step, PickleStep):
-                feature_binding = scenario_run.feature_binding()
+                feature_binding = scenario_run.feature_binding
                 step_runtime_enrichment = resolve_step_runtime_enrichment(
                     step=step,
                     feature_binding=feature_binding,
@@ -255,7 +255,7 @@ class PickleRunner:
 
             scenario_description = resolve_scenario_description(
                 pickle=pickle,
-                feature_binding=scenario_run.feature_binding() if scenario_run is not None else None,
+                feature_binding=scenario_run.feature_binding if scenario_run is not None else None,
                 scenario_run=scenario_run,
             )
             pickle.__dict__["description"] = scenario_description

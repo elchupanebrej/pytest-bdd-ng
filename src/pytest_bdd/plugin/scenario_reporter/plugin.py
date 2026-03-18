@@ -11,7 +11,6 @@ import pytest
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
 from pytest_bdd.plugin.pickle_runner.run_access import (
     build_reporting_context_snapshot,
-    resolve_feature_binding,
     resolve_feature_object,
     resolve_pickle_object,
     resolve_step_object,
@@ -53,10 +52,7 @@ class ScenarioReporter:
         pickle = resolve_pickle_object(run)
         if gherkin_document is None or pickle is None:
             return
-        feature_binding = resolve_feature_binding(run)
-        if feature_binding is None:
-            msg = "Run does not provide active feature binding"
-            raise RuntimeError(msg)
+        feature_binding = run.active_feature_binding
         self.current_report = ScenarioReport(
             feature_binding=feature_binding,
             pickle=pickle,

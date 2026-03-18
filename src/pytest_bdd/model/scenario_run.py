@@ -4,7 +4,7 @@ from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Generator
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Generator, Self
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -17,6 +17,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
 )
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
+from mypy.main import process_options
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.const import TAG_PREFIX
@@ -370,6 +371,12 @@ class Run(StashBound):
     reporting_state: ReportingLifecycleState = field(factory=ReportingLifecycleState)
 
     @property
+    def active_feature_binding(self: Self) -> FeatureRuntimeBinding | None:
+        if self.active_scenario_run is None:
+            return None
+        return self.active_scenario_run.feature_binding
+
+    @property
     def active_scenario_id(self) -> str:
         node = deepattrgetter('active_scenario_run.scenario_node', default=None)(self)[0]
         if getattr(node, 'is_active', False):
@@ -695,13 +702,13 @@ class ScenarioRun:
     stage: RunStage
     status: RunStatus
     active_set: ActiveObjectSet
+    run: Run
     transition_index: int = 0
     feature_ref: LifecycleObjectRef | None = None
     scenario_ref: LifecycleObjectRef | None = None
     step_ref: LifecycleObjectRef | None = None
     previous_step_ref: LifecycleObjectRef | None = None
     last_error: ContextErrorState | None = None
-    run: Run | None = None
     feature_uri: str | None = None
     feature_node: RunNode | None = None
     scenario_node: RunNode | None = None
@@ -743,9 +750,8 @@ class ScenarioRun:
             return None
         return candidate
 
+    @property
     def feature_binding(self) -> FeatureRuntimeBinding | None:
-        if self.run is None:
-            return None
         if self.feature_uri is not None:
             return self.run.feature_binding_for_uri(self.feature_uri)
         return self.run.feature_binding_for_document(self.gherkin_document)

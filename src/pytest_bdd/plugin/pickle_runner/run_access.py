@@ -23,11 +23,11 @@ if TYPE_CHECKING:
 
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
     scenario_run = run.active_scenario_run
-    return scenario_run.feature_binding() if scenario_run is not None else None
+    return scenario_run.feature_binding if scenario_run is not None else None
 
 
 def resolve_feature_object(run: Run) -> Any | None:
-    binding = resolve_feature_binding(run)
+    binding = run.active_feature_binding
     if binding is not None:
         return binding.gherkin_document
     scenario_run = run.active_scenario_run
@@ -35,7 +35,7 @@ def resolve_feature_object(run: Run) -> Any | None:
 
 
 def resolve_feature_source(run: Run) -> Any | None:
-    binding = resolve_feature_binding(run)
+    binding = run.active_feature_binding
     if binding is not None:
         return binding.source
     scenario_run = run.active_scenario_run
@@ -175,7 +175,7 @@ def resolve_scenario_description(
             scenario_run.reference_resolver.add_missing_reference("Pickle has no ast_node_ids")
         return None
     ast_node_id = str(ast_node_ids[0])
-    effective_binding = feature_binding or (scenario_run.feature_binding() if scenario_run is not None else None)
+    effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     node = resolve_registry_node(
         feature_binding=effective_binding,
         ast_node_id=ast_node_id,
@@ -193,7 +193,7 @@ def resolve_step_runtime_enrichment(
     feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
 ) -> dict[str, Any]:
-    effective_binding = feature_binding or (scenario_run.feature_binding() if scenario_run is not None else None)
+    effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     model_step = effective_binding.pickle_step_ast_step(step) if effective_binding is not None else None
     if model_step is None:
         if scenario_run is not None:
