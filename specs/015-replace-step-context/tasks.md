@@ -59,9 +59,9 @@ description: "Task list for feature 015-replace-step-context implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T008 [P] Ensure all test suites pass using `pytest`.
-- [ ] T009 [P] Check compatibility with existing plugins/hooks if any rely on undocumented context injection.
-- [ ] T010 Run `pre-commit run --all-files` to ensure all styling and type-checking pass.
+- [x] T008 [P] Ensure all test suites pass using `pytest`.
+- [x] T009 [P] Check compatibility with existing plugins/hooks if any rely on undocumented context injection.
+- [x] T010 Run `pre-commit run --all-files` to ensure all styling and type-checking pass.
 
 ---
 

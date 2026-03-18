@@ -1,6 +1,6 @@
 # Implementation Plan: Modernize `attrs` Interface
 
-**Branch**: `014-modernize-attr-interface` | **Date**: 2026-03-17 | **Spec**: [spec.md](spec.md)  
+**Branch**: `014-modernize-attr-interface` | **Date**: 2026-03-17 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `specs/014-modernize-attr-interface/spec.md`
 
 ---
@@ -17,14 +17,14 @@ keyword arguments change. The full test suite must pass at every checkpoint.
 
 ## Technical Context
 
-**Language/Version**: Python 3.10–3.14 (primary test target: 3.14 via `pytest-bdd-ng-py314` conda env)  
-**Primary Dependencies**: `attrs >= 25.4.0` (confirmed installed), `pytest >= 7`, `ruff`, `pre-commit`  
-**Storage**: N/A — no persistence layer changes  
-**Testing**: `pytest` via `conda run -n pytest-bdd-ng-py314 tox`, `ruff check`, `pre-commit run`  
-**Target Platform**: Pure Python library; runs on Linux, macOS, Windows  
-**Project Type**: Python library  
-**Performance Goals**: No performance regression; `slots=True` equivalence preserved for slotted dataclasses  
-**Constraints**: Zero public API breakage; all existing tests pass; pre-commit clean after every commit  
+**Language/Version**: Python 3.10–3.14 (primary test target: 3.14 via `pytest-bdd-ng-py314` conda env)
+**Primary Dependencies**: `attrs >= 25.4.0` (confirmed installed), `pytest >= 7`, `ruff`, `pre-commit`
+**Storage**: N/A — no persistence layer changes
+**Testing**: `pytest` via `conda run -n pytest-bdd-ng-py314 tox`, `ruff check`, `pre-commit run`
+**Target Platform**: Pure Python library; runs on Linux, macOS, Windows
+**Project Type**: Python library
+**Performance Goals**: No performance regression; `slots=True` equivalence preserved for slotted dataclasses
+**Constraints**: Zero public API breakage; all existing tests pass; pre-commit clean after every commit
 **Scale/Scope**: ~72 class definitions across ~28 source files in `src/`
 
 ---
@@ -115,7 +115,7 @@ expected given the preserved public interface).
 
 ### Phase A — Migrate Legacy `attr.s` / `attrib()` Classes (P1, highest risk)
 
-**Files**: 9 files listed in Group A above  
+**Files**: 9 files listed in Group A above
 **Strategy**: File-by-file. After each file, run `ruff check src/` + full test suite.
 
 #### Migration rules applied per file
@@ -138,7 +138,7 @@ expected given the preserved public interface).
 
 ### Phase B — Migrate `@dataclass` Classes (P1/P2, lower risk per class)
 
-**Files**: 19 files listed in Group B above  
+**Files**: 19 files listed in Group B above
 **Strategy**: Batch by decorator variant to apply uniform transformation:
 
 #### Batch B-1: `@dataclass(frozen=True, slots=True)` → `@frozen`

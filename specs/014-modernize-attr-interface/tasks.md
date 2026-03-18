@@ -1,6 +1,6 @@
 # Implementation Tasks: Modernize `attrs` Interface
 
-**Feature Branch**: `014-modernize-attr-interface`  
+**Feature Branch**: `014-modernize-attr-interface`
 **Generated**: 2026-03-17
 
 ## Phase 1: Setup
@@ -43,13 +43,13 @@
 
 ## Execution Strategy
 
-**Implementation Strategy**:  
+**Implementation Strategy**:
 The structural refactoring tasks (T001-T009) can be handled in any order, but doing them grouped by migration variant ensures fewer context switches. It is highly recommended to run the unit test suite (`conda run -n pytest-bdd-ng-py314 pytest tests/`) incrementally after every file changed to spot semantic shifts immediately.
 
-**Dependencies**:  
+**Dependencies**:
 - T010 and T011 block the completion of the branch and must follow T001-T009.
 
-**Parallel Execution Map**:  
+**Parallel Execution Map**:
 - Thread A: Legacy attributes T001-T004
 - Thread B: Dataclasses T005-T008
 - Thread C: Explicit inits T009

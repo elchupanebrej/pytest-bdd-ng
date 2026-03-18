@@ -25,7 +25,6 @@ from pytest_bdd.model.scenario_run import (
     RunStatus,
     ScenarioRun,
 )
-from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
 from pytest_bdd.plugin.pickle_runner.run_access import resolve_scenario_description, resolve_step_runtime_enrichment
 
 

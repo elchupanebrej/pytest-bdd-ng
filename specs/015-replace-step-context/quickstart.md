@@ -17,11 +17,11 @@ import pytest
 
 def pytest_bdd_before_step(request, feature, scenario, step, step_func):
     run = request.stash.get(RUN_KEY)
-    
+
     # Access the active StepRun
     if run and run.scenario_run and run.scenario_run.step_run:
         step_run = run.scenario_run.step_run
-        
+
         # Access attributes
         print(f"Executing step keyword: {step_run.keyword}")
         print(f"Executing step text: {step_run.text}")

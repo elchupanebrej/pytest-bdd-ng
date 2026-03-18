@@ -1,6 +1,6 @@
 # Research: Modernize `attrs` Interface — `014-modernize-attr-interface`
 
-**Date**: 2026-03-17  
+**Date**: 2026-03-17
 **Branch**: `014-modernize-attr-interface`
 
 ---

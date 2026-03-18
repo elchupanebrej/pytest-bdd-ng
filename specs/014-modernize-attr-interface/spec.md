@@ -1,8 +1,8 @@
 # Feature Specification: Modernize `attrs` Interface Across the Library
 
-**Feature Branch**: `014-modernize-attr-interface`  
-**Created**: 2026-03-17  
-**Status**: Draft  
+**Feature Branch**: `014-modernize-attr-interface`
+**Created**: 2026-03-17
+**Status**: Draft
 **Input**: User description: "Вся библиотека должна использовать современный интерфейс attr вместо старого. Dataclass и __init__-based классы должны быть отрефакторены"
 
 ## User Scenarios & Testing *(mandatory)*

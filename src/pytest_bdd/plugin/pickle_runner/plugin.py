@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager, suppress
+from contextlib import suppress
 from functools import partial
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, cast

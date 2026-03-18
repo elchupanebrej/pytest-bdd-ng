@@ -1,8 +1,8 @@
 # Feature Specification: Replace extended_step_context with StepRun
 
-**Feature Branch**: `015-replace-step-context`  
-**Created**: 2026-03-18  
-**Status**: Draft  
+**Feature Branch**: `015-replace-step-context`
+**Created**: 2026-03-18
+**Status**: Draft
 **Input**: User description: "extended_step_context не должен быть больше использован, вместо него должно появиться и использоваться поле run.scenario_run.step_run и новый класс StepRun - по сути контекст выполнения шага"
 
 ## User Scenarios & Testing *(mandatory)*

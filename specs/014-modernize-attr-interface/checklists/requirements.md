@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Modernize `attrs` Interface Across the Library
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-03-17  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-03-17
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

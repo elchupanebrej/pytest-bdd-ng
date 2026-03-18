@@ -1,6 +1,6 @@
 # Data Model: Modernize `attrs` Interface — `014-modernize-attr-interface`
 
-**Date**: 2026-03-17  
+**Date**: 2026-03-17
 **Branch**: `014-modernize-attr-interface`
 
 ---
@@ -38,7 +38,7 @@ These classes currently use the pre-20.1.0 `attr` import path and will be migrat
 | `StepDefinitionManager.Registry` | `@attrs` + 2× `attrib()` | `@define` + 2× `field(...)` | `attrib(default=Factory(set))` → `field(factory=set)` |
 | (inner unnamed) | `@attrs` | `@define` | Check for any other `@attrs` in file |
 
-**Import change**: `from attr import Factory, attrib, attrs` → `from attrs import Factory, define, field`  
+**Import change**: `from attr import Factory, attrib, attrs` → `from attrs import Factory, define, field`
 *(Note: `Factory` is also importable from `attrs` — verify and use `factory=` kwarg spelling instead where possible)*
 
 ---
