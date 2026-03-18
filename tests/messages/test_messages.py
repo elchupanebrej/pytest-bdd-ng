@@ -823,7 +823,7 @@ def test_gherkin_document_emits_rule_background_comment_examples_docstring_and_t
 
         @given("a background table:")
         def background_table(step):
-            assert step.data_table is not None
+            assert getattr(step.argument, "data_table", None) is not None
 
         @given(parsers.parse("a number {number:d}"))
         def number(number):
@@ -831,11 +831,11 @@ def test_gherkin_document_emits_rule_background_comment_examples_docstring_and_t
 
         @given("a payload doc string:")
         def payload_doc_string(step):
-            assert step.doc_string is not None
+            assert getattr(step.argument, "doc_string", None) is not None
 
         @given("a payload table:")
         def payload_table(step):
-            assert step.data_table is not None
+            assert getattr(step.argument, "data_table", None) is not None
 
         @then(parsers.parse('result should be "{result}"'))
         def result(result):

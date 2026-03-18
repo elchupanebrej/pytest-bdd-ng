@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from contextlib import suppress
+from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Generator
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -21,7 +23,7 @@ from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.model.stash_access import StashBound
-from pytest_bdd.types.protocol import Identifiable
+from pytest_bdd.types.protocol import Identifiable, LinkedAST, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
@@ -233,27 +235,28 @@ class FeatureRuntimeBinding:
         if self.pickles:
             self.run.index_identifiable_tree(self.pickles)
 
-    def resolve_node(self, object_id: str) -> Any | None:
-        return self.run.identifiable_registry.resolve(str(object_id))
+    def resolve_node(self, object_id: str) -> Identifiable:
+        return self.run.identifiable_registry.resolve(object_id)
 
-    def linked_ast_nodes_for(self, obj: Any) -> list[Any]:
-        items = [
-            *filter(
-                lambda ast_node_id: ast_node_id != "",
-                ((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
-            ),
-            *filter(lambda ast_node_id: ast_node_id != "", getattr(obj, "ast_node_ids", ())),
-        ]
-        linked_nodes: list[Any] = []
-        for ast_node_id in items:
-            linked_node = self.resolve_node(str(ast_node_id))
-            if linked_node is None:
-                continue
-            linked_nodes.append(linked_node)
-        return linked_nodes
+    def linked_ast_nodes_for(self, obj: MultiLinkedAST|LinkedAST|Any) -> Generator[Identifiable]:
+        def ast_link(obj: LinkedAST |Any) -> Generator[str]:
+            with suppress(AttributeError):
+                yield obj.ast_node_id
+
+        def ast_links(obj: MultiLinkedAST) -> Generator[str]:
+            with suppress(AttributeError|Any):
+                yield from obj.ast_node_ids
+
+        for ast_node_id in chain(ast_link(obj), ast_links(obj)):
+            with suppress(KeyError):
+                yield self.resolve_node(ast_node_id)
 
     def pickle_ast_table_rows(self, pickle: Pickle) -> list[TableRow]:
-        return list(filter(lambda node: type(node) is TableRow, self.linked_ast_nodes_for(pickle)))
+        return [
+            node
+            for node in self.linked_ast_nodes_for(pickle)
+            if isinstance(node, TableRow)
+        ]
 
     def pickle_table_rows_breadcrumb(self, pickle: Pickle) -> str:
         table_rows_lines = ",".join(
@@ -266,9 +269,10 @@ class FeatureRuntimeBinding:
 
     def pickle_ast_scenario(self, pickle: Pickle) -> Scenario | None:
         return next(
-            filter(
-                lambda node: type(node) is Scenario,
-                self.linked_ast_nodes_for(pickle),
+            (
+                node
+                for node in self.linked_ast_nodes_for(pickle)
+                if isinstance(node, Scenario)
             ),
             None,
         )
@@ -283,9 +287,10 @@ class FeatureRuntimeBinding:
 
     def pickle_step_ast_step(self, pickle_step: PickleStep) -> Step | None:
         return next(
-            filter(
-                lambda node: type(node) is Step,
-                self.linked_ast_nodes_for(pickle_step),
+            (
+                node
+                for node in self.linked_ast_nodes_for(pickle_step)
+                if isinstance(node, Step)
             ),
             None,
         )
@@ -359,12 +364,24 @@ class Run(StashBound):
     feature_bindings_by_uri: dict[str, FeatureRuntimeBinding] = field(factory=dict, repr=False)
     active_feature_id: str | None = None
     active_feature_uri: str | None = None
-    active_scenario_id: str | None = None
-    active_step_id: str | None = None
     scenario_runs_by_request: dict[str, ScenarioRun] = field(factory=dict, repr=False)
     active_scenario_run: ScenarioRun | None = field(default=None, repr=False)
     last_error: ContextErrorState | None = None
     reporting_state: ReportingLifecycleState = field(factory=ReportingLifecycleState)
+
+    @property
+    def active_scenario_id(self) -> str:
+        node = deepattrgetter('active_scenario_run.scenario_node', default=None)(self)[0]
+        if getattr(node, 'is_active', False):
+            return node.id
+        raise AttributeError("No active scenario")
+
+    @property
+    def active_step_id(self) -> str:
+        node = deepattrgetter('active_scenario_run.step_node', default=None)(self)[0]
+        if getattr(node, 'is_active', False):
+            return node.id
+        raise AttributeError("No active step")
 
     def advance_transition(self) -> None:
         self.transition_index += 1
@@ -441,12 +458,8 @@ class Run(StashBound):
             if scenario_run.feature_node is not None:
                 scenario_run.feature_node.close(run_root.transition_index)
 
-            if run_root.active_scenario_id == scenario_run.id:
-                run_root.active_scenario_id = None
             if run_root.active_scenario_run is scenario_run:
                 run_root.active_scenario_run = None
-            if run_root.active_step_id is not None:
-                run_root.active_step_id = None
             if run_root.active_feature_uri == scenario_run.feature_uri:
                 run_root.active_feature_uri = None
             run_root.reporting_state.reset_scenario_scope()
@@ -520,7 +533,6 @@ class Run(StashBound):
                 is_active=True,
                 opened_at_transition=run.transition_index,
             )
-            run.active_scenario_id = scenario_node.id
 
         scenario_run = ScenarioRun(
             id=run_node_id,
@@ -610,6 +622,16 @@ class Run(StashBound):
         return reporting_state.active_test_step_id
 
     def as_dict(self) -> dict[str, Any]:
+        try:
+            active_scenario_id = self.active_scenario_id
+        except AttributeError:
+            active_scenario_id = None
+
+        try:
+            active_step_id = self.active_step_id
+        except AttributeError:
+            active_step_id = None
+
         return {
             "run_id": self.id,
             "run_ref": self.run_ref.as_dict(),
@@ -618,8 +640,8 @@ class Run(StashBound):
             "feature_bindings_by_uri": sorted(self.feature_bindings_by_uri),
             "active_feature_id": self.active_feature_id,
             "active_feature_uri": self.active_feature_uri,
-            "active_scenario_id": self.active_scenario_id,
-            "active_step_id": self.active_step_id,
+            "active_scenario_id": active_scenario_id,
+            "active_step_id": active_step_id,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
             "reporting_state": self.reporting_state.as_dict(),
         }
@@ -660,6 +682,9 @@ class StepRun:
     status: RunStatus = RunStatus.ok
     duration: float | None = None
     attachments: list[Any] = field(factory=list)
+    doc_string: Any | None = None
+    data_table: Any | None = None
+    line_number: int | None = None
 
 
 @define(slots=True)

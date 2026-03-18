@@ -58,10 +58,16 @@ class StepDefinitionNotFoundError(Exception):
 
     def __init__(self, feature, scenario, step, *args):
         self.undefined_parameter_type = None
+        keyword = getattr(step, "keyword", getattr(step, "prefix", "<unknown>"))
+        if keyword is None:
+            keyword = "<unknown>"
+        line_number = getattr(step, "line_number", "<unknown>")
+        if line_number is None:
+            line_number = "<unknown>"
         super().__init__(
             f'Step definition is not found: "{step.text}". '
-            f'Step keyword: "{step.keyword}". '
-            f"Line {step.line_number} "
+            f'Step keyword: "{keyword}". '
+            f"Line {line_number} "
             f'in scenario "{scenario.name}" '
             f'in the feature "{feature.uri}"',
             *args,

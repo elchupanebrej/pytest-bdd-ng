@@ -165,16 +165,6 @@ def apply_transition(
             if scenario_run.feature_node is not None and scenario_run.feature_node.is_active
             else None
         )
-        run.active_scenario_id = (
-            scenario_run.scenario_node.id
-            if scenario_run.scenario_node is not None and scenario_run.scenario_node.is_active
-            else None
-        )
-        run.active_step_id = (
-            scenario_run.step_node.id
-            if scenario_run.step_node is not None and scenario_run.step_node.is_active
-            else None
-        )
 
     if hook_phase is HookPhase.after_scenario:
         if scenario_run.scenario_node is not None:
@@ -195,8 +185,5 @@ def apply_transition(
                 captured_at_stage=RunStage.finished,
             )
         )
-        if run is not None:
-            run.active_scenario_id = None
-            run.active_step_id = None
 
     return scenario_run

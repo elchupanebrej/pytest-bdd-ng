@@ -10,7 +10,6 @@ Auto-generated from all feature plans. Last updated: 2026-03-18
 - Documentation/generation stack: `Jinja2`, `pypandoc`, `pathlib2`, markdown/RST feature docs, and generated docs under `docs/features/`
 - Distributed/live-reporting stack: `pytest-xdist>=3.8.0`, `execnet`, `filelock`, Docker/Compose for non-native remote acceptance, Node.js on `PATH`, `@cucumber/cucumber`, and `@cucumber/pretty-formatter`
 - Runtime/storage model: in-memory `Run`/`ScenarioRun`/execution-context state plus file artifacts such as NDJSON, JSON, YAML, Markdown, and temporary rendered script/output files under repository and temp paths
-- Python 3.10-3.14 + `pytest>=7`, `pytest-bdd-ng` internal core (015-replace-step-context)
 
 ## Project Structure
 

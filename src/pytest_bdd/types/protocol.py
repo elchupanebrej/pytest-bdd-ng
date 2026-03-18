@@ -14,3 +14,11 @@ class HasPytestStash(Protocol):
 @runtime_checkable
 class Identifiable(Protocol):
     id: Any
+
+@runtime_checkable
+class LinkedAST(Protocol):
+    ast_node_id: str
+
+@runtime_checkable
+class MultiLinkedAST(Protocol):
+    ast_node_ids: list[str]

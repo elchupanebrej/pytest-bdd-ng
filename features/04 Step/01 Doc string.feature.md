@@ -18,7 +18,7 @@
 
     @given('I check step docstring')
     def _(step):
-      assert step.doc_string.content == "Step docstring"
+      assert step.argument.doc_string.content == "Step docstring"
     ```
 
 * When run pytest

@@ -85,6 +85,7 @@ def test_double_verbose_mode_should_display_full_scenario_description(
 def test_error_message_for_missing_steps(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
     result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
+
     result.assert_outcomes(passed=0, failed=1)
     result.stdout.fnmatch_lines(
         """*StepDefinitionNotFoundError: Step definition is not found: "there is a bar". Step keyword: "Given".*"""

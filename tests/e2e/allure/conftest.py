@@ -7,6 +7,7 @@ from hamcrest import all_of, any_of, assert_that, contains_string, equal_to, has
 
 from pytest_bdd import given, parsers, then, when
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if ALLURE_INSTALLED:
     import allure_commons
@@ -123,9 +124,8 @@ def allure_report(
 
 
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
-def feature_definition(name, extension, testdir, step):
-    content = step.doc_string.content
-    testdir.makefile(extension, **{name: content})
+def file(name, extension, testdir, step):
+    testdir.makefile(extension, **{name: deepattrgetter('argument.doc_string.content', default='')})
 
 
 @when("run pytest-bdd with allure")

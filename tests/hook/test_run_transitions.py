@@ -104,7 +104,8 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     assert context.stage == RunStage.finished
     assert context.active_set.scenario is None
     assert context.active_set.step is None
-    assert context.run.active_scenario_id is None
+    with pytest.raises(AttributeError, match="No active scenario"):
+        _ = context.run.active_scenario_id
     assert context.run.reporting_state.active_test_case_started_id == "case-started-1"
     assert context.run.reporting_state.active_test_step_id == "step-1"
     assert context.reference_resolver.missing_reference_diagnostics == ["missing-ast-node"]

@@ -38,7 +38,7 @@
 
     @given(parsers.re(r"a background step .*"))
     def _multiline(step):
-      assert step.doc_string.content == "one\ntwo"
+      assert step.argument.doc_string.content == "one\ntwo"
 
     @given('foo has a value "bar"')
     def _bar(foo):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from pytest_bdd.model.scenario_run import (
@@ -152,7 +153,11 @@ def resolve_registry_node(
     ast_node_id: str,
     scenario_run: ScenarioRun | None = None,
 ) -> Any | None:
-    node = feature_binding.resolve_node(ast_node_id) if feature_binding is not None else None
+    node = None
+    if feature_binding is not None:
+        with suppress(KeyError):
+            node = feature_binding.resolve_node(ast_node_id)
+
     if node is None and scenario_run is not None:
         scenario_run.reference_resolver.add_missing_reference(f"Missing AST node id: {ast_node_id}")
     return node

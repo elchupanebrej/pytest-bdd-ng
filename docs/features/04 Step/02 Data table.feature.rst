@@ -26,7 +26,7 @@ Scenario: Read step data table
 
       @given('I check step datatable')
       def _(step: Step):
-        title_row, *data_rows = step.data_table.rows
+        title_row, *data_rows = step.argument.data_table.rows
         assert get_datatable_row_values(title_row) == ["first", "second"]
         assert get_datatable_row_values(data_rows[0]) == ["a", "b"]
 

@@ -14,14 +14,13 @@ from cucumber_messages import (
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model.scenario_run import HookPhase, Run, RunStatus
+from pytest_bdd.model.scenario_run import HookPhase, Run, RunStatus, StepRun
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
-
 from .run_access import (
     resolve_feature_object,
     resolve_pickle_object,
@@ -235,8 +234,6 @@ class PickleRunner:
         if gherkin_document is None or pickle is None or step is None:
             return
 
-        from pytest_bdd.model.scenario_run import StepRun
-
         scenario_run = run.active_scenario_run
 
         if scenario_run is not None:
@@ -251,6 +248,9 @@ class PickleRunner:
                     step=step,
                     keyword=step_runtime_enrichment.get("keyword"),
                     text=getattr(step, "text", ""),
+                    doc_string=step_runtime_enrichment.get("doc_string"),
+                    data_table=step_runtime_enrichment.get("data_table"),
+                    line_number=step_runtime_enrichment.get("line_number"),
                 )
 
             scenario_description = resolve_scenario_description(
@@ -297,6 +297,8 @@ class PickleRunner:
             hook_kwargs["step_func_args"] = {}
             step_params = step_definition.get_parameters(request, step)
 
+            # TODO: This check must be always be true, this must be guaranteed on previous execution steps
+            # Find a reason why this was needed
             if scenario_run is not None and scenario_run.step_run is not None:
                 scenario_run.step_run.parameters = step_params
 
@@ -347,6 +349,8 @@ class PickleRunner:
                     step_definition=step_definition,
                 )
             except Exception as exception:
+                # TODO: This check must be always be true, this must be guaranteed on previous execution steps
+                # Find a reason why this was needed
                 if scenario_run is not None and scenario_run.step_run is not None:
                     scenario_run.step_run.status = RunStatus.failed
 
@@ -365,6 +369,7 @@ class PickleRunner:
                 )
                 raise
         finally:
+            # TODO: Seems that this field must be put into scenario run
             pickle.__dict__["description"] = None
 
     @pytest.hookimpl(trylast=True)
@@ -436,7 +441,14 @@ class PickleRunner:
                 run=run,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
-            step_lookup_exception = exceptions.StepDefinitionNotFoundError(self.gherkin_document, self.pickle, step)
+            step_to_report = (
+                run.active_scenario_run.step_run
+                if run.active_scenario_run and run.active_scenario_run.step_run is not None
+                else step
+            )
+            step_lookup_exception = exceptions.StepDefinitionNotFoundError(
+                self.gherkin_document, self.pickle, step_to_report
+            )
             with suppress(Exception):
                 step_registry = request.getfixturevalue("step_registry")
                 undefined_info = None

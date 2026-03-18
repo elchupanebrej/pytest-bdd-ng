@@ -77,22 +77,22 @@ def _rule_background_value(value: str) -> str:
 
 @given("a background table:")
 def _background_table(step) -> None:
-    assert step.data_table is not None
+    assert getattr(step.argument, "data_table", None) is not None
 
 
 @given("a background doc string:")
 def _background_doc_string(step) -> None:
-    assert step.doc_string is not None
+    assert getattr(step.argument, "doc_string", None) is not None
 
 
 @given("a rule background doc string:")
 def _rule_background_doc_string(step) -> None:
-    assert step.doc_string is not None
+    assert getattr(step.argument, "doc_string", None) is not None
 
 
 @given("a rule background table:")
 def _rule_background_table(step) -> None:
-    assert step.data_table is not None
+    assert getattr(step.argument, "data_table", None) is not None
 
 
 @given(parsers.parse("a number {number:d}"))
@@ -113,12 +113,12 @@ def _coordinate_step(coordinate: Coordinate) -> None:
 
 @given("a payload doc string:")
 def _payload_doc_string(step) -> None:
-    assert step.doc_string is not None
+    assert getattr(step.argument, "doc_string", None) is not None
 
 
 @given("a payload table:")
 def _payload_table(step) -> None:
-    assert step.data_table is not None
+    assert getattr(step.argument, "data_table", None) is not None
 
 
 @when(parsers.parse('I attach textual and binary evidence for "{name}"'))

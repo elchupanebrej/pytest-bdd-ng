@@ -73,8 +73,8 @@ class IdentifiableObjectRegistry:
                 continue
             self.objects_by_id[identifier] = candidate
 
-    def resolve(self, object_id: str) -> Identifiable | None:
-        return self.objects_by_id.get(str(object_id))
+    def resolve(self, object_id: str) -> Identifiable:
+        return self.objects_by_id[object_id]
 
 
 @define(slots=True)

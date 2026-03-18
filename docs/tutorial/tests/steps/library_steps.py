@@ -33,7 +33,7 @@ def these_books_in_the_catalog(
     # So it could be used without extra effort
     step: TestStep,
 ):
-    books = get_books_from_data_table(step.data_table)
+    books = get_books_from_data_table(step.argument.data_table)
 
     catalog = Catalog()
     catalog.add_books_to_catalog(books)
@@ -76,6 +76,6 @@ def only_these_books_will_be_returned(
     search_results: list[Book],
     step: TestStep,
 ):
-    expected_books = get_books_from_data_table(step.data_table)
+    expected_books = get_books_from_data_table(step.argument.data_table)
     non_expected_books = [book for book in search_results if book not in expected_books]
     assert not non_expected_books, f"Books {non_expected_books} are not expected"

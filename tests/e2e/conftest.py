@@ -20,7 +20,7 @@ from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
 from pytest_bdd.util.data_table import data_table_to_dicts
-from pytest_bdd.util.toolz_extra import compose
+from pytest_bdd.util.toolz_extra import compose, deepattrgetter
 from tests.support.cucumber_formatters import (
     install_fake_node,
     requests_terminal_formatter_output,
@@ -68,7 +68,8 @@ def ensure_fake_node_for_cucumber_formatter_report_docs(
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))
 def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
-    content = step.doc_string.content
+    doc_string = deepattrgetter("argument.doc_string", default=None)(step)[0]
+    content = doc_string.content if doc_string else ""
     is_fixture_templated = "fixture templated" in extra_opts
     if is_fixture_templated:
         template_fields = [field_name for _, field_name, _, _ in string.Formatter().parse(content) if field_name]
@@ -82,7 +83,8 @@ def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
     re.compile(r'File "(?P<name>\w+)(?P<extension>\.\w+)" in the temporary path with content:'),
 )
 def write_file(name, extension, tmp_path: Path, step):
-    content = step.doc_string.content
+    doc_string = deepattrgetter("argument.doc_string", default=None)(step)[0]
+    content = doc_string.content if doc_string else ""
     (tmp_path / f"{name}{extension}").write_text(content)
 
 
@@ -97,7 +99,7 @@ def _resolve_test_output_path(testdir: "Testdir", file_path: Path) -> Path:
 )
 def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, step):
     httpserver.expect_request(endpoint).respond_with_data(
-        step.doc_string.content,
+        step.argument.doc_string.content,
         content_type=Mimetype.gherkin_plain.value,
     )
     yield
@@ -105,13 +107,15 @@ def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, st
 
 @given(re.compile(r"Set pytest.ini content to:"))
 def _(testdir, step):
-    content = step.doc_string.content
+    doc_string = getattr(step.argument, "doc_string", None) if getattr(step, "argument", None) else None
+    content = doc_string.content if doc_string else ""
     testdir.makeini(content)
 
 
 @step("run pytest", target_fixture="pytest_result")
 def run_pytest(testdir: "Testdir", step, attach):
-    options_dict = data_table_to_dicts(step.data_table)
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    options_dict = data_table_to_dicts(data_table)
     cli_args = list(options_dict.get("cli_args", []))
     run_mode = resolve_pytester_run_mode(options_dict)
     # Most e2e scenarios validate nested pytest output after the fact. Running those
@@ -169,7 +173,8 @@ def _parse_outcome_counts(pytest_result) -> dict[str, int]:
 
 @given("Install npm packages")
 def _(testdir: "Testdir", step, attach):
-    options_dict = data_table_to_dicts(step.data_table)
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    options_dict = data_table_to_dicts(data_table)
     packages = list(options_dict.get("packages", []))
     result, harness_stdout, harness_stderr = run_quietly(
         testdir.run,
@@ -267,8 +272,9 @@ def _assert_remote_run_succeeds(remote_xdist_result):
 
 @step("pytest outcome must contain tests with statuses:")
 def check_pytest_test_statuses(pytest_result, step):
-    outcomes_kwargs = map(attrgetter("value"), step.data_table.rows[0].cells)
-    outcomes_kwargs_values = map(compose(int, attrgetter("value")), step.data_table.rows[1].cells)
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    outcomes_kwargs = map(attrgetter("value"), data_table.rows[0].cells)
+    outcomes_kwargs_values = map(compose(int, attrgetter("value")), data_table.rows[1].cells)
     outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values, strict=False))
 
     if hasattr(pytest_result, "assert_outcomes"):
@@ -287,10 +293,11 @@ def check_pytest_test_failures(pytest_result):
 
 @step("pytest outcome must match lines:")
 def check_pytest_stdout_lines(pytest_result, step):
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
     lines = list(
         map(
             compose(attrgetter("value"), itemgetter(0)),
-            map(attrgetter("cells"), step.data_table.rows),
+            map(attrgetter("cells"), data_table.rows),
         )
     )
 
@@ -325,7 +332,8 @@ def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[st
 
 @then("the renderer terminal output includes:")
 def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> None:
-    lines = [row.cells[0].value for row in step.data_table.rows]
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    lines = [row.cells[0].value for row in data_table.rows]
     output_fragments: list[str] = []
 
     if "renderer_result" in request.fixturenames:

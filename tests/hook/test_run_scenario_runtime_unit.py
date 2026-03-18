@@ -10,7 +10,7 @@ from cucumber_messages import TestStep as CucumberTestStep
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.model.message_registry import EnvelopeRegistry
-from pytest_bdd.model.scenario_run import LifecycleObjectRef, Run, RunStatus
+from pytest_bdd.model.scenario_run import LifecycleObjectRef, Run, RunNode, RunStatus
 from pytest_bdd.util.other import IdGenerator
 
 
@@ -90,13 +90,23 @@ def test_pop_clears_active_scenario_and_step_context_ids() -> None:
     run = Run.initialize_for_session(stash=config.stash, session=session)
 
     scenario_run = run.create_scenario_run(request, gherkin_document=feature, pickle=scenario)
-    scenario_run.run.active_step_id = "step-ctx-1"
+
+    scenario_run.step_node = RunNode(
+        id="step-ctx-1",
+        parent_id="scenario-1",
+        kind="step",
+        object_ref=LifecycleObjectRef(kind="step", object_id="step-1"),
+        is_active=True,
+        opened_at_transition=0,
+    )
 
     popped = Run.pop_scenario_run(request)
 
     assert popped is scenario_run
-    assert scenario_run.run.active_scenario_id is None
-    assert scenario_run.run.active_step_id is None
+    with pytest.raises(AttributeError, match="No active scenario"):
+        _ = scenario_run.run.active_scenario_id
+    with pytest.raises(AttributeError, match="No active step"):
+        _ = scenario_run.run.active_step_id
 
 
 def test_create_scenario_run_reuses_run_root_reporting_state() -> None:
