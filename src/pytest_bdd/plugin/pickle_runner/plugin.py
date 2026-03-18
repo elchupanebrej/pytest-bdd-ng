@@ -222,45 +222,6 @@ class PickleRunner:
 
         return dispatcher
 
-    @contextmanager
-    def extended_step_context(self, run: Run):
-        """Attach rich step metadata for hook consumers during step execution."""
-        scenario_run = run.active_scenario_run
-        gherkin_document = resolve_feature_object(run)
-        pickle = resolve_pickle_object(run)
-        step = resolve_step_object(run)
-        if gherkin_document is None or pickle is None:
-            yield
-            return
-
-        try:
-            if isinstance(step, PickleStep):
-                feature_binding = scenario_run.feature_binding() if scenario_run is not None else None
-                step_runtime_enrichment = resolve_step_runtime_enrichment(
-                    step=step,
-                    feature_binding=feature_binding,
-                    scenario_run=scenario_run,
-                )
-                step.__dict__["doc_string"] = step_runtime_enrichment["doc_string"]
-                step.__dict__["data_table"] = step_runtime_enrichment["data_table"]
-                step.__dict__["keyword"] = step_runtime_enrichment["keyword"]
-                step.__dict__["line_number"] = step_runtime_enrichment["line_number"]
-
-            scenario_description = resolve_scenario_description(
-                pickle=pickle,
-                feature_binding=scenario_run.feature_binding() if scenario_run is not None else None,
-                scenario_run=scenario_run,
-            )
-            pickle.__dict__["description"] = scenario_description
-            yield
-        finally:
-            if isinstance(step, PickleStep):
-                step.__dict__.pop("doc_string", None)
-                step.__dict__.pop("data_table", None)
-                step.__dict__.pop("keyword", None)
-                step.__dict__.pop("line_number", None)
-            pickle.__dict__["description"] = None
-
     def pytest_bdd_run_step(
         self,
         request,
@@ -274,7 +235,32 @@ class PickleRunner:
         if gherkin_document is None or pickle is None or step is None:
             return
 
-        with self.extended_step_context(run):
+        from pytest_bdd.model.scenario_run import StepRun
+
+        scenario_run = run.active_scenario_run
+
+        if scenario_run is not None:
+            if isinstance(step, PickleStep):
+                feature_binding = scenario_run.feature_binding()
+                step_runtime_enrichment = resolve_step_runtime_enrichment(
+                    step=step,
+                    feature_binding=feature_binding,
+                    scenario_run=scenario_run,
+                )
+                scenario_run.step_run = StepRun(
+                    step=step,
+                    keyword=step_runtime_enrichment.get("keyword"),
+                    text=getattr(step, "text", ""),
+                )
+
+            scenario_description = resolve_scenario_description(
+                pickle=pickle,
+                feature_binding=scenario_run.feature_binding() if scenario_run is not None else None,
+                scenario_run=scenario_run,
+            )
+            pickle.__dict__["description"] = scenario_description
+
+        try:
             hook_kwargs = {
                 "request": request,
                 "run": run,
@@ -310,6 +296,10 @@ class PickleRunner:
 
             hook_kwargs["step_func_args"] = {}
             step_params = step_definition.get_parameters(request, step)
+
+            if scenario_run is not None and scenario_run.step_run is not None:
+                scenario_run.step_run.parameters = step_params
+
             try:
                 self._inject_step_parameters_as_fixtures(
                     step_params=step_params,
@@ -357,6 +347,9 @@ class PickleRunner:
                     step_definition=step_definition,
                 )
             except Exception as exception:
+                if scenario_run is not None and scenario_run.step_run is not None:
+                    scenario_run.step_run.status = RunStatus.failed
+
                 self._invoke_bdd_hook(
                     hook_name="pytest_bdd_step_error",
                     request=request,
@@ -371,6 +364,8 @@ class PickleRunner:
                     exception=exception,
                 )
                 raise
+        finally:
+            pickle.__dict__["description"] = None
 
     @pytest.hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(

@@ -46,10 +46,10 @@ description: "Task list for feature 015-replace-step-context implementation"
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Update runtime execution in `src/pytest_bdd/plugin/pickle_runner/plugin.py` to instantiate and assign `StepRun` to `run.scenario_run.step_run` during step setup/execution.
-- [ ] T005 [P] [US1] Update `tests/hook/test_scenario_reference_resolution.py` to test context resolution via `run.scenario_run.step_run` instead of `extended_step_context`.
-- [ ] T006 [US1] Remove the `extended_step_context` context manager/method completely from `src/pytest_bdd/plugin/pickle_runner/plugin.py` and any other definitions.
-- [ ] T007 [US1] Refactor any other internal usages of `extended_step_context` found in the codebase to use `run.scenario_run.step_run`.
+- [x] T004 [US1] Update runtime execution in `src/pytest_bdd/plugin/pickle_runner/plugin.py` to instantiate and assign `StepRun` to `run.scenario_run.step_run` during step setup/execution.
+- [x] T005 [P] [US1] Update `tests/hook/test_scenario_reference_resolution.py` to test context resolution via `run.scenario_run.step_run` instead of `extended_step_context`.
+- [x] T006 [US1] Remove the `extended_step_context` context manager/method completely from `src/pytest_bdd/plugin/pickle_runner/plugin.py` and any other definitions.
+- [x] T007 [US1] Refactor any other internal usages of `extended_step_context` found in the codebase to use `run.scenario_run.step_run`.
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 

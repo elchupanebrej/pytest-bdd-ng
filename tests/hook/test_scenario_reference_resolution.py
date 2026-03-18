@@ -26,7 +26,7 @@ from pytest_bdd.model.scenario_run import (
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
-from pytest_bdd.plugin.pickle_runner.run_access import resolve_step_runtime_enrichment
+from pytest_bdd.plugin.pickle_runner.run_access import resolve_scenario_description, resolve_step_runtime_enrichment
 
 
 def _build_scenario_run() -> ScenarioRun:
@@ -75,8 +75,7 @@ def _build_feature_binding(run: Run, entries: dict[str, object]) -> FeatureRunti
     return binding
 
 
-def test_extended_step_context_resolves_scenario_description_from_context_registry() -> None:
-    runner = PickleRunner()
+def test_step_run_resolves_scenario_description_from_context_registry() -> None:
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(
@@ -88,12 +87,15 @@ def test_extended_step_context_resolves_scenario_description_from_context_regist
     scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
-    with runner.extended_step_context(scenario_run.run):
-        assert scenario.description == "Scenario from context"
+    scenario_description = resolve_scenario_description(
+        pickle=scenario,
+        feature_binding=binding,
+        scenario_run=scenario_run,
+    )
+    assert scenario_description == "Scenario from context"
 
 
-def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> None:
-    runner = PickleRunner()
+def test_step_run_prefers_first_ast_node_id_for_nested_links() -> None:
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(
@@ -108,12 +110,15 @@ def test_extended_step_context_prefers_first_ast_node_id_for_nested_links() -> N
     scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
-    with runner.extended_step_context(scenario_run.run):
-        assert scenario.description == "Nested scenario description"
+    scenario_description = resolve_scenario_description(
+        pickle=scenario,
+        feature_binding=binding,
+        scenario_run=scenario_run,
+    )
+    assert scenario_description == "Nested scenario description"
 
 
-def test_extended_step_context_records_missing_scenario_reference_in_context_diagnostics() -> None:
-    runner = PickleRunner()
+def test_step_run_records_missing_scenario_reference_in_context_diagnostics() -> None:
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(scenario_run.run, {})
@@ -122,8 +127,12 @@ def test_extended_step_context_records_missing_scenario_reference_in_context_dia
     scenario_run.gherkin_document = binding.gherkin_document
     scenario_run.pickle = scenario
 
-    with runner.extended_step_context(scenario_run.run):
-        assert scenario.description is None
+    scenario_description = resolve_scenario_description(
+        pickle=scenario,
+        feature_binding=binding,
+        scenario_run=scenario_run,
+    )
+    assert scenario_description is None
 
     assert scenario_run.reference_resolver.missing_reference_diagnostics == ["Missing AST node id: missing-scenario-id"]
 
