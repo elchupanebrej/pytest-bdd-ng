@@ -652,6 +652,17 @@ class RunNode:
 
 
 @define(slots=True)
+class StepRun:
+    step: PickleStep | None = None
+    keyword: str | None = None
+    text: str = ""
+    parameters: dict[str, Any] = field(factory=dict)
+    status: RunStatus = RunStatus.ok
+    duration: float | None = None
+    attachments: list[Any] = field(factory=list)
+
+
+@define(slots=True)
 class ScenarioRun:
     id: str
     run_ref: LifecycleObjectRef
@@ -675,6 +686,7 @@ class ScenarioRun:
     pickle: Pickle | None = None
     step_object: PickleStep | None = None
     previous_step_object: Any | None = None
+    step_run: StepRun | None = None
     reference_resolver: ReferenceResolverState = field(factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
 
