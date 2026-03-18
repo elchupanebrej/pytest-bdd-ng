@@ -8,13 +8,6 @@ Planned
 -------
 - Refactor
 
-  - Remove pytests 625 and outdated compatibility code
-  - scenatio fixture has to be replaced with pickle
-  - Rework step context
-
-  - Split plugins
-
-    - Add poset plugin/hooks ordering into pluggy library
   - Simplify complex code chunks
 
     - Rework extended_step_context method usage
@@ -39,7 +32,6 @@ Planned
     - Remove dependency on pydantic where possible
   - Documentation generation
 
-    - Use modern tools; Don't use multiple templating tools
     - Include StructBDD support
     - Add API doc
     - Move tox.ini, pytest.ini into pyproject.toml
@@ -62,43 +54,41 @@ Planned
   - Undefined steps must be handled
 - Tests rework
 
-  - Try to use pytest-xdist at workers on different machines (sending back ndjson info https://codespeak.net/execnet/example/test_info.html#sending-channels-over-channels)
-
-    - Investigate https://smarie.github.io/python-pytest-harvest/
   - Check support of pytest-rerunfailures
   - Parametrize step execution by different step realizations using https://smarie.github.io/python-pytest-cases/
   - Add tests about linked files and features autoload (feature autoload must not be disabled on linked files)
-  - Remove tests targeting Feature parsing
-
-    - https://github.com/pytest-dev/pytest-bdd/issues/488
   - Add support of native legacy cucumber-json
-  - Switch testdir to pytester after pytest<6.2 get EOL (python 3.9 get EOL)
-- Use uv/ruff
-
-  - Use mypy on ci, pyright on-commit
-
-
-Unreleased
-----------
-
-- Internal: package functions were split between plugins
-- Unify paths globbing between generation and autoloading
-- Ruff is used for code formatting and linting
-- Official gherkin parser support =33
-- Official cucumber-messages package is used for messages reporting
-
-  - cucumber-messages has accepted by gherkin community
-- Temporarily allure reporting is disabled
-- Switched ``*.md`` support to native realization
-- Declined usage of pytest<6.0
-- StructBDD features autoload is checked and uses common mechanism
-
-  - Features are collected by their mimetype
 
 
 2.4.0
 -----
 - Add python official gherkin parser for markdown documents
+- Drop support for Python 3.9 and pytest<6.2.5 (EOL)
+- Migrate code formatting and linting to Ruff
+- Refactor internal architecture:
+
+  - Decouple package functions into separate plugins (scenario reporting, gherkin-terminal-reporter, struct-bdd, code generation, allure-logger, cucumber_json)
+  - Unify execution context runtime (stash-backed) and route BDD hooks through it
+  - Replace scenario context/fixture with pickle semantics
+  - Rework step context
+  - Modernize attrs interface and tighten stash lookup semantics
+- Update and unify messages reporting using the official cucumber-messages package (v32.0.1)
+
+  - Add typed validation for schema-compatible message reports
+  - Add dedicated messages coverage audit suite
+  - Remove gherkin message reporter auto-load, requiring explicit opt-in
+- Migrate documentation generation pipeline to Jinja2
+
+  - Implement ordered feature docs
+  - Validate matrix flow for user-facing E2E docs/tests
+- Finalize pytest-xdist integration and reporting functionality
+- Temporarily disable Allure plugin integration and reporting
+- Remove legacy feature parsing tests
+- Fix parser encoding handling (utf-8 by default) and enforce non-empty parsed BDD headings
+- Unify paths globbing between generation and autoloading
+- Official gherkin parser support =33
+- Switched ``*.md`` support to native realization
+- StructBDD features autoload is checked and uses common mechanism (Features are collected by their mimetype)
 
 2.3.1
 -----
