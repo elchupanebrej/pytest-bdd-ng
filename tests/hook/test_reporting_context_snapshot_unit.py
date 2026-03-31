@@ -52,6 +52,9 @@ def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
     assert snapshot.resolved_from_hierarchy is True
     assert snapshot.fallback_reason is None
     assert snapshot.stage == RunStage.scenario_running
+    assert snapshot.active_set.scenario.is_active is False
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.previous_step.empty_state_reason == "no_previous_step"
 
 
 def test_snapshot_falls_back_to_run_root_from_stash() -> None:
@@ -72,6 +75,9 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
     assert snapshot.run_id == "run-stash"
     assert snapshot.active_set.run.object_id == "run-stash"
     assert snapshot.fallback_reason == "hierarchy-missing"
+    assert snapshot.active_set.feature.empty_state_reason == "idle"
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.step.empty_state_reason == "idle"
 
 
 def test_snapshot_marks_missing_active_scenario_run_explicitly() -> None:
@@ -88,3 +94,6 @@ def test_snapshot_marks_missing_active_scenario_run_explicitly() -> None:
     assert snapshot is not None
     assert snapshot.resolved_from_hierarchy is True
     assert snapshot.fallback_reason == "run_has_no_active_scenario"
+    assert snapshot.active_set.feature.empty_state_reason == "idle"
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.previous_step.empty_state_reason == "no_previous_step"

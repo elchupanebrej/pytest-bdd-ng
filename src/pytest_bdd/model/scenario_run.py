@@ -4,7 +4,7 @@ from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Generator, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -17,7 +17,6 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
 )
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
-from mypy.main import process_options
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.const import TAG_PREFIX
@@ -28,6 +27,8 @@ from pytest_bdd.types.protocol import Identifiable, LinkedAST, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Session, Stash
 
 LifecycleKind = Literal["run", "feature", "scenario", "step"]
@@ -68,6 +69,28 @@ class LifecycleObjectRef:
     name: str | None = None
     source: str | None = None
     is_active: bool = True
+    empty_state_reason: str | None = None
+    fail_fast_code: str | None = None
+
+    @classmethod
+    def inactive(
+        cls,
+        kind: LifecycleKind,
+        *,
+        reason: str,
+        name: str | None = None,
+        source: str | None = "lifecycle-slot",
+        fail_fast_code: str | None = None,
+    ) -> Self:
+        return cls(
+            kind=kind,
+            object_id=f"{kind}:{reason}",
+            name=name or kind,
+            source=source,
+            is_active=False,
+            empty_state_reason=reason,
+            fail_fast_code=fail_fast_code,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -76,25 +99,66 @@ class LifecycleObjectRef:
             "name": self.name,
             "source": self.source,
             "is_active": self.is_active,
+            "empty_state_reason": self.empty_state_reason,
+            "fail_fast_code": self.fail_fast_code,
         }
+
+
+@define(slots=True)
+class NoPreviousStep:
+    id: str = "step:no_previous_step"
+    text: str = ""
+    keyword: str = ""
+
+
+def _inactive_feature_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("feature", reason="idle")
+
+
+def _inactive_scenario_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("scenario", reason="idle")
+
+
+def _inactive_step_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("step", reason="idle", fail_fast_code="object_inactive")
+
+
+def _no_previous_step_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("step", reason="no_previous_step")
+
+
+def _finished_feature_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("feature", reason="finished")
+
+
+def _finished_scenario_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("scenario", reason="finished")
+
+
+def _finished_step_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("step", reason="finished", fail_fast_code="object_inactive")
+
+
+def _finished_previous_step_ref() -> LifecycleObjectRef:
+    return LifecycleObjectRef.inactive("step", reason="finished")
 
 
 @define(slots=True)
 class ActiveObjectSet:
     run: LifecycleObjectRef
     captured_at_stage: RunStage
-    feature: LifecycleObjectRef | None = None
-    scenario: LifecycleObjectRef | None = None
-    step: LifecycleObjectRef | None = None
-    previous_step: LifecycleObjectRef | None = None
+    feature: LifecycleObjectRef = field(factory=_inactive_feature_ref)
+    scenario: LifecycleObjectRef = field(factory=_inactive_scenario_ref)
+    step: LifecycleObjectRef = field(factory=_inactive_step_ref)
+    previous_step: LifecycleObjectRef = field(factory=_no_previous_step_ref)
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "run": self.run.as_dict(),
-            "feature": self.feature.as_dict() if self.feature is not None else None,
-            "scenario": self.scenario.as_dict() if self.scenario is not None else None,
-            "step": self.step.as_dict() if self.step is not None else None,
-            "previous_step": self.previous_step.as_dict() if self.previous_step is not None else None,
+            "feature": self.feature.as_dict(),
+            "scenario": self.scenario.as_dict(),
+            "step": self.step.as_dict(),
+            "previous_step": self.previous_step.as_dict(),
             "captured_at_stage": self.captured_at_stage.value,
         }
 
@@ -152,7 +216,7 @@ class ReferenceResolverState:
 
 @define(slots=True)
 class ContextErrorState:
-    code: Literal["object_inactive", "transition_order_violation", "context_not_initialized"]
+    code: Literal["object_inactive", "transition_order_violation", "context_not_initialized", "binding_missing"]
     message: str
     hook_name: str
     stage: RunStage
@@ -239,13 +303,13 @@ class FeatureRuntimeBinding:
     def resolve_node(self, object_id: str) -> Identifiable:
         return self.run.identifiable_registry.resolve(object_id)
 
-    def linked_ast_nodes_for(self, obj: MultiLinkedAST|LinkedAST|Any) -> Generator[Identifiable]:
-        def ast_link(obj: LinkedAST |Any) -> Generator[str]:
+    def linked_ast_nodes_for(self, obj: MultiLinkedAST | LinkedAST | Any) -> Generator[Identifiable]:
+        def ast_link(obj: LinkedAST | Any) -> Generator[str]:
             with suppress(AttributeError):
                 yield obj.ast_node_id
 
         def ast_links(obj: MultiLinkedAST) -> Generator[str]:
-            with suppress(AttributeError|Any):
+            with suppress(AttributeError | Any):
                 yield from obj.ast_node_ids
 
         for ast_node_id in chain(ast_link(obj), ast_links(obj)):
@@ -253,11 +317,7 @@ class FeatureRuntimeBinding:
                 yield self.resolve_node(ast_node_id)
 
     def pickle_ast_table_rows(self, pickle: Pickle) -> list[TableRow]:
-        return [
-            node
-            for node in self.linked_ast_nodes_for(pickle)
-            if isinstance(node, TableRow)
-        ]
+        return [node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, TableRow)]
 
     def pickle_table_rows_breadcrumb(self, pickle: Pickle) -> str:
         table_rows_lines = ",".join(
@@ -270,11 +330,7 @@ class FeatureRuntimeBinding:
 
     def pickle_ast_scenario(self, pickle: Pickle) -> Scenario | None:
         return next(
-            (
-                node
-                for node in self.linked_ast_nodes_for(pickle)
-                if isinstance(node, Scenario)
-            ),
+            (node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, Scenario)),
             None,
         )
 
@@ -288,11 +344,7 @@ class FeatureRuntimeBinding:
 
     def pickle_step_ast_step(self, pickle_step: PickleStep) -> Step | None:
         return next(
-            (
-                node
-                for node in self.linked_ast_nodes_for(pickle_step)
-                if isinstance(node, Step)
-            ),
+            (node for node in self.linked_ast_nodes_for(pickle_step) if isinstance(node, Step)),
             None,
         )
 
@@ -378,17 +430,26 @@ class Run(StashBound):
 
     @property
     def active_scenario_id(self) -> str:
-        node = deepattrgetter('active_scenario_run.scenario_node', default=None)(self)[0]
-        if getattr(node, 'is_active', False):
+        node = deepattrgetter("active_scenario_run.scenario_node", default=None)(self)[0]
+        if getattr(node, "is_active", False):
             return node.id
-        raise AttributeError("No active scenario")
+        msg = "No active scenario"
+        raise AttributeError(msg)
 
     @property
     def active_step_id(self) -> str:
-        node = deepattrgetter('active_scenario_run.step_node', default=None)(self)[0]
-        if getattr(node, 'is_active', False):
+        node = deepattrgetter("active_scenario_run.step_node", default=None)(self)[0]
+        if getattr(node, "is_active", False):
             return node.id
-        raise AttributeError("No active step")
+        msg = "No active step"
+        raise AttributeError(msg)
+
+    def require_active_scenario_run(self, *, hook_name: str) -> ScenarioRun:
+        scenario_run = self.active_scenario_run
+        if scenario_run is not None:
+            return scenario_run
+        msg = f"Active scenario run is unavailable for {hook_name}; lifecycle context is not initialized"
+        raise RuntimeError(msg)
 
     def advance_transition(self) -> None:
         self.transition_index += 1
@@ -445,7 +506,7 @@ class Run(StashBound):
         run.active_scenario_run = scenario_run
 
     @classmethod
-    def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:  # noqa: C901
+    def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
         config = getattr(request, "config", None)
         stash = getattr(config, "stash", None)
         run = cls.find_in_stash(stash) if stash is not None else None
@@ -458,13 +519,7 @@ class Run(StashBound):
 
         run_root = scenario_run.run
         if run_root is not None:
-            if scenario_run.step_node is not None:
-                scenario_run.step_node.close(run_root.transition_index)
-            if scenario_run.scenario_node is not None:
-                scenario_run.scenario_node.close(run_root.transition_index)
-            if scenario_run.feature_node is not None:
-                scenario_run.feature_node.close(run_root.transition_index)
-
+            scenario_run.ensure_finished_for_cleanup(at_transition=run_root.transition_index)
             if run_root.active_scenario_run is scenario_run:
                 run_root.active_scenario_run = None
             if run_root.active_feature_uri == scenario_run.feature_uri:
@@ -506,19 +561,21 @@ class Run(StashBound):
                 feature_source = feature_binding.source
 
         feature_ref = build_lifecycle_ref("feature", gherkin_document, is_active=gherkin_document is not None)
+        if feature_ref is None:
+            feature_ref = _inactive_feature_ref()
         scenario_ref = build_lifecycle_ref("scenario", pickle, is_active=pickle is not None)
+        if scenario_ref is None:
+            scenario_ref = _inactive_scenario_ref()
         active_set = ActiveObjectSet(
             run=run_ref,
             feature=feature_ref,
             scenario=scenario_ref,
-            step=None,
-            previous_step=None,
             captured_at_stage=RunStage.idle,
         )
 
         run_node_id = initial_scenario_run_id(request)
         feature_node = None
-        if feature_ref is not None:
+        if feature_ref.is_active and gherkin_document is not None:
             feature_node = RunNode(
                 id=f"feature-{runtime_object_id(gherkin_document)}-{run_node_id}",
                 parent_id=run.id,
@@ -531,7 +588,7 @@ class Run(StashBound):
             run.active_feature_uri = feature_uri
 
         scenario_node = None
-        if scenario_ref is not None:
+        if scenario_ref.is_active and pickle is not None:
             scenario_node = RunNode(
                 id=run_node_id,
                 parent_id=feature_node.id if feature_node is not None else run.id,
@@ -546,8 +603,8 @@ class Run(StashBound):
             run_ref=run_ref,
             feature_ref=feature_ref,
             scenario_ref=scenario_ref,
-            step_ref=None,
-            previous_step_ref=None,
+            step_ref=_inactive_step_ref(),
+            previous_step_ref=_no_previous_step_ref(),
             active_hook=HookPhase.before_scenario,
             stage=RunStage.idle,
             status=RunStatus.ok,
@@ -562,7 +619,7 @@ class Run(StashBound):
             feature_source=feature_source,
             pickle=pickle,
             step_object=None,
-            previous_step_object=None,
+            previous_step_object=NoPreviousStep(),
         )
         key = type(self)._request_key(request)
         run.scenario_runs_by_request[key] = scenario_run
@@ -704,10 +761,10 @@ class ScenarioRun:
     active_set: ActiveObjectSet
     run: Run
     transition_index: int = 0
-    feature_ref: LifecycleObjectRef | None = None
-    scenario_ref: LifecycleObjectRef | None = None
-    step_ref: LifecycleObjectRef | None = None
-    previous_step_ref: LifecycleObjectRef | None = None
+    feature_ref: LifecycleObjectRef = field(factory=_inactive_feature_ref)
+    scenario_ref: LifecycleObjectRef = field(factory=_inactive_scenario_ref)
+    step_ref: LifecycleObjectRef = field(factory=_inactive_step_ref)
+    previous_step_ref: LifecycleObjectRef = field(factory=_no_previous_step_ref)
     last_error: ContextErrorState | None = None
     feature_uri: str | None = None
     feature_node: RunNode | None = None
@@ -717,10 +774,10 @@ class ScenarioRun:
     feature_source: Source | None = None
     pickle: Pickle | None = None
     step_object: PickleStep | None = None
-    previous_step_object: Any | None = None
+    previous_step_object: Any = field(factory=NoPreviousStep)
     step_run: StepRun | None = None
     reference_resolver: ReferenceResolverState = field(factory=ReferenceResolverState)
-    _active_kind_index: dict[LifecycleKind, LifecycleObjectRef | None] = field(init=False, repr=False)
+    _active_kind_index: dict[LifecycleKind, LifecycleObjectRef] = field(init=False, repr=False)
 
     def __attrs_post_init__(self) -> None:
         self._active_kind_index = {
@@ -733,6 +790,25 @@ class ScenarioRun:
     def advance_transition(self) -> None:
         self.transition_index += 1
 
+    def record_context_error(
+        self,
+        *,
+        code: Literal["object_inactive", "transition_order_violation", "context_not_initialized", "binding_missing"],
+        message: str,
+        hook_name: str,
+        requested_kind: LifecycleKind | None = None,
+    ) -> ContextErrorState:
+        error = ContextErrorState(
+            code=code,
+            message=message,
+            hook_name=hook_name,
+            stage=self.stage,
+            requested_kind=requested_kind,
+        )
+        self.last_error = error
+        self.run.last_error = error
+        return error
+
     def set_active_set(self, active_set: ActiveObjectSet) -> None:
         self.active_set = active_set
         self._active_kind_index = {
@@ -744,11 +820,83 @@ class ScenarioRun:
 
     def get_active_object(self, kind: LifecycleKind) -> LifecycleObjectRef | None:
         candidate = self._active_kind_index.get(kind)
-        if candidate is None:
-            return None
         if not candidate.is_active:
             return None
         return candidate
+
+    def require_feature_binding(self, *, hook_name: str) -> FeatureRuntimeBinding:
+        binding = self.feature_binding
+        if binding is not None:
+            return binding
+        error = self.record_context_error(
+            code="binding_missing",
+            message=f"Feature runtime binding is unavailable for {hook_name} at stage '{self.stage.value}'",
+            hook_name=hook_name,
+            requested_kind="feature",
+        )
+        raise RuntimeError(error.message)
+
+    def require_gherkin_document(self, *, hook_name: str) -> GherkinDocument:
+        binding = self.feature_binding
+        if binding is not None:
+            return binding.gherkin_document
+        if self.gherkin_document is not None:
+            return self.gherkin_document
+        error = self.record_context_error(
+            code="binding_missing",
+            message=f"Feature object is unavailable for {hook_name} at stage '{self.stage.value}'",
+            hook_name=hook_name,
+            requested_kind="feature",
+        )
+        raise RuntimeError(error.message)
+
+    def require_pickle(self, *, hook_name: str) -> Pickle:
+        if self.pickle is not None:
+            return self.pickle
+        error = self.record_context_error(
+            code="context_not_initialized",
+            message=f"Pickle object is unavailable for {hook_name} at stage '{self.stage.value}'",
+            hook_name=hook_name,
+            requested_kind="scenario",
+        )
+        raise RuntimeError(error.message)
+
+    def require_step_object(self, *, hook_name: str) -> PickleStep | Any:
+        if self.step_object is not None:
+            return self.step_object
+        error = self.record_context_error(
+            code="context_not_initialized",
+            message=f"Step object is unavailable for {hook_name} at stage '{self.stage.value}'",
+            hook_name=hook_name,
+            requested_kind="step",
+        )
+        raise RuntimeError(error.message)
+
+    def ensure_finished_for_cleanup(self, *, at_transition: int) -> None:
+        if self.step_node is not None and self.step_node.is_active:
+            self.step_node.close(at_transition)
+        if self.scenario_node is not None and self.scenario_node.is_active:
+            self.scenario_node.close(at_transition)
+        if self.feature_node is not None and self.feature_node.is_active:
+            self.feature_node.close(at_transition)
+
+        self.feature_ref = _finished_feature_ref()
+        self.scenario_ref = _finished_scenario_ref()
+        self.step_ref = _finished_step_ref()
+        self.previous_step_ref = _finished_previous_step_ref()
+        self.step_object = None
+        self.previous_step_object = NoPreviousStep()
+        self.stage = RunStage.finished
+        self.set_active_set(
+            ActiveObjectSet(
+                run=self.run_ref,
+                feature=self.feature_ref,
+                scenario=self.scenario_ref,
+                step=self.step_ref,
+                previous_step=self.previous_step_ref,
+                captured_at_stage=RunStage.finished,
+            )
+        )
 
     @property
     def feature_binding(self) -> FeatureRuntimeBinding | None:
@@ -760,10 +908,10 @@ class ScenarioRun:
         return {
             "id": self.id,
             "run_ref": self.run_ref.as_dict(),
-            "feature_ref": self.feature_ref.as_dict() if self.feature_ref is not None else None,
-            "scenario_ref": self.scenario_ref.as_dict() if self.scenario_ref is not None else None,
-            "step_ref": self.step_ref.as_dict() if self.step_ref is not None else None,
-            "previous_step_ref": self.previous_step_ref.as_dict() if self.previous_step_ref is not None else None,
+            "feature_ref": self.feature_ref.as_dict(),
+            "scenario_ref": self.scenario_ref.as_dict(),
+            "step_ref": self.step_ref.as_dict(),
+            "previous_step_ref": self.previous_step_ref.as_dict(),
             "active_hook": self.active_hook.value,
             "stage": self.stage.value,
             "status": self.status.value,
@@ -771,7 +919,7 @@ class ScenarioRun:
             "transition_index": self.transition_index,
             "feature_uri": self.feature_uri,
             "last_error": self.last_error.as_dict() if self.last_error is not None else None,
-            "run": self.run.as_dict() if self.run is not None else None,
+            "run": self.run.as_dict(),
             "feature_node": self.feature_node.as_dict() if self.feature_node is not None else None,
             "scenario_node": self.scenario_node.as_dict() if self.scenario_node is not None else None,
             "step_node": self.step_node.as_dict() if self.step_node is not None else None,

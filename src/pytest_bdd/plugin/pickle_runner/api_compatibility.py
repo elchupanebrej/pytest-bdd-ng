@@ -20,6 +20,10 @@ DECORATOR_PUBLIC_SYMBOLS = {
 }
 
 
+def normalize_public_symbols(symbols: list[str]) -> list[str]:
+    return sorted(dict.fromkeys(symbols))
+
+
 def collect_hook_public_symbols() -> list[str]:
     symbols: list[str] = []
     for attr_name, attr_value in vars(PickleRunnerHookSpec).items():
@@ -28,7 +32,7 @@ def collect_hook_public_symbols() -> list[str]:
         if isfunction(attr_value):
             symbols.append(f"hook:{attr_name}")
     symbols.extend(DECORATOR_PUBLIC_SYMBOLS)
-    return sorted(symbols)
+    return normalize_public_symbols(symbols)
 
 
 def load_api_baseline(path: str | Path) -> dict[str, Any]:
@@ -43,8 +47,9 @@ def build_external_api_compatibility_record(
     baseline_symbols: list[str],
     current_symbols: list[str] | None = None,
 ) -> ExternalApiCompatibilityRecord:
-    effective_current_symbols = current_symbols or collect_hook_public_symbols()
-    baseline_set = set(baseline_symbols)
+    effective_current_symbols = normalize_public_symbols(current_symbols or collect_hook_public_symbols())
+    normalized_baseline_symbols = normalize_public_symbols(baseline_symbols)
+    baseline_set = set(normalized_baseline_symbols)
     current_set = set(effective_current_symbols)
 
     removed_symbols = sorted(baseline_set - current_set)
@@ -56,7 +61,7 @@ def build_external_api_compatibility_record(
     return ExternalApiCompatibilityRecord(
         api_surface_id="hook-plugin-public-api",
         baseline_reference=baseline_reference,
-        changed_symbols=sorted(additive_symbols),
+        changed_symbols=normalize_public_symbols(additive_symbols),
         removed_symbols=removed_symbols,
         renamed_symbols=renamed_symbols,
         additive_symbols=additive_symbols,

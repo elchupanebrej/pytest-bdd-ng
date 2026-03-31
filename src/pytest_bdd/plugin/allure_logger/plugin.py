@@ -10,9 +10,9 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 from pytest_bdd.plugin.pickle_runner.run_access import (
-    resolve_feature_object,
-    resolve_pickle_object,
-    resolve_step_object,
+    require_feature_object,
+    require_pickle_object,
+    require_step_object,
 )
 
 if ALLURE_INSTALLED:
@@ -82,17 +82,13 @@ class AllureLogger:
         step_definition,
     ):
         """Called before step function is set up."""
-        step = resolve_step_object(run)
-        if step is None:
-            return
+        step = require_step_object(run, hook_name="pytest_bdd_before_step_call")
         step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 
     @pytest.hookimpl
     def pytest_bdd_before_scenario(self, request, run):
-        gherkin_document = resolve_feature_object(run)
-        pickle = resolve_pickle_object(run)
-        if gherkin_document is None or pickle is None:
-            return
+        gherkin_document = require_feature_object(run, hook_name="pytest_bdd_before_scenario")
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_before_scenario")
         scenario_result_uuid = self._cache.get(pickle)
         test_result_uuid = self._cache.get(request.node.nodeid)
 
@@ -123,9 +119,7 @@ class AllureLogger:
         request,  # noqa: ARG002 hookspec
         run,
     ):
-        pickle = resolve_pickle_object(run)
-        if pickle is None:
-            return
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_after_scenario")
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.stop = now()
@@ -138,9 +132,7 @@ class AllureLogger:
         run,
         exception,
     ):
-        pickle = resolve_pickle_object(run)
-        if pickle is None:
-            return
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_step_func_lookup_error")
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.status = Status.BROKEN

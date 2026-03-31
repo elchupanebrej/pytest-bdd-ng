@@ -11,9 +11,9 @@ import pytest
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
 from pytest_bdd.plugin.pickle_runner.run_access import (
     build_reporting_context_snapshot,
-    resolve_feature_object,
-    resolve_pickle_object,
-    resolve_step_object,
+    require_feature_binding,
+    require_pickle_object,
+    require_step_object,
 )
 from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, StepReport
 
@@ -27,6 +27,14 @@ class ScenarioReporter:
         # Canonical scenario report derivation path: one serializer used for both test reports and downstream renderers.
         return scenario_report.serialize()
 
+    def _store_context_snapshot(self, *, request: FixtureRequest, fallback_reason: str) -> None:
+        self.current_report.set_context_snapshot(
+            build_reporting_context_snapshot(
+                request=request,
+                fallback_reason=fallback_reason,
+            )
+        )
+
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: Item, call: CallInfo):
         outcome = yield
@@ -38,8 +46,7 @@ class ScenarioReporter:
             if scenario_report is not None:
                 rep.scenario = self._derive_scenario_report(scenario_report)
                 rep.item = {"name": item.name}
-                if scenario_report.context_snapshot is not None:
-                    rep.execution_context_snapshot = scenario_report.context_snapshot.as_dict()
+                rep.execution_context_snapshot = scenario_report.context_snapshot.as_dict()
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_scenario(
@@ -48,21 +55,13 @@ class ScenarioReporter:
         run,
     ) -> None:
         """Create scenario report for the item."""
-        gherkin_document = resolve_feature_object(run)
-        pickle = resolve_pickle_object(run)
-        if gherkin_document is None or pickle is None:
-            return
-        feature_binding = run.active_feature_binding
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_before_scenario")
+        feature_binding = require_feature_binding(run, hook_name="pytest_bdd_before_scenario")
         self.current_report = ScenarioReport(
             feature_binding=feature_binding,
             pickle=pickle,
         )  # type: ignore[call-arg]
-        self.current_report.set_context_snapshot(
-            build_reporting_context_snapshot(
-                request=request,
-                fallback_reason="before_scenario_hierarchy_not_available",
-            )
-        )
+        self._store_context_snapshot(request=request, fallback_reason="before_scenario_hierarchy_not_available")
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_step_error(
@@ -74,12 +73,7 @@ class ScenarioReporter:
         exception: Exception,  # noqa: ARG002 hookspec
     ) -> None:
         """Finalize the step report as failed."""
-        self.current_report.set_context_snapshot(
-            build_reporting_context_snapshot(
-                request=request,
-                fallback_reason="step_error_hierarchy_not_available",
-            )
-        )
+        self._store_context_snapshot(request=request, fallback_reason="step_error_hierarchy_not_available")
         self.current_report.fail()
 
     @pytest.hookimpl(tryfirst=True)
@@ -90,15 +84,8 @@ class ScenarioReporter:
         step_func: Callable,  # noqa: ARG002 hookspec
     ) -> None:
         """Store step start time."""
-        step = resolve_step_object(run)
-        if step is None:
-            return
-        self.current_report.set_context_snapshot(
-            build_reporting_context_snapshot(
-                request=request,
-                fallback_reason="before_step_hierarchy_not_available",
-            )
-        )
+        step = require_step_object(run, hook_name="pytest_bdd_before_step")
+        self._store_context_snapshot(request=request, fallback_reason="before_step_hierarchy_not_available")
         self.current_report.add_step_report(StepReport(step=step))
 
     @pytest.hookimpl(tryfirst=True)
@@ -110,12 +97,7 @@ class ScenarioReporter:
         step_func_args: dict,  # noqa: ARG002 hookspec
     ) -> None:
         """Finalize the step report as successful."""
-        self.current_report.set_context_snapshot(
-            build_reporting_context_snapshot(
-                request=request,
-                fallback_reason="after_step_hierarchy_not_available",
-            )
-        )
+        self._store_context_snapshot(request=request, fallback_reason="after_step_hierarchy_not_available")
         self.current_report.current_step_report.finalize()
 
     @pytest.hookimpl(tryfirst=True)
@@ -124,9 +106,4 @@ class ScenarioReporter:
         request: FixtureRequest,
         run,  # noqa: ARG002 hookspec
     ) -> None:
-        self.current_report.set_context_snapshot(
-            build_reporting_context_snapshot(
-                request=request,
-                fallback_reason="after_scenario_hierarchy_not_available",
-            )
-        )
+        self._store_context_snapshot(request=request, fallback_reason="after_scenario_hierarchy_not_available")

@@ -51,6 +51,14 @@ def test_config_stash_lookup_supports_stash_without_get_method() -> None:
     assert Run.from_stash(config.stash) is run_root
 
 
+def test_from_stash_looks_up_run_from_config_stash() -> None:
+    config = SimpleNamespace(stash={})
+    run_root = _build_run_root("owner")
+    run_root.set_in_stash(config.stash)
+
+    assert Run.from_stash(config.stash) is run_root
+
+
 def test_initialize_run_raises_when_run_is_already_initialized() -> None:
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
@@ -121,6 +129,28 @@ def test_create_scenario_run_reuses_run_root_reporting_state() -> None:
 
     assert scenario_run.run.reporting_state.run_started_id == "run-started-42"
     assert scenario_run.run.reporting_state.test_run_hook_started_id == "hook-started-42"
+
+
+def test_create_scenario_run_uses_explicit_inactive_slots_for_empty_values() -> None:
+    config = SimpleNamespace(stash={})
+    session = SimpleNamespace(config=config, name="session")
+    request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
+    run = Run.initialize_for_session(stash=config.stash, session=session)
+
+    scenario_run = run.create_scenario_run(request)
+
+    assert scenario_run.active_set.feature.is_active is False
+    assert scenario_run.active_set.feature.empty_state_reason == "idle"
+    assert scenario_run.active_set.scenario.is_active is False
+    assert scenario_run.active_set.step.is_active is False
+    assert scenario_run.active_set.previous_step.empty_state_reason == "no_previous_step"
+
+
+def test_require_active_scenario_run_raises_when_run_has_no_active_context() -> None:
+    run = _build_run_root("missing")
+
+    with pytest.raises(RuntimeError, match="Active scenario run is unavailable"):
+        run.require_active_scenario_run(hook_name="pytest_bdd_before_step")
 
 
 def test_scenario_run_not_stored_in_config_stash() -> None:

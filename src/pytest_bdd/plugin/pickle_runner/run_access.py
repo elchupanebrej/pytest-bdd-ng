@@ -14,7 +14,6 @@ from pytest_bdd.model.scenario_run import (
     RunStage,
     ScenarioRun,
 )
-
 from .run_transitions import build_lifecycle_ref
 
 if TYPE_CHECKING:
@@ -24,6 +23,26 @@ if TYPE_CHECKING:
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
     scenario_run = run.active_scenario_run
     return scenario_run.feature_binding if scenario_run is not None else None
+
+
+def require_feature_binding(run: Run, *, hook_name: str) -> FeatureRuntimeBinding:
+    scenario_run = run.require_active_scenario_run(hook_name=hook_name)
+    return scenario_run.require_feature_binding(hook_name=hook_name)
+
+
+def require_feature_object(run: Run, *, hook_name: str) -> Any:
+    scenario_run = run.require_active_scenario_run(hook_name=hook_name)
+    return scenario_run.require_gherkin_document(hook_name=hook_name)
+
+
+def require_pickle_object(run: Run, *, hook_name: str) -> Any:
+    scenario_run = run.require_active_scenario_run(hook_name=hook_name)
+    return scenario_run.require_pickle(hook_name=hook_name)
+
+
+def require_step_object(run: Run, *, hook_name: str) -> Any:
+    scenario_run = run.require_active_scenario_run(hook_name=hook_name)
+    return scenario_run.require_step_object(hook_name=hook_name)
 
 
 def resolve_feature_object(run: Run) -> Any | None:
@@ -67,16 +86,24 @@ def resolve_active_object_or_error(
     if active_object is not None:
         return active_object, None
 
-    error = ContextErrorState(
+    inactive_candidate = {
+        "run": scenario_run.active_set.run,
+        "feature": scenario_run.active_set.feature,
+        "scenario": scenario_run.active_set.scenario,
+        "step": scenario_run.active_set.step,
+    }[requested_kind]
+    message = (
+        f"Lifecycle object '{requested_kind}' is unavailable during {hook_name} "
+        f"at stage '{scenario_run.stage.value}'"
+    )
+    if inactive_candidate.empty_state_reason is not None:
+        message = f"{message} (empty state: {inactive_candidate.empty_state_reason})"
+    error = scenario_run.record_context_error(
         code="object_inactive",
-        message=f"Requested lifecycle object '{requested_kind}' is not active",
+        message=message,
         hook_name=hook_name,
-        stage=scenario_run.stage,
         requested_kind=requested_kind,
     )
-    scenario_run.last_error = error
-    if scenario_run.run is not None:
-        scenario_run.run.last_error = error
     return None, error
 
 
@@ -84,7 +111,7 @@ def _fallback_reporting_snapshot(
     request: FixtureRequest,
     *,
     fallback_reason: str | None = None,
-) -> ReportingContextSnapshot | None:
+) -> ReportingContextSnapshot:
     run_root = Run.find_in_stash(request.config.stash)
     if run_root is None:
         run_ref = build_lifecycle_ref("run", getattr(request, "session", None), is_active=True)
@@ -95,17 +122,9 @@ def _fallback_reporting_snapshot(
         run_ref = run_root.run_ref
         run_id = run_root.id
 
-    fallback_active_set = ActiveObjectSet(
-        run=run_ref,
-        feature=None,
-        scenario=None,
-        step=None,
-        previous_step=None,
-        captured_at_stage=RunStage.idle,
-    )
     return ReportingContextSnapshot(
         run_id=run_id,
-        active_set=fallback_active_set,
+        active_set=ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.idle),
         stage=RunStage.idle,
         resolved_from_hierarchy=False,
         fallback_reason=fallback_reason or "hierarchy_not_available",
@@ -116,7 +135,7 @@ def build_reporting_context_snapshot(
     *,
     request: FixtureRequest,
     fallback_reason: str | None = None,
-) -> ReportingContextSnapshot | None:
+) -> ReportingContextSnapshot:
     run = Run.find_in_stash(request.config.stash)
 
     if run is not None and run.active_scenario_run is not None:
@@ -131,14 +150,7 @@ def build_reporting_context_snapshot(
     if run is not None:
         return ReportingContextSnapshot(
             run_id=run.id,
-            active_set=ActiveObjectSet(
-                run=run.run_ref,
-                feature=None,
-                scenario=None,
-                step=None,
-                previous_step=None,
-                captured_at_stage=RunStage.idle,
-            ),
+            active_set=ActiveObjectSet(run=run.run_ref, captured_at_stage=RunStage.idle),
             stage=RunStage.idle,
             resolved_from_hierarchy=True,
             fallback_reason=fallback_reason or "run_has_no_active_scenario",
@@ -206,6 +218,8 @@ def resolve_step_runtime_enrichment(
             "line_number": None,
             "doc_string": None,
             "data_table": None,
+            "state": "unresolved",
+            "reason": "missing_pickle_step_mapping",
         }
     return {
         "keyword": effective_binding.step_keyword(step) if effective_binding is not None else None,
@@ -213,4 +227,6 @@ def resolve_step_runtime_enrichment(
         "line_number": effective_binding.step_line_number(step) if effective_binding is not None else None,
         "doc_string": effective_binding.step_doc_string(step) if effective_binding is not None else None,
         "data_table": effective_binding.step_data_table(step) if effective_binding is not None else None,
+        "state": "resolved",
+        "reason": None,
     }

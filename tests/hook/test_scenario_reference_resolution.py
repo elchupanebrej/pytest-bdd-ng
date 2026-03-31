@@ -136,6 +136,13 @@ def test_step_run_records_missing_scenario_reference_in_context_diagnostics() ->
     assert scenario_run.reference_resolver.missing_reference_diagnostics == ["Missing AST node id: missing-scenario-id"]
 
 
+def test_previous_step_defaults_to_explicit_empty_object() -> None:
+    scenario_run = _build_scenario_run()
+
+    assert scenario_run.previous_step_object is not None
+    assert scenario_run.previous_step_ref.empty_state_reason == "no_previous_step"
+
+
 def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> None:
     model_step = Step(
         id="rule-background-step-id",
@@ -192,13 +199,13 @@ def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> N
         step=pickle_step,
     )
 
-    assert payload == {
-        "keyword": None,
-        "prefix": None,
-        "line_number": None,
-        "doc_string": None,
-        "data_table": None,
-    }
+    assert payload["state"] == "unresolved"
+    assert payload["reason"] == "missing_pickle_step_mapping"
+    assert payload["keyword"] is None
+    assert payload["prefix"] is None
+    assert payload["line_number"] is None
+    assert payload["doc_string"] is None
+    assert payload["data_table"] is None
     assert scenario_run.reference_resolver.missing_reference_diagnostics == [
         "Missing pickle step mapping: pickle-step-id"
     ]

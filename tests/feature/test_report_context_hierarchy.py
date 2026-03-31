@@ -58,5 +58,6 @@ def test_reporting_snapshot_uses_context_hierarchy(testdir):
     assert snapshot["fallback_reason"] is None
     assert snapshot["stage"] == "finished"
     assert snapshot["active_set"]["run"]["kind"] == "run"
-    assert snapshot["active_set"]["scenario"] is None
+    assert snapshot["active_set"]["scenario"]["is_active"] is False
+    assert snapshot["active_set"]["scenario"]["empty_state_reason"] == "finished"
     assert snapshot["run_id"].startswith("run-")

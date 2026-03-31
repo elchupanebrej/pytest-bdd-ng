@@ -32,3 +32,5 @@ def test_run_contract_has_minimal_change_constraints() -> None:
     assert "consumerMigrationRequired:" in contract_text
     assert "- false" in contract_text
     assert "maxItems: 0" in contract_text
+    assert "previousStep:" in contract_text
+    assert "activeSet:" in contract_text

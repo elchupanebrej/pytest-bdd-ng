@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,
@@ -54,7 +56,7 @@ def test_scenario_run_advances_transition_index() -> None:
 
 def test_scenario_run_active_lookup_respects_inactive_refs() -> None:
     context = _build_context()
-    context.feature_ref = LifecycleObjectRef(kind="feature", object_id="feature-1", is_active=False)
+    context.feature_ref = LifecycleObjectRef.inactive("feature", reason="idle")
     context.set_active_set(
         ActiveObjectSet(
             run=context.run_ref,
@@ -65,3 +67,14 @@ def test_scenario_run_active_lookup_respects_inactive_refs() -> None:
 
     assert context.get_active_object("run") is not None
     assert context.get_active_object("feature") is None
+
+
+def test_active_object_set_uses_explicit_inactive_slots_by_default() -> None:
+    run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
+    active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.idle)
+
+    assert active_set.feature.is_active is False
+    assert active_set.feature.empty_state_reason == "idle"
+    assert active_set.scenario.is_active is False
+    assert active_set.step.is_active is False
+    assert active_set.previous_step.empty_state_reason == "no_previous_step"

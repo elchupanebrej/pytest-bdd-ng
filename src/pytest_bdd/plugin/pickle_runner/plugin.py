@@ -21,12 +21,14 @@ from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import inject_fixture
 from pytest_bdd.util.toolz_extra import DefaultMapping
+
 from .run_access import (
-    resolve_feature_object,
-    resolve_pickle_object,
+    require_feature_binding,
+    require_feature_object,
+    require_pickle_object,
+    require_step_object,
     resolve_previous_step_object,
     resolve_scenario_description,
-    resolve_step_object,
     resolve_step_runtime_enrichment,
 )
 from .run_transitions import apply_transition
@@ -149,12 +151,7 @@ class PickleRunner:
         except ValueError:
             pass
         else:
-            if scenario_run is None:
-                msg = (
-                    f"Active scenario run is unavailable while invoking lifecycle hook {hook_name!r}. "
-                    "Pickle-runner lifecycle state is corrupted or was not initialized."
-                )
-                raise RuntimeError(msg)
+            scenario_run = run.require_active_scenario_run(hook_name=hook_name)
             apply_transition(
                 scenario_run,
                 hook_phase=hook_phase,
@@ -179,10 +176,8 @@ class PickleRunner:
     ):
         """Execute scenarios via step dispatcher."""
         __tracebackhide__ = True
-        gherkin_document = resolve_feature_object(run)
-        pickle = resolve_pickle_object(run)
-        if gherkin_document is None or pickle is None:
-            return None
+        require_feature_object(run, hook_name="pytest_bdd_run_scenario")
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_run_scenario")
         steps: deque = request.getfixturevalue("steps_left")
         steps.extend(pickle.steps)
         step_dispatcher = request.config.hook.pytest_bdd_get_step_dispatcher(
@@ -203,10 +198,8 @@ class PickleRunner:
         def dispatcher(left_steps):
             __tracebackhide__ = True
             previous_step = None
-            gherkin_document = resolve_feature_object(run)
-            pickle = resolve_pickle_object(run)
-            if gherkin_document is None or pickle is None:
-                return
+            gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
+            pickle = require_pickle_object(run, hook_name="pytest_bdd_run_step")
             while left_steps:
                 step = left_steps.popleft()
                 self._invoke_bdd_hook(
@@ -227,38 +220,35 @@ class PickleRunner:
         run: Run,
     ):
         __tracebackhide__ = True
-        gherkin_document = resolve_feature_object(run)
-        pickle = resolve_pickle_object(run)
-        step = resolve_step_object(run)
+        scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_run_step")
+        gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
+        pickle = require_pickle_object(run, hook_name="pytest_bdd_run_step")
+        step = require_step_object(run, hook_name="pytest_bdd_run_step")
         previous_step = resolve_previous_step_object(run)
-        if gherkin_document is None or pickle is None or step is None:
-            return
+        feature_binding = require_feature_binding(run, hook_name="pytest_bdd_run_step")
 
-        scenario_run = run.active_scenario_run
-
-        if scenario_run is not None:
-            if isinstance(step, PickleStep):
-                feature_binding = scenario_run.feature_binding
-                step_runtime_enrichment = resolve_step_runtime_enrichment(
-                    step=step,
-                    feature_binding=feature_binding,
-                    scenario_run=scenario_run,
-                )
-                scenario_run.step_run = StepRun(
-                    step=step,
-                    keyword=step_runtime_enrichment.get("keyword"),
-                    text=getattr(step, "text", ""),
-                    doc_string=step_runtime_enrichment.get("doc_string"),
-                    data_table=step_runtime_enrichment.get("data_table"),
-                    line_number=step_runtime_enrichment.get("line_number"),
-                )
-
-            scenario_description = resolve_scenario_description(
-                pickle=pickle,
-                feature_binding=scenario_run.feature_binding if scenario_run is not None else None,
+        scenario_run.step_run = StepRun(
+            step=step if isinstance(step, PickleStep) else None,
+            text=getattr(step, "text", ""),
+        )
+        if isinstance(step, PickleStep):
+            step_runtime_enrichment = resolve_step_runtime_enrichment(
+                step=step,
+                feature_binding=feature_binding,
                 scenario_run=scenario_run,
             )
-            pickle.__dict__["description"] = scenario_description
+            scenario_run.step_run.step = step
+            scenario_run.step_run.keyword = step_runtime_enrichment.get("keyword")
+            scenario_run.step_run.doc_string = step_runtime_enrichment.get("doc_string")
+            scenario_run.step_run.data_table = step_runtime_enrichment.get("data_table")
+            scenario_run.step_run.line_number = step_runtime_enrichment.get("line_number")
+
+        scenario_description = resolve_scenario_description(
+            pickle=pickle,
+            feature_binding=feature_binding,
+            scenario_run=scenario_run,
+        )
+        pickle.__dict__["description"] = scenario_description
 
         try:
             hook_kwargs = {
@@ -296,11 +286,7 @@ class PickleRunner:
 
             hook_kwargs["step_func_args"] = {}
             step_params = step_definition.get_parameters(request, step)
-
-            # TODO: This check must be always be true, this must be guaranteed on previous execution steps
-            # Find a reason why this was needed
-            if scenario_run is not None and scenario_run.step_run is not None:
-                scenario_run.step_run.parameters = step_params
+            scenario_run.step_run.parameters = step_params
 
             try:
                 self._inject_step_parameters_as_fixtures(
@@ -349,10 +335,7 @@ class PickleRunner:
                     step_definition=step_definition,
                 )
             except Exception as exception:
-                # TODO: This check must be always be true, this must be guaranteed on previous execution steps
-                # Find a reason why this was needed
-                if scenario_run is not None and scenario_run.step_run is not None:
-                    scenario_run.step_run.status = RunStatus.failed
+                scenario_run.step_run.status = RunStatus.failed
 
                 self._invoke_bdd_hook(
                     hook_name="pytest_bdd_step_error",
@@ -430,10 +413,7 @@ class PickleRunner:
             inject_fixture(self.request, target_fixture, return_value)
 
     def _match_to_step(self, run: Run):
-        step = resolve_step_object(run)
-        if step is None:
-            msg = "Execution context does not provide active step for matching"
-            raise RuntimeError(msg)
+        step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         request = cast(FixtureRequest, self.request)
         try:
             return request.config.hook.pytest_bdd_match_step_definition_to_step(
@@ -441,11 +421,8 @@ class PickleRunner:
                 run=run,
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
-            step_to_report = (
-                run.active_scenario_run.step_run
-                if run.active_scenario_run and run.active_scenario_run.step_run is not None
-                else step
-            )
+            scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_match_step_definition_to_step")
+            step_to_report = scenario_run.step_run if scenario_run.step_run is not None else step
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(
                 self.gherkin_document, self.pickle, step_to_report
             )

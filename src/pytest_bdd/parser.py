@@ -65,10 +65,11 @@ class BaseParser(ParserProtocol):
     @staticmethod
     def emit_parse_error(config: Config | HasPytestStash, *, message: str, line: int, column: int, uri: str):
         hook_handler = getattr(config, "hook", None)
-        if hook_handler is None:
+        emitter = getattr(hook_handler, "pytest_bdd_message", None) if hook_handler is not None else None
+        if not callable(emitter):
             return
         try:
-            hook_handler.pytest_bdd_message(
+            emitter(
                 config=config,
                 message=Message(
                     parse_error=ParseError(
@@ -101,14 +102,9 @@ class BaseParser(ParserProtocol):
         _normalize(gherkin_document_raw_dict)
         return gherkin_document_raw_dict
 
-    def build_feature(
-        self,
-        _config: Config | HasPytestStash,
-        gherkin_document_raw_dict,
-        filename: str,
-    ) -> GherkinDocument:
+    @staticmethod
+    def build_feature(gherkin_document_raw_dict) -> GherkinDocument:
         gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
-        gherkin_document._pytest_bdd_filename = filename
         # TODO: here must adapter layer not just direct casting
         return cast(GherkinDocument, gherkin_document)
 
@@ -148,11 +144,7 @@ class GherkinParser(BaseParser):
         gherkin_document_raw_dict["uri"] = uri  # type:ignore[]
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
-        feature = self.build_feature(
-            config,
-            gherkin_document_raw_dict,
-            filename=str(path.as_posix()),
-        )
+        feature = self.build_feature(gherkin_document_raw_dict)
         return feature, feature_file_data
 
 
@@ -195,9 +187,5 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict["feature"].setdefault("keyword", "")
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
-        feature = self.build_feature(
-            config,
-            gherkin_document_raw_dict,
-            filename=str(path.as_posix()),
-        )
+        feature = self.build_feature(gherkin_document_raw_dict)
         return feature, feature_file_data

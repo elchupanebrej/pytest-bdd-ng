@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
+    Run,
     RunStage,
     RunStatus,
     ScenarioRun,
-    Run,
 )
 from pytest_bdd.plugin.pickle_runner.run_access import resolve_active_object_or_error
 
@@ -26,29 +28,12 @@ def _build_context() -> ScenarioRun:
     )
 
 
-def test_inactive_object_resolution_returns_structured_error() -> None:
+def test_require_feature_binding_raises_with_binding_missing_error() -> None:
     context = _build_context()
 
-    active_object, error = resolve_active_object_or_error(
-        hook_name="pytest_bdd_before_step",
-        scenario_run=context,
-        requested_kind="feature",
-    )
+    with pytest.raises(RuntimeError, match=r"Feature runtime binding is unavailable.*pytest_bdd_before_scenario"):
+        context.require_feature_binding(hook_name="pytest_bdd_before_scenario")
 
-    assert active_object is None
-    assert error is not None
-    assert error.code == "object_inactive"
-    assert error.requested_kind == "feature"
-
-
-def test_active_object_resolution_returns_reference() -> None:
-    context = _build_context()
-    active_object, error = resolve_active_object_or_error(
-        hook_name="pytest_bdd_before_step",
-        scenario_run=context,
-        requested_kind="run",
-    )
-
-    assert error is None
-    assert active_object is not None
-    assert active_object.object_id == "run-1"
+    assert context.last_error is not None
+    assert context.last_error.code == "binding_missing"
+    assert context.run.last_error is context.last_error

@@ -5,6 +5,7 @@ from pathlib import Path
 from pytest_bdd import scenario
 from pytest_bdd.plugin.pickle_runner.api_compatibility import (
     build_external_api_compatibility_record,
+    collect_hook_public_symbols,
     load_api_baseline,
 )
 
@@ -36,6 +37,22 @@ def test_external_api_compatibility_record_is_serializable() -> None:
     assert payload["api_surface_id"] == "hook-plugin-public-api"
     assert payload["baseline_reference"] == baseline["baseline_reference"]
     assert isinstance(payload["additive_symbols"], list)
+
+
+def test_current_hook_public_symbols_cover_the_saved_baseline() -> None:
+    baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
+    baseline = load_api_baseline(baseline_path)
+
+    current_symbols = collect_hook_public_symbols()
+
+    assert set(baseline["symbols"]).issubset(current_symbols)
+
+
+def test_current_hook_public_symbols_are_sorted_and_unique() -> None:
+    current_symbols = collect_hook_public_symbols()
+
+    assert current_symbols == sorted(current_symbols)
+    assert len(current_symbols) == len(set(current_symbols))
 
 
 def test_scenario_decorator_uses_pickle_fixture_for_runtime_binding() -> None:

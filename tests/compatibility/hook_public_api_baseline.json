@@ -1,5 +1,5 @@
 {
-  "baseline_reference": "personal/default",
+  "baseline_reference": "016-strict-non-null/additive-only",
   "symbols": [
     "decorator:after_mark",
     "decorator:after_tag",

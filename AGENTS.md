@@ -1,6 +1,6 @@
 # pytest-bdd-ng Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-18
+Auto-generated from all feature plans. Last updated: 2026-03-19
 
 ## Active Technologies
 - Project type: Python library and CLI tooling
@@ -35,9 +35,8 @@ tests/
   targets are exempt from this Docker requirement.
 
 ## Recent Changes
+- 016-strict-non-null: Added Python 3.10-3.14 + `attrs`, `pytest>=7`, pluggy hook system, `cucumber-messages`, `gherkin`, internal `pickle_runner` and `gherkin_message_reporter` runtime layers
 - 015-replace-step-context: Added Python 3.10-3.14 + `pytest>=7`, `pytest-bdd-ng` internal core
-- 013-live-formatter-rendering: Added Python 3.10-3.14 with Node.js runtime available on `PATH` + `pytest>=7`, `pluggy`, `pytest-xdist>=3.8.0`, `execnet`, `filelock`, `cucumber-messages`, `@cucumber/cucumber`, `@cucumber/pretty-formatter`
-- 012-cucumber-formatters-support: Added Python 3.10-3.14 with Node.js runtime available on `PATH` + `pytest>=7`, `pluggy`, `cucumber-messages`
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

@@ -21,7 +21,7 @@ from cucumber_messages import Exception as CucumberException
 
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
-from pytest_bdd.plugin.pickle_runner.run_access import resolve_step_object
+from pytest_bdd.plugin.pickle_runner.run_access import require_step_object
 from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:
@@ -85,9 +85,7 @@ class ScenarioService(ReporterServiceBase):
     ) -> None:
         if self.reporter.is_disabled:
             return
-        step = resolve_step_object(run)
-        if step is None:
-            return
+        step = require_step_object(run, hook_name="pytest_bdd_step_func_lookup_error")
         config = request.config
         pickle_step_id = getattr(step, "id", None)
         if pickle_step_id is None:
@@ -193,9 +191,7 @@ class ScenarioService(ReporterServiceBase):
     ) -> None:
         if self.reporter.is_disabled:
             return
-        step = resolve_step_object(run)
-        if step is None:
-            return
+        step = require_step_object(run, hook_name="pytest_bdd_before_step")
         reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
@@ -228,9 +224,7 @@ class ScenarioService(ReporterServiceBase):
     ) -> None:
         if self.reporter.is_disabled:
             return
-        step = resolve_step_object(run)
-        if step is None:
-            return
+        step = require_step_object(run, hook_name="pytest_bdd_after_step")
         reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
@@ -271,9 +265,7 @@ class ScenarioService(ReporterServiceBase):
     ) -> None:
         if self.reporter.is_disabled:
             return
-        step = resolve_step_object(run)
-        if step is None:
-            return
+        step = require_step_object(run, hook_name="pytest_bdd_step_error")
         reporting_state = run.reporting_state
         test_case_started_id = reporting_state.active_test_case_started_id
         if test_case_started_id is None:
