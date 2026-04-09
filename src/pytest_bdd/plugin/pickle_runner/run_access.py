@@ -14,6 +14,7 @@ from pytest_bdd.model.scenario_run import (
     RunStage,
     ScenarioRun,
 )
+
 from .run_transitions import build_lifecycle_ref
 
 if TYPE_CHECKING:
@@ -93,8 +94,7 @@ def resolve_active_object_or_error(
         "step": scenario_run.active_set.step,
     }[requested_kind]
     message = (
-        f"Lifecycle object '{requested_kind}' is unavailable during {hook_name} "
-        f"at stage '{scenario_run.stage.value}'"
+        f"Lifecycle object '{requested_kind}' is unavailable during {hook_name} at stage '{scenario_run.stage.value}'"
     )
     if inactive_candidate.empty_state_reason is not None:
         message = f"{message} (empty state: {inactive_candidate.empty_state_reason})"

@@ -125,7 +125,7 @@ def allure_report(
 
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
 def file(name, extension, testdir, step):
-    testdir.makefile(extension, **{name: deepattrgetter('argument.doc_string.content', default='')})
+    testdir.makefile(extension, **{name: deepattrgetter("argument.doc_string.content", default="")})
 
 
 @when("run pytest-bdd with allure")

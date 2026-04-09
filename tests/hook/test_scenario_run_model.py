@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,

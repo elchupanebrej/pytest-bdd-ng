@@ -11,7 +11,6 @@ from pytest_bdd.model.scenario_run import (
     RunStatus,
     ScenarioRun,
 )
-from pytest_bdd.plugin.pickle_runner.run_access import resolve_active_object_or_error
 
 
 def _build_context() -> ScenarioRun:
