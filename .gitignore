@@ -44,6 +44,10 @@ coverage/
 htmlcov/
 nosetests.xml
 
+# Documentation build artifacts
+docs/_build/
+docs/doctrees/
+
 # Translations
 *.mo
 
