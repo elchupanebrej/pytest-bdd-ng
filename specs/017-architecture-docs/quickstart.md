@@ -5,12 +5,14 @@
 To work with the architecture documentation for pytest-bdd:
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/your-org/pytest-bdd.git
    cd pytest-bdd
    ```
 
 2. **Install documentation dependencies**:
+
    ```bash
    pip install -r docs/requirements.txt
    # Ensure sphinxcontrib-mermaid is installed
@@ -18,6 +20,7 @@ To work with the architecture documentation for pytest-bdd:
    ```
 
 3. **Build the documentation**:
+
    ```bash
    cd docs
    make html

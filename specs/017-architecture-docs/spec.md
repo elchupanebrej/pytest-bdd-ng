@@ -2,7 +2,7 @@
 
 # Feature Specification: Architecture Documentation with Mermaid Diagrams
 
-**Feature Branch**: `01-architecture-docs`
+**Feature Branch**: `017-architecture-docs`
 **Created**: 2026-04-01
 **Status**: Draft
 **Input**: User description: "I need a list of separate documents with Mermaid diagrams with deep architecture overview of a project"
