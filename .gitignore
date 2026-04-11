@@ -73,12 +73,20 @@ docs/doctrees/
 /include
 /share
 /local
+
+# Python virtual environments
+.venv/
+venv/
+
+# AI agent directories
 /.agent/
 /.agents/
 /.claude/
 /.cline/
 /.codex/
+/.gemini/
 /.specify/
+/.opencode/
 /.windsurf/
 /skills-lock.json
 
@@ -88,11 +96,6 @@ Thumbs.db
 *.tmp
 *.swp
 .vscode/
-
-# Python virtual environments
-.venv/
-venv/
-/.gemini/
 
 # Node workspace artifacts
 node_modules/
