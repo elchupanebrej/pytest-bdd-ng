@@ -40,7 +40,7 @@ Scenario: Generate cucumber JSON with mixed pass/fail scenarios
 
       test_report = scenarios("test.feature")
 
--  When run pytest
+-  When run uv-tox
 
    \| cli_args \| -k \| test_report.py \| --cucumberjson=out.json \| -s
    \|

@@ -31,7 +31,7 @@ Scenario: Scenario reporting is guarded by Allure availability
       pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
       test = scenarios("scenario.feature")
 
--  When run pytest
+-  When run uv-tox
 
    ======== =================
    cli_args -k test_sample.py

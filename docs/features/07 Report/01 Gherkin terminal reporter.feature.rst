@@ -35,12 +35,12 @@ Scenario: Verbose reporter shows feature and scenario names
       def _explodes():
         pass
 
--  When run pytest
+-  When run uv-tox
 
-   ======== =========================== ==
-   cli_args --gherkin-terminal-reporter -v
-   ======== =========================== ==
-   ======== =========================== ==
+    ======== =========================== ==
+    cli_args --gherkin-terminal-reporter -v
+    ======== =========================== ==
+    ======== =========================== ==
 
 -  Then pytest outcome must contain tests with statuses:
 

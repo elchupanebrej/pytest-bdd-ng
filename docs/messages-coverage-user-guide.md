@@ -4,8 +4,12 @@ This guide describes the runtime-pure reporting and post-factum governance flow.
 
 ## Feature split
 
-- Feature 007: canonical capability inventory, baseline diffing, and governance primitives.
-- Feature 008: runtime-pure reporter behavior (real events only), dedicated coverage suite, runtime-required gate, and non-runtime classification gate.
+- Feature 007: canonical capability inventory,
+  baseline diffing, and governance primitives.
+- Feature 008: runtime-pure reporter behavior
+  (real events only), dedicated coverage suite,
+  runtime-required gate, and non-runtime
+  classification gate.
 
 ## Principles
 
@@ -30,7 +34,7 @@ Plugin is loaded explicitly when `--messages-ndjson` or `--cucumber-html` is use
 
 ```bash
 mkdir -p /tmp/pytest-bdd-ng-messages-audit
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+uv run --with pytest -m pytest \
   tests/messages_coverage/test_mandatory_attachments.py -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
@@ -40,7 +44,7 @@ PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python
 ## 2. Build governance report from NDJSON
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
+uv run --with pytest-bdd-ng python -m pytest_bdd.script.message_capability_governance report \
   --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson \
   --baseline-release v32.current \
   --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
