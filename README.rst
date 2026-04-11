@@ -91,7 +91,7 @@ Install pytest-bdd-ng
 
 .. code-block:: console
 
-    pip install pytest-bdd-ng
+    uv pip install pytest-bdd-ng
 
 Compatibility policy
 --------------------

@@ -36,5 +36,7 @@ Step definitions:
 Set up the tutorial
 -------------------
 
-From the project root, activate a virtual environment and run:
-``pip install -r docs/tutorial/requirements.txt``
+From the project root, run:
+``uv pip install -r docs/tutorial/requirements.txt``
+
+This assumes you have `uv` installed. If not, please install it first from https://docs.astral.sh/uv/
