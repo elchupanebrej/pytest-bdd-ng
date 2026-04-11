@@ -55,8 +55,8 @@ jobs:
       - name: Install PyPi dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -U setuptools
           pip install "tox>=4.2" "tox-gh-actions>=3.2" codecov
+          pip install uv
       - name: Install npm dependencies
         run: |
           npm install "@cucumber/html-formatter"
@@ -64,7 +64,7 @@ jobs:
           npm list
       - name: Test with tox
         run: |
-          tox
+          uv run tox
       - name: Gather codecov
         if: matrix.python-version == '3.13'
         run: |

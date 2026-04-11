@@ -29,7 +29,7 @@ export GITHUB_SERVER_URL=https://github.com
 export GITHUB_REPOSITORY=pytest-dev/pytest-bdd-ng
 
 run_message_capture() {
-  conda run -n pytest-bdd-ng-py314 python -m pytest \
+  uv run --with pytest -m pytest \
     "$1" -q \
     -p no:pytest-bdd-gherkin-message-reporter \
     -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
@@ -38,7 +38,7 @@ run_message_capture() {
 
 run_expected_failure_capture() {
   set +e
-  conda run -n pytest-bdd-ng-py314 python -m pytest \
+  uv run --with pytest -m pytest \
     "$1" -q \
     -p no:pytest-bdd-gherkin-message-reporter \
     -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
@@ -58,7 +58,7 @@ run_expected_failure_capture tests/messages_coverage/probes/test_failing_step_ru
 run_expected_failure_capture tests/messages_coverage/probes/test_undefined_parameter_runtime.py
 run_expected_failure_capture tests/messages_coverage/probes/test_parse_error_runtime.py
 
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
+uv run --with pytest-bdd-ng python -m pytest_bdd.script.message_capability_governance report \
   --messages-file "${MESSAGES_FILE}" \
   --baseline-release "v32.current" \
   --schema "${SCHEMA_FILE}" \
