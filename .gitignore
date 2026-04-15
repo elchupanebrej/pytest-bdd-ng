@@ -77,6 +77,7 @@ docs/doctrees/
 # Python virtual environments
 .venv/
 venv/
+/uv.lock
 
 # AI agent directories
 /.agent/

@@ -155,7 +155,13 @@ def reconcile_runtime_scope_coverage(
 
 
 def _envelope_path(schema_dir: Path) -> Path:
-    return schema_dir / "Envelope.json"
+    canonical = schema_dir / "Envelope.json"
+    if canonical.is_file():
+        return canonical
+    alt = schema_dir / "Envelope.schema.json"
+    if alt.is_file():
+        return alt
+    return canonical
 
 
 def _schema_dir_from_git_root() -> Path | None:
