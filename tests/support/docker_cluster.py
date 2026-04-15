@@ -1,36 +1,81 @@
 import atexit
+import contextlib
+import dataclasses
 import os
 import shutil
-import subprocess
+import subprocess  # noqa: S404
 import tempfile
+import time
 from pathlib import Path
 
 
+@dataclasses.dataclass
+class DockerTimeouts:
+    startup_poll: int = 60
+    compose_up: int = 120
+    compose_exec: int = 300
+    compose_cp: int = 30
+    compose_down: int = 30
+    alpine_install: int = 60
+    overall_session: int = 600
+
+
+def _run_wsl_cmd(args: list[str], timeout: int) -> subprocess.CompletedProcess:
+    """Run a command inside WSL2 Alpine distro."""
+    wsl_bin = shutil.which("wsl")
+    if wsl_bin is None:
+        msg = "wsl executable not found"
+        raise FileNotFoundError(msg)
+    return subprocess.run(  # noqa: S603
+        [wsl_bin, "-d", "Alpine", "--", *args],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
 class DockerClusterManager:
-    def __init__(self):
+    def __init__(self, backend: str = "native", timeouts: DockerTimeouts | None = None):
+        self.backend = backend
+        self.timeouts = timeouts or DockerTimeouts()
         self.active_clusters = {}
         self.artifact_dirs = {}
+        self._session_start = time.monotonic()
         atexit.register(self.cleanup)
+
+    def _run_docker_cmd(self, args: list[str], timeout: int, operation: str = "") -> subprocess.CompletedProcess:
+        """Route Docker command through the appropriate backend."""
+        try:
+            if self.backend == "wsl2":
+                return _run_wsl_cmd(args, timeout=timeout)
+            return subprocess.run(args, check=False, capture_output=True, text=True, timeout=timeout)  # noqa: S603  # noqa: S603
+        except subprocess.TimeoutExpired as err:
+            op_name = operation or " ".join(args[:3]) if len(args) >= 3 else " ".join(args)
+            msg = f"Docker operation '{op_name}' exceeded timeout ({timeout}s)"
+            raise RuntimeError(msg) from err
+
+    def _check_session_timeout(self):
+        """Raise RuntimeError if overall session timeout exceeded."""
+        elapsed = time.monotonic() - self._session_start
+        if elapsed > self.timeouts.overall_session:
+            msg = f"Overall session timeout exceeded ({self.timeouts.overall_session}s)"
+            raise RuntimeError(msg)
 
     def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path):
         if remote_mode in self.active_clusters:
             return self.active_clusters[remote_mode], self.artifact_dirs[remote_mode]
 
-        docker_artifact_dir = tempfile.mkdtemp(prefix=f"pytest-bdd-remote-artifacts-{remote_mode}-", dir=repo_root)
+        self._check_session_timeout()
 
-        env = {
-            **os.environ,
-            "BUILDKIT_PROGRESS": "plain",
-            "REPO_ROOT": str(repo_root),
-            "ARTIFACT_DIR": docker_artifact_dir,
-            "PYTEST_REMOTE_MODE": remote_mode,
-            "COMPOSE_PROJECT_NAME": f"pytestbddremote{remote_mode}",
-        }
+        docker_artifact_dir = tempfile.mkdtemp(prefix=f"pytest-bdd-remote-artifacts-{remote_mode}-", dir=repo_root)
 
         compose_cmd = ["docker", "compose", "-f", str(fixture_dir / "docker-compose.yml")]
 
         # Start the long-lived cluster
-        subprocess.run([*compose_cmd, "up", "-d", "--build"], check=True, env=env)
+        self._run_docker_cmd(
+            [*compose_cmd, "up", "-d", "--build"], timeout=self.timeouts.compose_up, operation="compose_up"
+        )
 
         self.active_clusters[remote_mode] = compose_cmd
         self.artifact_dirs[remote_mode] = docker_artifact_dir
@@ -45,6 +90,8 @@ class DockerClusterManager:
         fail_transport_workers: str,
     ) -> tuple[subprocess.CompletedProcess, Path]:
         compose_cmd, docker_artifact_dir = self.get_cluster(remote_mode, fixture_dir, repo_root)
+
+        self._check_session_timeout()
 
         env = {
             **os.environ,
@@ -96,19 +143,20 @@ class DockerClusterManager:
             "tests/e2e/fixtures/remote_xdist/controller_entrypoint.py",
         ]
 
-        result = subprocess.run(exec_cmd, check=False, capture_output=True, text=True, env=env)
+        result = self._run_docker_cmd(exec_cmd, timeout=self.timeouts.compose_exec, operation="compose_exec")
         return result, Path(docker_artifact_dir)
 
     def cleanup(self):
-        for remote_mode, compose_cmd in self.active_clusters.items():
-            env = {
-                **os.environ,
-                "COMPOSE_PROJECT_NAME": f"pytestbddremote{remote_mode}",
-            }
-            subprocess.run([*compose_cmd, "down", "--volumes", "--remove-orphans"], check=False, env=env)
+        for compose_cmd in self.active_clusters.values():
+            with contextlib.suppress(FileNotFoundError, OSError):
+                self._run_docker_cmd(
+                    [*compose_cmd, "down", "--volumes", "--remove-orphans"],
+                    timeout=self.timeouts.compose_down,
+                    operation="compose_down",
+                )
 
         for artifact_dir in self.artifact_dirs.values():
-            if os.path.exists(artifact_dir):
+            if Path(artifact_dir).exists():
                 shutil.rmtree(artifact_dir, ignore_errors=True)
 
 

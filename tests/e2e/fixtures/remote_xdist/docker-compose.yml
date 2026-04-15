@@ -2,8 +2,8 @@ services:
   controller:
     image: pytest-bdd-remote-xdist-controller:local
     build:
-      context: ${REPO_ROOT}
-      dockerfile: tests/e2e/fixtures/remote_xdist/controller.Dockerfile
+      context: .
+      dockerfile: controller.Dockerfile
     entrypoint: ["sleep", "infinity"]
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
@@ -18,7 +18,7 @@ services:
       - worker1
       - worker2
     volumes:
-      - ${ARTIFACT_DIR}:/artifacts
+      - ./artifacts:/artifacts
 
   proxy:
     image: pytest-bdd-remote-xdist-worker:local
@@ -30,8 +30,8 @@ services:
   worker1:
     image: pytest-bdd-remote-xdist-worker:local
     build:
-      context: ${REPO_ROOT}
-      dockerfile: tests/e2e/fixtures/remote_xdist/worker.Dockerfile
+      context: .
+      dockerfile: worker.Dockerfile
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
 
