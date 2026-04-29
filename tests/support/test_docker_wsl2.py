@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import subprocess  # noqa: S404
 from pathlib import Path
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
+from tests.support.cucumber_formatters import materialize_fake_node_runtime
 from tests.support.docker import (
     _alpine_wsl2_available,
     _ensure_docker_cli_in_alpine,
@@ -17,7 +17,6 @@ from tests.support.docker import (
     require_docker_daemon,
 )
 from tests.support.docker_cluster import DockerClusterManager, DockerTimeouts
-from tests.support.cucumber_formatters import materialize_fake_node_runtime
 
 
 class TestResolveToolPath:
@@ -774,7 +773,9 @@ class TestEntrypointsSelfContained:
 
 class TestFakeNodeRuntimeScripts:
     def test_node_and_npm_scripts_use_lf_newlines(self, tmp_path: Path):
-        runtime = materialize_fake_node_runtime(tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",))
+        runtime = materialize_fake_node_runtime(
+            tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+        )
 
         node_bytes = (runtime["bin_dir"] / "node").read_bytes()
         npm_bytes = (runtime["bin_dir"] / "npm").read_bytes()

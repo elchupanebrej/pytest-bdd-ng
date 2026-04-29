@@ -73,8 +73,7 @@ def _run_local_xdist(
         wait_for_endpoint("127.0.0.1", 8889)
         socket_chdir = tmp_path.as_posix()
         raw_xdist_args = (
-            f"--tx socket=127.0.0.1:8888//chdir={socket_chdir} "
-            f"--tx socket=127.0.0.1:8889//chdir={socket_chdir}"
+            f"--tx socket=127.0.0.1:8888//chdir={socket_chdir} --tx socket=127.0.0.1:8889//chdir={socket_chdir}"
         )
     elif remote_mode == "via":
         servers.append(

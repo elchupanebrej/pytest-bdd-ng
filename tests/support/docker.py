@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+
 def _resolve_tool_path(name: str) -> str | None:
     resolved = shutil.which(name)
     if resolved is not None:
@@ -33,10 +34,7 @@ def _resolve_tool_path(name: str) -> str | None:
                 / "resources"
                 / "bin"
                 / "docker.exe",
-                Path(os.environ.get("ProgramData", r"C:\ProgramData"))
-                / "DockerDesktop"
-                / "version-bin"
-                / "docker.exe",
+                Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "DockerDesktop" / "version-bin" / "docker.exe",
             ]
         )
 
