@@ -8,7 +8,9 @@ info:
     This contract defines which hook-visible runtime members must be populated,
     which members may surface through dedicated Empty-State Objects, and how
     centralized lifecycle guards enforce deterministic failures when the
-    contract cannot be satisfied.
+    contract cannot be satisfied. Terminology retained for compatibility
+    includes guaranteed_present, empty_object_allowed, fail_fast, and
+    explicit_empty_state_when_inactive.
 paths:
   /hooks/{hookName}/run-surface:
     get:

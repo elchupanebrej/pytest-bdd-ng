@@ -71,7 +71,11 @@ def _run_local_xdist(
         )
         wait_for_endpoint("127.0.0.1", 8888)
         wait_for_endpoint("127.0.0.1", 8889)
-        raw_xdist_args = f"--tx socket=127.0.0.1:8888//chdir={tmp_path} --tx socket=127.0.0.1:8889//chdir={tmp_path}"
+        socket_chdir = tmp_path.as_posix()
+        raw_xdist_args = (
+            f"--tx socket=127.0.0.1:8888//chdir={socket_chdir} "
+            f"--tx socket=127.0.0.1:8889//chdir={socket_chdir}"
+        )
     elif remote_mode == "via":
         servers.append(
             subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env)
@@ -160,7 +164,7 @@ def _run_remote_xdist_compose(
 
     from tests.support.docker_cluster import cluster_manager
 
-    require_docker_daemon()
+    cluster_manager.set_backend(require_docker_daemon())
     repo_root = Path(__file__).resolve().parents[2]
 
     if verify_mode == "success-live":

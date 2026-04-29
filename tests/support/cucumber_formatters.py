@@ -178,6 +178,19 @@ def _render_support_template(template_name: str, *, replacements: dict[str, str]
     return rendered
 
 
+def _write_windows_command_shim(command_path: Path, target_script_path: Path) -> None:
+    command_path.write_text(
+        "\r\n".join(
+            (
+                "@echo off",
+                f'"{sys.executable}" "{target_script_path}" %*',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+
 def materialize_fake_node_runtime(
     root_path: Path,
     *,
@@ -208,6 +221,7 @@ def materialize_fake_node_runtime(
             replacements={"__FORMATTER_OUTPUTS__": repr(_FAKE_FORMATTER_OUTPUTS)},
         ),
         encoding="utf-8",
+        newline="\n",
     )
     node_path.chmod(node_path.stat().st_mode | stat.S_IEXEC)
 
@@ -215,8 +229,11 @@ def materialize_fake_node_runtime(
     npm_path.write_text(
         _render_support_template("fake_npm_runtime.py.j2"),
         encoding="utf-8",
+        newline="\n",
     )
     npm_path.chmod(npm_path.stat().st_mode | stat.S_IEXEC)
+    _write_windows_command_shim(bin_dir / "node.cmd", node_path)
+    _write_windows_command_shim(bin_dir / "npm.cmd", npm_path)
     return {
         "bin_dir": bin_dir,
         "seed_node_modules": seed_node_modules,

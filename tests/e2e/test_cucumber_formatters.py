@@ -12,6 +12,7 @@ from tests.support.cucumber_formatters import (
     expected_formatter_output_lines,
     expected_formatter_visible_line,
     install_fake_node,
+    materialize_fake_node_runtime,
     read_fake_formatter_telemetry,
     run_pytest_via_real_entrypoint,
     with_pytester_terminal_capture_disabled,
@@ -26,6 +27,13 @@ def test_fake_runtime_support_uses_template_assets_from_shared_support_module() 
     assert "fake_node_runtime.py.j2" in support_source
     assert "fake_npm_runtime.py.j2" in support_source
     assert "fake node expected either" not in support_source
+
+
+def test_fake_runtime_support_materializes_windows_command_shims(tmp_path: Path) -> None:
+    runtime = materialize_fake_node_runtime(tmp_path)
+
+    assert (runtime["bin_dir"] / "node.cmd").exists()
+    assert (runtime["bin_dir"] / "npm.cmd").exists()
 
 
 @pytest.mark.parametrize(

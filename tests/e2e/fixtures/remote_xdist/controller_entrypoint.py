@@ -27,6 +27,30 @@ def wait_for_endpoint(host: str, port: int):
     sys.exit(f"Timed out waiting for {host}:{port}: {last_error}")
 
 
+def ssh_ready(host: str) -> tuple[bool, str]:
+    command = ["ssh", host, "python3.14 -c 'print(1)'"]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)  # noqa: S603
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, str(exc)
+    if result.returncode == 0 and result.stdout.strip() == "1":
+        return True, ""
+    stderr = result.stderr.strip()
+    stdout = result.stdout.strip()
+    return False, stderr or stdout or f"ssh exited with {result.returncode}"
+
+
+def wait_for_ssh_ready(host: str):
+    deadline = time.monotonic() + 30.0
+    last_error = ""
+    while time.monotonic() < deadline:
+        is_ready, last_error = ssh_ready(host)
+        if is_ready:
+            return
+        time.sleep(0.5)
+    sys.exit(f"Timed out waiting for ssh readiness on {host}: {last_error}")
+
+
 def main():
     report_path = os.environ.get("REPORT_PATH", "")
     local_report_dir = Path("/app/.pytest-bdd-remote")
@@ -71,6 +95,8 @@ def main():
         elif remote_mode == "ssh":
             wait_for_endpoint("worker1", 22)
             wait_for_endpoint("worker2", 22)
+            wait_for_ssh_ready("worker1")
+            wait_for_ssh_ready("worker2")
             raw_xdist_args = (
                 "--tx ssh=worker1//python=python3.14//chdir=/app --tx ssh=worker2//python=python3.14//chdir=/app"
             )

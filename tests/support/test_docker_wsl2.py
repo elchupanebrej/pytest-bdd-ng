@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess  # noqa: S404
 from pathlib import Path
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
@@ -9,12 +10,38 @@ import pytest
 from tests.support.docker import (
     _alpine_wsl2_available,
     _ensure_docker_cli_in_alpine,
+    _resolve_tool_path,
     _start_docker_desktop,
     _wait_for_docker,
     docker_daemon_available,
     require_docker_daemon,
 )
 from tests.support.docker_cluster import DockerClusterManager, DockerTimeouts
+from tests.support.cucumber_formatters import materialize_fake_node_runtime
+
+
+class TestResolveToolPath:
+    def test_prefers_path_lookup(self):
+        with patch("tests.support.docker.shutil.which", return_value=r"C:\tools\docker.exe"):
+            assert _resolve_tool_path("docker") == r"C:\tools\docker.exe"
+
+    def test_uses_windows_wsl_fallback_when_path_missing(self):
+        with (
+            patch("tests.support.docker.shutil.which", return_value=None),
+            patch("tests.support.docker.os.name", "nt"),
+            patch.dict("tests.support.docker.os.environ", {"SystemRoot": r"C:\Windows"}, clear=False),
+            patch("tests.support.docker.Path.exists", return_value=True),
+        ):
+            assert _resolve_tool_path("wsl").lower().endswith(r"system32\wsl.exe")
+
+    def test_uses_windows_docker_fallback_when_path_missing(self):
+        with (
+            patch("tests.support.docker.shutil.which", return_value=None),
+            patch("tests.support.docker.os.name", "nt"),
+            patch.dict("tests.support.docker.os.environ", {"ProgramFiles": r"C:\Program Files"}, clear=False),
+            patch("tests.support.docker.Path.exists", side_effect=[True, False]),
+        ):
+            assert _resolve_tool_path("docker").lower().endswith(r"docker\docker\resources\bin\docker.exe")
 
 
 class TestAlpineWsl2Available:
@@ -309,10 +336,18 @@ class TestRequireDockerDaemon:
             result = require_docker_daemon()
             assert result == "native"
 
+    def test_refreshes_cached_probe_before_checking_environment(self):
+        availability_probe = Mock(return_value=(True, "native"))
+        availability_probe.cache_clear = Mock()
+        with patch("tests.support.docker.docker_daemon_available", availability_probe):
+            result = require_docker_daemon()
+            assert result == "native"
+            availability_probe.cache_clear.assert_called_once_with()
+
     def test_fails_when_docker_desktop_not_installed(self):
         with (
             patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
-            patch("tests.support.docker.shutil.which", return_value=None),
+            patch("tests.support.docker._resolve_tool_path", return_value=None),
             pytest.raises(pytest.fail.Exception, match="Docker Desktop not installed"),
         ):
             require_docker_daemon()
@@ -320,7 +355,7 @@ class TestRequireDockerDaemon:
     def test_fails_when_wsl2_alpine_not_found(self):
         with (
             patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
-            patch("tests.support.docker.shutil.which", return_value="/usr/bin/docker"),
+            patch("tests.support.docker._resolve_tool_path", return_value="/usr/bin/docker"),
             patch("tests.support.docker._alpine_wsl2_available", return_value=False),
             pytest.raises(pytest.fail.Exception, match="WSL2 Alpine dist not found"),
         ):
@@ -365,7 +400,10 @@ class TestRunWslCmd:
             stdout="",
             stderr="",
         )
-        with patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run:
+        with (
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+            patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        ):
             from tests.support.docker_cluster import _run_wsl_cmd
 
             _run_wsl_cmd(["docker", "compose", "up", "-d"], timeout=120)
@@ -382,7 +420,10 @@ class TestRunWslCmd:
             stdout="Server Version: 24.0\n",
             stderr="",
         )
-        with patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run:
+        with (
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+            patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        ):
             from tests.support.docker_cluster import _run_wsl_cmd
 
             _run_wsl_cmd(["docker", "info"], timeout=60)
@@ -397,7 +438,10 @@ class TestRunWslCmd:
             stdout="hello\n",
             stderr="",
         )
-        with patch("tests.support.docker_cluster.subprocess.run", return_value=result):
+        with (
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+            patch("tests.support.docker_cluster.subprocess.run", return_value=result),
+        ):
             from tests.support.docker_cluster import _run_wsl_cmd
 
             returned = _run_wsl_cmd(["echo", "hello"], timeout=30)
@@ -416,7 +460,7 @@ class TestDockerClusterManagerBackend:
         )
         with (
             patch("tests.support.docker_cluster._run_wsl_cmd", return_value=up_result) as mock_wsl,
-            patch("tests.support.docker_cluster.tempfile.mkdtemp", return_value="/tmp/artifacts"),  # noqa: S108
+            patch("tests.support.docker_cluster.Path.mkdir"),
         ):
             mgr = DockerClusterManager(backend="wsl2")
             mgr.get_cluster("socket", Path("/fixtures"), Path("/repo"))
@@ -437,12 +481,14 @@ class TestDockerClusterManagerBackend:
         with (
             patch("tests.support.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
             patch("tests.support.docker_cluster._run_wsl_cmd") as mock_wsl,
-            patch("tests.support.docker_cluster.tempfile.mkdtemp", return_value="/tmp/artifacts"),  # noqa: S108
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
         ):
             mgr = DockerClusterManager(backend="native")
             mgr.get_cluster("socket", Path("/fixtures"), Path("/repo"))
             mock_run.assert_called_once()
             mock_wsl.assert_not_called()
+            assert mock_run.call_args[0][0][0].lower().endswith("docker.exe")
 
     def test_wsl2_backend_routes_run_in_controller_through_wsl(self):
         """DockerClusterManager with backend='wsl2' routes exec through _run_wsl_cmd."""
@@ -460,13 +506,108 @@ class TestDockerClusterManagerBackend:
         )
         with (
             patch("tests.support.docker_cluster._run_wsl_cmd", side_effect=[up_result, exec_result]) as mock_wsl,
-            patch("tests.support.docker_cluster.tempfile.mkdtemp", return_value="/tmp/artifacts"),  # noqa: S108
+            patch("tests.support.docker_cluster.Path.mkdir"),
         ):
             mgr = DockerClusterManager(backend="wsl2")
             mgr.run_in_controller("socket", Path("/fixtures"), Path("/repo"), "success-live", "")
             assert mock_wsl.call_count == 2
             exec_args = mock_wsl.call_args_list[1][0][0]
             assert "exec" in exec_args
+
+    def test_native_backend_uses_stable_compose_project_name_for_up_and_exec(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        exec_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "exec", "controller"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+        ):
+            mgr = DockerClusterManager(backend="native")
+            mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
+
+            up_env = mock_run.call_args_list[0].kwargs["env"]
+            exec_env = mock_run.call_args_list[1].kwargs["env"]
+
+            assert up_env["COMPOSE_PROJECT_NAME"] == "pytestbddremotessh"
+            assert exec_env["COMPOSE_PROJECT_NAME"] == up_env["COMPOSE_PROJECT_NAME"]
+
+    def test_compose_up_sets_remote_mode_for_cluster_services(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+        ):
+            mgr = DockerClusterManager(backend="native")
+            mgr.get_cluster("ssh", Path("/fixtures"), Path("/repo"))
+
+            up_env = mock_run.call_args.kwargs["env"]
+
+            assert up_env["PYTEST_REMOTE_MODE"] == "ssh"
+
+    def test_run_in_controller_uses_compose_mounted_artifacts_directory(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        exec_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "exec", "controller"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]),
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+        ):
+            mgr = DockerClusterManager(backend="native")
+            _, artifact_dir = mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
+
+            assert artifact_dir == Path("/fixtures") / "artifacts"
+
+    def test_run_in_controller_disables_tty_for_compose_exec(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        exec_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "exec", "controller"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+        ):
+            mgr = DockerClusterManager(backend="native")
+            mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
+
+            exec_args = mock_run.call_args_list[1][0][0]
+
+            assert "exec" in exec_args
+            assert "-T" in exec_args
 
     def test_wsl2_backend_routes_cleanup_through_wsl(self):
         """DockerClusterManager with backend='wsl2' routes cleanup through _run_wsl_cmd."""
@@ -484,7 +625,7 @@ class TestDockerClusterManagerBackend:
         )
         with (
             patch("tests.support.docker_cluster._run_wsl_cmd", side_effect=[up_result, down_result]) as mock_wsl,
-            patch("tests.support.docker_cluster.tempfile.mkdtemp", return_value="/tmp/artifacts"),  # noqa: S108
+            patch("tests.support.docker_cluster.Path.mkdir"),
             patch("tests.support.docker_cluster.Path.exists", return_value=False),
         ):
             mgr = DockerClusterManager(backend="wsl2")
@@ -501,8 +642,54 @@ class TestDockerClusterManagerBackend:
         mgr = DockerClusterManager()
         assert mgr.backend == "native"
 
+    def test_session_timer_starts_on_first_cluster_use(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", return_value=up_result),
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+            patch("tests.support.docker_cluster.time.monotonic", return_value=1000.0),
+        ):
+            mgr = DockerClusterManager(backend="native", timeouts=DockerTimeouts(overall_session=1))
+            assert mgr._session_start is None
+
+            mgr.get_cluster("ssh", Path("/fixtures"), Path("/repo"))
+
+            assert mgr._session_start == 1000.0
+
 
 class TestDockerComposeRelativeMounts:
+    def test_local_images_have_build_config(self):
+        """docker-compose.yml local-tagged services should be buildable without registry pulls."""
+        import yaml
+
+        compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+        with Path(compose_path).open() as f:
+            compose = yaml.safe_load(f)
+
+        for svc_name, svc in compose.get("services", {}).items():
+            image = svc.get("image", "")
+            if isinstance(image, str) and image.endswith(":local"):
+                assert "build" in svc, f"Service {svc_name} uses a local image tag without a build config"
+
+    def test_remote_xdist_builds_use_repo_root_context(self):
+        """remote xdist Dockerfiles copy repo-root files, so compose builds must use the repo root as context."""
+        import yaml
+
+        compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+        with Path(compose_path).open() as f:
+            compose = yaml.safe_load(f)
+
+        expected_context = "../../../.."
+        for svc_name in ("controller", "proxy", "worker1", "worker2"):
+            build = compose["services"][svc_name]["build"]
+            assert build["context"] == expected_context, f"Service {svc_name} should build from repo root context"
+
     def test_no_repo_root_env_var_in_compose(self):
         """docker-compose.yml should not use ${REPO_ROOT} for build context."""
         import yaml
@@ -572,6 +759,30 @@ class TestEntrypointsSelfContained:
             elif isinstance(node, ast.ImportFrom) and node.module:
                 top = node.module.split(".")[0]
                 assert top in allowed, f"worker_entrypoint.py imports from external module: {node.module}"
+
+    def test_controller_entrypoint_waits_for_ssh_command_readiness(self):
+        entrypoint_path = (
+            Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"
+        )
+        content = Path(entrypoint_path).read_text(encoding="utf-8")
+
+        assert "ssh_ready(" in content
+        assert '"ssh"' in content
+        assert "python3.14" in content
+        assert "print(1)" in content
+
+
+class TestFakeNodeRuntimeScripts:
+    def test_node_and_npm_scripts_use_lf_newlines(self, tmp_path: Path):
+        runtime = materialize_fake_node_runtime(tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",))
+
+        node_bytes = (runtime["bin_dir"] / "node").read_bytes()
+        npm_bytes = (runtime["bin_dir"] / "npm").read_bytes()
+
+        assert b"\r\n" not in node_bytes
+        assert b"\r\n" not in npm_bytes
+        assert node_bytes.startswith(b"#!/usr/bin/env python3\n")
+        assert npm_bytes.startswith(b"#!/usr/bin/env python3\n")
 
 
 class TestDockerfilesRelativeContext:

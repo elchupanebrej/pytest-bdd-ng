@@ -1,18 +1,58 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess  # noqa: S404
 import time
 from functools import lru_cache
+from pathlib import Path
 
 import pytest
+
+def _resolve_tool_path(name: str) -> str | None:
+    resolved = shutil.which(name)
+    if resolved is not None:
+        return resolved
+
+    if os.name != "nt":
+        return None
+
+    candidates: list[Path] = []
+    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+
+    if name == "wsl":
+        candidates.append(system_root / "System32" / "wsl.exe")
+    elif name == "powershell":
+        candidates.append(system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe")
+    elif name == "docker":
+        candidates.extend(
+            [
+                Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+                / "Docker"
+                / "Docker"
+                / "resources"
+                / "bin"
+                / "docker.exe",
+                Path(os.environ.get("ProgramData", r"C:\ProgramData"))
+                / "DockerDesktop"
+                / "version-bin"
+                / "docker.exe",
+            ]
+        )
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+
+    return None
+
 
 # ── T002: WSL2 Alpine detection ───────────────────────────────────────────────
 
 
 def _alpine_wsl2_available() -> bool:
     """Detect if WSL2 Alpine dist exists by parsing ``wsl -l -v`` output."""
-    wsl_bin = shutil.which("wsl")
+    wsl_bin = _resolve_tool_path("wsl")
     if wsl_bin is None:
         return False
     result = subprocess.run(  # noqa: S603
@@ -31,7 +71,7 @@ def _alpine_wsl2_available() -> bool:
 
 def _start_docker_desktop() -> None:
     """Launch Docker Desktop via PowerShell.  Raise *RuntimeError* on failure."""
-    ps = shutil.which("powershell")
+    ps = _resolve_tool_path("powershell")
     if ps is None:
         msg = "PowerShell not found"
         raise RuntimeError(msg)
@@ -55,7 +95,7 @@ def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if backend == "native":
-            docker_bin = shutil.which("docker")
+            docker_bin = _resolve_tool_path("docker")
             if docker_bin is None:
                 time.sleep(2)
                 continue
@@ -66,7 +106,7 @@ def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
                 text=True,
             )
         else:
-            wsl_bin = shutil.which("wsl")
+            wsl_bin = _resolve_tool_path("wsl")
             if wsl_bin is None:
                 time.sleep(2)
                 continue
@@ -87,7 +127,7 @@ def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
 
 def _ensure_docker_cli_in_alpine(timeout: int = 60) -> None:
     """Install ``docker-cli`` in Alpine WSL2 dist when missing."""
-    wsl_bin = shutil.which("wsl")
+    wsl_bin = _resolve_tool_path("wsl")
     if wsl_bin is None:
         pytest.fail("WSL not available")
     result = subprocess.run(  # noqa: S603
@@ -116,7 +156,7 @@ def _ensure_docker_cli_in_alpine(timeout: int = 60) -> None:
 def docker_daemon_available() -> tuple[bool, str | None]:
     """Return ``(available, backend)`` where backend is ``"native"`` or ``"wsl2"``."""
     # Try native docker first
-    docker_bin = shutil.which("docker")
+    docker_bin = _resolve_tool_path("docker")
     if docker_bin is not None:
         result = subprocess.run(  # noqa: S603
             [docker_bin, "info"],
@@ -129,7 +169,7 @@ def docker_daemon_available() -> tuple[bool, str | None]:
 
     # Fall back to WSL2 Alpine
     if _alpine_wsl2_available():
-        wsl_bin = shutil.which("wsl")
+        wsl_bin = _resolve_tool_path("wsl")
         if wsl_bin is not None:
             result = subprocess.run(  # noqa: S603
                 [wsl_bin, "-d", "Alpine", "docker", "info"],
@@ -156,12 +196,15 @@ def docker_daemon_available() -> tuple[bool, str | None]:
 
 def require_docker_daemon() -> str:
     """Return backend name (``"native"`` or ``"wsl2"``).  Fail on missing prereqs."""
+    cache_clear = getattr(docker_daemon_available, "cache_clear", None)
+    if callable(cache_clear):
+        cache_clear()
     available, backend = docker_daemon_available()
     if available:
         return backend
 
     # Determine the specific failure reason
-    docker_bin = shutil.which("docker")
+    docker_bin = _resolve_tool_path("docker")
     if docker_bin is None:
         pytest.fail("Docker Desktop not installed")
 

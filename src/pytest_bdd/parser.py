@@ -145,6 +145,7 @@ class GherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(gherkin_document_raw_dict)
+        feature._pytest_bdd_filename = str(path.as_posix())
         return feature, feature_file_data
 
 
@@ -188,4 +189,5 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(gherkin_document_raw_dict)
+        feature._pytest_bdd_filename = str(path.as_posix())
         return feature, feature_file_data
