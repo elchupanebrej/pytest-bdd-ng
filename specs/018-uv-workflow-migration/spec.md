@@ -10,9 +10,9 @@
 ## Clarifications
 
 ### Session 2026-04-14
-- Q: Depth of Testing Tool replacement → A: Hybrid approach (`tox-uv`): Replace conda completely with uv for Python versions, but keep tox (with tox-uv) for test matrix coordination.
+- Q: Depth of Testing Tool replacement → A: Hybrid approach (`tox-uv`): Replace the previous environment manager completely with uv for Python versions, but keep tox (with tox-uv) for test matrix coordination.
 - Q: Execution of standalone tools → A: Ephemeral Execution: Rely entirely on `uvx` for tool invocations (`uvx pre-commit`, `uvx tox`) to provide a zero-setup experience.
-- Q: Scope of CI Migration → A: Migrate CI: Completely replace `conda`, `setup-python`, and other environment bootstrapping tools in `.github/workflows` with `astral-sh/setup-uv`.
+- Q: Scope of CI Migration → A: Migrate CI: Completely replace the previous environment-manager and `setup-python` bootstrapping paths in `.github/workflows` with `astral-sh/setup-uv`.
 - Q: Prerequisite handling in Readme → A: uv must be a part of pyproject.toml because of testing. No extra prerequisite in Readme are needed.
 - Q: Non-entrypoint script execution via uv → A: Scripts that are not entrypoints of a project cannot be run via uv natively without issues; they must be mapped as formal entrypoints in pyproject.toml.
 - Q: Rationale for uv dependency tracking → A: uv is not utilized internally by the core engine; it is tracked in `pyproject.toml` exclusively because specific test Features depend on it (or could depend on it).
@@ -72,7 +72,7 @@ As a contributor or maintainer, I want setup and workflow documentation to match
 
 ### Functional Requirements
 
-- **FR-001**: The project MUST define `uv` as the primary environment coordination workflow for contributor setup and day-to-day development, completely eliminating `conda` for Python version provisioning by using `uv python install` instead.
+- **FR-001**: The project MUST define `uv` as the primary environment coordination workflow for contributor setup and day-to-day development, completely eliminating the previous environment manager for Python version provisioning by using `uv python install` instead.
 - **FR-002**: The project MUST provide a canonical dependency installation and environment preparation path that is driven through `uv`, avoiding the need for manual virtual environment creation.
 - **FR-003**: The project MUST define `uvx` (e.g. `uvx tox`, `uvx pre-commit`) as the canonical way to run standalone tools to ensure ephemeral, zero-install execution and eliminate global tool pollution.
 - **FR-004**: Project guidance MUST identify which routine validation commands contributors are expected to run through `uvx tox`.
@@ -81,7 +81,7 @@ As a contributor or maintainer, I want setup and workflow documentation to match
 - **FR-007**: Documentation updates MUST remove or explicitly de-emphasize conflicting legacy setup and test workflow instructions so only one primary workflow is presented.
 - **FR-008**: The migrated workflow MUST preserve the project's ability to support its currently documented Python-version compatibility expectations.
 - **FR-009**: Contributors MUST be able to identify, from repository documentation alone, how to set up the project, install development dependencies, and run the primary validation commands.
-- **FR-010**: GitHub Actions CI workflows MUST completely migrate to `astral-sh/setup-uv`, substituting all `setup-python` and conda infrastructure with `uv` routines to strictly mirror the native local workflow.
+- **FR-010**: GitHub Actions CI workflows MUST completely migrate to `astral-sh/setup-uv`, substituting all `setup-python` and previous environment-manager infrastructure with `uv` routines to strictly mirror the native local workflow.
 
 ### Key Entities
 

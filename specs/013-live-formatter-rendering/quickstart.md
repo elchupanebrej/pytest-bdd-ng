@@ -4,6 +4,10 @@
 
 - Use the repository development environment, for example:
   `conda run -n pytest-bdd-ng-py314 ...`
+
+> Current workflow:
+>   `uv run python -m pytest ...`
+
 - Ensure `node` and `npm` are available on `PATH` when running formatter
   validations.
 - Ensure `pytest-xdist` is installed before running distributed validation
@@ -13,6 +17,11 @@
   terminal formatter flag is active.
 - If you launch manual live-output checks through `conda run`, add
   `--live-stream` so conda does not buffer formatter output.
+
+> Current workflow:
+> - Manual live-output checks should use the same `uv run` entrypoint as the
+>   automated validations so formatter behavior matches the documented workflow.
+
 
 ## Architecture Guardrails
 
@@ -42,7 +51,10 @@
 Validate public CLI behavior and formatter request normalization:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/contract/test_cucumber_formatter_cli_contract.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/contract/test_cucumber_formatter_cli_contract.py -q
 ```
 
@@ -51,7 +63,10 @@ conda run -n pytest-bdd-ng-py314 python -m pytest \
 Validate explicit entrypoint and runtime lifecycle behavior:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/hook/test_gherkin_reporter_context_lifecycle.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/hook/test_gherkin_reporter_context_lifecycle.py -q
 ```
 
@@ -67,14 +82,21 @@ Expected observation:
 Validate that active formatters consume the live stream during a standard run:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_cucumber_formatters.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_cucumber_formatters.py -q
 ```
 
 Manual smoke command for visible live terminal output:
 
 ```bash
-PYTHONPATH=src conda run --live-stream -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# PYTHONPATH=src conda run --live-stream -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_report_doc_cucumber_formatters.py \
+#   --cucumber-summary
+PYTHONPATH=src uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_report_doc_cucumber_formatters.py \
   --cucumber-summary
 ```
@@ -94,7 +116,10 @@ Expected observation:
 Validate that replay uses the supported standalone service boundary:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/compatibility/test_render_cucumber_formatters.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/compatibility/test_render_cucumber_formatters.py -q
 ```
 
@@ -110,7 +135,10 @@ Expected observation:
 Validate worker forwarding and controller-owned rendering behavior:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_xdist_message_aggregation.py -k live_formatter_stream -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_xdist_message_aggregation.py -k live_formatter_stream -q
 ```
 
@@ -127,12 +155,18 @@ Expected observation:
 Keep user-facing reporting examples aligned with behavior:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_report_doc_cucumber_formatters.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/e2e/test_report_doc_cucumber_formatters.py -q
 ```
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/doc/test_cucumber_formatter_report_doc_parse.py -q
+uv run python -m pytest \
   /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/tests/doc/test_cucumber_formatter_report_doc_parse.py -q
 ```
 
@@ -153,6 +187,10 @@ non-native platform testing.
 - 2026-03-14: `tests/e2e/test_cucumber_formatters.py tests/e2e/test_cucumber_formatters_feature.py tests/e2e/test_report_doc_cucumber_formatters.py tests/e2e/test_xdist_message_aggregation.py tests/e2e/test_xdist_remote_message_aggregation.py tests/e2e/test_xdist_html_reporting.py tests/messages/test_xdist_remote_transport.py tests/hook/test_live_formatter_output_relay.py tests/compatibility/test_e2e_inventory.py tests/compatibility/test_e2e_no_duplicates.py -q` -> `55 passed, 9 skipped`
 - 2026-03-14: `tests/doc/test_cucumber_formatter_report_doc_parse.py tests/e2e/test_report_doc_gathering_html.py -q` -> `4 passed`
 - 2026-03-14: `PYTHONPATH=src:. conda run --live-stream -n pytest-bdd-ng-py314 python -m pytest docs/tutorial/tests -p no:pytest-bdd-gherkin-message-reporter -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint --cucumber-html .tmp/reports/tutorial-books.html -q` -> `1 passed`
+
+> Current workflow:
+> - 2026-03-14: `PYTHONPATH=src:. uv run python -m pytest docs/tutorial/tests -p no:pytest-bdd-gherkin-message-reporter -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint --cucumber-html .tmp/reports/tutorial-books.html -q` -> `1 passed`
+
 - 2026-03-14: `python .codex/skills/tox-test-matrix/scripts/run_tox_matrix.py --env py314-ruff` -> `OK`
 - 2026-03-14: `python .codex/skills/tox-test-matrix/scripts/run_tox_matrix.py --env py314-pytestlatest-gherkinlatest-xdist-coverage-mac` -> `687 passed, 19 skipped`
 - 2026-03-12: `tests/contract/test_cucumber_formatter_cli_contract.py tests/compatibility/test_render_cucumber_formatters.py tests/doc/test_cucumber_formatter_report_doc_parse.py -q` -> `11 passed`

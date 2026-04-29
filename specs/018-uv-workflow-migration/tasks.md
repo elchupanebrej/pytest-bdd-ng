@@ -27,14 +27,14 @@
 
 ## Phase 3: User Story 1 - Contributors set up the project through one primary workflow (Priority: P1)
 
-**Goal**: Deliver a singular `uv` based setup integrating formal endpoints replacing manual shell logic or `conda` instructions.
+**Goal**: Deliver a singular `uv` based setup integrating formal endpoints and removing deprecated environment-manager instructions.
 
-**Independent Test**: Running `uv run validate_feature_headings` and `uvx tox -l` successfully boots contexts without standard python env loading instructions.
+**Independent Test**: Running `uv run python src/pytest_bdd/script/validate_feature_headings.py --root-path features` and `uvx --with tox-uv tox -l` successfully boots contexts without alternate environment bootstrapping.
 
 ### Implementation for User Story 1
 
 - [x] T003 [US1] Remap existing local tooling files strictly into native application boundaries within `pyproject.toml` assigning `validate_feature_headings` and `message_capability_governance` as executable mapping keys under `[project.scripts]`.
-- [x] T004 [P] [US1] Adjust the primary `README.rst` installation workflow to instruct strictly parallel `uv sync` setups removing secondary locks completely.
+- [x] T004 [P] [US1] Adjust the primary `README.rst` installation workflow to use a single `uv sync` setup path and remove competing setup instructions.
 - [x] T005 [P] [US1] Convert `DOCUMENTATION.rst` testing and documentation steps into `uvx` executions natively tracking the dependencies.
 - [x] T006 [P] [US1] Substitute legacy rigid structures inside `Makefile` referencing manual virtual components explicitly to `uv` execution grids.
 
@@ -62,7 +62,7 @@
 
 **Goal**: Full coverage alignment guarantees zero instances of historical instruction workflows persisting globally.
 
-**Independent Test**: Documentation sub-folders securely instruct natively and `git grep -i conda` yields 0 tutorial matches.
+**Independent Test**: Documentation sub-folders securely instruct natively and a search for the deprecated environment-manager token yields 0 tutorial matches.
 
 ### Implementation for User Story 3
 
@@ -77,7 +77,7 @@
 **Purpose**: Validation and performance checks completing the full matrix block correctly.
 
 - [ ] T011 Run `uvx tox -e py314-pytestlatest` local check resolving dependency loading locally.
-- [ ] T012 Validate explicit target integration via executing mapped tests `uv run message_capability_governance` confirming endpoint constraints.
+- [ ] T012 Validate explicit target integration via executing `uv run python -m pytest_bdd.script.message_capability_governance report` and confirming endpoint constraints.
 - [ ] T013 Check formatting natively across files via `uvx pre-commit run --all-files`.
 
 ---

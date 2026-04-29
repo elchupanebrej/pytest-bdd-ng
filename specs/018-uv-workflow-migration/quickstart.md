@@ -2,7 +2,7 @@
 
 **Branch**: `018-uv-workflow-migration`
 
-This guide outlines the canonical, single-workflow setup for contributors working on `pytest-bdd-ng`, entirely powered by `uv`. It replaces all legacy `conda`, `pip`, and `virtualenv` instructions.
+This guide outlines the canonical, single-workflow setup for contributors working on `pytest-bdd-ng`, entirely powered by `uv`. It replaces older environment-manager, `pip`, and `virtualenv` instructions.
 
 ## Prerequisites
 
@@ -28,13 +28,13 @@ All canonical test environments and compatibility checks remain orchestrated by 
 
 ```bash
 # List all available testing matrices
-uvx tox -l
+uvx --with tox-uv tox -l
 
 # Run a specific test environment (e.g., Python 3.14 with latest pytest)
-uvx tox -e py314-pytestlatest
+uvx --with tox-uv tox -e py314-pytestlatest
 
 # Run the strict type-checking suite
-uvx tox -e mypy
+uvx --with tox-uv tox -e py314-pytestlatest-mypy
 ```
 
 ## 3. Formatting and Linting
@@ -52,8 +52,8 @@ All scripts isolated under `src/pytest_bdd/script/` have been formalized under `
 
 ```bash
 # Validate feature headings formatting via native entrypoint
-uv run validate_feature_headings
+uv run python src/pytest_bdd/script/validate_feature_headings.py --root-path features
 
 # Test the message capability governance layer
-uv run message_capability_governance
+uv run python -m pytest_bdd.script.message_capability_governance report
 ```

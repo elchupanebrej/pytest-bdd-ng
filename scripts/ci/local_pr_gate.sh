@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENV_NAME="${1:-pytest-bdd-ng-py314}"
-
 echo "[1/4] pre-commit"
-conda run -n "$ENV_NAME" pre-commit run --all-files
+uvx pre-commit run --all-files
 
 echo "[2/4] e2e tests"
-conda run -n "$ENV_NAME" python -m pytest -q tests/e2e
+uv run python -m pytest -q tests/e2e
 
 echo "[3/4] workflow matrix sanity"
 if [ -f .github/workflows/tests.yml ]; then

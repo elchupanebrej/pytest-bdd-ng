@@ -5,8 +5,10 @@
 ## 1. Prepare environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes]'
+uv sync --extra test --extra testtypes
 ```
 
 Expected:
@@ -15,8 +17,14 @@ Expected:
 ## 2. Validate canonical message stream behavior
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/messages/test_messages.py \
+#   tests/feature/test_report.py \
+#   tests/feature/test_gherkin_terminal_reporter.py \
+#   tests/hook/test_reporting_context_snapshot_unit.py
+uv run python -m pytest -q \
   tests/messages/test_messages.py \
   tests/feature/test_report.py \
   tests/feature/test_gherkin_terminal_reporter.py \
@@ -30,8 +38,10 @@ Expected:
 ## 3. Validate compatibility behavior for failure diagnostics
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility/test_failure_messages.py
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility/test_failure_messages.py
+uv run python -m pytest -q tests/compatibility/test_failure_messages.py
 ```
 
 Expected:
@@ -40,8 +50,10 @@ Expected:
 ## 4. Validate MyPy message-construction coverage
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy
+uvx --with tox-uv tox -e py314-pytestlatest-mypy
 ```
 
 Expected:
@@ -79,8 +91,10 @@ Expected:
 ## 6. Run contributor quality gate
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+uvx pre-commit run --all-files
 ```
 
 Expected:
@@ -91,7 +105,19 @@ Expected:
 - Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/messages/test_messages.py \
+#   tests/messages/test_message_attachments.py \
+#   tests/messages/test_message_validation.py \
+#   tests/messages/test_message_typing_regression.py \
+#   tests/feature/test_report.py \
+#   tests/feature/test_gherkin_terminal_reporter.py \
+#   tests/feature/test_cucumber_json.py \
+#   tests/contract/test_event_message_reporting_contract.py \
+#   tests/scripts/test_spec_prefix_resolution.py \
+#   tests/hook/test_hook.py::test_message_hook_signature_uses_event_envelope_annotation
+uv run python -m pytest -q \
   tests/messages/test_messages.py \
   tests/messages/test_message_attachments.py \
   tests/messages/test_message_validation.py \
@@ -109,7 +135,9 @@ conda run -n pytest-bdd-ng-py314 python -m pytest -q \
 - Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy
+uvx --with tox-uv tox -e py314-pytestlatest-mypy
 ```
 
   Result: `FAIL` (repository-wide pre-existing mypy issues remain; command reported 11 errors in 5 files).
@@ -117,7 +145,9 @@ conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy
 - Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy-messages
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy-messages
+uvx --with tox-uv tox -e py314-pytestlatest-mypy-messages
 ```
 
   Result: `PASS` (`Success: no issues found in 7 source files`).
@@ -125,7 +155,9 @@ conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy-messages
 - Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+uvx pre-commit run --all-files
 ```
 
   Result: `FAIL` (repository-wide hooks reported existing markdown and mypy/lint issues outside this feature scope; some files were auto-formatted by hooks).

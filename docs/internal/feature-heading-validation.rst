@@ -29,7 +29,7 @@ Workflow
 
   .. code-block:: bash
 
-     conda run -n pytest-bdd-ng-py314 python \
+     uv run python \
        src/pytest_bdd/script/validate_feature_headings.py --root-path features
 
 - Pre-commit hook ``validate-feature-headings`` runs the same validation before

@@ -19,6 +19,10 @@
 - `ruff check src/` gives zero errors related to syntax.
 - `conda run -n pytest-bdd-ng-py314 python -m pytest tests/ -q` passes with zero regressions.
 
+> Current workflow:
+> - `uv run python -m pytest tests/ -q` passes with zero regressions.
+
+
 **Implementation Tasks**:
 
 ### Legacy `attr.s` Migrations (Phase A)
@@ -41,10 +45,18 @@
 - [x] T010 Run exhaustive grep checks to confirm absolutely no instances of `from attr import attrib` or `@dataclass` remain in `src/` (excluding explicit test files or non-migratable exceptions).
 - [x] T011 Run `conda run -n pytest-bdd-ng-py314 pre-commit run --all-files` and fix any formatting/import ordering issues introduced by the migration.
 
+> Current workflow:
+> T011 equivalent: run `uvx pre-commit run --all-files` and fix any formatting/import ordering issues introduced by the migration.
+
+
 ## Execution Strategy
 
 **Implementation Strategy**:
 The structural refactoring tasks (T001-T009) can be handled in any order, but doing them grouped by migration variant ensures fewer context switches. It is highly recommended to run the unit test suite (`conda run -n pytest-bdd-ng-py314 pytest tests/`) incrementally after every file changed to spot semantic shifts immediately.
+
+> Current workflow:
+> Run the unit test suite incrementally with `uv run pytest tests/` after every file change to spot semantic shifts immediately.
+
 
 **Dependencies**:
 - T010 and T011 block the completion of the branch and must follow T001-T009.

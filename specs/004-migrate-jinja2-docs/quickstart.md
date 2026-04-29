@@ -5,15 +5,21 @@
 ## Prerequisites
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes,doc-gen]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes,doc-gen]'
+uv sync --extra test --extra testtypes --extra doc-gen
 ```
 
 ## Scenario 1: Semantic parity for generation output (US1)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/generation/test_generate.py \
+#   tests/generation/test_generate_missing.py
+uv run python -m pytest -q \
   tests/generation/test_generate.py \
   tests/generation/test_generate_missing.py
 ```
@@ -25,9 +31,12 @@ Expected:
 ## Scenario 2: Manual-content-safe documentation regeneration (US2)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
-conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/doc/test_doc.py
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/doc/test_doc.py
+uv run python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+uv run python -m pytest -q tests/doc/test_doc.py
 ```
 
 Expected:
@@ -48,8 +57,12 @@ Expected:
 ## Scenario 4: Contract and packaging validation (US3)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/contract/test_jinja2_doc_generation_contract.py \
+#   tests/generation/test_template_packaging.py
+uv run python -m pytest -q \
   tests/contract/test_jinja2_doc_generation_contract.py \
   tests/generation/test_template_packaging.py
 ```
@@ -72,8 +85,10 @@ Expected:
 ## Scenario 6: Features HTML build viability
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
+uv run sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
 ```
 
 Expected:

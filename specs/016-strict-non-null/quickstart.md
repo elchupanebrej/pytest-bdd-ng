@@ -5,8 +5,10 @@
 ## 1. Prepare the local environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+uv sync --extra test --extra testenv --extra testtypes
 ```
 
 Expected:
@@ -16,8 +18,13 @@ Expected:
 ## 2. Validate stash identity and root lifecycle guard behavior
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/hook/test_run_fixture_stash.py \
+#   tests/hook/test_scenario_run_model.py \
+#   tests/hook/test_run_scenario_runtime_unit.py
+uv run python -m pytest -q \
   tests/hook/test_run_fixture_stash.py \
   tests/hook/test_scenario_run_model.py \
   tests/hook/test_run_scenario_runtime_unit.py
@@ -31,8 +38,14 @@ Expected:
 ## 3. Validate lifecycle transitions and hook-visible non-null guarantees
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/hook/test_run_transitions.py \
+#   tests/feature/test_run_hooks.py \
+#   tests/feature/test_run_lifecycle.py \
+#   tests/feature/test_report_context_hierarchy.py
+uv run python -m pytest -q \
   tests/hook/test_run_transitions.py \
   tests/feature/test_run_hooks.py \
   tests/feature/test_run_lifecycle.py \
@@ -48,8 +61,14 @@ Expected:
 ## 4. Validate reporting, enrichment, and parse-error boundaries
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/hook/test_reporting_context_snapshot_unit.py \
+#   tests/hook/test_scenario_reference_resolution.py \
+#   tests/hook/test_parse_error_sink.py \
+#   tests/hook/test_run_diagnostics.py
+uv run python -m pytest -q \
   tests/hook/test_reporting_context_snapshot_unit.py \
   tests/hook/test_scenario_reference_resolution.py \
   tests/hook/test_parse_error_sink.py \
@@ -65,8 +84,15 @@ Expected:
 ## 5. Validate public contracts and lifecycle compatibility surfaces
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/contract/test_hook_lifecycle_non_null_contract.py \
+#   tests/contract/test_run_contract.py \
+#   tests/contract/test_event_message_reporting_contract.py \
+#   tests/contract/test_xdist_consolidated_stream_contract.py \
+#   tests/contract/test_cucumber_formatter_cli_contract.py
+uv run python -m pytest -q \
   tests/contract/test_hook_lifecycle_non_null_contract.py \
   tests/contract/test_run_contract.py \
   tests/contract/test_event_message_reporting_contract.py \
@@ -82,9 +108,12 @@ Expected:
 ## 6. Validate repository-wide compatibility and quality gates
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest tests/compatibility -q
-conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest tests/compatibility -q
+# conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+uv run python -m pytest tests/compatibility -q
+uvx pre-commit run --all-files
 ```
 
 Expected:
@@ -95,8 +124,10 @@ Expected:
 ## 7. Optional matrix discovery before broader implementation rollout
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 tox -l
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 tox -l
+uvx --with tox-uv tox -l
 ```
 
 Expected:

@@ -5,8 +5,10 @@
 ## 1. Prepare the environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes,doc-gen]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes,doc-gen]'
+uv sync --extra test --extra testtypes --extra doc-gen
 ```
 
 Expected:
@@ -15,8 +17,10 @@ Expected:
 ## 2. Validate ordered feature-doc generation behavior
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 tox -e py313-pytestlatest-coverage-lin -- tests/doc/test_doc.py
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 tox -e py313-pytestlatest-coverage-lin -- tests/doc/test_doc.py
+uvx --with tox-uv tox -e py313-pytestlatest-coverage-lin -- tests/doc/test_doc.py
 ```
 
 Expected:
@@ -28,8 +32,12 @@ Expected:
 ## 3. Validate deterministic ordering errors
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/doc/test_doc.py \
+#   tests/contract/test_feature_doc_ordering_contract.py
+uv run python -m pytest -q \
   tests/doc/test_doc.py \
   tests/contract/test_feature_doc_ordering_contract.py
 ```
@@ -42,8 +50,10 @@ Expected:
 ## 4. Regenerate docs through the real script entry point
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+uv run python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
 ```
 
 Expected:
@@ -54,8 +64,13 @@ Expected:
 ## 5. Validate template packaging and docs-generation contracts
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/contract/test_jinja2_doc_generation_contract.py \
+#   tests/contract/test_feature_doc_ordering_contract.py \
+#   tests/generation/test_template_packaging.py
+uv run python -m pytest -q \
   tests/contract/test_jinja2_doc_generation_contract.py \
   tests/contract/test_feature_doc_ordering_contract.py \
   tests/generation/test_template_packaging.py
@@ -68,8 +83,10 @@ Expected:
 ## 6. Validate strict docs rendering
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
+uv run sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
 ```
 
 Expected:
@@ -96,6 +113,8 @@ Expected:
    ```bash
    cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
    conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Current workflow:
+#    uv run python -m pytest -q \
      tests/doc/test_doc.py \
      tests/contract/test_jinja2_doc_generation_contract.py \
      tests/contract/test_feature_doc_ordering_contract.py \
@@ -111,6 +130,8 @@ Expected:
    ```bash
    cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
    conda run -n pytest-bdd-ng-py314 python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+# Current workflow:
+#    uv run python src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
    ```
 
    Result:
@@ -122,6 +143,8 @@ Expected:
    ```bash
    cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
    conda run -n pytest-bdd-ng-py314 sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
+# Current workflow:
+#    uv run sphinx-build -W --keep-going -b html -c docs -D master_doc=features docs/features docs/_build/features-only-strict
    ```
 
    Result:
@@ -139,16 +162,24 @@ Expected:
    - Reported failures were in `ruff-check`, `ruff-format`, `tox-ini-fmt`, `yamllint`, and `markdownlint`.
    - The unrelated violations were reported in existing probe/testenv files plus Markdown and YAML artifacts under `specs/`, `.opencode/command/`, `AGENTS.md`, and `GEMINI.md`.
 
+> Current workflow:
+>    - The unrelated violations were reported in existing probe/testenv files plus Markdown and YAML artifacts under `specs/`, `.opencode/command/`, `AGENTS.md`, and the removed legacy agent note file.
+
+
 5. Feature-scope lint verification after the implementation fixes:
 
    ```bash
    cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
    conda run -n pytest-bdd-ng-py314 ruff check \
+# Current workflow:
+#    uvx ruff check \
      src/pytest_bdd/script/bdd_tree_to_rst.py \
      tests/contract/test_feature_doc_ordering_contract.py \
      tests/doc/test_doc.py \
      tests/generation/test_template_packaging.py
    conda run -n pytest-bdd-ng-py314 ruff format --check \
+# Current workflow:
+#    uvx ruff format --check \
      src/pytest_bdd/script/bdd_tree_to_rst.py \
      tests/contract/test_feature_doc_ordering_contract.py \
      tests/doc/test_doc.py \

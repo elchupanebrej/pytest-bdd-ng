@@ -5,13 +5,24 @@
 - Repository root: `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng`
 - Branch: `011-merge-xdist-reporting`
 - Python environment: `conda` env `pytest-bdd-ng-py314`
+
+> Current workflow:
+> - Python environment: repository synced with `uv sync --extra test --extra testenv --extra testtypes`
+
 - Docker Engine or Docker Desktop available for remote-worker acceptance coverage
 - GitHub CI entrypoint: `.github/workflows/main.yml` installs `tox` and can execute the Linux remote acceptance environments defined in `tox.ini`
 
 ## 1. Validate contract and transport-shape rules
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages/test_xdist_remote_transport.py \
+#   tests/messages/test_xdist_message_consolidation.py \
+#   tests/messages/test_message_validation.py \
+#   tests/contract/test_xdist_consolidated_stream_contract.py \
+#   tests/contract/test_xdist_worker_controller_boundary_contract.py -q
+uv run python -m pytest \
   tests/messages/test_xdist_remote_transport.py \
   tests/messages/test_xdist_message_consolidation.py \
   tests/messages/test_message_validation.py \
@@ -29,7 +40,11 @@ Expected:
 ## 2. Validate local xdist `popen` regression
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages/test_messages_feature_suite.py \
+#   tests/e2e/test_xdist_message_aggregation.py -q
+uv run python -m pytest \
   tests/messages/test_messages_feature_suite.py \
   tests/e2e/test_xdist_message_aggregation.py -q
 ```
@@ -42,7 +57,10 @@ Expected:
 ## 3. Validate remote `socket` worker aggregation
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_xdist_remote_message_aggregation.py -k socket -q
+uv run python -m pytest \
   tests/e2e/test_xdist_remote_message_aggregation.py -k socket -q
 ```
 
@@ -55,7 +73,10 @@ Expected:
 ## 4. Validate proxy `via` gateway aggregation
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_xdist_remote_message_aggregation.py -k via -q
+uv run python -m pytest \
   tests/e2e/test_xdist_remote_message_aggregation.py -k via -q
 ```
 
@@ -67,7 +88,10 @@ Expected:
 ## 5. Validate remote `ssh` aggregation
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_xdist_remote_message_aggregation.py -k ssh -q
+uv run python -m pytest \
   tests/e2e/test_xdist_remote_message_aggregation.py -k ssh -q
 ```
 
@@ -79,7 +103,10 @@ Expected:
 ## 6. Validate fail-fast compatibility handling
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages/test_xdist_remote_transport.py -k incompat -q
+uv run python -m pytest \
   tests/messages/test_xdist_remote_transport.py -k incompat -q
 ```
 
@@ -90,7 +117,12 @@ Expected:
 ## 7. Validate single-process regression
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages/test_messages.py \
+#   tests/messages/test_message_attachments.py \
+#   tests/feature/test_report.py -q
+uv run python -m pytest \
   tests/messages/test_messages.py \
   tests/messages/test_message_attachments.py \
   tests/feature/test_report.py -q
@@ -103,9 +135,13 @@ Expected:
 ## 8. Validate GitHub CI-aligned tox entrypoints
 
 ```bash
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-socket-lin
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-via-lin
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-ssh-lin
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-socket-lin
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-via-lin
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-xdist-remote-ssh-lin
+uvx --with tox-uv tox -e py314-pytestlatest-xdist-remote-socket-lin
+uvx --with tox-uv tox -e py314-pytestlatest-xdist-remote-via-lin
+uvx --with tox-uv tox -e py314-pytestlatest-xdist-remote-ssh-lin
 ```
 
 Expected:

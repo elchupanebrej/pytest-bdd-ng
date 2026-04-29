@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 ---
 default_language_version:
-  python: python3.13
+  python: python3.14
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.0
@@ -44,14 +44,14 @@ repos:
 #      - id: generate-feature-doc
 #        name: generate-feature-doc
 #        entry: >-
-#          conda run -n pytest-bdd-ng-py314 python
+#          uv run python
 #          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
 #        language: system
 #        pass_filenames: false
 #      - id: validate-feature-headings
 #        name: validate-feature-headings
 #        entry: >-
-#          conda run -n pytest-bdd-ng-py314 python
+#          uv run python
 #          src/pytest_bdd/script/validate_feature_headings.py
 #          --root-path features
 #        language: system

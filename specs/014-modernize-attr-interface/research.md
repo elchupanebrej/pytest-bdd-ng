@@ -10,6 +10,10 @@
 | Decision | attrs 25.4.0 is the installed runtime version |
 |----------|-----------------------------------------------|
 | Rationale | Confirmed via `conda run -n pytest-bdd-ng-py314 python -c "import attr; print(attr.__version__)"` → `25.4.0`. The modern `@define` / `field()` / `@frozen` API is available since attrs 20.1.0, so the entire modern API surface is available. |
+
+> Current workflow:
+> Rationale equivalent: confirm with `uv run python -c "import attr; print(attr.__version__)"`; the same version evidence applies to the current workflow.
+
 | Alternatives considered | N/A — version confirmed from active environment |
 
 ---

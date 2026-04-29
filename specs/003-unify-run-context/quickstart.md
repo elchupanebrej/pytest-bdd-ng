@@ -5,8 +5,10 @@
 ## 1. Prepare local environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+uv sync --extra test --extra testenv --extra testtypes
 ```
 
 Expected:
@@ -15,8 +17,13 @@ Expected:
 ## 2. Validate session-root fixture and stash initialization
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/hook/test_execution_context_model.py \
+#   tests/hook/test_execution_context_transitions.py \
+#   tests/hook/test_execution_context_fixture_stash.py
+uv run python -m pytest -q \
   tests/hook/test_execution_context_model.py \
   tests/hook/test_execution_context_transitions.py \
   tests/hook/test_execution_context_fixture_stash.py
@@ -30,8 +37,13 @@ Expected:
 ## 3. Validate hook parameter model integration and lifecycle isolation
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/feature/test_execution_context_hooks.py \
+#   tests/feature/test_execution_context_lifecycle.py \
+#   tests/hook/test_hook_execution_context_regression.py
+uv run python -m pytest -q \
   tests/feature/test_execution_context_hooks.py \
   tests/feature/test_execution_context_lifecycle.py \
   tests/hook/test_hook_execution_context_regression.py
@@ -44,8 +56,12 @@ Expected:
 ## 4. Validate reporting hierarchy consumption
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/feature/test_report_context_hierarchy.py \
+#   tests/struct_bdd/test_execution_context_diagnostics.py
+uv run python -m pytest -q \
   tests/feature/test_report_context_hierarchy.py \
   tests/struct_bdd/test_execution_context_diagnostics.py
 ```
@@ -57,8 +73,12 @@ Expected:
 ## 5. Validate contracts and compatibility guardrails
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/contract/test_execution_context_contract.py \
+#   tests/compatibility/test_hook_execution_context_api_surface.py
+uv run python -m pytest -q \
   tests/contract/test_execution_context_contract.py \
   tests/compatibility/test_hook_execution_context_api_surface.py
 ```
@@ -70,10 +90,13 @@ Expected:
 ## 6. Validate full integration and lint gates
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest tests/e2e -q
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest tests/e2e -q
+uv run python -m pytest tests/e2e -q
 bash .codex/skills/precommit-runner/scripts/run_precommit.sh --all-files
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-coverage-mac
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-coverage-mac
+uvx --with tox-uv tox -e py314-pytestlatest-coverage-mac
 ```
 
 Expected:

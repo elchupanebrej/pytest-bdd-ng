@@ -5,8 +5,10 @@
 ## 1. Prepare environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes]'
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testtypes]'
+uv sync --extra test --extra testtypes
 ```
 
 Expected:
@@ -15,8 +17,12 @@ Expected:
 ## 2. Validate parser-level empty heading rejection (US1)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/feature/test_empty_bdd_headings_validation.py \
+#   tests/hook/test_heading_validation_diagnostics.py
+uv run python -m pytest -q \
   tests/feature/test_empty_bdd_headings_validation.py \
   tests/hook/test_heading_validation_diagnostics.py
 ```
@@ -28,8 +34,12 @@ Expected:
 ## 3. Validate repository baseline compliance (US2)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/contract/test_empty_heading_validation_contract.py \
+#   tests/doc/test_features_repository_heading_baseline.py
+uv run python -m pytest -q \
   tests/contract/test_empty_heading_validation_contract.py \
   tests/doc/test_features_repository_heading_baseline.py
 ```
@@ -41,8 +51,11 @@ Expected:
 ## 4. Validate false-positive boundaries for snippet content (US3)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/feature/test_heading_validation_snippet_boundaries.py
+uv run python -m pytest -q \
   tests/feature/test_heading_validation_snippet_boundaries.py
 ```
 
@@ -64,8 +77,10 @@ Expected:
 ## 6. Optional matrix check
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest
+uvx --with tox-uv tox -e py314-pytestlatest
 ```
 
 Expected:
@@ -78,7 +93,14 @@ Expected:
 Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q \
+#   tests/feature/test_empty_bdd_headings_validation.py \
+#   tests/hook/test_heading_validation_diagnostics.py \
+#   tests/contract/test_empty_heading_validation_contract.py \
+#   tests/doc/test_features_repository_heading_baseline.py \
+#   tests/feature/test_heading_validation_snippet_boundaries.py
+uv run python -m pytest -q \
   tests/feature/test_empty_bdd_headings_validation.py \
   tests/hook/test_heading_validation_diagnostics.py \
   tests/contract/test_empty_heading_validation_contract.py \
@@ -105,7 +127,9 @@ Result:
 Command:
 
 ```bash
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest
+uvx --with tox-uv tox -e py314-pytestlatest
 ```
 
 Result:

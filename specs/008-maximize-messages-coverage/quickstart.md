@@ -3,8 +3,10 @@
 ## 1. Prepare environment
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 tox -l
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 tox -l
+uvx --with tox-uv tox -l
 ```
 
 Expected outcome:
@@ -13,8 +15,13 @@ Expected outcome:
 ## 2. Generate canonical capability inventory
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.model.coverage.inventory \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.model.coverage.inventory \
+#   --schema-dir messages/jsonschema/src \
+#   --baseline-release v32.current \
+#   --output /tmp/messages-capabilities.json
+uv run python -m pytest_bdd.model.coverage.inventory \
   --schema-dir messages/jsonschema/src \
   --baseline-release v32.current \
   --output /tmp/messages-capabilities.json
@@ -27,9 +34,15 @@ Expected outcome:
 ## 3. Execute dedicated real-runtime evidence suite
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-mkdir -p /tmp/pytest-bdd-ng-messages-audit
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# mkdir -p /tmp/pytest-bdd-ng-messages-audit
+# PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages_coverage/test_mandatory_attachments.py -q \
+#   -p no:pytest-bdd-gherkin-message-reporter \
+#   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
+#   --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson
+PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 uv run python -m pytest \
   tests/messages_coverage/test_mandatory_attachments.py -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
@@ -44,8 +57,20 @@ Expected outcome:
 ## 4. Produce post-factum governance report
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance report \
+#   --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson \
+#   --baseline-release v32.current \
+#   --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
+#   --decisions specs/008-maximize-messages-coverage/contracts/capability-decisions.json \
+#   --mandatory-capabilities-file specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt \
+#   --runtime-required-capabilities-file specs/008-maximize-messages-coverage/runtime-required-capability-ids.txt \
+#   --require-runtime-required-covered \
+#   --require-non-runtime-classified \
+#   --require-fully-governed \
+#   --output /tmp/pytest-bdd-ng-messages-audit/governance-runtime.json
+uv run python -m pytest_bdd.script.message_capability_governance report \
   --messages-file /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson \
   --baseline-release v32.current \
   --schema specs/008-maximize-messages-coverage/contracts/governance-report.schema.json \
@@ -78,8 +103,11 @@ Expected outcome:
 ## 6. Run governance-focused suites
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages_coverage -q
+PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 uv run python -m pytest \
   tests/messages_coverage -q
 ```
 
@@ -90,8 +118,14 @@ Expected outcome:
 ## 7. Run complete end-to-end regression and HTML report
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e -q \
+#   -p no:pytest-bdd-gherkin-message-reporter \
+#   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
+#   --cucumber-html /tmp/pytest-bdd-ng-e2e-report.html
+uv run python -m pytest \
   tests/e2e -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
@@ -105,8 +139,15 @@ Expected outcome:
 ## 8. Baseline drift check (weekly cadence)
 
 ```bash
-cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance diff \
+# Legacy workflow:
+# cd /Users/goloveshkokonstantin/Projects/pytest-bdd-ng
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.message_capability_governance diff \
+#   --previous-baseline v32.previous \
+#   --current-baseline v32.current \
+#   --previous-governance /tmp/governance-prev.json \
+#   --current-governance /tmp/pytest-bdd-ng-messages-audit/governance-runtime.json \
+#   --output /tmp/baseline-diff.json
+uv run python -m pytest_bdd.script.message_capability_governance diff \
   --previous-baseline v32.previous \
   --current-baseline v32.current \
   --previous-governance /tmp/governance-prev.json \

@@ -5,12 +5,19 @@
 - Repository root: `/Users/goloveshkokonstantin/Projects/pytest-bdd-ng`
 - Branch: `012-cucumber-formatters-support`
 - Python environment: `conda` env `pytest-bdd-ng-py314`
+
+> Current workflow:
+> - Python environment: repository synced with `uv sync --extra test --extra testenv --extra testtypes`
+
 - `node` and `npm` available on `PATH`
 
 ## 1. Run one terminal formatter
 
 ```bash
-conda run --no-capture-output -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run --no-capture-output -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_cucumber_formatters.py -q --cucumber-progress
+uv run python -m pytest \
   tests/e2e/test_cucumber_formatters.py -q --cucumber-progress
 ```
 
@@ -27,8 +34,14 @@ Create the output directory first because the reporter must not create it
 automatically:
 
 ```bash
-mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-cucumber-reports
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-cucumber-reports
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_cucumber_formatters.py -q \
+#   --cucumber-json=.tmp-cucumber-reports/report.json \
+#   --cucumber-junit=.tmp-cucumber-reports/report.xml \
+#   --cucumber-usage-json=.tmp-cucumber-reports/usage.json
+uv run python -m pytest \
   tests/e2e/test_cucumber_formatters.py -q \
   --cucumber-json=.tmp-cucumber-reports/report.json \
   --cucumber-junit=.tmp-cucumber-reports/report.xml \
@@ -44,7 +57,11 @@ Expected:
 ## 3. Validate terminal formatter conflict handling
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_cucumber_formatters.py -q \
+#   --cucumber-summary --cucumber-progress
+uv run python -m pytest \
   tests/e2e/test_cucumber_formatters.py -q \
   --cucumber-summary --cucumber-progress
 ```
@@ -57,8 +74,12 @@ Expected:
 ## 4. Validate missing directory handling for file outputs
 
 ```bash
-rm -rf /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-missing-dir
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# rm -rf /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-missing-dir
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_cucumber_formatters.py -q \
+#   --cucumber-json=.tmp-missing-dir/report.json
+uv run python -m pytest \
   tests/e2e/test_cucumber_formatters.py -q \
   --cucumber-json=.tmp-missing-dir/report.json
 ```
@@ -70,8 +91,13 @@ Expected:
 ## 5. Validate xdist-compatible post-run rendering
 
 ```bash
-mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-cucumber-reports
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-cucumber-reports
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_e2e.py -q -n 2 \
+#   -m "not long_running and not xdist and not docker" \
+#   --cucumber-json=.tmp-cucumber-reports/xdist-report.json
+uv run python -m pytest \
   tests/e2e/test_e2e.py -q -n 2 \
   -m "not long_running and not xdist and not docker" \
   --cucumber-json=.tmp-cucumber-reports/xdist-report.json
@@ -86,7 +112,13 @@ Expected:
 ## 6. Validate the focused repository test slices
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_cucumber_formatters.py \
+#   tests/e2e/test_cucumber_formatters_feature.py \
+#   tests/compatibility/test_render_cucumber_formatters.py \
+#   tests/hook/test_gherkin_reporter_context_lifecycle.py -q
+uv run python -m pytest \
   tests/e2e/test_cucumber_formatters.py \
   tests/e2e/test_cucumber_formatters_feature.py \
   tests/compatibility/test_render_cucumber_formatters.py \

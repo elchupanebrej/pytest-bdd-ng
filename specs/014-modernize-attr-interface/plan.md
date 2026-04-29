@@ -18,9 +18,17 @@ keyword arguments change. The full test suite must pass at every checkpoint.
 ## Technical Context
 
 **Language/Version**: Python 3.10–3.14 (primary test target: 3.14 via `pytest-bdd-ng-py314` conda env)
+
+> Current workflow:
+> **Language/Version**: Python 3.10–3.14 (primary test target: 3.14 provisioned with `uv python install`)
+
 **Primary Dependencies**: `attrs >= 25.4.0` (confirmed installed), `pytest >= 7`, `ruff`, `pre-commit`
 **Storage**: N/A — no persistence layer changes
 **Testing**: `pytest` via `conda run -n pytest-bdd-ng-py314 tox`, `ruff check`, `pre-commit run`
+
+> Current workflow:
+> **Testing**: `pytest` via `uvx --with tox-uv tox`, `uvx ruff check`, `uvx pre-commit run`
+
 **Target Platform**: Pure Python library; runs on Linux, macOS, Windows
 **Project Type**: Python library
 **Performance Goals**: No performance regression; `slots=True` equivalence preserved for slotted dataclasses
@@ -132,6 +140,10 @@ expected given the preserved public interface).
 
 - `ruff check src/` → 0 errors
 - `conda run -n pytest-bdd-ng-py314 python -m pytest tests/ -q` → 0 failures
+
+> Current workflow:
+> - `uv run python -m pytest tests/ -q` → 0 failures
+
 - `grep -rn "from attr import attrib" src/` → 0 matches
 
 ---
@@ -188,6 +200,10 @@ Applies to: `plugin/scenario_test_collector/plugin.py`.
 - `ruff check src/` → 0 errors
 - `conda run -n pytest-bdd-ng-py314 python -m pytest tests/ -q` → 0 failures
 
+> Current workflow:
+> - `uv run python -m pytest tests/ -q` → 0 failures
+
+
 ---
 
 ### Phase C — Migrate `__init__`-based Data-Model Classes (P1)
@@ -212,6 +228,10 @@ Applies to: `plugin/scenario_test_collector/plugin.py`.
    ```
    All must return zero results.
 2. Run full pre-commit suite: `conda run -n pytest-bdd-ng-py314 pre-commit run --all-files`
+
+> Current workflow:
+> 2. Run full pre-commit suite: `uvx pre-commit run --all-files`
+
 3. Run full test suite one final time.
 4. Update `tasks.md` — mark all tasks complete.
 5. Produce migration audit summary (can be appended to `research.md`).

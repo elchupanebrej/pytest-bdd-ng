@@ -6,10 +6,18 @@
 - Branch: `009-execution-context-reporting`
 - Python environment: `conda` env `pytest-bdd-ng-py314`
 
+> Current workflow:
+> - Python environment: repository synced with `uv sync --extra test --extra testenv --extra testtypes`
+
+
 ## 1. Validate Collection Without `Feature`
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/hook/test_scenario_locator_pipeline.py \
+#   tests/model/gherkin_document/test_feature_context_lookup.py -q
+uv run python -m pytest \
   tests/hook/test_scenario_locator_pipeline.py \
   tests/model/gherkin_document/test_feature_context_lookup.py -q
 ```
@@ -22,7 +30,12 @@ Expected:
 ## 2. Validate Runtime Hook and Fixture Surface
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/compatibility/test_hook_run_api_surface.py \
+#   tests/hook/test_run_scenario_runtime_unit.py \
+#   tests/hook/test_scenario_run_model.py -q
+uv run python -m pytest \
   tests/compatibility/test_hook_run_api_surface.py \
   tests/hook/test_run_scenario_runtime_unit.py \
   tests/hook/test_scenario_run_model.py -q
@@ -37,7 +50,12 @@ Expected:
 ## 3. Validate Reporter and Scenario Serialization Paths
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/hook/test_gherkin_reporter_context_lifecycle.py \
+#   tests/feature/test_report_context_hierarchy.py \
+#   tests/feature/test_report.py -q
+uv run python -m pytest \
   tests/hook/test_gherkin_reporter_context_lifecycle.py \
   tests/feature/test_report_context_hierarchy.py \
   tests/feature/test_report.py -q
@@ -52,8 +70,16 @@ Expected:
 ## 4. Validate Adapter and Governance Paths
 
 ```bash
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/messages/test_execution_message_adapter.py \
+#   tests/messages/test_execution_message_adapter_roundtrip.py \
+#   tests/messages/test_message_validation.py \
+#   tests/messages/test_governance.py \
+#   tests/messages_coverage/test_full_capability_governance.py \
+#   tests/messages_coverage/test_run_governance_regression.py -q
+uv run python -m pytest \
   tests/messages/test_execution_message_adapter.py \
   tests/messages/test_execution_message_adapter_roundtrip.py \
   tests/messages/test_message_validation.py \
@@ -70,8 +96,10 @@ Expected:
 ## 5. Full Strict Regression Suite
 
 ```bash
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
-conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
+# Legacy workflow:
+# PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
+uv run python -m pytest -q --tb=no
 ```
 
 Expected:

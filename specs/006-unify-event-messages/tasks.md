@@ -122,6 +122,11 @@
 - [X] T040 [P] Run targeted message/reporting pytest suites and record command results in `specs/006-unify-event-messages/quickstart.md`
 - [X] T041 [P] Run `conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-mypy` and record results in `specs/006-unify-event-messages/quickstart.md`
 - [X] T042 [P] Run `conda run -n pytest-bdd-ng-py314 pre-commit run --all-files` and record results in `specs/006-unify-event-messages/quickstart.md`
+
+> Current workflow:
+> T041 equivalent: run `uvx --with tox-uv tox -e py314-pytestlatest-mypy` and record results in `specs/006-unify-event-messages/quickstart.md`.
+> T042 equivalent: run `uvx pre-commit run --all-files` and record results in `specs/006-unify-event-messages/quickstart.md`.
+
 - [X] T043 [P] Update canonical-event derivation behavior docs in `docs/features/Report/Gherkin terminal reporter.feature.rst`
 - [X] T044 [P] Update canonical-event derivation behavior docs in `docs/features/Report/Cucumber JSON reporter.feature.rst`
 - [X] T045 Verify task-to-requirement traceability notes in `specs/006-unify-event-messages/tasks.md`

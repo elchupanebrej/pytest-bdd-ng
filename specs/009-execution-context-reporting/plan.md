@@ -123,7 +123,13 @@ Phase 1 artifacts define:
 ### Completed Validation Commands
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/hook/test_scenario_locator_pipeline.py \
+#   tests/hook/test_scenario_collection_read_hooks.py \
+#   tests/hook/test_run_scenario_runtime_unit.py \
+#   tests/hook/test_gherkin_reporter_context_lifecycle.py -q
+uv run python -m pytest \
   tests/hook/test_scenario_locator_pipeline.py \
   tests/hook/test_scenario_collection_read_hooks.py \
   tests/hook/test_run_scenario_runtime_unit.py \
@@ -134,7 +140,13 @@ Result:
 - `20 passed in 0.16s`
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/feature/test_report.py \
+#   tests/messages/test_message_validation.py \
+#   tests/messages/test_execution_message_adapter.py \
+#   tests/generation/test_generate.py -q
+uv run python -m pytest \
   tests/feature/test_report.py \
   tests/messages/test_message_validation.py \
   tests/messages/test_execution_message_adapter.py \
@@ -145,7 +157,11 @@ Result:
 - `14 passed in 1.85s`
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest \
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest \
+#   tests/e2e/test_e2e.py \
+#   tests/e2e/allure/test_e2e_allure.py -q
+uv run python -m pytest \
   tests/e2e/test_e2e.py \
   tests/e2e/allure/test_e2e_allure.py -q
 ```
@@ -154,15 +170,19 @@ Result:
 - `95 passed in 56.50s`
 
 ```bash
-PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
-conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
+# Legacy workflow:
+# PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 \
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q --tb=no
+uv run python -m pytest -q --tb=no
 ```
 
 Result:
 - `520 passed, 5 skipped in 100.03s`
 
 ```bash
-git diff --name-only -- '*.py' | xargs conda run -n pytest-bdd-ng-py314 python -m ruff check
+# Legacy workflow:
+# git diff --name-only -- '*.py' | xargs conda run -n pytest-bdd-ng-py314 python -m ruff check
+git diff --name-only -- '*.py' | xargs uvx ruff check
 ```
 
 Result:

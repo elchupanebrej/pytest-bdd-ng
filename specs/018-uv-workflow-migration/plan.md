@@ -5,7 +5,7 @@
 
 ## Summary
 
-Migrate the project's canonical testing infrastructure and test matrix coordination to be driven by `uv` and `tox-uv`. This includes explicitly tracking `uv` in `pyproject.toml` (specifically `testenv` optional dependency scopes) to decouple internal dependency tracking from outer feature testing constraints. Additionally, ensure internal validation scripts and governance hooks perform identically via native `[project.scripts]` entrypoints without requiring legacy conda invocations or global pip environments.
+Migrate the project's canonical testing infrastructure and test matrix coordination to be driven by `uv` and `tox-uv`. This includes explicitly tracking `uv` in `pyproject.toml` (specifically `testenv` optional dependency scopes) to decouple internal dependency tracking from outer feature testing constraints. Additionally, ensure internal validation scripts and governance hooks perform identically via native `[project.scripts]` entrypoints without requiring the previous environment-manager workflow or global pip environments.
 
 ## Technical Context
 
@@ -15,7 +15,7 @@ Migrate the project's canonical testing infrastructure and test matrix coordinat
 **Testing**: `pytest`, `tox-uv`
 **Target Platform**: GitHub Actions CI, local shells (Linux/macOS/Windows)
 **Project Type**: Python library and CLI tooling
-**Performance Goals**: Reduce testing and bootstrapping time by eliminating conda locking overhead.
+**Performance Goals**: Reduce testing and bootstrapping time by eliminating previous environment-manager locking overhead.
 **Constraints**: Must strictly retain compatibility matrix configurations inside `tox.ini` alongside `tool.mypy` bounds.
 **Scale/Scope**: Impacts all active contributors running functional tests.
 
