@@ -29,3 +29,10 @@ def test_pyproject_declares_jinja2_and_removes_mako_runtime_dependency() -> None
 
     assert '"Jinja2"' in pyproject
     assert '"Mako"' not in pyproject
+
+
+def test_pyproject_declares_gitpython_for_test_suite() -> None:
+    pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+
+    assert '"GitPython"' in pyproject
+    assert '"GitRepo"' not in pyproject

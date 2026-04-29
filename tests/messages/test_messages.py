@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
@@ -35,6 +36,8 @@ from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore
 from cucumber_messages import (
     UndefinedParameterType as _UndefinedParameterType,
 )
+from git import Repo, Git
+from packaging import version
 from pydantic import ValidationError
 
 from pytest_bdd.model.message_converter import envelope_from_dict, message_converter
@@ -43,9 +46,46 @@ from pytest_bdd.util.toolz_extra import flip
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_bdd.compatibility.pytest import Testdir
 
-samples_path = Path(__file__).parent.parent.parent / "compatibility-kit/devkit/samples"
 MESSAGE_REPORTER_PLUGIN = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
 MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
+
+@pytest.fixture
+def compatibility_kit_repo(tmpdir):
+    repo_path = Path(tmpdir) / "compatibility-kit"
+
+    repo_url = "https://github.com/cucumber/compatibility-kit.git"
+
+    repo_tags = [
+        ref.removeprefix("refs/tags/")
+        for line in Git().ls_remote("--tags", "--refs", repo_url).splitlines()
+        for _, ref in [line.split(maxsplit=1)]
+    ]
+
+    version_pattern = re.compile(r"((.*/)?)v(\d+\.\d+\.\d+)")
+    last_version = sorted(
+        map(
+            version.parse,
+            map(
+                lambda match: match.groups()[-1],
+                filter(
+                    lambda match: match is not None,
+                    map(lambda tag: re.match(version_pattern, tag), repo_tags),
+                ),
+            ),
+        )
+    )[-1]
+
+    last_version_tag = next(filter(lambda tag: re.search(re.escape(str(last_version)), tag), repo_tags))
+
+    Repo.clone_from(
+        repo_url,
+        str(repo_path),
+        branch=last_version_tag,
+        depth=1,
+        single_branch=True,
+    )
+
+    return repo_path
 
 
 def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
@@ -106,11 +146,11 @@ def parse_and_unfold_messages(lines):
     return list(map(unfold_message, parsed_messages))
 
 
-def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
+def test_minimal_scenario_messages(testdir: "Testdir", tmp_path, compatibility_kit_repo):
     testdir.makefile(
         ".feature",
         # language=gherkin
-        minimal=(samples_path / "minimal" / "minimal.feature").read_text(),
+        minimal=(compatibility_kit_repo / "devkit" / "samples" / "minimal" / "minimal.feature").read_text(),
     )
 
     testdir.makeconftest(
