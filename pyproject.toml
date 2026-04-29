@@ -169,6 +169,38 @@ render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
 
+[tool.setuptools]
+include-package-data = true
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+pytest_bdd = [
+  "markdown_parser.js"
+]
+"pytest_bdd.plugin.gherkin_message_reporter.resources.templates" = [
+  "live_formatter_bridge.mjs.j2",
+  "formatter_adapter_support.cjs.j2"
+]
+"pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" = [
+  "pretty.cjs.j2",
+  "progress.cjs.j2",
+  "progress_bar.cjs.j2",
+  "usage.cjs.j2",
+  "junit.cjs.j2"
+]
+"pytest_bdd.template" = [
+  "feature_include.rst.jinja2",
+  "features_index.rst.jinja2",
+  "features_section.rst.jinja2",
+  "test.py.jinja2"
+]
+
+[tool.setuptools.packages.find]
+namespaces = false
+where = [
+  "src"
+]
+
 [tool.mypy]
 files = "src/pytest_bdd/**/*.py"
 install_types = true

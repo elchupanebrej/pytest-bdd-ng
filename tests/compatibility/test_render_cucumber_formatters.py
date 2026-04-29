@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from pytest_bdd.compatibility.tomllib import loads
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     load_formatter_adapter_support_template,
     load_formatter_adapter_template,
@@ -194,10 +195,15 @@ def test_runtime_materialization_only_writes_requested_formatter_assets(tmp_path
     assert [formatter_spec["formatter"] for formatter_spec in formatter_specs] == ["progress", "usage"]
 
 
-def test_setup_cfg_lists_live_formatter_bridge_template_as_package_data() -> None:
-    setup_cfg = (Path(__file__).resolve().parents[2] / "setup.cfg").read_text(encoding="utf-8")
+def test_pyproject_lists_live_formatter_bridge_template_as_package_data() -> None:
+    pyproject = loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8"))
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
 
-    assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" in setup_cfg
-    assert "live_formatter_bridge.mjs.j2" in setup_cfg
-    assert "formatter_adapter_support.cjs.j2" in setup_cfg
-    assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" in setup_cfg
+    assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" in package_data
+    assert "live_formatter_bridge.mjs.j2" in package_data[
+        "pytest_bdd.plugin.gherkin_message_reporter.resources.templates"
+    ]
+    assert "formatter_adapter_support.cjs.j2" in package_data[
+        "pytest_bdd.plugin.gherkin_message_reporter.resources.templates"
+    ]
+    assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" in package_data
