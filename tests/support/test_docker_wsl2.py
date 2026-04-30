@@ -365,12 +365,12 @@ class TestDockerTimeouts:
     def test_default_values(self):
         timeouts = DockerTimeouts()
         assert timeouts.startup_poll == 60
-        assert timeouts.compose_up == 120
+        assert timeouts.compose_up == 300
         assert timeouts.compose_exec == 300
         assert timeouts.compose_cp == 30
         assert timeouts.compose_down == 30
         assert timeouts.alpine_install == 60
-        assert timeouts.overall_session == 600
+        assert timeouts.overall_session == 900
 
     def test_overall_session_gte_sum_of_per_step(self):
         timeouts = DockerTimeouts()
@@ -429,6 +429,31 @@ class TestRunWslCmd:
             call_kwargs = mock_run.call_args.kwargs
             assert call_kwargs["capture_output"] is True
             assert call_kwargs["text"] is True
+
+    def test_inlines_env_overrides_into_wsl_command(self):
+        result = subprocess.CompletedProcess(
+            args=["wsl", "-d", "Alpine", "--", "env", "PYTEST_REMOTE_MODE=ssh", "docker", "compose", "up", "-d"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+            patch.dict("tests.support.docker_cluster.os.environ", {"PATH": "/usr/bin"}, clear=False),
+            patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        ):
+            from tests.support.docker_cluster import _run_wsl_cmd
+
+            _run_wsl_cmd(
+                ["docker", "compose", "up", "-d"],
+                timeout=120,
+                env={"PATH": "/usr/bin", "PYTEST_REMOTE_MODE": "ssh", "COMPOSE_PROJECT_NAME": "pytestbddremotessh"},
+            )
+            call_args = mock_run.call_args[0][0]
+            assert call_args[:5] == ["/usr/bin/wsl", "-d", "Alpine", "--", "env"]
+            assert "PYTEST_REMOTE_MODE=ssh" in call_args
+            assert "COMPOSE_PROJECT_NAME=pytestbddremotessh" in call_args
+            assert call_args[-4:] == ["docker", "compose", "up", "-d"]
 
     def test_returns_completed_process(self):
         result = subprocess.CompletedProcess(
@@ -607,6 +632,34 @@ class TestDockerClusterManagerBackend:
 
             assert "exec" in exec_args
             assert "-T" in exec_args
+
+    def test_run_in_controller_uses_explicit_exec_env_values(self):
+        up_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "up", "-d", "--build"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        exec_result = subprocess.CompletedProcess(
+            args=["docker", "compose", "exec", "controller"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+        with (
+            patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+            patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+            patch("tests.support.docker_cluster.Path.mkdir"),
+        ):
+            mgr = DockerClusterManager(backend="native")
+            mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success-live", "gw1")
+
+            exec_args = mock_run.call_args_list[1][0][0]
+
+            assert "PYTEST_REMOTE_MODE=ssh" in exec_args
+            assert "PYTEST_BDD_TRANSPORT_FAIL_WORKERS=gw1" in exec_args
+            assert "VERIFY_EXPECT_CONTROLLER_ONLY=1" in exec_args
+            assert "PYTEST_REMOTE_FAKE_NODE_ROOT=/artifacts/fake-node-runtime" in exec_args
 
     def test_wsl2_backend_routes_cleanup_through_wsl(self):
         """DockerClusterManager with backend='wsl2' routes cleanup through _run_wsl_cmd."""
@@ -787,6 +840,20 @@ class TestFakeNodeRuntimeScripts:
 
 
 class TestDockerfilesRelativeContext:
+    def test_controller_dockerfile_installs_git_for_gitpython_imports(self):
+        dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller.Dockerfile"
+        content = Path(dockerfile_path).read_text(encoding="utf-8")
+
+        assert "apt-get install --yes --no-install-recommends" in content
+        assert " git" in content or " git \\" in content
+
+    def test_worker_dockerfile_installs_git_for_gitpython_imports(self):
+        dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "worker.Dockerfile"
+        content = Path(dockerfile_path).read_text(encoding="utf-8")
+
+        assert "apt-get install --yes --no-install-recommends" in content
+        assert " git" in content or " git \\" in content
+
     def test_controller_dockerfile_no_absolute_repo_paths(self):
         """controller.Dockerfile COPY source paths should be relative to build context."""
 

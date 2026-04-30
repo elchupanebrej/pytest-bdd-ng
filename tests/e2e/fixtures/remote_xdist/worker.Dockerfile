@@ -1,7 +1,7 @@
 FROM python:3.14-slim
 
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends openssh-server \
+    && apt-get install --yes --no-install-recommends git openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

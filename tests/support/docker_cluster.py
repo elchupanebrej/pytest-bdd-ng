@@ -13,12 +13,12 @@ from tests.support.docker import _resolve_tool_path
 @dataclasses.dataclass
 class DockerTimeouts:
     startup_poll: int = 60
-    compose_up: int = 120
+    compose_up: int = 300
     compose_exec: int = 300
     compose_cp: int = 30
     compose_down: int = 30
     alpine_install: int = 60
-    overall_session: int = 600
+    overall_session: int = 900
 
 
 def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -27,8 +27,17 @@ def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = Non
     if wsl_bin is None:
         msg = "wsl executable not found"
         raise FileNotFoundError(msg)
+    command_args = list(args)
+    if env is not None:
+        env_overrides = [
+            f"{key}={value}"
+            for key, value in env.items()
+            if os.environ.get(key) != value
+        ]
+        if env_overrides:
+            command_args = ["env", *env_overrides, *command_args]
     return subprocess.run(  # noqa: S603
-        [wsl_bin, "-d", "Alpine", "--", *args],
+        [wsl_bin, "-d", "Alpine", "--", *command_args],
         check=False,
         capture_output=True,
         text=True,
@@ -178,23 +187,23 @@ class DockerClusterManager:
             "-w",
             "/app",
             "-e",
-            "PYTEST_REMOTE_MODE",
+            f"PYTEST_REMOTE_MODE={env['PYTEST_REMOTE_MODE']}",
             "-e",
-            "PYTEST_BDD_TRANSPORT_FAIL_WORKERS",
+            f"PYTEST_BDD_TRANSPORT_FAIL_WORKERS={env['PYTEST_BDD_TRANSPORT_FAIL_WORKERS']}",
             "-e",
-            "REPORT_PATH",
+            f"REPORT_PATH={env['REPORT_PATH']}",
             "-e",
-            "VERIFY_REPORT_MODE",
+            f"VERIFY_REPORT_MODE={env['VERIFY_REPORT_MODE']}",
             "-e",
-            "PYTEST_REMOTE_EXTRA_ARGS",
+            f"PYTEST_REMOTE_EXTRA_ARGS={env['PYTEST_REMOTE_EXTRA_ARGS']}",
             "-e",
-            "VERIFY_MIN_CONSOLE_WRITES",
+            f"VERIFY_MIN_CONSOLE_WRITES={env['VERIFY_MIN_CONSOLE_WRITES']}",
             "-e",
-            "VERIFY_EXPECT_CONTROLLER_ONLY",
+            f"VERIFY_EXPECT_CONTROLLER_ONLY={env['VERIFY_EXPECT_CONTROLLER_ONLY']}",
             "-e",
-            "PYTEST_REMOTE_FAKE_NODE_ROOT",
+            f"PYTEST_REMOTE_FAKE_NODE_ROOT={env['PYTEST_REMOTE_FAKE_NODE_ROOT']}",
             "-e",
-            "PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR",
+            f"PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR={env['PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR']}",
             "controller",
             "python",
             "tests/e2e/fixtures/remote_xdist/controller_entrypoint.py",
