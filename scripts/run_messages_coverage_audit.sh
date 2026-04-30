@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Why this dedicated audit exists:
+# docs/messages-coverage-user-guide.md
+# That guide documents the runtime-pure messages coverage/governance flow that
+# this script orchestrates for CI and local maintainer runs.
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AUDIT_DIR="${ROOT_DIR}/.tmp/messages-coverage-audit"
 MESSAGES_FILE="${AUDIT_DIR}/messages-runtime.ndjson"
