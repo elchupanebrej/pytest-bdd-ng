@@ -79,6 +79,32 @@ def _pytest_capture_already_configured(args: list[str]) -> bool:
     return _pytest_capture_already_configured_impl(args)
 
 
+def _running_on_windows() -> bool:
+    return os.name == "nt"
+
+
+def _remote_xdist_requested(args: list[str]) -> bool:
+    return any(
+        arg in {"--tx", "--px"} or arg.startswith("--tx=") or arg.startswith("--px=")
+        for arg in args
+    )
+
+
+def _pytest_cache_already_configured(args: list[str]) -> bool:
+    for index, arg in enumerate(args):
+        if arg == "-p" and index + 1 < len(args):
+            if args[index + 1] in {"cacheprovider", "no:cacheprovider"}:
+                return True
+            continue
+        if arg.startswith("--override-ini=cache_dir="):
+            return True
+        if arg == "--override-ini" and index + 1 < len(args) and args[index + 1].startswith("cache_dir="):
+            return True
+        if arg == "-o" and index + 1 < len(args) and args[index + 1].startswith("cache_dir="):
+            return True
+    return False
+
+
 def _replace_terminal_reporter_with_quiet_variant(config: Config):
     current_reporter = config.pluginmanager.getplugin("terminalreporter")
     if current_reporter is None or current_reporter.__class__ != TerminalReporter:
@@ -164,6 +190,13 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_load_initial_conftests(early_config, parser, args) -> None:  # noqa: ARG001
+    if (
+        _running_on_windows()
+        and _reporting_requested_from_args(list(args))
+        and _remote_xdist_requested(list(args))
+        and not _pytest_cache_already_configured(list(args))
+    ):
+        args[:] = ["-p", "no:cacheprovider", *args]
     if not _terminal_formatter_flags_requested(list(args)):
         return
     if _pytest_capture_already_configured(list(args)):

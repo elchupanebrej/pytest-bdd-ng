@@ -550,6 +550,68 @@ def test_entrypoint_preserves_explicit_capture_configuration(monkeypatch) -> Non
     assert args == ["--capture=fd", "tests/e2e/test_report_doc_cucumber_formatters.py", "--cucumber-summary"]
 
 
+def test_entrypoint_disables_cacheprovider_for_windows_remote_xdist_reporting(monkeypatch) -> None:
+    monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
+    args = [
+        "--tx",
+        "socket=127.0.0.1:8888//chdir=C:/tmp/run",
+        "--messages-ndjson",
+        "C:/tmp/run/report.ndjson",
+    ]
+
+    entrypoint.pytest_load_initial_conftests(None, None, args)
+
+    assert args[:2] == ["-p", "no:cacheprovider"]
+
+
+def test_entrypoint_preserves_explicit_cache_configuration_for_windows_remote_xdist_reporting(monkeypatch) -> None:
+    monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
+    args = [
+        "-o",
+        "cache_dir=C:/tmp/custom-cache",
+        "--tx",
+        "socket=127.0.0.1:8888//chdir=C:/tmp/run",
+        "--messages-ndjson",
+        "C:/tmp/run/report.ndjson",
+    ]
+
+    entrypoint.pytest_load_initial_conftests(None, None, args)
+
+    assert args == [
+        "-o",
+        "cache_dir=C:/tmp/custom-cache",
+        "--tx",
+        "socket=127.0.0.1:8888//chdir=C:/tmp/run",
+        "--messages-ndjson",
+        "C:/tmp/run/report.ndjson",
+    ]
+
+
+def test_entrypoint_preserves_split_override_ini_cache_configuration_for_windows_remote_xdist_reporting(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
+    args = [
+        "--override-ini",
+        "cache_dir=C:/tmp/custom-cache",
+        "--tx",
+        "socket=127.0.0.1:8888//chdir=C:/tmp/run",
+        "--messages-ndjson",
+        "C:/tmp/run/report.ndjson",
+    ]
+
+    entrypoint.pytest_load_initial_conftests(None, None, args)
+
+    assert args == [
+        "--override-ini",
+        "cache_dir=C:/tmp/custom-cache",
+        "--tx",
+        "socket=127.0.0.1:8888//chdir=C:/tmp/run",
+        "--messages-ndjson",
+        "C:/tmp/run/report.ndjson",
+    ]
+
+
 def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_startup(monkeypatch) -> None:
     quiet_replacement_calls: list[object] = []
     configure_calls: list[tuple[object, object]] = []

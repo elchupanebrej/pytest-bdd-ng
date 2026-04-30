@@ -45,7 +45,7 @@ class StepCatalogService(ReporterServiceBase):
         self.lifecycle_service = lifecycle_service
         self.hook_catalog_service = hook_catalog_service
 
-    @pytest.hookimpl(hookwrapper=True)
+    @pytest.hookimpl(wrapper=True)
     def pytest_runtest_setup(self, item):
         yield
         if self.reporter.is_disabled:
