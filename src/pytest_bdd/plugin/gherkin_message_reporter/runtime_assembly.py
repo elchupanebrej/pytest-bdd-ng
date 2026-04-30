@@ -93,6 +93,8 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
     else:
         reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)
         reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
+        if not reporter.is_xdist_worker:
+            reporter.final_messages_file_path.write_text("", encoding="utf-8")
 
     reporter.messages_file_path = reporter.final_messages_file_path
     if reporter.is_xdist_worker:

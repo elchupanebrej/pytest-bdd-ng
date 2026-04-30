@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 import tomllib
 
+from pytest_bdd.plugin.cucumber_formatter_support import registry as formatter_registry
 from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.cucumber_json.const import CucumberJson
 from pytest_bdd.plugin.gherkin_message_reporter import entrypoint as formatter_entrypoint
@@ -40,6 +41,29 @@ def _build_config(tmp_path: Path, **overrides):
 
 def _catalog() -> FormatterPluginCatalog:
     return FormatterPluginCatalog.discover()
+
+
+def test_formatter_catalog_discovery_is_cached(monkeypatch) -> None:
+    formatter_registry._discover_formatter_plugin_catalog.cache_clear()
+
+    original_entry_points = formatter_registry.entry_points
+    entry_point_calls = 0
+
+    def counting_entry_points(*args, **kwargs):
+        nonlocal entry_point_calls
+        entry_point_calls += 1
+        return original_entry_points(*args, **kwargs)
+
+    monkeypatch.setattr(formatter_registry, "entry_points", counting_entry_points)
+
+    try:
+        first = FormatterPluginCatalog.discover()
+        second = FormatterPluginCatalog.discover()
+    finally:
+        formatter_registry._discover_formatter_plugin_catalog.cache_clear()
+
+    assert first is second
+    assert entry_point_calls == 1
 
 
 def test_collects_legal_formatter_selection(tmp_path: Path) -> None:

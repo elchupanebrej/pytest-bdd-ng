@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+from importlib import import_module
 from dataclasses import dataclass
 from io import StringIO
 from queue import Queue
@@ -384,6 +386,20 @@ def test_reporter_ignores_inherited_xdist_worker_environment_without_workerinput
     assert reporter.messages_file_path == reporter.final_messages_file_path
 
 
+def test_reporter_truncates_existing_explicit_messages_file_on_startup(tmp_path) -> None:
+    messages_path = tmp_path / "messages.ndjson"
+    messages_path.write_text('{"old":"envelope"}\n', encoding="utf-8")
+
+    GherkinMessageReporter(
+        config=SimpleNamespace(
+            option=SimpleNamespace(messages_ndjson_path=str(messages_path), cucumber_html_path=None),
+            rootpath=tmp_path,
+        )
+    )
+
+    assert messages_path.read_text(encoding="utf-8") == ""
+
+
 def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
     reporter = GherkinMessageReporter(
         config=SimpleNamespace(
@@ -529,6 +545,15 @@ def test_entrypoint_detects_terminal_formatter_flags_in_raw_args() -> None:
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-usage=-"]) is True
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-usage=usage.txt"]) is False
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-json=report.json"]) is False
+
+
+def test_cucumber_formatter_util_import_does_not_eagerly_load_formatter_registry() -> None:
+    sys.modules.pop("pytest_bdd.util.cucumber_formatters", None)
+    sys.modules.pop("pytest_bdd.plugin.cucumber_formatter_support.registry", None)
+
+    import_module("pytest_bdd.util.cucumber_formatters")
+
+    assert "pytest_bdd.plugin.cucumber_formatter_support.registry" not in sys.modules
 
 
 def test_entrypoint_auto_disables_capture_for_terminal_formatter_args(monkeypatch) -> None:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from queue import Empty
+from queue import Queue
+from threading import Event
 from types import SimpleNamespace
 from typing import Any
 
@@ -19,6 +22,7 @@ from pytest_bdd.model.message_transport import (
 )
 from pytest_bdd.model.message_validation import validate_message_stream, validate_xdist_reporting_compatibility
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_reporting_worker_identity
+from pytest_bdd.plugin.gherkin_message_reporter import transport_runtime
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
 from tests.messages.message_stream_assertions import worker_ids_for_payloads
 from tests.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment
@@ -290,6 +294,34 @@ def test_process_messages_thread_passes_force_failure_flag(tmp_path) -> None:
     assert observed["transport_client"] is None
     assert observed["force_transport_publish_failure"] is True
     assert runtime.reporter._process_messages_thread_error is None
+
+
+def test_process_messages_writes_without_temporary_directory(monkeypatch, tmp_path) -> None:
+    def fail_temporary_directory():
+        raise AssertionError("message writer lock must not depend on a temporary directory")
+
+    if hasattr(transport_runtime, "tempfile"):
+        monkeypatch.setattr(transport_runtime.tempfile, "TemporaryDirectory", fail_temporary_directory)
+    queue = Queue()
+    stop_event = Event()
+    queue.put_nowait(
+        json.dumps(
+            {
+                "testRunStarted": {
+                    "id": "run-1",
+                    "timestamp": {"seconds": 0, "nanos": 0},
+                }
+            }
+        )
+    )
+    stop_event.set()
+    messages_path = tmp_path / "messages.ndjson"
+
+    TransportService.process_messages(queue, stop_event, messages_path)
+
+    assert messages_path.read_text(encoding="utf-8").splitlines() == [
+        '{"testRunStarted": {"id": "run-1", "timestamp": {"seconds": 0, "nanos": 0}}}'
+    ]
 
 
 def test_finish_process_messages_thread_fails_fast_when_writer_thread_crashes(tmp_path) -> None:

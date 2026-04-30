@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-import tempfile
 from pathlib import Path
 from pprint import pformat
 from queue import Empty, Queue
@@ -246,60 +245,57 @@ class TransportService(ReporterServiceBase):
         force_transport_publish_failure: bool = False,
     ):
         messages_path = Path(messages_file_path)
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            last_enter = False
-            while not (stop_event.is_set() and last_enter):  # give one more enter to take all left messages
-                if stop_event.is_set():
-                    last_enter = True
+        lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
+        last_enter = False
+        while not (stop_event.is_set() and last_enter):  # give one more enter to take all left messages
+            if stop_event.is_set():
+                last_enter = True
 
-                lines = []
-                batch_envelopes: list[dict[str, Any]] = []
-                while not queue.empty():
-                    try:
-                        message_json = queue.get(timeout=1)
-                    except Empty:
-                        sleep(0)
-                        continue
-
-                    try:
-                        envelope_dict = json.loads(message_json)
-                        envelope_from_dict(envelope_dict)
-                    except (TypeError, ValueError):
-                        logger.exception("Failed to parse:\n%s\n", pformat(message_json))
-                    else:
-                        lines.append(f"{message_json}\n")
-                        batch_envelopes.append(envelope_dict)
-                    finally:
-                        queue.task_done()
-                    sleep(0)
-
-                if not lines:
+            lines = []
+            batch_envelopes: list[dict[str, Any]] = []
+            while not queue.empty():
+                try:
+                    message_json = queue.get(timeout=1)
+                except Empty:
                     sleep(0)
                     continue
 
-                lock_file = str(Path(tmpdirname, f"{messages_path}.lock"))
                 try:
-                    messages_path.parent.mkdir(parents=True, exist_ok=True)
-                    with FileLock(lock_file), messages_path.open(mode="at+", buffering=1, encoding="utf-8") as f:
-                        f.writelines(lines)
-                        f.flush()
-                except OSError:
-                    logger.exception("Unable to write messages to '%s'", messages_path)
+                    envelope_dict = json.loads(message_json)
+                    envelope_from_dict(envelope_dict)
+                except (TypeError, ValueError):
+                    logger.exception("Failed to parse:\n%s\n", pformat(message_json))
+                else:
+                    lines.append(f"{message_json}\n")
+                    batch_envelopes.append(envelope_dict)
+                finally:
+                    queue.task_done()
+                sleep(0)
 
-                if transport_client is not None and batch_envelopes:
-                    if force_transport_publish_failure:
-                        transport_client.last_publish_error = "transport publication was disabled by test fixture"
-                        logger.warning(
-                            "Skipping remote transport batch publication for '%s' due to configured failure.",
-                            transport_client.worker_id,
-                        )
-                        continue
-                    try:
-                        transport_client.publish_envelopes(batch_envelopes)
-                    except RuntimeError:
-                        logger.exception(
-                            "Unable to publish remote transport batch for '%s'", transport_client.worker_id
-                        )
+            if not lines:
+                sleep(0)
+                continue
+
+            try:
+                messages_path.parent.mkdir(parents=True, exist_ok=True)
+                with FileLock(lock_file), messages_path.open(mode="at+", buffering=1, encoding="utf-8") as f:
+                    f.writelines(lines)
+                    f.flush()
+            except OSError:
+                logger.exception("Unable to write messages to '%s'", messages_path)
+
+            if transport_client is not None and batch_envelopes:
+                if force_transport_publish_failure:
+                    transport_client.last_publish_error = "transport publication was disabled by test fixture"
+                    logger.warning(
+                        "Skipping remote transport batch publication for '%s' due to configured failure.",
+                        transport_client.worker_id,
+                    )
+                    continue
+                try:
+                    transport_client.publish_envelopes(batch_envelopes)
+                except RuntimeError:
+                    logger.exception("Unable to publish remote transport batch for '%s'", transport_client.worker_id)
 
     @staticmethod
     def read_envelopes_from_path(messages_file_path: Path) -> list[Message]:

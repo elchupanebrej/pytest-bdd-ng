@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import stat
 import subprocess  # noqa: S404
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -58,6 +60,30 @@ _VISIBLE_PYTEST_TERMINAL_FRAGMENTS = (
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 
+def _active_coverage_controller() -> Any | None:
+    try:
+        import coverage
+    except ImportError:
+        return None
+    current = getattr(getattr(coverage, "Coverage", None), "current", None)
+    if not callable(current):
+        return None
+    return current()
+
+
+@contextmanager
+def _suspend_active_coverage():
+    controller = _active_coverage_controller()
+    if controller is None:
+        yield
+        return
+    controller.stop()
+    try:
+        yield
+    finally:
+        controller.start()
+
+
 def expected_formatter_output(formatter_name: str) -> str:
     return _FAKE_FORMATTER_OUTPUTS[formatter_name]
 
@@ -106,14 +132,15 @@ def run_pytest_via_real_entrypoint(
     # helper normalizes to the same effective CLI and leaves the auto-rewrite assertion
     # to dedicated hook/lifecycle tests.
     effective_cli_args = with_pytester_terminal_capture_disabled(*cli_args)
-    return subprocess.run(  # noqa: S603
-        [sys.executable, "-m", "pytest", *effective_cli_args],
-        cwd=str(testdir.tmpdir),
-        check=False,
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    with _suspend_active_coverage():
+        return subprocess.run(  # noqa: S603
+            [sys.executable, "-m", "pytest", *effective_cli_args],
+            cwd=str(testdir.tmpdir),
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
 
 
 def requests_terminal_formatter_output(*cli_args: str) -> bool:
@@ -178,12 +205,26 @@ def _render_support_template(template_name: str, *, replacements: dict[str, str]
     return rendered
 
 
+def _fake_node_python_executable() -> str:
+    override = os.environ.get("PYTEST_BDD_FAKE_NODE_PYTHON")
+    if override:
+        return override
+    if sys.implementation.name == "pypy":
+        python_executable = shutil.which("python")
+        if python_executable and os.path.normcase(os.path.abspath(python_executable)) != os.path.normcase(
+            os.path.abspath(sys.executable)
+        ):
+            return python_executable
+    return sys.executable
+
+
 def _write_windows_command_shim(command_path: Path, target_script_path: Path) -> None:
+    python_executable = _fake_node_python_executable()
     command_path.write_text(
         "\r\n".join(
             (
                 "@echo off",
-                f'"{sys.executable}" "{target_script_path}" %*',
+                f'"{python_executable}" "{target_script_path}" %*',
                 "",
             )
         ),

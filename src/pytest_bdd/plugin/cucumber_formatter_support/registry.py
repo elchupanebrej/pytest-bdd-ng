@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import cache
+
 from attrs import frozen
 
 from pytest_bdd.compatibility.importlib.metadata import entry_points
@@ -44,14 +46,7 @@ class FormatterPluginCatalog:
 
     @classmethod
     def discover(cls) -> FormatterPluginCatalog:
-        formatter_plugins = _discover_formatter_plugins_from_entrypoints()
-        if not formatter_plugins:
-            message = (
-                "No cucumber formatter plugins were discovered through pytest11 entry points. "
-                "Standalone replay requires the explicit formatter catalog path."
-            )
-            raise RuntimeError(message)
-        return cls(plugins=_sorted_formatter_plugins(formatter_plugins))
+        return _discover_formatter_plugin_catalog()
 
     def by_option_attr(self) -> dict[str, FormatterReporterPlugin]:
         return {plugin.option_attr: plugin for plugin in self.plugins}
@@ -83,3 +78,15 @@ class FormatterPluginCatalog:
             if rendered_assets:
                 assets.update(rendered_assets)
         return assets
+
+
+@cache
+def _discover_formatter_plugin_catalog() -> FormatterPluginCatalog:
+    formatter_plugins = _discover_formatter_plugins_from_entrypoints()
+    if not formatter_plugins:
+        message = (
+            "No cucumber formatter plugins were discovered through pytest11 entry points. "
+            "Standalone replay requires the explicit formatter catalog path."
+        )
+        raise RuntimeError(message)
+    return FormatterPluginCatalog(plugins=_sorted_formatter_plugins(formatter_plugins))

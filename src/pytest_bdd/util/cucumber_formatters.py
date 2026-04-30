@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterOutputMode
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
-
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -12,23 +9,36 @@ FormatterDefinition = tuple[str, str, str, str, str]
 
 CAPTURE_OPTION_PREFIXES = ("--capture=",)
 CAPTURE_OPTION_FLAGS = frozenset({"-s", "--capture"})
+_FORMATTER_DEFINITIONS: tuple[FormatterDefinition, ...] = (
+    ("cucumber_summary", "--cucumber-summary", "summary", "@cucumber/pretty-formatter", "stdout"),
+    ("cucumber_progress", "--cucumber-progress", "progress", "@cucumber/pretty-formatter", "stdout"),
+    ("cucumber_progress_bar", "--cucumber-progress-bar", "progress-bar", "@cucumber/pretty-formatter", "stdout"),
+    ("cucumber_snippets", "--cucumber-snippets", "snippets", "@cucumber/pretty-formatter", "stdout"),
+    ("cucumber_pretty", "--cucumber-pretty", "pretty", "@cucumber/pretty-formatter", "stdout"),
+    ("cucumber_usage_output", "--cucumber-usage", "usage", "@cucumber/pretty-formatter", "optional_path"),
+    ("cucumber_js_json_path", "--cucumber-json", "json", "@cucumber/cucumber", "path"),
+    ("cucumber_junit_path", "--cucumber-junit", "junit", "@cucumber/cucumber", "path"),
+    ("cucumber_usage_json_path", "--cucumber-usage-json", "usage-json", "@cucumber/cucumber", "path"),
+)
+_TERMINAL_FORMATTER_CLI_FLAGS = frozenset(
+    cli_flag
+    for _option_attr, cli_flag, _formatter, _package_name, output_mode in _FORMATTER_DEFINITIONS
+    if output_mode in {"stdout", "optional_path"}
+)
+_OPTIONAL_PATH_TERMINAL_FLAGS = frozenset(
+    f"{cli_flag}=-"
+    for _option_attr, cli_flag, _formatter, _package_name, output_mode in _FORMATTER_DEFINITIONS
+    if output_mode == "optional_path"
+)
 
 
 def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
-    catalog = FormatterPluginCatalog.discover()
-    return tuple(
-        (
-            plugin.option_attr,
-            plugin.cli_flag,
-            plugin.formatter,
-            plugin.package_name,
-            plugin.output_mode.value,
-        )
-        for plugin in catalog.plugins
-    )
+    return _FORMATTER_DEFINITIONS
 
 
 def register_cucumber_formatter_options(parser) -> None:
+    from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
+
     catalog = FormatterPluginCatalog.discover()
     group = parser.getgroup("bdd", "Cucumber Formatters")
     for plugin in catalog.plugins:
@@ -38,14 +48,7 @@ def register_cucumber_formatter_options(parser) -> None:
 
 
 def terminal_formatter_cli_flags() -> frozenset[str]:
-    catalog = FormatterPluginCatalog.discover()
-    flags: set[str] = set()
-    for plugin in catalog.plugins:
-        if plugin.output_mode == FormatterOutputMode.stdout:
-            flags.add(plugin.cli_flag)
-        elif plugin.output_mode == FormatterOutputMode.optional_path:
-            flags.update({plugin.cli_flag, f"{plugin.cli_flag}=-"})
-    return frozenset(flags)
+    return frozenset((*_TERMINAL_FORMATTER_CLI_FLAGS, *_OPTIONAL_PATH_TERMINAL_FLAGS))
 
 
 def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
