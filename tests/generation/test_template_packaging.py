@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from pytest_bdd.compatibility.tomllib import loads
 from pytest_bdd.compatibility.importlib.resources import files
+from pytest_bdd.compatibility.tomllib import loads
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,6 +28,31 @@ def test_pyproject_package_data_lists_jinja2_assets() -> None:
     assert "features_section.rst.jinja2" in template_assets
     assert "feature_include.rst.jinja2" in template_assets
     assert "test.py.mak" not in template_assets
+
+
+def test_pyproject_package_data_lists_message_schema_assets() -> None:
+    pyproject = _load_pyproject()
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
+
+    assert package_data["pytest_bdd.model"] == ["message_jsonschema/*.json"]
+
+
+def test_release_workflow_syncs_message_schemas_before_build() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yaml").read_text(encoding="utf-8")
+
+    sync_position = workflow.index("pytest_bdd.script.sync_messages_contract_schemas")
+    build_position = workflow.index("python -m build")
+
+    assert sync_position < build_position
+
+
+def test_main_workflow_checks_generated_message_schemas_without_pre_commit() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "main.yml").read_text(encoding="utf-8")
+    pre_commit_config = (PROJECT_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+    assert "Generated messages schemas are up to date" in workflow
+    assert "pytest_bdd.script.sync_messages_contract_schemas --check" in workflow
+    assert "sync_messages_contract_schemas" not in pre_commit_config
 
 
 def test_pyproject_declares_jinja2_and_removes_mako_runtime_dependency() -> None:

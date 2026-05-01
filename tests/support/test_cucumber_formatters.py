@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import subprocess
+import subprocess  # noqa: S404
+import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,7 +27,7 @@ def test_real_entrypoint_helper_suspends_active_coverage(monkeypatch) -> None:
     fake_coverage_module = SimpleNamespace(Coverage=SimpleNamespace(current=lambda: fake_coverage))
     observed: dict[str, object] = {}
 
-    def fake_run(command, **kwargs):
+    def fake_run(command, **_kwargs):
         observed["coverage_running_during_subprocess"] = fake_coverage.running
         observed["command"] = command
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
@@ -41,6 +42,36 @@ def test_real_entrypoint_helper_suspends_active_coverage(monkeypatch) -> None:
 
     assert result.returncode == 0
     assert observed["coverage_running_during_subprocess"] is False
+    assert fake_coverage.events == ["stop", "start"]
+
+
+def test_real_entrypoint_helper_ignores_coverage_restart_warning(monkeypatch) -> None:
+    class FakeCoverageWarning(Warning):
+        pass
+
+    class WarningCoverage(_FakeCoverage):
+        def start(self) -> None:
+            warnings.warn("already imported", FakeCoverageWarning, stacklevel=2)
+            super().start()
+
+    fake_coverage = WarningCoverage()
+    fake_coverage_module = SimpleNamespace(
+        Coverage=SimpleNamespace(current=lambda: fake_coverage),
+        exceptions=SimpleNamespace(CoverageWarning=FakeCoverageWarning),
+    )
+
+    monkeypatch.setitem(cucumber_formatters.sys.modules, "coverage", fake_coverage_module)
+
+    def fake_run(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(cucumber_formatters.subprocess, "run", fake_run)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = cucumber_formatters.run_pytest_via_real_entrypoint(SimpleNamespace(tmpdir=Path.cwd()))
+
+    assert result.returncode == 0
     assert fake_coverage.events == ["stop", "start"]
 
 

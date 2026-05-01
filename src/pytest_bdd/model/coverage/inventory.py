@@ -9,7 +9,7 @@ from attrs import define, field
 
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
 
-SCHEMA_DIR = resolve_messages_schema_dir()
+SCHEMA_DIR = Path(__file__).resolve().parents[1] / "message_jsonschema"
 
 
 @define(slots=True)
@@ -61,6 +61,20 @@ def iter_capability_ids(inventory: CapabilityInventory) -> tuple[str, ...]:
     return tuple(sorted({canonical_capability_id(capability_id) for capability_id in capability_ids}))
 
 
+def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
+    target_path = schema_dir / normalized_file
+    if target_path.is_file():
+        return target_path
+
+    requested_path = Path(normalized_file)
+    if requested_path.suffix == ".json" and not requested_path.name.endswith(".schema.json"):
+        alternate_path = schema_dir / requested_path.with_name(f"{requested_path.stem}.schema.json")
+        if alternate_path.is_file():
+            return alternate_path
+
+    return target_path
+
+
 def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     if "#" in ref:
         file_part, path_part = ref.split("#", 1)
@@ -69,7 +83,7 @@ def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> 
 
     if file_part:
         normalized_file = file_part.removeprefix("./")
-        target_path = schema_dir / normalized_file
+        target_path = _schema_file_path(schema_dir, normalized_file)
         if not target_path.is_file():
             msg = f"Referenced schema file '{normalized_file}' was not found in '{schema_dir}'."
             raise FileNotFoundError(msg)

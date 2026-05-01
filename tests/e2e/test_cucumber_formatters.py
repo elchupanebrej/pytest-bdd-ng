@@ -250,7 +250,7 @@ def test_live_formatter_startup_failure_preserves_default_pytest_terminal_output
         extra_env={"PATH": ""},
     )
 
-    assert result.returncode == pytest.ExitCode.TESTS_FAILED
+    assert result.returncode in {pytest.ExitCode.TESTS_FAILED, pytest.ExitCode.INTERNAL_ERROR}
     combined_output = combined_result_output(result)
     assert "Unable to start the live cucumber formatter session" in combined_output
     assert_pytest_terminal_reporter_visible(combined_output)

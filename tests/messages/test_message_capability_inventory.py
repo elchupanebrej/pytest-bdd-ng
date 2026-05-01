@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pytest_bdd.model.coverage.inventory import generate_inventory, iter_capability_ids
+import pytest_bdd.model.message_capability_inventory as message_capability_inventory
+from pytest_bdd.model.coverage.inventory import SCHEMA_DIR, generate_inventory, iter_capability_ids
 from pytest_bdd.model.message_capability import capability_is_relevant, classify_capability_relevance
 from pytest_bdd.model.message_capability_inventory import (
     reconcile_inventory_with_mandatory_scope,
@@ -50,7 +51,22 @@ def test_relevance_classifier_uses_supported_impact_domains() -> None:
 
 def test_resolve_messages_schema_dir_finds_envelope_schema() -> None:
     schema_dir = resolve_messages_schema_dir()
-    assert (schema_dir / "Envelope.json").exists()
+    assert (schema_dir / "Envelope.json").exists() or (schema_dir / "Envelope.schema.json").exists()
+
+
+def test_resolve_messages_schema_dir_falls_back_to_bundled_package_schema(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(message_capability_inventory, "_schema_dir_from_git_root", lambda: None)
+
+    schema_dir = resolve_messages_schema_dir()
+
+    assert schema_dir.name == "message_jsonschema"
+    assert (schema_dir / "Envelope.schema.json").exists()
+
+
+def test_coverage_inventory_schema_dir_points_to_bundled_package_schema() -> None:
+    assert SCHEMA_DIR.name == "message_jsonschema"
+    assert (SCHEMA_DIR / "Envelope.schema.json").exists()
 
 
 def test_generated_inventory_capability_ids_are_unique_and_canonical() -> None:

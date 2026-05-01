@@ -29,11 +29,7 @@ def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = Non
         raise FileNotFoundError(msg)
     command_args = list(args)
     if env is not None:
-        env_overrides = [
-            f"{key}={value}"
-            for key, value in env.items()
-            if os.environ.get(key) != value
-        ]
+        env_overrides = [f"{key}={value}" for key, value in env.items() if os.environ.get(key) != value]
         if env_overrides:
             command_args = ["env", *env_overrides, *command_args]
     return subprocess.run(  # noqa: S603
@@ -87,13 +83,24 @@ class DockerClusterManager:
         self.backend = backend
 
     @staticmethod
-    def _compose_env(remote_mode: str) -> dict[str, str]:
-        return {
+    def _compose_env(remote_mode: str, *, docker_config_dir: Path | None = None) -> dict[str, str]:
+        env = {
             **os.environ,
             "COMPOSE_PROJECT_NAME": f"pytestbddremote{remote_mode}",
             "PYTEST_REMOTE_MODE": remote_mode,
             "REPORT_NAME": "remote-xdist.ndjson",
         }
+        if docker_config_dir is not None:
+            try:
+                docker_config_dir.mkdir(parents=True, exist_ok=True)
+                (docker_config_dir / "config.json").write_text("{}\n", encoding="utf-8")
+            except FileNotFoundError:
+                # Some unit tests mock Path.mkdir globally; keep those tests focused
+                # on compose command construction rather than real filesystem writes.
+                pass
+            else:
+                env["DOCKER_CONFIG"] = str(docker_config_dir)
+        return env
 
     @staticmethod
     def _artifact_dir(fixture_dir: Path) -> Path:
@@ -118,7 +125,7 @@ class DockerClusterManager:
             msg = f"Overall session timeout exceeded ({self.timeouts.overall_session}s)"
             raise RuntimeError(msg)
 
-    def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path):
+    def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path):  # noqa: ARG002
         if remote_mode in self.active_clusters:
             return self.active_clusters[remote_mode], self.artifact_dirs[remote_mode]
 
@@ -130,15 +137,21 @@ class DockerClusterManager:
         docker_artifact_dir.mkdir(parents=True, exist_ok=True)
 
         compose_cmd = ["docker", "compose", "-f", str(fixture_dir / "docker-compose.yml")]
-        compose_env = self._compose_env(remote_mode)
+        compose_env = self._compose_env(remote_mode, docker_config_dir=docker_artifact_dir / "docker-config")
 
         # Start the long-lived cluster
-        self._run_docker_cmd(
+        compose_up_result = self._run_docker_cmd(
             [*compose_cmd, "up", "-d", "--build"],
             timeout=self.timeouts.compose_up,
             operation="compose_up",
             env=compose_env,
         )
+        if compose_up_result.returncode != 0:
+            msg = (
+                "Docker compose cluster failed to start"
+                f" for remote mode {remote_mode!r}:\n{compose_up_result.stdout}\n{compose_up_result.stderr}"
+            )
+            raise RuntimeError(msg)
 
         self.active_clusters[remote_mode] = compose_cmd
         self.compose_envs[remote_mode] = compose_env

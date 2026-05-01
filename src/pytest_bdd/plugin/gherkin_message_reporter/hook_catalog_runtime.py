@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from inspect import getfile, getsourcelines, signature
+from inspect import getfile, signature
 from pathlib import Path
 from typing import Any, cast
 
@@ -15,6 +15,7 @@ from pytest_bdd.compatibility.pytest import Config, FixtureDef, FixtureRequest, 
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import HookRegistration
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
+from pytest_bdd.util.inspect_extra import get_first_source_line
 from pytest_bdd.util.other import IdGenerator
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class HookCatalogService(ReporterServiceBase):
             }.get(str(hook_conjunction))
             parameter_types = list(signature(func).parameters.keys())
             source_file = getfile(func)
-            source_line = getsourcelines(func)[1]
+            source_line = get_first_source_line(func)
 
             hook_message_id = next(IdGenerator.from_stash(cast(Config, config).stash))
             hook_message = Hook(

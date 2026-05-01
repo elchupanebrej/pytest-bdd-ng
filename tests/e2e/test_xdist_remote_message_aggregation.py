@@ -31,7 +31,7 @@ REPORT_NAME = "remote-xdist.ndjson"
 REMOTE_MODES = ("socket", "via", "ssh")
 
 
-def _run_local_xdist(
+def _run_local_xdist(  # noqa: C901
     tmp_path: Path,
     *,
     remote_mode: str,
@@ -56,18 +56,19 @@ def _run_local_xdist(
             if is_ready:
                 return
             time.sleep(0.1)
-        raise RuntimeError(f"Timed out waiting for {host}:{port}")
+        msg = f"Timed out waiting for {host}:{port}"
+        raise RuntimeError(msg)
 
     env = dict(os.environ)
     servers = []
 
     # Start local socket servers
     if remote_mode == "socket":
-        servers.append(
-            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env)
-        )
-        servers.append(
-            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"], env=env)
+        servers.extend(
+            (
+                subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env),
+                subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"], env=env),
+            )
         )
         wait_for_endpoint("127.0.0.1", 8888)
         wait_for_endpoint("127.0.0.1", 8889)
@@ -84,7 +85,8 @@ def _run_local_xdist(
             f"--px id=proxy//socket=127.0.0.1:8888 --tx 2*popen//via=proxy//python={sys.executable}//chdir={tmp_path}"
         )
     else:
-        raise ValueError(f"Unsupported local mode: {remote_mode}")
+        msg = f"Unsupported local mode: {remote_mode}"
+        raise ValueError(msg)
 
     xdist_args = raw_xdist_args.split()
     ini_override_args = []
@@ -155,35 +157,45 @@ def _run_remote_xdist_compose(
     verify_mode: str,
     fail_transport_workers: str = "",
 ) -> subprocess.CompletedProcess[str]:
+    original_cwd = Path.cwd()
     if remote_mode in ("socket", "via"):
-        return _run_local_xdist(
-            tmp_path, remote_mode=remote_mode, verify_mode=verify_mode, fail_transport_workers=fail_transport_workers
-        )
+        try:
+            return _run_local_xdist(
+                tmp_path,
+                remote_mode=remote_mode,
+                verify_mode=verify_mode,
+                fail_transport_workers=fail_transport_workers,
+            )
+        finally:
+            os.chdir(original_cwd)
 
     from tests.support.docker_cluster import cluster_manager
 
-    cluster_manager.set_backend(require_docker_daemon())
-    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        cluster_manager.set_backend(require_docker_daemon())
+        repo_root = Path(__file__).resolve().parents[2]
 
-    if verify_mode == "success-live":
-        _, artifact_dir = cluster_manager.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
-        materialize_fake_node_runtime(
-            Path(artifact_dir) / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+        if verify_mode == "success-live":
+            _, artifact_dir = cluster_manager.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
+            materialize_fake_node_runtime(
+                Path(artifact_dir) / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+            )
+
+        result, docker_artifact_dir = cluster_manager.run_in_controller(
+            remote_mode, FIXTURE_DIR, repo_root, verify_mode, fail_transport_workers
         )
 
-    result, docker_artifact_dir = cluster_manager.run_in_controller(
-        remote_mode, FIXTURE_DIR, repo_root, verify_mode, fail_transport_workers
-    )
+        docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
+        if docker_report_path.exists():
+            shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
 
-    docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
-    if docker_report_path.exists():
-        shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
+        docker_capture_dir = docker_artifact_dir / "fake-node-runtime" / "fake-node-captures"
+        if docker_capture_dir.exists():
+            shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
 
-    docker_capture_dir = docker_artifact_dir / "fake-node-runtime" / "fake-node-captures"
-    if docker_capture_dir.exists():
-        shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
-
-    return result
+        return result
+    finally:
+        os.chdir(original_cwd)
 
 
 @pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)

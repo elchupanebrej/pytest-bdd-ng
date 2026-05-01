@@ -1,5 +1,5 @@
 from collections.abc import Callable, Sequence
-from inspect import getframeinfo, signature
+from inspect import getframeinfo, getsourcelines, signature
 from sys import _getframe
 from typing import Any
 
@@ -14,6 +14,16 @@ def get_args(func: Callable) -> Sequence[str]:
     """
     params = signature(func).parameters.values()
     return [param.name for param in params if param.kind == param.POSITIONAL_OR_KEYWORD]
+
+
+def get_first_source_line(obj: Any) -> int:
+    try:
+        return getsourcelines(obj)[1]
+    except (OSError, TypeError):
+        code = getattr(obj, "__code__", None)
+        if code is not None:
+            return int(code.co_firstlineno)
+        return 1
 
 
 def get_caller_module_locals(stacklevel: int = 1) -> dict[str, Any]:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import ssl
@@ -10,11 +12,9 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, TypeAlias, cast, runtime_checkable
 from urllib.parse import urljoin
 
-import aiohttp
-import certifi
 from attrs import define, field
 from cucumber_messages import (
     GherkinDocument,
@@ -22,7 +22,6 @@ from cucumber_messages import (
     Source,
 )
 
-from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import Config, get_config_root_path
 from pytest_bdd.const import PytestConfigParam
@@ -31,12 +30,14 @@ from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
-from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.url import is_local_url
 
 if TYPE_CHECKING:
-    from pytest_bdd.compatibility.typing import TypeAlias
+    import aiohttp
+
+    from pytest_bdd.compatibility.parser import ParserProtocol
+    from pytest_bdd.types.protocol import HasPytestStash
 
 
 @runtime_checkable
@@ -71,7 +72,7 @@ class ScenarioLocatorResolver(Protocol):
         ...
 
 
-ScenarioLocatorFilterT: "TypeAlias" = Callable[[Config, GherkinDocument, Pickle], bool]
+ScenarioLocatorFilterT: TypeAlias = Callable[[Config, GherkinDocument, Pickle], bool]
 
 
 @define
@@ -123,11 +124,15 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     parse_args = field()
 
     async def fetch(self, session: aiohttp.ClientSession, url):
+        import certifi
+
         sslcontext = ssl.create_default_context(cafile=certifi.where())
         async with session.get(url, ssl=sslcontext) as response:
             return response.content_type, await response.text(encoding=self.encoding)
 
     async def fetch_all(self, urls):
+        import aiohttp
+
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 

@@ -30,6 +30,12 @@ def test_public_xdist_html_report_doc_stays_in_broad_sweep() -> None:
 @given("a test suite with multiple passing and failing scenarios", target_fixture="test_suite")
 def setup_test_suite(testdir, tmp_path):
     pytest.importorskip("xdist")
+    testdir.makeini(
+        """\
+        [pytest]
+        disable_feature_autoload = true
+        """
+    )
     testdir.makefile(
         ".feature",
         test_suite=textwrap.dedent(
@@ -61,6 +67,13 @@ def setup_test_suite(testdir, tmp_path):
             """
         )
     )
+    testdir.makepyfile(
+        test_suite="""\
+        from pytest_bdd import scenarios
+
+        test_suite = scenarios("test_suite.feature")
+        """,
+    )
     return tmp_path / "report.html"
 
 
@@ -70,6 +83,7 @@ def execute_xdist(testdir, test_suite):
     result = testdir.runpytest_subprocess(
         "-n",
         "2",
+        "--capture=no",
         "--cucumber-html",
         str(html_report_path),
     )

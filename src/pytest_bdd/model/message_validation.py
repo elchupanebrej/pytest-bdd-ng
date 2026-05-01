@@ -5,8 +5,6 @@ from typing import Any, Final, Literal, cast
 
 from attrs import frozen
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
-from jsonschema import ValidationError, validators
-from referencing import Registry, Resource
 
 from .coverage.inventory import canonical_capability_id, canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
@@ -32,6 +30,9 @@ from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASE
 
 
 def _build_schema_validator() -> tuple[Any | None, str | None]:
+    from jsonschema import validators
+    from referencing import Registry, Resource
+
     try:
         schema_dir, envelope_schema = load_envelope_schema()
     except (FileNotFoundError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -51,7 +52,14 @@ def _build_schema_validator() -> tuple[Any | None, str | None]:
     return validator_class(envelope_schema, registry=registry), None
 
 
-_VALIDATOR, _VALIDATOR_INIT_ERROR = _build_schema_validator()
+_VALIDATOR_STATE: tuple[Any | None, str | None] | None = None
+
+
+def _schema_validator_state() -> tuple[Any | None, str | None]:
+    global _VALIDATOR_STATE
+    if _VALIDATOR_STATE is None:
+        _VALIDATOR_STATE = _build_schema_validator()
+    return _VALIDATOR_STATE
 
 
 AllowedImplementationStatus = str
@@ -272,7 +280,7 @@ def _payload_object_for_kind(envelope_dict: dict[str, object], payload_kind: str
     return {}
 
 
-def _schema_violation(error: ValidationError) -> MessageValidationViolation:
+def _schema_violation(error: Any) -> MessageValidationViolation:
     json_path = tuple(str(part) for part in error.absolute_path)
     schema_path = tuple(str(part) for part in error.absolute_schema_path)
     return MessageValidationViolation(
@@ -342,18 +350,17 @@ def validate_envelope_dict_against_schema(
     envelope_dict: dict[str, object],
 ) -> tuple[MessageValidationViolation, ...]:
     clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
-    if _VALIDATOR_INIT_ERROR is not None:
+    validator, validator_init_error = _schema_validator_state()
+    if validator_init_error is not None:
         return (
             MessageValidationViolation(
                 code="SCHEMA_VIOLATION",
-                message=_VALIDATOR_INIT_ERROR,
+                message=validator_init_error,
             ),
         )
-    if _VALIDATOR is None:
+    if validator is None:
         return ()
-    return tuple(
-        _schema_violation(cast(ValidationError, error)) for error in _VALIDATOR.iter_errors(clean_envelope_dict)
-    )
+    return tuple(_schema_violation(error) for error in validator.iter_errors(clean_envelope_dict))
 
 
 def validate_envelope_against_schema(

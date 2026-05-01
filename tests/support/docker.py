@@ -5,9 +5,15 @@ import shutil
 import subprocess  # noqa: S404
 import time
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
+
+_NATIVE_PATH = type(Path())
+
+
+def _windows_tool_candidate_exists(candidate: PureWindowsPath) -> bool:
+    return Path.exists(_NATIVE_PATH(str(candidate)))
 
 
 def _resolve_tool_path(name: str) -> str | None:
@@ -18,8 +24,8 @@ def _resolve_tool_path(name: str) -> str | None:
     if os.name != "nt":
         return None
 
-    candidates: list[Path] = []
-    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    candidates: list[PureWindowsPath] = []
+    system_root = PureWindowsPath(os.environ.get("SYSTEMROOT") or os.environ.get("SystemRoot", r"C:\Windows"))  # noqa: SIM112
 
     if name == "wsl":
         candidates.append(system_root / "System32" / "wsl.exe")
@@ -28,18 +34,21 @@ def _resolve_tool_path(name: str) -> str | None:
     elif name == "docker":
         candidates.extend(
             [
-                Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+                PureWindowsPath(os.environ.get("PROGRAMFILES") or os.environ.get("ProgramFiles", r"C:\Program Files"))  # noqa: SIM112
                 / "Docker"
                 / "Docker"
                 / "resources"
                 / "bin"
                 / "docker.exe",
-                Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "DockerDesktop" / "version-bin" / "docker.exe",
+                PureWindowsPath(os.environ.get("PROGRAMDATA") or os.environ.get("ProgramData", r"C:\ProgramData"))  # noqa: SIM112
+                / "DockerDesktop"
+                / "version-bin"
+                / "docker.exe",
             ]
         )
 
     for candidate in candidates:
-        if candidate.exists():
+        if _windows_tool_candidate_exists(candidate):
             return str(candidate)
 
     return None

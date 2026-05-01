@@ -9,6 +9,22 @@ def _package_dir(root, package_name):
     return Path(root).joinpath(*package_name.split("/"))
 
 
+def _write_package_assets(package_dir, package_name):
+    if package_name != "@cucumber/html-formatter":
+        return
+    dist_dir = package_dir / "dist"
+    dist_dir.mkdir(parents=True, exist_ok=True)
+    (dist_dir / "main.js").write_text("window.CUCUMBER_HTML_FORMATTER_TEST = true;\n", encoding="utf-8")
+    (dist_dir / "main.css").write_text("body { font-family: sans-serif; }\n", encoding="utf-8")
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "index.mustache.html").write_text(
+        "<!doctype html><html><head><title>{{title}}</title><style>{{css}}</style></head>"
+        "<body><script>window.CUCUMBER_MESSAGES=[{{messages}}];</script><script>{{script}}</script></body></html>",
+        encoding="utf-8",
+    )
+
+
 def _install(packages, root):
     root.mkdir(parents=True, exist_ok=True)
     for package_name in packages:
@@ -18,6 +34,7 @@ def _install(packages, root):
             json.dumps({"name": package_name, "version": "0.0.0-test"}),
             encoding="utf-8",
         )
+        _write_package_assets(package_dir, package_name)
     return 0
 
 

@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess  # noqa: S404
 import sys
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -77,11 +78,15 @@ def _suspend_active_coverage():
     if controller is None:
         yield
         return
+    coverage_module = sys.modules.get("coverage")
+    coverage_warning = getattr(getattr(coverage_module, "exceptions", None), "CoverageWarning", Warning)
     controller.stop()
     try:
         yield
     finally:
-        controller.start()
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=coverage_warning)
+            controller.start()
 
 
 def expected_formatter_output(formatter_name: str) -> str:
@@ -211,8 +216,8 @@ def _fake_node_python_executable() -> str:
         return override
     if sys.implementation.name == "pypy":
         python_executable = shutil.which("python")
-        if python_executable and os.path.normcase(os.path.abspath(python_executable)) != os.path.normcase(
-            os.path.abspath(sys.executable)
+        if python_executable and os.path.normcase(str(Path(python_executable).resolve())) != os.path.normcase(
+            str(Path(sys.executable).resolve())
         ):
             return python_executable
     return sys.executable
@@ -228,6 +233,20 @@ def _write_windows_command_shim(command_path: Path, target_script_path: Path) ->
                 "",
             )
         ),
+        encoding="utf-8",
+    )
+
+
+def _write_fake_html_formatter_assets(package_dir: Path) -> None:
+    dist_dir = package_dir / "dist"
+    dist_dir.mkdir(parents=True, exist_ok=True)
+    (dist_dir / "main.js").write_text("window.CUCUMBER_HTML_FORMATTER_TEST = true;\n", encoding="utf-8")
+    (dist_dir / "main.css").write_text("body { font-family: sans-serif; }\n", encoding="utf-8")
+    src_dir = package_dir / "src"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    (src_dir / "index.mustache.html").write_text(
+        "<!doctype html><html><head><title>{{title}}</title><style>{{css}}</style></head>"
+        "<body><script>window.CUCUMBER_MESSAGES=[{{messages}}];</script><script>{{script}}</script></body></html>",
         encoding="utf-8",
     )
 
@@ -254,6 +273,8 @@ def materialize_fake_node_runtime(
             json.dumps({"name": package_name, "version": "0.0.0-test"}, indent=2) + "\n",
             encoding="utf-8",
         )
+        if package_name == "@cucumber/html-formatter":
+            _write_fake_html_formatter_assets(package_dir)
 
     node_path = bin_dir / "node"
     node_path.write_text(
@@ -386,6 +407,12 @@ def install_formatter_hook_registry(
 
 
 def build_sample_suite(testdir) -> None:
+    testdir.makeini(
+        """\
+        [pytest]
+        disable_feature_autoload = true
+        """
+    )
     testdir.makefile(
         ".feature",
         formatter_suite="""\
@@ -409,5 +436,12 @@ def build_sample_suite(testdir) -> None:
         @given("a failing step")
         def _fail():
             raise RuntimeError("boom")
+        """,
+    )
+    testdir.makepyfile(
+        test_formatter_suite="""\
+        from pytest_bdd import scenarios
+
+        test_formatter_suite = scenarios("formatter_suite.feature")
         """,
     )

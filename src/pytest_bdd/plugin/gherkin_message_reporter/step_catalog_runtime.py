@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
-from inspect import getfile, getsourcelines, signature
+from inspect import getfile, signature
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -26,6 +26,7 @@ from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureR
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.util.inspect_extra import get_first_source_line
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
@@ -225,7 +226,7 @@ class StepCatalogService(ReporterServiceBase):
 
         with suppress(OSError, TypeError, ValueError):
             source_file = getfile(transformer)
-            source_line = getsourcelines(transformer)[1]
+            source_line = get_first_source_line(transformer)
             parameter_types = list(signature(transformer).parameters.keys())
             return SourceReference(
                 uri=relpath(

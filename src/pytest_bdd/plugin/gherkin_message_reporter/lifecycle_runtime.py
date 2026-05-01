@@ -5,7 +5,7 @@ import logging
 import os
 import shutil
 import sys
-from inspect import getfile, getsourcelines
+from inspect import getfile
 from pathlib import Path
 from platform import machine, processor, system, version
 from time import time_ns
@@ -58,6 +58,7 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.gherkin_message_reporter.session import format_requested_cucumber_formatter_labels
 from pytest_bdd.types.exception import MessageSchemaValidationError
+from pytest_bdd.util.inspect_extra import get_first_source_line
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.packaging import get_distribution_version
 
@@ -368,7 +369,7 @@ class LifecycleService(ReporterServiceBase):
             type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
         )
         source_file = getfile(hook_method)
-        source_line = getsourcelines(hook_method)[1]
+        source_line = get_first_source_line(hook_method)
         self._emit_envelope(
             config,
             Message(

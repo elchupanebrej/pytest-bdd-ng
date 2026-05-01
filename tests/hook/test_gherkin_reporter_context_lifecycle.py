@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import sys
-from importlib import import_module
 from dataclasses import dataclass
+from importlib import import_module
 from io import StringIO
 from queue import Queue
 from types import SimpleNamespace
@@ -40,9 +40,10 @@ from pytest_bdd.model.scenario_run import (
     RunStatus,
     ScenarioRun,
 )
-from pytest_bdd.plugin.gherkin_message_reporter import entrypoint, message_stream
+from pytest_bdd.plugin.gherkin_message_reporter import entrypoint, lifecycle_runtime, message_stream
 from pytest_bdd.plugin.gherkin_message_reporter.html_report import render_html_report_content
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+from pytest_bdd.util import inspect_extra
 from pytest_bdd.util.other import IdGenerator
 from tests.support.cucumber_formatters import install_formatter_hook_registry
 
@@ -369,6 +370,52 @@ def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, t
         GherkinMessageReporter.AFTER_TEST_RUN_HOOK_ID,
     ]
     assert [hook.type for hook in hook_messages] == [HookType.before_test_run, HookType.after_test_run]
+
+
+def test_reporter_uses_code_line_fallback_when_hook_source_lines_are_unavailable(monkeypatch, tmp_path) -> None:
+    reporter = GherkinMessageReporter(
+        config=SimpleNamespace(
+            option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
+            rootpath=tmp_path,
+        )
+    )
+    emitted_messages: list[Message] = []
+    config = reporter.config
+    config.stash = {}
+    Run.initialize_for_config(stash=config.stash, config=config).reporting_state.run_started_id = "run-started-1"
+    IdGenerator().initialize_in_stash(config.stash)
+
+    def capture_message(config, message) -> None:
+        _ = config
+        emitted_messages.append(message)
+
+    config.hook = SimpleNamespace(pytest_bdd_message=capture_message)
+
+    monkeypatch.setattr(reporter.transport_service, "start_process_messages_thread", lambda: None)
+    monkeypatch.setattr(lifecycle_runtime, "get_first_source_line", lambda method: method.__code__.co_firstlineno)
+
+    reporter.lifecycle_service.pytest_sessionstart(SimpleNamespace(config=config))
+
+    before_hook = next(
+        message.hook
+        for message in emitted_messages
+        if message.hook is not None and message.hook.type == HookType.before_test_run
+    )
+    assert (
+        before_hook.source_reference.location.line
+        == type(reporter.lifecycle_service).pytest_sessionstart.__code__.co_firstlineno
+    )
+
+
+def test_get_first_source_line_falls_back_to_code_line(monkeypatch) -> None:
+    def function_with_unavailable_source() -> None:
+        return None
+
+    monkeypatch.setattr(inspect_extra, "getsourcelines", lambda _method: (_ for _ in ()).throw(OSError))
+
+    assert inspect_extra.get_first_source_line(function_with_unavailable_source) == (
+        function_with_unavailable_source.__code__.co_firstlineno
+    )
 
 
 def test_reporter_ignores_inherited_xdist_worker_environment_without_workerinput(monkeypatch, tmp_path) -> None:

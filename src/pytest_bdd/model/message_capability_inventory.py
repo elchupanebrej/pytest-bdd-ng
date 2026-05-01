@@ -10,6 +10,7 @@ from attrs import frozen
 from .message_capability import MessageCapability, capability_is_relevant
 
 SCHEMA_RELATIVE_DIR = Path("messages") / "jsonschema" / "src"
+PACKAGE_SCHEMA_RELATIVE_DIR = Path("message_jsonschema")
 
 
 @frozen
@@ -183,9 +184,11 @@ def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
     if preferred is not None:
         candidates.append(preferred)
 
+    package_schema_dir = Path(__file__).resolve().parent / PACKAGE_SCHEMA_RELATIVE_DIR
     candidates.extend(
         (
             Path.cwd() / SCHEMA_RELATIVE_DIR,
+            package_schema_dir,
             Path(__file__).resolve().parents[3] / SCHEMA_RELATIVE_DIR,
         )
     )
@@ -200,7 +203,7 @@ def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
             return resolved
 
     paths = ", ".join(str(path.resolve()) for path in candidates)
-    msg = f"Unable to resolve messages schema directory with Envelope.json. Checked: {paths}"
+    msg = f"Unable to resolve messages schema directory with Envelope.json or Envelope.schema.json. Checked: {paths}"
     raise FileNotFoundError(msg)
 
 

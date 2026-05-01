@@ -42,6 +42,11 @@ if TYPE_CHECKING:  # pragma: no cover
 collect_ignore_glob = ["_*.feature"]
 
 _CUCUMBER_FORMATTER_REPORT_FEATURE_URI = "file:07 Report/09 Cucumber formatter reports.feature.md"
+_HTML_REPORT_FEATURE_URIS = (
+    "file:07 Report/02 Gathering.feature.md",
+    "file:07 Report/07 xdist HTML reporting.feature.md",
+    "../tests/e2e/_xdist_html_reporting.feature",
+)
 
 try:
     import jq  # type: ignore[import-untyped]
@@ -61,9 +66,11 @@ def ensure_fake_node_for_cucumber_formatter_report_docs(
     tmp_path: Path,
 ) -> None:
     nodeid = getattr(request.node, "nodeid", "")
-    if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI not in nodeid:
+    if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI in nodeid:
+        install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
         return
-    install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
+    if any(feature_uri in nodeid for feature_uri in _HTML_REPORT_FEATURE_URIS):
+        install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
 
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))

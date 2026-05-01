@@ -177,6 +177,9 @@ package-dir = {"" = "src"}
 pytest_bdd = [
   "markdown_parser.js"
 ]
+"pytest_bdd.model" = [
+  "message_jsonschema/*.json"
+]
 "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" = [
   "live_formatter_bridge.mjs.j2",
   "formatter_adapter_support.cjs.j2"
