@@ -1,5 +1,16 @@
 import pytest
 
+from pytest_bdd.util.tests_group_ordering import (
+    apply_group_ordering,
+    record_group_barrier_report,
+    register_group_config_options,
+    wait_for_group_barrier,
+)
+
+
+def pytest_addoption(parser):
+    register_group_config_options(parser)
+
 
 def pytest_generate_tests(metafunc):
     if "pytest_params" in metafunc.fixturenames:
@@ -12,3 +23,16 @@ def pytest_generate_tests(metafunc):
                 pytest.param(["--import-mode=importlib"], id="--import-mode=importlib"),
             ],
         )
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    apply_group_ordering(config, items)
+
+
+def pytest_runtest_setup(item):
+    wait_for_group_barrier(item)
+
+
+def pytest_runtest_logreport(report):
+    record_group_barrier_report(report)

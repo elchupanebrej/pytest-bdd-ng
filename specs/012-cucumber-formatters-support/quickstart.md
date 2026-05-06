@@ -95,11 +95,11 @@ Expected:
 # mkdir -p /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/.tmp-cucumber-reports
 # conda run -n pytest-bdd-ng-py314 python -m pytest \
 #   tests/e2e/test_e2e.py -q -n 2 \
-#   -m "not long_running and not xdist and not docker" \
+#   -m "not slow and not xdist and not docker" \
 #   --cucumber-json=.tmp-cucumber-reports/xdist-report.json
 uv run python -m pytest \
   tests/e2e/test_e2e.py -q -n 2 \
-  -m "not long_running and not xdist and not docker" \
+  -m "not slow and not xdist and not docker" \
   --cucumber-json=.tmp-cucumber-reports/xdist-report.json
 ```
 

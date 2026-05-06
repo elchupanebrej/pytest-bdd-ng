@@ -6,7 +6,7 @@ import pytest
 
 from pytest_bdd import scenario
 
-pytestmark = [pytest.mark.long_running]
+pytestmark = [pytest.mark.slow]
 
 
 @scenario(

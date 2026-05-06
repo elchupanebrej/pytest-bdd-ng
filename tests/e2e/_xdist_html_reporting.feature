@@ -1,5 +1,5 @@
 @xdist
-@long_running
+@slow
 Feature: pytest-xdist HTML reporting
   As a test automation engineer
   I want to run my test suite using pytest-xdist

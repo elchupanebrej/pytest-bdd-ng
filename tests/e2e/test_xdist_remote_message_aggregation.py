@@ -24,7 +24,7 @@ from tests.support.cucumber_formatters import (
 )
 from tests.support.docker import require_docker_daemon
 
-pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.long_running]
+pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.slow]
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "remote_xdist"
 REPORT_NAME = "remote-xdist.ndjson"

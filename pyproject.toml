@@ -139,6 +139,7 @@ test = [
   "packaging",
   "PyHamcrest",
   "pytest-httpserver",
+  "pytest-order",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
@@ -168,6 +169,54 @@ render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 [project.urls]
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+bdd_features_base_dir = "features/"
+addopts = "-p pytester --order-scope=session"
+filterwarnings = [
+  "error",
+  "ignore::DeprecationWarning",
+  "ignore::ImportWarning"
+]
+markers = [
+  "deprecated: mark test testing deprecated API",
+  "deficient: mark test with non-full coverage",
+  "docker: mark tests that require Docker-backed environments",
+  "instant: smallest in-process tests",
+  "fast: normal fast tests",
+  "medium: moderate integration tests",
+  "slow: expensive local tests",
+  "external: tests requiring external services",
+  "slow: mark tests that are intentionally excluded from short/default runs",
+  "playwright: mark browser-backed acceptance tests",
+  "surplus: mark test testing non-standard API",
+  "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
+  "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
+  "order: execution ordering marker from pytest-order"
+]
+test_group_order = ["instant", "fast", "medium", "slow", "external"]
+test_group_default = "fast"
+test_group_paths = [
+  "tests/unit/** = instant",
+  "tests/model/** = instant",
+  "tests/args/** = fast",
+  "tests/hook/** = fast",
+  "tests/steps/** = fast",
+  "tests/feature/** = medium",
+  "tests/gherkin_integration/** = medium",
+  "tests/library/** = medium",
+  "tests/struct_bdd/** = medium",
+  "tests/allure_/** = slow",
+  "tests/compatibility/** = slow",
+  "tests/contract/** = slow",
+  "tests/doc/** = slow",
+  "tests/generation/** = slow",
+  "tests/messages/** = slow",
+  "tests/messages_coverage/** = slow",
+  "tests/scripts/** = slow",
+  "tests/e2e/** = external",
+]
 
 [tool.setuptools]
 include-package-data = true

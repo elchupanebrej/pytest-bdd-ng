@@ -6,7 +6,7 @@ import pytest
 
 from pytest_bdd import scenario
 
-pytestmark = [pytest.mark.long_running]
+pytestmark = [pytest.mark.slow]
 
 _FEATURE_PATH = (
     Path(__file__).resolve().parents[2] / "features" / "07 Report" / "09 Cucumber formatter reports.feature.md"

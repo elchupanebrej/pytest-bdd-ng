@@ -9,7 +9,7 @@ from pytest_bdd import given, scenario, then, when
 
 from .test_e2e import _exclude_default_bdd_features
 
-pytestmark = [pytest.mark.xdist, pytest.mark.long_running]
+pytestmark = [pytest.mark.xdist, pytest.mark.slow]
 
 
 @scenario("../tests/e2e/_xdist_html_reporting.feature", "Generate consolidated HTML report from xdist run")

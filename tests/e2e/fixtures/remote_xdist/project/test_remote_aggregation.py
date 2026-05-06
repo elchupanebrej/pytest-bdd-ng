@@ -6,7 +6,7 @@ import pytest
 
 from pytest_bdd import given, scenarios
 
-pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.long_running]
+pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.slow]
 
 test_scenarios = scenarios(Path(__file__).with_name("aggregation.feature"))
 

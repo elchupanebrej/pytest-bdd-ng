@@ -4,7 +4,7 @@ from pytest_bdd import scenarios
 from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_outcome_mappings
 from tests.messages.message_capability_fixtures import make_mapping_rule
 
-_EXCLUDED_TAGS = {"allure", "docker", "long_running", "xdist"}
+_EXCLUDED_TAGS = {"allure", "docker", "slow", "xdist"}
 _EXCLUDED_FEATURE_URI_FRAGMENTS = ("07 report/08 xdist remote network reporting.feature.md",)
 _EXCLUDED_FEATURE_SCENARIOS = {
     (
@@ -90,7 +90,7 @@ def test_messages_fixed_release_readiness_matrix_rejects_missing_parallel_worker
     assert "missing_parallel_worker_scenario" in result.missing_required_matrix_cases
 
 
-def test_default_bdd_filter_excludes_tagged_long_running_scenarios() -> None:
+def test_default_bdd_filter_excludes_tagged_slow_scenarios() -> None:
     def _tag(name: str):
         return SimpleNamespace(name=name)
 
