@@ -61,7 +61,9 @@ class StepParserProtocol(Protocol):
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool: ...  # pragma: no cover
 
-    def __str__(self) -> str: ...  # pragma: no cover
+    def __str__(self) -> str:
+        """Return parser pattern as a string."""
+        ...  # pragma: no cover
 
 
 class RegistryMode(Enum):
@@ -189,6 +191,7 @@ class re(StepParser):  # noqa:N801 intentional API
         return bool(self.regex.fullmatch(name))
 
     def __str__(self) -> str:
+        """Return parser pattern as a string."""
         return normalize_to_string(self.pattern)
 
 
@@ -253,6 +256,7 @@ class parse(StepParser):  # noqa:N801 intentional API
             return False
 
     def __str__(self) -> str:
+        """Return parser format as a string."""
         return str(self.format)
 
 
@@ -300,6 +304,7 @@ class string(StepParser):  # noqa: N801 intentional API
         return bool(self.name == name)
 
     def __str__(self) -> str:
+        """Return the exact step name."""
         return self.name
 
 
@@ -533,4 +538,5 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         ]
 
     def __str__(self) -> str:
+        """Return parser format as a string."""
         return str(self.format)

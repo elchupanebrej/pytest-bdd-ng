@@ -12,6 +12,7 @@ The following rules were removed from `tool.ruff.lint.ignore` and the reported v
 | D400, D415 | Docstring summaries had inconsistent terminal punctuation. | Added terminal punctuation to production/docstring surfaces covered by the configured ruff run. |
 | D401 | Hook/spec docstrings used declarative wording instead of imperative wording. | Reworded summaries to imperative mood without changing API meaning. |
 | D404 | Tutorial module docstring started with `This`. | Reworded the docstring summary. |
+| D105 | Magic methods lacked docstrings. | Added short docstrings to `__str__`, `__next__`, `__iter__`, `__eq__`, `__missing__`, and attrs post-init methods. |
 | DOC402 | Generator docstrings did not describe yielded values. | Added `Yields` sections. |
 | DOC501 | Docstrings omitted exception documentation for direct raises. | Added concise `Raises` sections. |
 | E501 | Some lines exceeded the configured 120-character limit. | Wrapped comments, messages, generated markdown rows, and embedded test snippets. |
@@ -35,9 +36,9 @@ Counts below come from `uv run --extra test ruff check src tests docs --isolated
 | --- | ---: | --- | --- |
 | COM812 | 369 | Formatter and comma lint disagree on multiline trailing comma placement. | Ruff documents this as formatter interference; enabling it would create churn without stronger style guarantees. |
 | CPY001 | 334 | Repository files do not carry per-file copyright headers. | Needs a project policy decision and likely generated header strategy. |
-| D100-D107 | 1,897 total | Public modules, classes, methods, functions, packages, nested classes, magic methods, and `__init__` methods lack docstrings. | Requires documentation policy and broad authoring work, not mechanical cleanup. |
-| D212 | 41 | The project currently follows the opposite multi-line docstring convention, enforced by active D213. | Conflicts with the active convention; enabling D212 would require disabling D213 and flipping docstring style. |
-| DOC201 | 73 | Docstrings omit return sections. | Requires validating public API return contracts, not just adding boilerplate. |
+| D100-D104, D106-D107 | 1,883 total | Public modules, classes, methods, functions, packages, nested classes, and `__init__` methods lack docstrings. | Requires documentation policy and broad authoring work, not mechanical cleanup. |
+| D212 | 42 | The project currently follows the opposite multi-line docstring convention, enforced by active D213. | Conflicts with the active convention; enabling D212 would require disabling D213 and flipping docstring style. |
+| DOC201 | 83 | Docstrings omit return sections. | Requires validating public API return contracts, not just adding boilerplate. |
 | FIX002, TD002, TD003, TD004 | 51 total | TODO comments lack the stricter task metadata required by flake8-todos. | Needs an issue-tracking convention for author and links before enforcement. |
 | PLC0415 | 66 | Imports are intentionally inside functions/hooks to avoid optional dependencies, pytest plugin side effects, or cycles. | Needs dependency-boundary review before moving imports. |
 | PLC2701, SLF001 | 238 total | Tests and compatibility layers access private names. | Many accesses are deliberate white-box tests or compatibility shims; needs API boundary decisions. |

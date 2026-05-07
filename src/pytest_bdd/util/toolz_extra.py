@@ -29,6 +29,13 @@ class DefaultMapping(defaultdict[object, object]):
         self.warm_up(*warm_up_keys)
 
     def __missing__(self, key: object) -> object:
+        """
+        Return a fallback value for missing keys.
+
+        Raises:
+            KeyError: If missing-key fallback is disabled or unavailable.
+
+        """
         if ... in self.keys():
             intercessor = self[...]
             if intercessor is self.Skip:

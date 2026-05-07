@@ -313,7 +313,6 @@ ignore = [
   "D102",  # undocumented-public - method - Legacy/Noisy - ~373 errors
   "D103",  # undocumented-public - function - Legacy/Noisy - ~210 errors
   "D104",  # undocumented-public - package - Legacy/Noisy - ~24 errors
-  "D105",  # undocumented-magic - method - Legacy/Noisy - ~14 errors
   "D106",  # undocumented-public - nested-class - Legacy/Noisy - ~18 errors
   "D107",  # undocumented-public - init - Legacy/Noisy - ~43 errors
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention

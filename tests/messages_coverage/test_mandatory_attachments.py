@@ -21,6 +21,7 @@ class Coordinate:
         self.z = z
 
     def __eq__(self, other):
+        """Return whether the other object has the same coordinates."""
         return isinstance(other, Coordinate) and self.x == other.x and self.y == other.y and self.z == other.z
 
 

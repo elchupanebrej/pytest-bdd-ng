@@ -792,6 +792,7 @@ class ScenarioRun:
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef] = field(init=False, repr=False)
 
     def __attrs_post_init__(self) -> None:
+        """Initialize active lifecycle object lookup by kind."""
         self._active_kind_index = {
             "run": self.active_set.run,
             "feature": self.active_set.feature,

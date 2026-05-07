@@ -117,6 +117,7 @@ class GherkinMessageReporter:
     _hook_services: tuple[ReporterServiceBase, ...]
 
     def __attrs_post_init__(self) -> None:
+        """Initialize reporter runtime services."""
         self._live_formatter_lock = Lock()
         initialize_reporter_runtime(self)
         service_graph = assemble_reporter_runtime(self)

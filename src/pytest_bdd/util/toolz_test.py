@@ -44,6 +44,7 @@ class InstanceOfType:
         self.type = type_
 
     def __eq__(self, other: object) -> bool:
+        """Return whether the other object matches the expected type."""
         return isinstance(other, self.type) if self.type else True
 
     __hash__ = None  # type: ignore[assignment]

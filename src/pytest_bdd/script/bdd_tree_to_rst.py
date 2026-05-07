@@ -72,6 +72,7 @@ class OrderingValidationError(ValueError):
         super().__init__(str(self))
 
     def __str__(self) -> str:
+        """Return the formatted heading validation error."""
         return (
             f"{self.error_code}: {self.message} "
             f"(scope={self.scope_path.as_posix()}, source={self.source_path.as_posix()})"

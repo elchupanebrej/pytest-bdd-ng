@@ -24,7 +24,9 @@ def format_as_simplified_python_identifier(string: str) -> str:
 
 @runtime_checkable
 class StringRepresentable(Protocol):
-    def __str__(self) -> str: ...  # pragma: no cover
+    def __str__(self) -> str:
+        """Return the value as a string."""
+        ...  # pragma: no cover
 
 
 def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
@@ -38,6 +40,7 @@ class IdGenerator(BaseIdGenerator, StashBound):
         self._id_counter = 0
 
     def __next__(self) -> str:
+        """Return the next generated ID."""
         try:
             return str(self._id_counter)
         finally:

@@ -555,6 +555,7 @@ class StepDefinitionManager:
             return step_registry
 
         def __iter__(self) -> Iterator["StepDefinitionManager.Definition"]:
+            """Iterate over registered step definitions."""
             return iter(self.registry)
 
     @staticmethod
