@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from functools import cache
+from typing import TYPE_CHECKING
 
 from attrs import frozen
 
 from pytest_bdd.compatibility.importlib.metadata import entry_points
 from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterPlugin
+
+if TYPE_CHECKING:
+    from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
 
 FORMATTER_PLUGIN_ENTRYPOINT_PREFIX = "pytest-bdd-cucumber-formatter-"
 
@@ -64,7 +68,7 @@ class FormatterPluginCatalog:
                 known_formatters=tuple(sorted(plugins_by_name)),
             ) from exc
 
-    def render_runtime_assets(self, formatter_requests) -> dict[str, str]:
+    def render_runtime_assets(self, formatter_requests: tuple[CucumberFormatterRequest, ...]) -> dict[str, str]:
         from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
 
         assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}

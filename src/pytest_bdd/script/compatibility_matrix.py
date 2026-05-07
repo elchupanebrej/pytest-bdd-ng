@@ -9,6 +9,7 @@ from pathlib import Path
 
 from pytest_bdd.compatibility.matrix import (
     REASON_COMPATIBLE,
+    CompatibilityMatrixEntry,
     build_matrix,
     build_migration_coverage_summary,
     discover_feature_scenario_ids,
@@ -38,7 +39,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _entry_payload(entry) -> dict[str, object]:
+def _entry_payload(entry: CompatibilityMatrixEntry) -> dict[str, object]:
     return {
         "pythonVersion": entry.python_version,
         "pytestVersion": entry.pytest_version,

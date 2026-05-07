@@ -5,9 +5,8 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from itertools import chain, filterfalse, zip_longest
-from operator import methodcaller
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import py
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -18,14 +17,15 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Source,
 )
 from jinja2 import Environment
+from jinja2.environment import Template
 
 from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
+from pytest_bdd.scenario_locator import ScenarioLocatorResolver
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
-from pytest_bdd.util.toolz_extra import chain_map
 
 STEP_TYPE_TO_STEP_PREFIX = {
     PickleStepType.unknown: "*",
@@ -45,14 +45,14 @@ TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa
 
 
 @lru_cache(maxsize=1)
-def get_code_generation_template():
+def get_code_generation_template() -> Template:
     template_source = files("pytest_bdd.template").joinpath("test.py.jinja2").read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 
 
 # TODO Rework into plugin class
 # TODO Use wrapping around other plugins
-def check_existence(file_name):
+def check_existence(file_name: str) -> Path:
     """Check file or directory name for existence."""
     if not Path(file_name).exists():
         msg = f"{file_name} is an invalid file or directory name"
@@ -134,7 +134,7 @@ def process_session_items(
 
 
 def process_single_item(
-    item: Item | Any,
+    item: Item,
     seen_feature_pickles_ids: set[tuple[str, str]],
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> None:
@@ -192,10 +192,15 @@ def collect_features_and_seen_uris(
 ) -> tuple[Sequence[FeatureRuntimeBinding], set[str]]:
     """Collect all features and the set of seen feature URIs."""
     locator_builder = ScenarioLocatorBuilder(config=config)
-    locators = locator_builder.build_for_feature_locator_args(
-        cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+    locators = cast(
+        Sequence[ScenarioLocatorResolver],
+        locator_builder.build_for_feature_locator_args(
+            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+        ),
     )
-    feature_pickles_feature_source = list(chain_map(methodcaller("resolve", config), locators))
+    feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [
+        feature_pickles_source for locator in locators for feature_pickles_source in locator.resolve(config)
+    ]
     run = Run.from_stash(config.stash)
     features_by_uri = {
         str(gherkin_document.uri): run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
@@ -266,10 +271,15 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
         return
 
     locator_builder = ScenarioLocatorBuilder(config=config)
-    locators = locator_builder.build_for_feature_locator_args(
-        cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+    locators = cast(
+        Sequence[ScenarioLocatorResolver],
+        locator_builder.build_for_feature_locator_args(
+            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+        ),
     )
-    feature_pickles_feature_source = list(chain_map(methodcaller("resolve", config), locators))
+    feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [
+        feature_pickles_source for locator in locators for feature_pickles_source in locator.resolve(config)
+    ]
 
     run = Run.from_stash(config.stash)
     features_by_uri: dict[str, FeatureRuntimeBinding] = {}
@@ -329,10 +339,10 @@ def generate_and_print_code(config: Config) -> int | ExitCode:
 
 def print_missing_code(
     _config: Config,
-    features,
+    features: Sequence[FeatureRuntimeBinding],
     feature_pickles: Sequence[tuple[FeatureRuntimeBinding, Pickle]],
     feature_pickle_steps: Sequence[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
-    unique_steps,
+    unique_steps: Sequence[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> None:
     """Print missing code with TerminalWriter."""
     tw = py.io.TerminalWriter()

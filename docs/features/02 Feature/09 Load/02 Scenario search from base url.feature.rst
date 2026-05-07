@@ -12,56 +12,56 @@ per-scenario basis to override the path for specific tests.
 Background:
            
 
--  Given Localserver endpoint "/features/Passing.feature" responding
-   content:
+- Given Localserver endpoint "/features/Passing.feature" responding
+  content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Passing feature
-        Scenario: Passing scenario
-          Given Passing step
-        Scenario: Failing scenario
-          Given Failing step
+     Feature: Passing feature
+       Scenario: Passing scenario
+         Given Passing step
+       Scenario: Failing scenario
+         Given Failing step
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import step
-      from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import step
+     from pytest_bdd.compatibility.pytest import fail
 
-      @step('Passing step')
-      def _():
-        ...
+     @step('Passing step')
+     def _():
+       ...
 
-      @step('Failing step')
-      def _():
-        fail('Intentional')
+     @step('Failing step')
+     def _():
+       fail('Intentional')
 
--  And File "test_feature.py" with content:
+- And File "test_feature.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import scenarios,FeaturePathType
+     from pytest_bdd import scenarios,FeaturePathType
 
-      test = scenarios('Passing.feature', features_path_type=FeaturePathType.URL)
+     test = scenarios('Passing.feature', features_path_type=FeaturePathType.URL)
 
 Scenario: Search from configured base URL
                                          
 
--  Given File "pytest.ini" with fixture templated content:
+- Given File "pytest.ini" with fixture templated content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      bdd_features_base_url=http://localhost:{httpserver_port}/features
+     [pytest]
+     bdd_features_base_url=http://localhost:{httpserver_port}/features
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======

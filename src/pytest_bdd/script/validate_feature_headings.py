@@ -8,7 +8,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
@@ -26,6 +26,7 @@ from pytest_bdd.model.heading_validation import (
     ParsedHeadingRecord,
     default_heading_validation_policy,
 )
+from pytest_bdd.types.json import JSONObject
 from pytest_bdd.util.other import IdGenerator
 
 DEFAULT_INCLUDE_PATTERNS = (
@@ -134,7 +135,7 @@ def build_baseline_audit(
     )
 
 
-def parse_gherkin_document(path: Path) -> dict[str, Any]:
+def parse_gherkin_document(path: Path) -> JSONObject:
     """Parse a gherkin or gherkin-markdown document into raw AST dictionary."""
     parser = Parser(ast_builder=AstBuilder(id_generator=IdGenerator()))
     feature_file_data = path.read_text(encoding="utf-8")
@@ -144,14 +145,14 @@ def parse_gherkin_document(path: Path) -> dict[str, Any]:
             parsed_document = parser.parse(TokenScanner(feature_file_data), GherkinInMarkdownTokenMatcher())
         else:
             parsed_document = parser.parse(feature_file_data)
-        return cast(dict[str, Any], parsed_document)
+        return cast(JSONObject, parsed_document)
     except CompositeParserException as exc:  # pragma: no cover - parser-level failures are exceptional for this scan
         msg = f"Unable to parse feature document: {path.as_posix()}"
         raise ValueError(msg) from exc
 
 
 def extract_parsed_heading_records(
-    path: Path, gherkin_document: Mapping[str, Any], root_path: Path
+    path: Path, gherkin_document: Mapping[str, object], root_path: Path
 ) -> list[ParsedHeadingRecord]:
     """Extract heading records from parsed feature document."""
     relative_path = path.resolve().relative_to(root_path.resolve()).as_posix()
@@ -200,7 +201,7 @@ def validate_heading_records(
     return violations
 
 
-def _extract_scenario_records(document_path: str, children: Any) -> list[ParsedHeadingRecord]:
+def _extract_scenario_records(document_path: str, children: object) -> list[ParsedHeadingRecord]:
     records: list[ParsedHeadingRecord] = []
 
     if not isinstance(children, list):
@@ -240,7 +241,7 @@ def _heading_type_from_keyword(keyword: str | None) -> HeadingType | None:
     return None
 
 
-def _extract_line(node: Mapping[str, Any]) -> int:
+def _extract_line(node: Mapping[str, object]) -> int:
     location = node.get("location")
     if isinstance(location, Mapping):
         line = location.get("line")
@@ -249,7 +250,7 @@ def _extract_line(node: Mapping[str, Any]) -> int:
     return 1
 
 
-def _extract_column(node: Mapping[str, Any]) -> int | None:
+def _extract_column(node: Mapping[str, object]) -> int | None:
     location = node.get("location")
     if isinstance(location, Mapping):
         column = location.get("column")
@@ -258,7 +259,7 @@ def _extract_column(node: Mapping[str, Any]) -> int | None:
     return None
 
 
-def _as_optional_string(value: Any) -> str | None:
+def _as_optional_string(value: object) -> str | None:
     if value is None:
         return None
     if isinstance(value, str):

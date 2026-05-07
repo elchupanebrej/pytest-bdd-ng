@@ -37,10 +37,10 @@ def given_beautiful_article(article):
 import warnings
 from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
-from functools import partial
 from inspect import getfile, getsourcelines
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, cast
+from types import FunctionType
+from typing import TypeAlias, cast
 from uuid import uuid4
 from warnings import warn
 
@@ -71,33 +71,40 @@ from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import IdGenerator, format_as_python_identifier
-from pytest_bdd.util.toolz_extra import chain_map, flip, getitemdefault, setdefaultattr
-
-if TYPE_CHECKING:
-    from pytest_bdd.compatibility.typing import TypeAlias
+from pytest_bdd.util.toolz_extra import getitemdefault, setdefaultattr
 
 
-def _resolve_callable_source_location(func: Callable[..., Any]) -> tuple[str, int]:
-    source_file = getfile(func)
+class StepFunc(Protocol):
+    __name__: str
+
+
+StepDecorator: TypeAlias = Callable[[StepFunc], StepFunc]
+ConverterT: TypeAlias = Callable[[object], object]
+ParamsFixturesMapping: TypeAlias = bool | Collection[str] | Mapping[object, str | None]
+
+
+def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
+    typed_func = cast(FunctionType, func)
+    source_file = getfile(typed_func)
     try:
-        source_line = getsourcelines(func)[1]
+        source_line = getsourcelines(typed_func)[1]
     except (OSError, TypeError):
         source_line = getattr(getattr(func, "__code__", None), "co_firstlineno", 1) or 1
     return source_file, int(source_line)
 
 
 def given(
-    parserlike: Any,
+    parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
-    converters: dict[str, Callable] | None = None,
+    converters: Mapping[str, ConverterT] | None = None,
     target_fixture: str | None = None,
     target_fixtures: Sequence[str] | None = None,
-    params_fixtures_mapping: set[str] | dict[str, str] | Any = True,  # noqa: FBT002
-    param_defaults: dict | None = None,
+    params_fixtures_mapping: ParamsFixturesMapping = True,  # noqa: FBT002
+    param_defaults: Mapping[str, object] | None = None,
     *,
     liberal: bool | None = None,
-    stacklevel=1,
-) -> Callable:
+    stacklevel: int = 1,
+) -> StepDecorator:
     """Given step decorator.
 
     :param parserlike: Step name or a parser object.
@@ -129,17 +136,17 @@ def given(
 
 
 def when(
-    parserlike: Any,
+    parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
-    converters: dict[str, Callable] | None = None,
+    converters: Mapping[str, ConverterT] | None = None,
     target_fixture: str | None = None,
     target_fixtures: Sequence[str] | None = None,
-    params_fixtures_mapping: set[str] | dict[str, str] | Any = True,  # noqa: FBT002
-    param_defaults: dict | None = None,
+    params_fixtures_mapping: ParamsFixturesMapping = True,  # noqa: FBT002
+    param_defaults: Mapping[str, object] | None = None,
     *,
     liberal: bool | None = None,
-    stacklevel=1,
-) -> Callable:
+    stacklevel: int = 1,
+) -> StepDecorator:
     """When step decorator.
 
     :param parserlike: Step name or a parser object.
@@ -170,17 +177,17 @@ def when(
 
 
 def then(
-    parserlike: Any,
+    parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
-    converters: dict[str, Callable] | None = None,
+    converters: Mapping[str, ConverterT] | None = None,
     target_fixture: str | None = None,
     target_fixtures: Sequence[str] | None = None,
-    params_fixtures_mapping: set[str] | dict[str, str] | Any = True,  # noqa: FBT002
-    param_defaults: dict | None = None,
+    params_fixtures_mapping: ParamsFixturesMapping = True,  # noqa: FBT002
+    param_defaults: Mapping[str, object] | None = None,
     *,
     liberal: bool | None = None,
-    stacklevel=1,
-) -> Callable:
+    stacklevel: int = 1,
+) -> StepDecorator:
     """Then step decorator.
 
     :param parserlike: Step name or a parser object.
@@ -211,17 +218,17 @@ def then(
 
 
 def step(
-    parserlike: Any,
+    parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
-    converters: dict[str, Callable] | None = None,
+    converters: Mapping[str, ConverterT] | None = None,
     target_fixture: str | None = None,
     target_fixtures: Sequence[str] | None = None,
-    params_fixtures_mapping: set[str] | dict[str, str] | Any = True,  # noqa: FBT002
-    param_defaults: dict | None = None,
+    params_fixtures_mapping: ParamsFixturesMapping = True,  # noqa: FBT002
+    param_defaults: Mapping[str, object] | None = None,
     *,
     liberal: bool | None = None,
-    stacklevel=1,
-):
+    stacklevel: int = 1,
+) -> StepDecorator:
     """Liberal step decorator which could be used with any keyword.
 
     :param parserlike: Step name or a parser object.
@@ -257,20 +264,20 @@ class StepDefinitionManager:
     @define
     class Matcher:
         config: Config = field()
-        request: Any = field(init=False)
+        request: FixtureRequest = field(init=False)
         feature: Feature = field(init=False)
         pickle: Pickle = field(init=False)
         step: Step = field(init=False)
         previous_step: Step | None = field(init=False)
         step_registry: "StepDefinitionManager.Registry" = field(init=False)
-        step_type_context = field(default=None)
+        step_type_context: PickleStepType | None = field(default=None)
 
         class MatchNotFoundError(RuntimeError):
             pass
 
         def __call__(
             self,
-            request,
+            request: FixtureRequest,
             feature: Feature,
             pickle: Pickle,
             step: Step,
@@ -310,13 +317,13 @@ class StepDefinitionManager:
                 return step_definitions[0]
             raise self.MatchNotFoundError(self.step.text)
 
-        def strict_matcher(self, step_definition):
+        def strict_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
             return step_definition.type_ == self.step_type_context and step_definition.parser.is_matching(
                 self.request,
                 self.step.text,
             )
 
-        def unspecified_matcher(self, step_definition):
+        def unspecified_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
             return (
                 PickleStepType.unknown in {self.step_type_context, step_definition.type_}
             ) and step_definition.parser.is_matching(
@@ -324,7 +331,7 @@ class StepDefinitionManager:
                 self.step.text,
             )
 
-        def liberal_matcher(self, step_definition):
+        def liberal_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
             if step_definition.liberal is None:
                 if self.config.option.liberal_steps is None:
                     is_step_definition_liberal = self.config.getini(str(Steps.Ini.LIBERAL_OPTION))
@@ -344,9 +351,9 @@ class StepDefinitionManager:
 
         @staticmethod
         def find_step_definition_matches(
-            registry: Optional["StepDefinitionManager.Registry"],
+            registry: "StepDefinitionManager.Registry | None",
             matchers: Sequence[Callable[["StepDefinitionManager.Definition"], bool]],
-        ) -> Iterable["StepDefinitionManager.Definition"]:
+        ) -> Iterator["StepDefinitionManager.Definition"]:
             if registry:
                 found_matches = False
                 for matcher in matchers:
@@ -362,40 +369,36 @@ class StepDefinitionManager:
 
     @define(eq=False)
     class Definition:
-        func: Callable = field()
+        func: StepFunc = field()
         type_: str | PickleStepType | None = field()
         parser: StepParser = field()
         anonymous_group_names: Iterable[str] | None = field()
-        converters: dict[str, Callable] = field()
-        params_fixtures_mapping: Collection[str] | Mapping[str | Any, str | Any | None] | Any = field()
-        param_defaults: dict = field()
+        converters: Mapping[str, ConverterT] = field()
+        params_fixtures_mapping: ParamsFixturesMapping = field()
+        param_defaults: Mapping[str, object] = field()
         target_fixtures: Sequence[str] = field()
-        liberal: Any | None = field()
+        liberal: bool | None = field()
 
-        id = field(init=False)
+        id: str = field(init=False)
         __cache: dict[int, StepDefinition] = field(factory=dict)
 
         @property
-        def fixtures_mapped_from_step_definition(self):
+        def fixtures_mapped_from_step_definition(self) -> set[str]:
             known_params = {
                 *([] if self.anonymous_group_names is None else self.anonymous_group_names),
-                *([] if self.parser.arguments is None else self.parser.arguments),
+                *self.parser.arguments,
             }
 
             fixture_names = {*self.target_fixtures}
+            converted_params: set[str]
+            wildcard_params_strategy: object
 
             if isinstance(self.params_fixtures_mapping, Mapping):
-                converted_params = {
-                    *filter(
-                        lambda param: param is not ...,
-                        self.params_fixtures_mapping.keys(),
-                    )
-                }
+                converted_params = {param for param in self.params_fixtures_mapping if isinstance(param, str)}
                 fixture_names.update(
-                    filter(
-                        lambda fixture_name: fixture_name is not None and fixture_name is not ...,
-                        self.params_fixtures_mapping.values(),
-                    ),
+                    fixture_name
+                    for fixture_name in self.params_fixtures_mapping.values()
+                    if isinstance(fixture_name, str)
                 )
                 wildcard_params_strategy = getitemdefault(self.params_fixtures_mapping, ..., default=...)
             elif isinstance(self.params_fixtures_mapping, Collection):
@@ -414,7 +417,7 @@ class StepDefinitionManager:
                 fixture_names.update(bypassed_params)
             return fixture_names
 
-        def as_message(self, config: Config | HasPytestStash):
+        def as_message(self, config: Config | HasPytestStash) -> StepDefinition:
             id_generator = IdGenerator.from_stash(config.stash)
             try:
                 message = self.__cache[id(id_generator)]
@@ -458,13 +461,15 @@ class StepDefinitionManager:
                 )
             return message
 
-        def get_parameters(self, request: FixtureRequest, step: Step):
+        def get_parameters(self, request: FixtureRequest, step: Step) -> dict[str, object]:
             parsed_arguments = (
                 self.parser.parse_arguments(request, step.text, anonymous_group_names=self.anonymous_group_names) or {}
             )
             return {
                 **self.param_defaults,
-                **{arg: self.converters.get(arg, lambda _: _)(value) for arg, value in parsed_arguments.items()},
+                **{
+                    arg: self.converters.get(arg, lambda value: value)(value) for arg, value in parsed_arguments.items()
+                },
             }
 
     @runtime_checkable
@@ -477,64 +482,71 @@ class StepDefinitionManager:
 
     @define
     class Registry:
+        @runtime_checkable
+        class RegistryFixtureProtocol(Protocol):
+            __pytest_bdd_step_registry__: "StepDefinitionManager.Registry"
+
         registry: set["StepDefinitionManager.Definition"] = field(factory=set)
-        parent: "StepDefinitionManager.Registry" = field(default=None, init=False)
+        parent: "StepDefinitionManager.Registry | None" = field(default=None, init=False)
 
         @classmethod
         def inject_registry_fixture_and_register_steps(
             cls, namespace: "StepDefinitionManager.NamespaceStepRegistryProtocol"
-        ):
+        ) -> None:
             # Go around namespace and search for step definition containers
-            step_containers: list[StepDefinitionManager.StepProtocol] = list(
-                filter(
-                    partial(flip(isinstance), StepDefinitionManager.StepProtocol),
-                    namespace.__dict__.values(),
-                ),
-            )
+            step_containers: list[StepDefinitionManager.StepProtocol] = [
+                value for value in namespace.__dict__.values() if isinstance(value, StepDefinitionManager.StepProtocol)
+            ]
 
             if not step_containers:
                 return
 
             # Add step registry for a namespace if step containers were found
-            step_definition_registry: StepDefinitionManager.Registry = setdefaultattr(
-                namespace,
-                "_step_registry",
-                value_factory=StepDefinitionManager.Registry,
-            )
-            setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
-            step_definitions: list[StepDefinitionManager.Definition] = list(
-                chain_map(
-                    lambda step_container: step_container.__pytest_bdd_step_definitions__,
-                    step_containers,
+            step_definition_registry = cast(
+                StepDefinitionManager.Registry,
+                setdefaultattr(
+                    namespace,
+                    "_step_registry",
+                    value_factory=StepDefinitionManager.Registry,
                 ),
             )
+            setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
+            step_definitions: list[StepDefinitionManager.Definition] = [
+                step_definition
+                for step_container in step_containers
+                for step_definition in step_container.__pytest_bdd_step_definitions__
+            ]
             step_definition_registry.registry.update(step_definitions)
 
-            for fixture_name in chain_map(
-                lambda step_definition: step_definition.fixtures_mapped_from_step_definition,
-                step_definitions,
+            for fixture_name in (
+                fixture_name
+                for step_definition in step_definitions
+                for fixture_name in step_definition.fixtures_mapped_from_step_definition
             ):
 
-                def build_fixtures_mapped_from_step_definition(fixture_name=fixture_name):
+                def build_fixtures_mapped_from_step_definition(
+                    fixture_name: str = fixture_name,
+                ) -> Callable[[FixtureRequest], object | None]:
                     @pytest.fixture
-                    def fixtures_mapped_from_step_definition(request):
+                    def fixtures_mapped_from_step_definition(request: FixtureRequest) -> object | None:
                         try:
-                            return request.getfixturevalue(fixture_name)
+                            return cast(object, request.getfixturevalue(fixture_name))
                         except FixtureLookupError:
-                            ...
+                            return None
 
                     return fixtures_mapped_from_step_definition
 
                 setdefaultattr(namespace, fixture_name, build_fixtures_mapped_from_step_definition())
 
         @property
-        def fixture(self):
+        def fixture(self) -> Callable[["StepDefinitionManager.Registry"], "StepDefinitionManager.Registry"]:
             @pytest.fixture
-            def step_registry(step_registry):
+            def step_registry(step_registry: "StepDefinitionManager.Registry") -> "StepDefinitionManager.Registry":
                 self.parent = step_registry
                 return self
 
-            step_registry.__pytest_bdd_step_registry__ = self
+            step_registry_typed = cast(StepDefinitionManager.Registry.RegistryFixtureProtocol, step_registry)
+            step_registry_typed.__pytest_bdd_step_registry__ = self
             return step_registry
 
         def __iter__(self) -> Iterator["StepDefinitionManager.Definition"]:
@@ -543,16 +555,17 @@ class StepDefinitionManager:
     @staticmethod
     def decorator_builder(
         step_type: str | PickleStepType | None,
-        step_parserlike: Any,
+        step_parserlike: object,
         anonymous_group_names: Iterable[str] | None = None,
-        converters: dict[str, Callable] | None = None,
+        converters: Mapping[str, ConverterT] | None = None,
         target_fixture: str | None = None,
         target_fixtures: Sequence[str] | None = None,
-        params_fixtures_mapping: set[str] | dict[str, str] | Any = True,  # noqa:FBT002
-        param_defaults: dict | None = None,
-        liberal: Any | None = None,
-        stacklevel=2,
-    ) -> Callable:
+        params_fixtures_mapping: ParamsFixturesMapping = True,  # noqa:FBT002
+        param_defaults: Mapping[str, object] | None = None,
+        *,
+        liberal: bool | None = None,
+        stacklevel: int = 2,
+    ) -> StepDecorator:
         """Step decorator for the type and the name.
 
         :param step_type: Step type (CONTEXT, ACTION or OUTCOME).
@@ -568,13 +581,13 @@ class StepDefinitionManager:
 
         :return: Decorator function for the step.
         """
-        converters = converters or {}
-        param_defaults = param_defaults or {}
+        converters = dict(converters or {})
+        param_defaults = dict(param_defaults or {})
         if target_fixture is not None and target_fixtures is not None:
             warnings.warn(
                 PytestBDDStepDefinitionWarning("Both target_fixture and target_fixtures are specified"), stacklevel=2
             )
-        target_fixtures = list(
+        resolved_target_fixtures: list[str] = list(
             OrderedSet(
                 [
                     *([target_fixture] if target_fixture is not None else []),
@@ -583,24 +596,28 @@ class StepDefinitionManager:
             ),
         )
 
-        def decorator(step_func: Callable) -> Callable:
+        def decorator(step_func: StepFunc) -> StepFunc:
             """Step decorator
 
             :param function step_func: Step definition function
             """
-            step_definition = StepDefinitionManager.Definition(  # type: ignore[call-arg]
+            step_definition = StepDefinitionManager.Definition(
                 func=step_func,
                 type_=step_type,
                 parser=StepParser.build(step_parserlike),
                 anonymous_group_names=anonymous_group_names,
-                converters=cast(dict, converters),
+                converters=converters,
                 params_fixtures_mapping=params_fixtures_mapping,
-                param_defaults=cast(dict, param_defaults),
-                target_fixtures=cast(list, target_fixtures),
+                param_defaults=param_defaults,
+                target_fixtures=resolved_target_fixtures,
                 liberal=liberal,
             )
 
-            setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set).add(step_definition)
+            step_definitions = cast(
+                set[StepDefinitionManager.Definition],
+                setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set),
+            )
+            step_definitions.add(step_definition)
 
             # Allow step function to have same names, so injecting same steps with generated names into module scope
             converted_name = format_as_python_identifier(f"step_{step_type or ''}_{step_parserlike}_{uuid4()}")

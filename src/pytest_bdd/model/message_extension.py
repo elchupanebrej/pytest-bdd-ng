@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import Enum
 from typing import Final, TypeAlias, get_args, get_type_hints
 
+from attrs import define
 from cucumber_messages import *  # type:ignore[import-untyped]  # noqa: F403 This module patches the cucumber_messages module to extend it with pytest_bdd specific types
 from cucumber_messages import Envelope as _BaseEnvelope
 from cucumber_messages import StepDefinitionPattern as _BaseStepDefinitionPattern
@@ -23,9 +23,12 @@ StepDefinitionPatternType = Enum(  # type:ignore[misc]
 )
 
 
-@dataclass
+@define(init=False, repr=False, eq=False)
 class StepDefinitionPattern(_BaseStepDefinitionPattern):
     type: StepDefinitionPatternType
+
+    def __init__(self, source: str, pattern_type: StepDefinitionPatternType) -> None:
+        super().__init__(source=source, type=pattern_type)
 
 
 EventEnvelope: TypeAlias = _BaseEnvelope
@@ -115,7 +118,7 @@ EXECUTION_PRESERVED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
 )
 
 
-@dataclass(frozen=True, slots=True)
+@define(frozen=True, slots=True)
 class LifecycleCorrelation:
     run_id: str
     scenario_attempt_id: str
@@ -124,7 +127,7 @@ class LifecycleCorrelation:
     step_id: str | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@define(frozen=True, slots=True)
 class EnvelopeStatus:
     implementation_status: str | None
     implementation_comment: str | None

@@ -18,33 +18,33 @@ inventory rather than package scanning.
 Scenario: Consolidated report is produced when workers communicate over execnet socket
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given Docker is available
+- Given Docker is available
 
--  When run pytest across xdist workers over socket gateway
+- When run pytest across xdist workers over socket gateway
 
--  Then the distributed run succeeds and a consolidated NDJSON report is
-   produced
+- Then the distributed run succeeds and a consolidated NDJSON report is
+  produced
 
 --------------
 
 Scenario: Consolidated report is produced when workers communicate via a relay node
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given Docker is available
+- Given Docker is available
 
--  When run pytest across xdist workers over relay gateway
+- When run pytest across xdist workers over relay gateway
 
--  Then the distributed run succeeds and a consolidated NDJSON report is
-   produced
+- Then the distributed run succeeds and a consolidated NDJSON report is
+  produced
 
 --------------
 
 Scenario: Consolidated report is produced when workers communicate over SSH
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given Docker is available
+- Given Docker is available
 
--  When run pytest across xdist workers over ssh gateway
+- When run pytest across xdist workers over ssh gateway
 
--  Then the distributed run succeeds and a consolidated NDJSON report is
-   produced
+- Then the distributed run succeeds and a consolidated NDJSON report is
+  produced

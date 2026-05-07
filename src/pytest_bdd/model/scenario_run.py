@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self
+from typing import TYPE_CHECKING, ClassVar, Literal, Self, cast
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -23,11 +22,15 @@ from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.model.stash_access import StashBound
-from pytest_bdd.types.protocol import Identifiable, LinkedAST, MultiLinkedAST
+from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
+from pytest_bdd.types.protocol import Identifiable, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterable
+
+    from gherkin.pickles.compiler import GherkinDocumentWithURI
+    from gherkin.stream.id_generator import IdGenerator
 
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Session, Stash
 
@@ -92,7 +95,7 @@ class LifecycleObjectRef:
             fail_fast_code=fail_fast_code,
         )
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "kind": self.kind,
             "object_id": self.object_id,
@@ -152,7 +155,7 @@ class ActiveObjectSet:
     step: LifecycleObjectRef = field(factory=_inactive_step_ref)
     previous_step: LifecycleObjectRef = field(factory=_no_previous_step_ref)
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "run": self.run.as_dict(),
             "feature": self.feature.as_dict(),
@@ -172,8 +175,8 @@ class ReportingLifecycleState:
     active_test_step_id: str | None = None
     runtime_step_to_pickle_step_id: dict[int, str] = field(factory=dict)
     scenario_attempt_context: dict[str, str | int] | None = None
-    step_started_timestamp: Any | None = None
-    step_finished_timestamp: Any | None = None
+    step_started_timestamp: JSONValue = None
+    step_finished_timestamp: JSONValue = None
 
     def reset_scenario_scope(self) -> None:
         self.active_test_case_id = None
@@ -184,15 +187,19 @@ class ReportingLifecycleState:
         self.step_started_timestamp = None
         self.step_finished_timestamp = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "run_started_id": self.run_started_id,
             "test_run_hook_started_id": self.test_run_hook_started_id,
             "active_test_case_id": self.active_test_case_id,
             "active_test_case_started_id": self.active_test_case_started_id,
             "active_test_step_id": self.active_test_step_id,
-            "runtime_step_to_test_step_id": dict(self.runtime_step_to_pickle_step_id),
-            "scenario_attempt_context": self.scenario_attempt_context,
+            "runtime_step_to_test_step_id": {
+                str(key): value for key, value in self.runtime_step_to_pickle_step_id.items()
+            },
+            "scenario_attempt_context": cast(JSONObject, dict(self.scenario_attempt_context))
+            if self.scenario_attempt_context is not None
+            else None,
             "step_started_timestamp": self.step_started_timestamp,
             "step_finished_timestamp": self.step_finished_timestamp,
         }
@@ -208,7 +215,7 @@ class ReferenceResolverState:
     def clear(self) -> None:
         self.missing_reference_diagnostics.clear()
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "missing_reference_diagnostics": list(self.missing_reference_diagnostics),
         }
@@ -222,7 +229,7 @@ class ContextErrorState:
     stage: RunStage
     requested_kind: LifecycleKind | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "code": self.code,
             "message": self.message,
@@ -250,11 +257,13 @@ class FeatureRuntimeBinding:
         return str(Path(uri).as_posix())
 
     @staticmethod
-    def load_gherkin_document(raw_gherkin_document: Any) -> GherkinDocument:
+    def load_gherkin_document(raw_gherkin_document: object) -> GherkinDocument:
+        if isinstance(raw_gherkin_document, GherkinDocument):
+            return raw_gherkin_document
         return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
 
     @staticmethod
-    def load_pickles(pickles_data: Any) -> tuple[Pickle, ...]:
+    def load_pickles(pickles_data: Iterable[object]) -> tuple[Pickle, ...]:
         return tuple(message_converter.from_dict(pickle_data, Pickle) for pickle_data in pickles_data)
 
     @classmethod
@@ -283,12 +292,14 @@ class FeatureRuntimeBinding:
         binding.index_runtime_objects()
         return binding
 
-    def ensure_pickles(self, *, id_generator: Any) -> tuple[Pickle, ...]:
+    def ensure_pickles(self, *, id_generator: IdGenerator | None) -> tuple[Pickle, ...]:
         if self.pickles:
             return self.pickles
 
-        gherkin_document_payload = message_converter.to_dict(self.gherkin_document)
-        pickles_data = PicklesCompiler(id_generator=id_generator).compile(gherkin_document_payload)
+        gherkin_document_payload = cast(JSONObject, message_converter.to_dict(self.gherkin_document))
+        pickles_data = PicklesCompiler(id_generator=id_generator).compile(
+            cast("GherkinDocumentWithURI", gherkin_document_payload)
+        )
         self.pickles = self.load_pickles(pickles_data)
         self.run.index_identifiable_tree(self.pickles)
         return self.pickles
@@ -303,16 +314,15 @@ class FeatureRuntimeBinding:
     def resolve_node(self, object_id: str) -> Identifiable:
         return self.run.identifiable_registry.resolve(object_id)
 
-    def linked_ast_nodes_for(self, obj: MultiLinkedAST | LinkedAST | Any) -> Generator[Identifiable]:
-        def ast_link(obj: LinkedAST | Any) -> Generator[str]:
-            with suppress(AttributeError):
-                yield obj.ast_node_id
+    def linked_ast_nodes_for(self, obj: object) -> Generator[Identifiable]:
+        ast_node_ids: tuple[str, ...]
+        if isinstance(obj, MultiLinkedAST):
+            ast_node_ids = tuple(obj.ast_node_ids)
+        else:
+            ast_node_id = getattr(obj, "ast_node_id", None)
+            ast_node_ids = (ast_node_id,) if isinstance(ast_node_id, str) else ()
 
-        def ast_links(obj: MultiLinkedAST) -> Generator[str]:
-            with suppress(AttributeError | Any):
-                yield from obj.ast_node_ids
-
-        for ast_node_id in chain(ast_link(obj), ast_links(obj)):
+        for ast_node_id in ast_node_ids:
             with suppress(KeyError):
                 yield self.resolve_node(ast_node_id)
 
@@ -366,10 +376,10 @@ class FeatureRuntimeBinding:
             return model_step.location.line if model_step.location is not None else -1
         return None
 
-    def step_doc_string(self, step: PickleStep) -> Any:
+    def step_doc_string(self, step: PickleStep) -> object | None:
         return getattr(self.pickle_step_ast_step(step), "doc_string", None)
 
-    def step_data_table(self, step: PickleStep) -> Any:
+    def step_data_table(self, step: PickleStep) -> object | None:
         return getattr(self.pickle_step_ast_step(step), "data_table", None)
 
     @property
@@ -430,17 +440,19 @@ class Run(StashBound):
 
     @property
     def active_scenario_id(self) -> str:
-        node = deepattrgetter("active_scenario_run.scenario_node", default=None)(self)[0]
-        if getattr(node, "is_active", False):
-            return node.id
+        scenario_run = self.active_scenario_run
+        node = scenario_run.scenario_node if scenario_run is not None else None
+        if node is not None and node.is_active:
+            return str(node.id)
         msg = "No active scenario"
         raise AttributeError(msg)
 
     @property
     def active_step_id(self) -> str:
-        node = deepattrgetter("active_scenario_run.step_node", default=None)(self)[0]
-        if getattr(node, "is_active", False):
-            return node.id
+        scenario_run = self.active_scenario_run
+        node = scenario_run.step_node if scenario_run is not None else None
+        if node is not None and node.is_active:
+            return str(node.id)
         msg = "No active step"
         raise AttributeError(msg)
 
@@ -455,7 +467,7 @@ class Run(StashBound):
         self.transition_index += 1
 
     @classmethod
-    def _build_for_owner(cls, owner: Any) -> Run:
+    def _build_for_owner(cls, owner: object) -> Run:
         object_id = getattr(owner, "name", None) or getattr(owner, "nodeid", None) or str(id(owner))
         run_ref = LifecycleObjectRef(kind="run", object_id=str(object_id), name="run", is_active=True)
         return Run(
@@ -626,7 +638,7 @@ class Run(StashBound):
         run.active_scenario_run = scenario_run
         return scenario_run
 
-    def index_identifiable_tree(self, root: Any) -> None:
+    def index_identifiable_tree(self, root: object) -> None:
         self.identifiable_registry.index_tree(root)
 
     def map_runtime_step_to_test_step_id(self, *, pickle_step: PickleStep, test_step_id: str) -> None:
@@ -685,7 +697,7 @@ class Run(StashBound):
                     return candidate
         return reporting_state.active_test_step_id
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         try:
             active_scenario_id = self.active_scenario_id
         except AttributeError:
@@ -701,7 +713,7 @@ class Run(StashBound):
             "run_ref": self.run_ref.as_dict(),
             "status": self.status.value,
             "transition_index": self.transition_index,
-            "feature_bindings_by_uri": sorted(self.feature_bindings_by_uri),
+            "feature_bindings_by_uri": cast(JSONArray, sorted(self.feature_bindings_by_uri)),
             "active_feature_id": self.active_feature_id,
             "active_feature_uri": self.active_feature_uri,
             "active_scenario_id": active_scenario_id,
@@ -725,7 +737,7 @@ class RunNode:
         self.is_active = False
         self.closed_at_transition = at_transition
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "id": self.id,
             "parent_id": self.parent_id,
@@ -742,12 +754,12 @@ class StepRun:
     step: PickleStep | None = None
     keyword: str | None = None
     text: str = ""
-    parameters: dict[str, Any] = field(factory=dict)
+    parameters: dict[str, object] = field(factory=dict)
     status: RunStatus = RunStatus.ok
     duration: float | None = None
-    attachments: list[Any] = field(factory=list)
-    doc_string: Any | None = None
-    data_table: Any | None = None
+    attachments: list[object] = field(factory=list)
+    doc_string: object | None = None
+    data_table: object | None = None
     line_number: int | None = None
 
 
@@ -774,7 +786,7 @@ class ScenarioRun:
     feature_source: Source | None = None
     pickle: Pickle | None = None
     step_object: PickleStep | None = None
-    previous_step_object: Any = field(factory=NoPreviousStep)
+    previous_step_object: PickleStep | NoPreviousStep = field(factory=NoPreviousStep)
     step_run: StepRun | None = None
     reference_resolver: ReferenceResolverState = field(factory=ReferenceResolverState)
     _active_kind_index: dict[LifecycleKind, LifecycleObjectRef] = field(init=False, repr=False)
@@ -820,7 +832,7 @@ class ScenarioRun:
 
     def get_active_object(self, kind: LifecycleKind) -> LifecycleObjectRef | None:
         candidate = self._active_kind_index.get(kind)
-        if not candidate.is_active:
+        if candidate is None or not candidate.is_active:
             return None
         return candidate
 
@@ -861,7 +873,7 @@ class ScenarioRun:
         )
         raise RuntimeError(error.message)
 
-    def require_step_object(self, *, hook_name: str) -> PickleStep | Any:
+    def require_step_object(self, *, hook_name: str) -> PickleStep:
         if self.step_object is not None:
             return self.step_object
         error = self.record_context_error(
@@ -904,7 +916,7 @@ class ScenarioRun:
             return self.run.feature_binding_for_uri(self.feature_uri)
         return self.run.feature_binding_for_document(self.gherkin_document)
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "id": self.id,
             "run_ref": self.run_ref.as_dict(),
@@ -935,7 +947,7 @@ class ReportingContextSnapshot:
     resolved_from_hierarchy: bool
     fallback_reason: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "run_id": self.run_id,
             "active_set": self.active_set.as_dict(),
@@ -955,13 +967,13 @@ class ExternalApiCompatibilityRecord:
     additive_symbols: list[str]
     consumer_migration_required: bool
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "api_surface_id": self.api_surface_id,
             "baseline_reference": self.baseline_reference,
-            "changed_symbols": self.changed_symbols,
-            "removed_symbols": self.removed_symbols,
-            "renamed_symbols": self.renamed_symbols,
-            "additive_symbols": self.additive_symbols,
+            "changed_symbols": cast(JSONArray, list(self.changed_symbols)),
+            "removed_symbols": cast(JSONArray, list(self.removed_symbols)),
+            "renamed_symbols": cast(JSONArray, list(self.renamed_symbols)),
+            "additive_symbols": cast(JSONArray, list(self.additive_symbols)),
             "consumer_migration_required": self.consumer_migration_required,
         }

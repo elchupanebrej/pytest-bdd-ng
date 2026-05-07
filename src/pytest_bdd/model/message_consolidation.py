@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from attrs import define, frozen
+
+from pytest_bdd.types.json import JSONObject, JSONValue
 
 from .execution_message_adapter import ExecutionMessageAdapter
 from .message_converter import envelope_from_dict
@@ -39,7 +41,7 @@ class MessageFragment:
     role: ParticipantRole
     path: Path | None = None
     complete: bool = True
-    envelopes: tuple[dict[str, Any], ...] = ()
+    envelopes: tuple[JSONObject, ...] = ()
     manifest_received: bool = True
     transferred_batch_count: int = 0
     last_batch_sequence: int | None = None
@@ -57,7 +59,9 @@ class MessageFragment:
         if path is None or not path.exists():
             return cls(worker_id=worker_id, role=role, path=path, complete=False, envelopes=())
 
-        envelopes = tuple(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+        envelopes = tuple(
+            cast(JSONObject, json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+        )
         return cls(worker_id=worker_id, role=role, path=path, complete=complete, envelopes=envelopes)
 
     @classmethod
@@ -66,7 +70,7 @@ class MessageFragment:
         *,
         worker_id: str,
         role: ParticipantRole,
-        envelopes: tuple[dict[str, Any], ...],
+        envelopes: tuple[JSONObject, ...],
         complete: bool,
         manifest_received: bool,
         transferred_batch_count: int = 0,
@@ -88,7 +92,7 @@ class MessageFragment:
 
 @define(slots=True)
 class _EnvelopeRecord:
-    envelope_dict: dict[str, Any]
+    envelope_dict: JSONObject
     payload_kind: str
     worker_id: str
     role: ParticipantRole
@@ -100,8 +104,8 @@ class _EnvelopeRecord:
 
 @frozen
 class ConsolidatedMessageStream:
-    envelopes: tuple[Any, ...]
-    envelope_dicts: tuple[dict[str, Any], ...]
+    envelopes: tuple[object, ...]
+    envelope_dicts: tuple[JSONObject, ...]
     diagnostics: tuple[ConsolidationDiagnostic, ...]
 
 
@@ -109,9 +113,9 @@ def _participant_sort_key(fragment: MessageFragment) -> tuple[int, str]:
     return (0 if fragment.role == "controller" else 1, fragment.worker_id)
 
 
-def _semantic_clone(value: Any, *, strip_reference_ids: bool) -> Any:
+def _semantic_clone(value: JSONValue, *, strip_reference_ids: bool) -> JSONValue:
     if isinstance(value, dict):
-        result: dict[str, Any] = {}
+        result: JSONObject = {}
         for key, item in value.items():
             if key == "workerId":
                 continue
@@ -126,9 +130,9 @@ def _semantic_clone(value: Any, *, strip_reference_ids: bool) -> Any:
     return value
 
 
-def _payload_root(envelope_dict: dict[str, Any], payload_kind: str) -> dict[str, Any]:
+def _payload_root(envelope_dict: JSONObject, payload_kind: str) -> JSONObject:
     if payload_kind in envelope_dict and isinstance(envelope_dict[payload_kind], dict):
-        return cast(dict[str, Any], envelope_dict[payload_kind])
+        return cast(JSONObject, envelope_dict[payload_kind])
     camel_case_payload_kind = payload_kind.split("_")[0] + "".join(part.title() for part in payload_kind.split("_")[1:])
     payload = envelope_dict.get(camel_case_payload_kind)
     return payload if isinstance(payload, dict) else {}
@@ -147,8 +151,8 @@ def _structural_identity(record: _EnvelopeRecord, *, strip_reference_ids: bool) 
     )
 
 
-def _collect_ids_by_path(value: Any, path: tuple[Any, ...] = ()) -> dict[tuple[Any, ...], str]:
-    collected: dict[tuple[Any, ...], str] = {}
+def _collect_ids_by_path(value: JSONValue, path: tuple[object, ...] = ()) -> dict[tuple[object, ...], str]:
+    collected: dict[tuple[object, ...], str] = {}
     if isinstance(value, dict):
         raw_id = value.get("id")
         if isinstance(raw_id, str):
@@ -179,7 +183,7 @@ def _is_reference_key(key: str) -> bool:
     return key.endswith(("Id", "Ids", "_id", "_ids"))
 
 
-def _hook_name_from_identifier(identifier: Any) -> str | None:
+def _hook_name_from_identifier(identifier: object) -> str | None:
     if not isinstance(identifier, str):
         return None
     for candidate in (*_PRE_RUN_HOOK_NAMES, *_POST_RUN_HOOK_NAMES):

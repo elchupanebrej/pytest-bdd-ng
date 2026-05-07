@@ -25,14 +25,26 @@ from pytest_bdd.plugin.pickle_runner.run_access import require_step_object
 from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from pytest_bdd.compatibility.pytest import FixtureRequest
     from pytest_bdd.model.scenario_run import Run
+    from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+    from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
+    from pytest_bdd.steps import StepDefinitionManager
 
 
 class ScenarioService(ReporterServiceBase):
     plugin_suffix = "scenario"
 
-    def __init__(self, reporter, *, lifecycle_service, transport_service) -> None:
+    def __init__(
+        self,
+        reporter: GherkinMessageReporter,
+        *,
+        lifecycle_service: LifecycleService,
+        transport_service: TransportService,
+    ) -> None:
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.transport_service = transport_service
@@ -187,7 +199,7 @@ class ScenarioService(ReporterServiceBase):
         self,
         request: FixtureRequest,
         run: Run,
-        step_func,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
     ) -> None:
         if self.reporter.is_disabled:
             return
@@ -220,7 +232,7 @@ class ScenarioService(ReporterServiceBase):
         self,
         request: FixtureRequest,
         run: Run,
-        step_func,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
     ) -> None:
         if self.reporter.is_disabled:
             return
@@ -258,10 +270,10 @@ class ScenarioService(ReporterServiceBase):
         self,
         request: FixtureRequest,
         run: Run,
-        step_func,  # noqa: ARG002
-        step_func_args,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
+        step_func_args: Mapping[str, object],  # noqa: ARG002
         exception: Exception,
-        step_definition,  # noqa: ARG002
+        step_definition: StepDefinitionManager.Definition,  # noqa: ARG002
     ) -> None:
         if self.reporter.is_disabled:
             return

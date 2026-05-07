@@ -1,16 +1,17 @@
 import atexit
 import contextlib
-import dataclasses
 import os
 import shutil
 import subprocess  # noqa: S404
 import time
 from pathlib import Path
 
+from attrs import define
+
 from tests.support.docker import _resolve_tool_path
 
 
-@dataclasses.dataclass
+@define
 class DockerTimeouts:
     startup_poll: int = 60
     compose_up: int = 300

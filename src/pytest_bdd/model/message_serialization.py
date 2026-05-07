@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONObject
 
 
 class MessageSerializationProfile(str, Enum):
@@ -21,10 +24,10 @@ _SCHEMA_COMPATIBLE_STEP_DEFINITION_PATTERN_TYPES: dict[str, str] = {
 
 
 def normalize_envelope_dict_for_profile(
-    envelope_dict: dict[str, Any],
+    envelope_dict: JSONObject,
     *,
     profile: MessageSerializationProfile,
-) -> dict[str, Any]:
+) -> JSONObject:
     if profile is MessageSerializationProfile.extended:
         return envelope_dict
 

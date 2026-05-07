@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from base64 import b64encode
 from io import BufferedIOBase, TextIOBase
+from typing import TYPE_CHECKING
 
 from cucumber_messages import Attachment, AttachmentContentEncoding, ExternalAttachment, Source
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
@@ -9,27 +10,32 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+
 
 class AttachmentService(ReporterServiceBase):
     plugin_suffix = "attachment"
 
-    def __init__(self, reporter, *, lifecycle_service) -> None:
+    def __init__(self, reporter: GherkinMessageReporter, *, lifecycle_service: LifecycleService) -> None:
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
 
     def pytest_bdd_attach(  # noqa: C901
         self,
-        request,
-        attachment,
-        media_type,
-        file_name,
-        source_data,
-        source_media_type,
-        source_uri,
-        url,
-        as_external,
-        test_run_hook_started_id,
-        test_run_started_id,
+        request: FixtureRequest,
+        attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
+        media_type: str | None,
+        file_name: str | None,
+        source_data: str | None,
+        source_media_type: str | None,
+        source_uri: str | None,
+        url: str | None,
+        as_external: bool,  # noqa: FBT001 -- pytest hook spec supplies this as a positional argument.
+        test_run_hook_started_id: str | None,
+        test_run_started_id: str | None,
     ) -> None:
         if self.reporter.is_disabled:
             return

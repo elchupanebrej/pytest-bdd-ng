@@ -10,38 +10,38 @@ formatter output.
 Background:
 '''''''''''
 
--  Given pytest-xdist is available
+- Given pytest-xdist is available
 
--  And File "Passing.feature" with content:
+- And File "Passing.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Distributed suite
-        Scenario: Pass one
-          Given a passing step
+     Feature: Distributed suite
+       Scenario: Pass one
+         Given a passing step
 
-        Scenario: Pass two
-          Given a passing step
+       Scenario: Pass two
+         Given a passing step
 
-        Scenario: Pass three
-          Given a passing step
+       Scenario: Pass three
+         Given a passing step
 
-        Scenario: Fail four
-          Given a failing step
+       Scenario: Fail four
+         Given a failing step
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given("a passing step")
-      def _pass():
-          return "ok"
+     @given("a passing step")
+     def _pass():
+         return "ok"
 
-      @given("a failing step")
-      def _fail():
-          raise RuntimeError("boom")
+     @given("a failing step")
+     def _fail():
+         raise RuntimeError("boom")
 
 Scenario: Single consolidated HTML report is produced from a distributed xdist run
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -55,31 +55,31 @@ changes needed for live terminal formatters, and the pytest entrypoint
 reaches the reporting runtime only through its explicit public lifecycle
 contract.
 
--  Given Install npm packages
+- Given Install npm packages
 
-   ======== ========================
-   packages @cucumber/html-formatter
-   ======== ========================
-   ======== ========================
+  ======== ========================
+  packages @cucumber/html-formatter
+  ======== ========================
+  ======== ========================
 
--  When run pytest
+- When run pytest
 
-   .. raw:: html
+  .. raw:: html
 
-        <!-- markdownlint-disable-next-line MD013 -->
+       <!-- markdownlint-disable-next-line MD013 -->
 
-   ========== ==== = =============== ========
-   cli_args   -n   2 --cucumber-html out.html
-   ========== ==== = =============== ========
-   subprocess true                   
-   ========== ==== = =============== ========
+  ========== ==== = =============== ========
+  cli_args   -n   2 --cucumber-html out.html
+  ========== ==== = =============== ========
+  subprocess true                   
+  ========== ==== = =============== ========
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   3      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  3      1
+  ====== ======
 
--  And File "out.html" is not empty
+- And File "out.html" is not empty

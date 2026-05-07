@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 from inspect import isfunction
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from pytest_bdd.hook import after_mark, after_tag, around_mark, around_tag, before_mark, before_tag
 from pytest_bdd.model.scenario_run import ExternalApiCompatibilityRecord
+from pytest_bdd.types.json import JSONObject
 
 from .hook import PickleRunnerHookSpec
 
@@ -35,10 +36,10 @@ def collect_hook_public_symbols() -> list[str]:
     return normalize_public_symbols(symbols)
 
 
-def load_api_baseline(path: str | Path) -> dict[str, Any]:
+def load_api_baseline(path: str | Path) -> JSONObject:
     baseline_path = Path(path)
     payload = json.loads(baseline_path.read_text())
-    return cast(dict[str, Any], payload)
+    return cast(JSONObject, payload)
 
 
 def build_external_api_compatibility_record(

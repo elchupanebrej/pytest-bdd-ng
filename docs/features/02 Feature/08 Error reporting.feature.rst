@@ -9,44 +9,44 @@ mode.
 Scenario: Reject multiple Feature declarations in one file
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given File "wrong.feature" with content:
+- Given File "wrong.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Feature One
+     Feature: Feature One
 
-        Background:
-          Given I have A
-          And I have B
+       Background:
+         Given I have A
+         And I have B
 
-        Scenario: Do something with A
-          When I do something with A
-          Then something about B
+       Scenario: Do something with A
+         When I do something with A
+         Then something about B
 
-      Feature: Feature Two
+     Feature: Feature Two
 
-        Background:
-          Given I have A
+       Background:
+         Given I have A
 
-        Scenario: Something that just needs A
-          When I do something else with A
-          Then something else about B
+       Scenario: Something that just needs A
+         When I do something else with A
+         Then something else about B
 
-        Scenario: Something that needs B again
-          Given I have B
-          When I do something else with B
-          Then something else about A and B
+       Scenario: Something that needs B again
+         Given I have B
+         When I do something else with B
+         Then something else about A and B
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | errors |
-   +========+
-   | 1      |
-   +--------+
+  +--------+
+  | errors |
+  +========+
+  | 1      |
+  +--------+
 
--  And pytest outcome must match lines:
+- And pytest outcome must match lines:
 
-   \| *FeatureConcreteParseError:* \|
+  \| *FeatureConcreteParseError:* \|

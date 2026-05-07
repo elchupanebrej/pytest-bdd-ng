@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from types import SimpleNamespace
 
 import pytest
+from attrs import define
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import TestCase as CucumberTestCase  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import TestStep as CucumberTestStep
@@ -28,7 +28,7 @@ class _Stash:
         self._items[key] = value
 
 
-@dataclass(slots=True)
+@define
 class _RuntimeObject:
     name: str
     id: str

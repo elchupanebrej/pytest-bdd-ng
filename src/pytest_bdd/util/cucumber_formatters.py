@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    from pytest_bdd.compatibility.pytest import Parser
+
 
 FormatterDefinition = tuple[str, str, str, str, str]
 
@@ -36,14 +39,15 @@ def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
     return _FORMATTER_DEFINITIONS
 
 
-def register_cucumber_formatter_options(parser) -> None:
+def register_cucumber_formatter_options(parser: Parser) -> None:
+    from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases
     from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 
     catalog = FormatterPluginCatalog.discover()
     group = parser.getgroup("bdd", "Cucumber Formatters")
     for plugin in catalog.plugins:
         addoption_kwargs = plugin.build_addoption_kwargs()
-        cli_aliases = addoption_kwargs.pop("cli_aliases", ())
+        cli_aliases = _coerce_cli_aliases(addoption_kwargs.pop("cli_aliases", ()))
         group.addoption(plugin.cli_flag, *cli_aliases, **addoption_kwargs)
 
 
@@ -67,7 +71,7 @@ def pytest_capture_already_configured(args: Sequence[str]) -> bool:
     )
 
 
-def any_cucumber_formatter_requested(options: Any) -> bool:
+def any_cucumber_formatter_requested(options: object) -> bool:
     return any(
         getattr(options, option_attr, None) not in (None, False)
         for option_attr, *_rest in cucumber_formatter_definitions()

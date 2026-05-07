@@ -7,7 +7,7 @@ from operator import attrgetter, contains, methodcaller
 from re import Match
 from re import Pattern as _RePattern
 from re import compile as re_compile
-from typing import Any, Protocol, Union, cast, runtime_checkable
+from typing import Protocol, TypeAlias, cast, runtime_checkable
 
 import parse as base_parse
 import parse_type.cfparse as base_cfparse
@@ -24,9 +24,24 @@ UNDEFINED_PARAMETER_TYPE_PATTERN = re_compile(
     r"Undefined parameter type ['{]?(?P<name>[^'}.\n]+)['}]?\.?",
 )
 
+StepParserLike: TypeAlias = object
+
+
+class _ParseMatchProtocol(Protocol):
+    named: dict[str, object]
+    fixed: Sequence[object]
+
+
+class _ParserBuilder(Protocol):
+    def __call__(self, format_: str, *args: object, **kwargs: object) -> object: ...
+
+
+class _RegexCompiler(Protocol):
+    def __call__(self, pattern: str, *args: object, **kwargs: object) -> _RePattern[str]: ...
+
 
 class ParserBuildValueError(ValueError):
-    def __init__(self, format_):
+    def __init__(self, format_: object) -> None:
         super().__init__(f"Unable build parser for format {format_}")
 
 
@@ -39,7 +54,7 @@ class StepParserProtocol(Protocol):
         request: FixtureRequest,
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, Any] | None: ...  # pragma: no cover
+    ) -> dict[str, object] | None: ...  # pragma: no cover
 
     @property
     def arguments(self) -> Collection[str]: ...  # pragma: no cover
@@ -65,7 +80,7 @@ class StepParser(StepParserProtocol, ABC):
         request: FixtureRequest,
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, object] | None:
         """Get step arguments from the given step name.
 
         :return: `dict` of step arguments
@@ -89,7 +104,7 @@ class StepParser(StepParserProtocol, ABC):
         raise NotImplementedError  # pragma: no cover
 
     @classmethod
-    def build(cls, parserlike: Union[str, bytes, "StepParser", StepParserProtocol]) -> "StepParser":
+    def build(cls, parserlike: StepParserLike) -> "StepParser":
         """Get parser by given name.
 
         :param parserlike: name of the step to parse
@@ -120,17 +135,17 @@ class re(StepParser):  # noqa:N801 intentional API
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
-    def _(self, pattern: str, *args: Any, **kwargs: Any) -> None:
+    def _(self, pattern: str, *args: object, **kwargs: object) -> None:
         """Compile regex."""
         self.pattern = pattern
-        self.regex = re_compile(self.pattern, *args, **kwargs)
+        self.regex = cast(_RegexCompiler, re_compile)(self.pattern, *args, **kwargs)
 
     @__init__.register
-    def _(self, pattern: _RePattern):
+    def _(self, pattern: _RePattern[str]) -> None:
         """Compile regex."""
         self.pattern = pattern.pattern
         self.regex = pattern
@@ -138,9 +153,9 @@ class re(StepParser):  # noqa:N801 intentional API
     def parse_arguments(
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
-        name,
+        name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ):
+    ) -> dict[str, object]:
         match = cast(Match, self.regex.fullmatch(name))  # Can't be None because is already matched
         group_dict = match.groupdict()
         if anonymous_group_names is not None:
@@ -161,17 +176,17 @@ class re(StepParser):  # noqa:N801 intentional API
         return {k: v for k, v in group_dict.items() if v is not None}
 
     @property
-    def arguments(self):
+    def arguments(self) -> Collection[str]:
         return [*self.regex.groupindex.keys()]
 
     def is_matching(
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
-        name,
-    ):
+        name: str,
+    ) -> bool:
         return bool(self.regex.fullmatch(name))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return normalize_to_string(self.pattern)
 
 
@@ -182,40 +197,41 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
-    def __init__(self, format_, *args, **kwargs):
+    def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
         if isinstance(format_, (StringRepresentable, str, bytes)):
-            self.__init_stringable__(format_, *args, **kwargs)
+            builder = cast(_ParserBuilder, kwargs.pop("builder", base_parse.compile))
+            self.__init_stringable__(format_, *args, builder=builder, **kwargs)
         else:
             raise ParserBuildValueError(format_)  # pragma: no cover
 
     def __init_stringable__(
         self,
         format_: StringRepresentable | str | bytes,
-        *args: Any,
-        builder=base_parse.compile,
-        **kwargs: Any,
+        *args: object,
+        builder: _ParserBuilder = base_parse.compile,
+        **kwargs: object,
     ) -> None:
         self.format = normalize_to_string(format_)
-        self.parser = builder(self.format, *args, **kwargs)
+        self.parser = cast(base_parse.Parser, builder(self.format, *args, **kwargs))
 
     @__init__.register
-    def _(self, format_: base_parse.Parser):
+    def _(self, format_: base_parse.Parser) -> None:
         self.format = format_._format
         self.parser = format_
 
     @classmethod
-    def cfparse(cls, *args, **kwargs):
+    def cfparse(cls, *args: object, **kwargs: object) -> "parse":
         kwargs.setdefault("builder", base_cfparse.Parser)
-        return cls(*args, **kwargs)
+        return cast(parse, cls(*args, **kwargs))
 
     def parse_arguments(
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, Any]:
-        match = self.parser.parse(name)
-        group_dict = cast(dict, match.named)
+    ) -> dict[str, object]:
+        match = cast(_ParseMatchProtocol, self.parser.parse(name))
+        group_dict = dict(match.named)
         if anonymous_group_names is not None:
             group_dict.update(dict(zip(anonymous_group_names, match.fixed, strict=False)))
         return group_dict
@@ -227,14 +243,14 @@ class parse(StepParser):  # noqa:N801 intentional API
     def is_matching(
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
-        name,
-    ):
+        name: str,
+    ) -> bool:
         try:
             return bool(self.parser.parse(name))
         except ValueError:
             return False
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.format)
 
 
@@ -243,7 +259,7 @@ class cfparse(parse):  # noqa:N801 intentional API
 
     type = StepDefinitionPatternType.pytest_bdd_cfparse_expression  # type:ignore[attr-defined]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         kwargs.setdefault("builder", base_cfparse.Parser)
         super().__init__(*args, **kwargs)
 
@@ -261,7 +277,7 @@ class string(StepParser):  # noqa: N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,  # noqa: ARG002 overload
         anonymous_group_names: Iterable[str] | None = None,  # noqa: ARG002 overload
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """No parameters are available for simple string step.
 
         :return: `dict` of step arguments
@@ -269,7 +285,7 @@ class string(StepParser):  # noqa: N801 intentional API
         return {}
 
     @property
-    def arguments(self):
+    def arguments(self) -> Collection[str]:
         return []
 
     def is_matching(
@@ -280,15 +296,15 @@ class string(StepParser):  # noqa: N801 intentional API
         """Match given name with the step name."""
         return bool(self.name == name)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
 class _CucumberExpression(StepParser):
     pattern: str
 
-    expression_type: type[CucumberExpression | CucumberRegularExpression]
-    parameter_type_registry_like: ParameterTypeRegistry | Any
+    expression_type: type[CucumberExpression] | type[CucumberRegularExpression]
+    parameter_type_registry_like: ParameterTypeRegistry | RegistryMode | str | None
     parameter_type_registry = ParameterTypeRegistry()  # default registry
     last_undefined_parameter_type: tuple[str, str] | None = None
 
@@ -315,7 +331,7 @@ class _CucumberExpression(StepParser):
         request: FixtureRequest,
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, object] | None:
         return dict(
             zip(
                 anonymous_group_names or [],
@@ -327,13 +343,15 @@ class _CucumberExpression(StepParser):
             ),
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.pattern)
 
-    def rebuild_expression_in_test_context(self, request) -> CucumberExpression | CucumberRegularExpression:
+    def rebuild_expression_in_test_context(
+        self, request: FixtureRequest
+    ) -> CucumberExpression | CucumberRegularExpression:
         return self.expression_type(self.pattern, self._get_parameter_type_registry(request))
 
-    def _get_parameter_type_registry(self, request) -> ParameterTypeRegistry | Any:
+    def _get_parameter_type_registry(self, request: FixtureRequest) -> ParameterTypeRegistry:
         if (
             isinstance(self.parameter_type_registry_like, (str, RegistryMode))
             or self.parameter_type_registry_like is None
@@ -357,15 +375,15 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
     def _(
         self,
         expression: str,
-        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any = RegistryMode.FIXTURE,
-    ):
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
+    ) -> None:
         self.pattern = expression
         self.parameter_type_registry_like = parameter_type_registry
 
@@ -373,12 +391,12 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
     def _(
         self,
         expression: CucumberExpression,
-    ):
+    ) -> None:
         self.pattern = expression.expression
         self.parameter_type_registry_like = expression.parameter_type_registry
 
     @property
-    def arguments(self):
+    def arguments(self) -> Collection[str]:
         return []
 
 
@@ -388,15 +406,15 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
     # https://bugs.python.org/issue45684
 
     @singledispatchmethod  # type:ignore[misc]
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
     def _(
         self,
         expression: str,
-        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any = RegistryMode.FIXTURE,
-    ):
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
+    ) -> None:
         self.pattern = expression
         self.parameter_type_registry_like = parameter_type_registry
 
@@ -404,7 +422,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
     def _(
         self,
         expression: CucumberRegularExpression,
-    ):
+    ) -> None:
         self.pattern = expression.expression_regexp.pattern
         self.parameter_type_registry_like = expression.parameter_type_registry
 
@@ -418,9 +436,9 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     def __init__(
         self,
-        format_,
-        parameter_type_registry: ParameterTypeRegistry | RegistryMode | Any | None = RegistryMode.FIXTURE,
-    ):
+        format_: object,
+        parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
+    ) -> None:
         if isinstance(format_, (StringRepresentable, str, bytes)):
             self.format = normalize_to_string(format_)
         else:
@@ -429,7 +447,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         self.parsers_are_built = False
         self.build_parsers()
 
-    def build_parsers(self):
+    def build_parsers(self) -> None:
         if self.parsers_are_built:
             return
 
@@ -487,7 +505,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         request: FixtureRequest,
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, object] | None:
         for parser in self.parser_by_priorities:
             if parser is not None and parser.is_matching(request, name):
                 arguments = parser.parse_arguments(request, name, anonymous_group_names=anonymous_group_names)
@@ -511,5 +529,5 @@ class heuristic(StepParser):  # noqa: N801 intentional API
             ),
         ]
 
-    def __str__(self):
-        return self.format
+    def __str__(self) -> str:
+        return str(self.format)

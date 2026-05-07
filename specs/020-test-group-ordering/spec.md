@@ -1,8 +1,8 @@
 # Feature Specification: Test Group Ordering
 
-**Feature Branch**: `020-test-group-ordering`  
-**Created**: 2026-05-05  
-**Status**: Clarified  
+**Feature Branch**: `020-test-group-ordering`
+**Created**: 2026-05-05
+**Status**: Clarified
 **Input**: User description: "Нужно разбить тесты по группам, чтоб быстрые (unit) тесты выполнялись первыми. Тесты, которые используют subprocess, должны идти во второй группе. Тесты завязанные на работу с Docker - должны идти последними"
 
 ## Clarifications

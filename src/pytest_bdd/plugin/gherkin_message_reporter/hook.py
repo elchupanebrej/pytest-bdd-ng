@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 
 class GherkinMessageReporterHookSpec:
     @pytest.hookspec
-    def pytest_bdd_message(self, config: Config, message: EventEnvelope):
+    def pytest_bdd_message(self, config: Config, message: EventEnvelope) -> None:
         """Implement cucumber message protocol https://github.com/cucumber/messages"""
 
     @pytest.hookspec
-    def pytest_bdd_xdist_message_batch(self, config: Config, node: Any, batch: dict[str, Any]) -> None:
+    def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: dict[str, object]) -> None:
         """Record reporter-specific xdist batch events received on the controller side."""
 
     @pytest.hookspec

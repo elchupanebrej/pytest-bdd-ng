@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import re
 import sys
-from collections.abc import Sequence
 from contextlib import contextmanager
 from re import Pattern
-from typing import Any
+from typing import TYPE_CHECKING
 
-from pytest_bdd.compatibility.pytest import FixtureRequest, build_fixture_def, fail
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+from pytest_bdd.compatibility.pytest import FixtureDef, FixtureRequest, build_fixture_def, fail
 
 
-def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
+def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
     """Inject fixture into pytest fixture request.
     :param request: pytest fixture request
     :param arg: argument name
@@ -24,12 +28,15 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
     )
     fd.cached_result = (value, 0, None)
 
-    old_fd = request._fixture_defs.get(arg)
+    old_fd: FixtureDef[object] | None = request._fixture_defs.get(arg)
     add_fixturename = arg not in request.fixturenames
 
-    def fin():
+    def fin() -> None:
         request._fixturemanager._arg2fixturedefs[arg].remove(fd)
-        request._fixture_defs[arg] = old_fd
+        if old_fd is None:
+            request._fixture_defs.pop(arg, None)
+        else:
+            request._fixture_defs[arg] = old_fd
 
         if add_fixturename:
             request._pyfuncitem._fixtureinfo.names_closure.remove(arg)
@@ -46,11 +53,11 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
 
 @contextmanager
 def doesnt_raise(
-    expected_exception: type[Exception] | Sequence[type[Exception]],
+    expected_exception: type[BaseException] | Sequence[type[BaseException]],
     *,
     match: str | Pattern[str] | None = None,
-    suppress_not_matched=True,
-):
+    suppress_not_matched: bool = True,
+) -> Iterator[None]:
     """:param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
     :param match: Message which will be count as failing test. If message is not matched - function passes
     :param suppress_not_matched: If specified - all non-matched exceptions will be suppressed

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
+from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol, cast
 
 from attrs import frozen
 
@@ -19,6 +21,27 @@ from pytest_bdd.plugin.cucumber_formatter_support.base import (
 
 if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
+
+
+ResolveOutputPath = Callable[[str], Path]
+
+
+class _FormatterRequestHook(Protocol):
+    def pytest_bdd_cucumber_formatter_request(
+        self,
+        *,
+        config: Config,
+        resolve_output_path: ResolveOutputPath,
+    ) -> tuple[CucumberFormatterRequest, ...]: ...
+
+
+class _FormatterRuntimeAssetsHook(Protocol):
+    def pytest_bdd_cucumber_formatter_runtime_assets(
+        self,
+        *,
+        formatter_request: CucumberFormatterRequest,
+        formatter_requests: tuple[CucumberFormatterRequest, ...],
+    ) -> tuple[dict[str, str] | None, ...]: ...
 
 
 @frozen
@@ -106,11 +129,12 @@ def normalize_cucumber_formatter_output_key(output_path: Path) -> str:
 
 
 def _read_template_asset(package: str, template_name: str) -> str:
-    return files(package).joinpath(template_name).read_text(encoding="utf-8")
+    template = cast(Traversable, files(package).joinpath(template_name))
+    return template.read_text(encoding="utf-8")
 
 
 def _formatter_options_requested(config: Config) -> bool:
-    option_values = getattr(getattr(config, "option", None), "__dict__", {})
+    option_values = cast(dict[str, object], getattr(getattr(config, "option", None), "__dict__", {}))
     return any(
         option_name.startswith("cucumber_")
         and option_name != "cucumber_html_path"
@@ -119,11 +143,11 @@ def _formatter_options_requested(config: Config) -> bool:
     )
 
 
-def _formatter_hook_proxy(pluginmanager: PytestPluginManager | None) -> Any | None:
+def _formatter_hook_proxy(pluginmanager: PytestPluginManager | None) -> object | None:
     return getattr(pluginmanager, "hook", None)
 
 
-def _resolve_formatter_request_hook(config: Config):
+def _resolve_formatter_request_hook(config: Config) -> _FormatterRequestHook | None:
     hook = _formatter_hook_proxy(getattr(config, "pluginmanager", None))
     if hook is None or not hasattr(hook, "pytest_bdd_cucumber_formatter_request"):
         if _formatter_options_requested(config):
@@ -133,10 +157,10 @@ def _resolve_formatter_request_hook(config: Config):
             )
             raise RuntimeError(msg)
         return None
-    return hook.pytest_bdd_cucumber_formatter_request
+    return cast(_FormatterRequestHook, hook)
 
 
-def _require_formatter_runtime_assets_hook(pluginmanager: PytestPluginManager | None):
+def _require_formatter_runtime_assets_hook(pluginmanager: PytestPluginManager | None) -> _FormatterRuntimeAssetsHook:
     hook = _formatter_hook_proxy(pluginmanager)
     if hook is None or not hasattr(hook, "pytest_bdd_cucumber_formatter_runtime_assets"):
         msg = (
@@ -144,20 +168,20 @@ def _require_formatter_runtime_assets_hook(pluginmanager: PytestPluginManager | 
             "was not configured."
         )
         raise RuntimeError(msg)
-    return hook.pytest_bdd_cucumber_formatter_runtime_assets
+    return cast(_FormatterRuntimeAssetsHook, hook)
 
 
 def resolve_requested_cucumber_formatters(
     config: Config,
     *,
-    resolve_output_path,
+    resolve_output_path: ResolveOutputPath,
 ) -> tuple[CucumberFormatterRequest, ...]:
     requested_formatters: list[CucumberFormatterRequest] = []
     formatter_request_hook = _resolve_formatter_request_hook(config)
     if formatter_request_hook is not None:
         requested_formatters.extend(
             formatter_request
-            for formatter_request in formatter_request_hook(
+            for formatter_request in formatter_request_hook.pytest_bdd_cucumber_formatter_request(
                 config=config,
                 resolve_output_path=resolve_output_path,
             )
@@ -224,11 +248,13 @@ def load_live_formatter_bridge_template() -> str:
 
 
 def load_formatter_adapter_support_template() -> str:
-    return _load_formatter_adapter_support_template()
+    loader = cast(Callable[[], str], _load_formatter_adapter_support_template)
+    return loader()
 
 
 def load_formatter_adapter_template(template_name: str) -> str:
-    return _load_formatter_adapter_template(template_name)
+    loader = cast(Callable[[str], str], _load_formatter_adapter_template)
+    return loader(template_name)
 
 
 def render_live_formatter_bridge() -> str:
@@ -251,7 +277,7 @@ def render_live_formatter_runtime_assets(
 
     runtime_assets_hook = _require_formatter_runtime_assets_hook(pluginmanager)
     for formatter_request in module_requests:
-        for rendered_assets in runtime_assets_hook(
+        for rendered_assets in runtime_assets_hook.pytest_bdd_cucumber_formatter_runtime_assets(
             formatter_request=formatter_request,
             formatter_requests=tuple(formatter_requests),
         ):

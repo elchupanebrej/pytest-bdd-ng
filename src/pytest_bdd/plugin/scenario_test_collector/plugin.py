@@ -1,11 +1,12 @@
 import mimetypes
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterator, Sequence
 from contextlib import suppress
 from functools import partial
 from itertools import starmap
 from operator import contains
 from pathlib import Path
 from types import ModuleType
+from typing import Protocol, cast
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +18,7 @@ from pytest_bdd.collector import Module as ModuleCollector
 from pytest_bdd.compatibility.pytest import (
     Collector,
     Config,
+    FixtureRequest,
     Mark,
     MarkDecorator,
     Metafunc,
@@ -24,7 +26,7 @@ from pytest_bdd.compatibility.pytest import (
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
 from pytest_bdd.model.scenario_run import Run
-from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
+from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser, ParserProtocol
 from pytest_bdd.plugin.pickle_runner.run_access import (
     require_feature_object,
     require_pickle_object,
@@ -36,8 +38,10 @@ from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
 
 
-def _pytest_collect_file(parent: Collector, file_path=None):
+def _pytest_collect_file(parent: Collector, file_path: Path | str | None = None) -> Collector | None:
     if not ScenarioTestCollector.is_enabled(parent.session.config):
+        return None
+    if file_path is None:
         return None
 
     file_path = Path(file_path)
@@ -49,12 +53,17 @@ def _pytest_collect_file(parent: Collector, file_path=None):
     return None
 
 
-def _pytest_pycollect_makemodule():
+def _pytest_pycollect_makemodule() -> Iterator[None]:
     with patch("_pytest.python.Module", new=ModuleCollector):
         yield
 
 
-def _build_pickle_param(gherkin_document: GherkinDocument, pickle: Pickle, feature_source: Source, config: Config):
+def _build_pickle_param(
+    gherkin_document: GherkinDocument,
+    pickle: Pickle,
+    feature_source: Source,
+    config: Config,
+) -> object:
     binding = Run.from_stash(config.stash).ensure_feature_binding(
         gherkin_document=gherkin_document,
         source=feature_source,
@@ -98,7 +107,19 @@ class _ScenarioCollectionReadObserver:
         )
 
 
-def _iter_resolved_feature_scenarios(config: Config, locators):
+class _ScenarioLocatorProtocol(Protocol):
+    def resolve(
+        self,
+        config: Config,
+        *,
+        observer: _ScenarioCollectionReadObserver,
+    ) -> Iterator[tuple[GherkinDocument, Pickle, Source]]: ...
+
+
+def _iter_resolved_feature_scenarios(
+    config: Config,
+    locators: Collection[_ScenarioLocatorProtocol],
+) -> Iterator[tuple[GherkinDocument, Pickle, Source]]:
     observer = _ScenarioCollectionReadObserver(config=config)
     for locator in locators:
         yield from locator.resolve(config, observer=observer)
@@ -108,13 +129,13 @@ class _ModernTestCollector:
     @pytest.hookimpl(hookwrapper=True)
     def pytest_pycollect_makemodule(
         self,
-        parent,  # noqa: ARG002 hookimpl
-        module_path,  # noqa: ARG002 hookimpl
-    ):
+        parent: Collector,  # noqa: ARG002 hookimpl
+        module_path: Path,  # noqa: ARG002 hookimpl
+    ) -> Iterator[None]:
         yield from _pytest_pycollect_makemodule()
 
     @pytest.hookimpl
-    def pytest_collect_file(self, parent: Collector, file_path):
+    def pytest_collect_file(self, parent: Collector, file_path: Path) -> Collector | None:
         return _pytest_collect_file(parent=parent, file_path=file_path)
 
 
@@ -122,14 +143,16 @@ class ScenarioTestCollector(_ModernTestCollector):
     @pytest.hookimpl(tryfirst=True)
     def pytest_plugin_registered(
         self,
-        plugin,
-        manager,  # noqa: ARG002 hookimpl
-    ):
+        plugin: object,
+        manager: object,  # noqa: ARG002 hookimpl
+    ) -> None:
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
-            StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(plugin)
+            StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(
+                cast(StepDefinitionManager.NamespaceStepRegistryProtocol, plugin)
+            )
 
     @pytest.hookimpl
-    def pytest_generate_tests(self, metafunc: Metafunc):
+    def pytest_generate_tests(self, metafunc: Metafunc) -> None:
         config = metafunc.config
 
         # build marker locators
@@ -138,7 +161,10 @@ class ScenarioTestCollector(_ModernTestCollector):
         if PYTEST_BDD_MARK in mark_names:
             scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
             locator_builder = ScenarioLocatorBuilder(config=config)
-            locators = chain_map(locator_builder.build_for_pytest_mark, scenario_marks)
+            locators = cast(
+                Collection[_ScenarioLocatorProtocol],
+                chain_map(locator_builder.build_for_pytest_mark, scenario_marks),
+            )
             feature_scenario_feature_source = _iter_resolved_feature_scenarios(config, locators)
 
             metafunc.parametrize(
@@ -152,9 +178,9 @@ class ScenarioTestCollector(_ModernTestCollector):
     @pytest.hookimpl(trylast=True)
     def pytest_bdd_convert_tag_to_marks(
         self,
-        gherkin_document,
-        pickle,
-        tag,
+        gherkin_document: GherkinDocument,
+        pickle: Pickle,
+        tag: str,
     ) -> Collection[Mark | MarkDecorator] | None:
         _ = gherkin_document
         _ = pickle
@@ -163,8 +189,8 @@ class ScenarioTestCollector(_ModernTestCollector):
     @pytest.hookimpl
     def pytest_bdd_match_step_definition_to_step(
         self,
-        request,
-        run,
+        request: FixtureRequest,
+        run: Run,
     ) -> StepDefinitionManager.Definition:
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         pickle = require_pickle_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
@@ -180,7 +206,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         self,
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
-    ):
+    ) -> Mimetype | None:
         mimetype_string, _encoding = mimetypes.guess_type(path)
         if mimetype_string is None:
             return None
@@ -199,7 +225,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         self,
         config: Config,  # noqa: ARG002 hookimpl
         mimetype: str,
-    ):
+    ) -> type[ParserProtocol] | None:
         with suppress(KeyError, ValueError):
             return {
                 Mimetype.gherkin_plain: GherkinParser,
@@ -212,7 +238,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         self,
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
-    ):
+    ) -> bool | None:
         return (
             any(
                 map(
@@ -227,8 +253,8 @@ class ScenarioTestCollector(_ModernTestCollector):
         )
 
     @staticmethod
-    def is_enabled(config: Config):
+    def is_enabled(config: Config) -> bool:
         is_enabled = config.getoption(str(FeatureAutoLoad.Cli.DISABLE_OPTION))
         if is_enabled is None:
             is_enabled = not config.getini(str(FeatureAutoLoad.Ini.DISABLE_OPTION))
-        return is_enabled
+        return bool(is_enabled)

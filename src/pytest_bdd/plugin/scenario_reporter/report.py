@@ -1,5 +1,5 @@
 import time
-from typing import Any, Final, Literal
+from typing import Literal, TypedDict
 
 from attrs import define, field
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
@@ -7,13 +7,41 @@ from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, ReportingContextSnapshot
 
 RuntimeStepStatus = Literal["passed", "failed"]
-CONTROLLED_RUNTIME_STEP_STATUSES: Final[tuple[RuntimeStepStatus, ...]] = ("passed", "failed")
+
+
+class StepReportData(TypedDict):
+    name: str
+    type: str | None
+    keyword: str | None
+    line_number: int | None
+    failed: bool
+    status: RuntimeStepStatus
+    duration: float
+
+
+class FeatureReportData(TypedDict):
+    name: str | None
+    filename: str
+    rel_filename: str | None
+    line_number: int | None
+    description: str | None
+    tags: list[str]
+
+
+class ScenarioReportData(TypedDict):
+    steps: list[StepReportData]
+    name: str
+    line_number: int
+    tags: list[str]
+    feature: FeatureReportData
 
 
 def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) -> RuntimeStepStatus:
     normalized = (status or "").strip().lower()
-    if normalized in CONTROLLED_RUNTIME_STEP_STATUSES:
-        return normalized  # type: ignore[return-value]
+    if normalized == "passed":
+        return "passed"
+    if normalized == "failed":
+        return "failed"
     return "failed" if failed_fallback else "passed"
 
 
@@ -26,7 +54,7 @@ class StepReport:
     failed: bool = field(default=False)
     stopped: float | None = field(default=None)
 
-    def serialize(self, feature_binding: FeatureRuntimeBinding) -> dict[str, Any]:
+    def serialize(self, feature_binding: FeatureRuntimeBinding) -> StepReportData:
         """Serialize the step execution report.
 
         :return: Serialized step execution report.
@@ -65,7 +93,7 @@ class StepReport:
         :rtype: float
         """
         if self.stopped is None:
-            return 0
+            return 0.0
 
         return self.stopped - self.started
 
@@ -99,7 +127,7 @@ class ScenarioReport:
     def set_context_snapshot(self, context_snapshot: ReportingContextSnapshot | None) -> None:
         self.context_snapshot = context_snapshot
 
-    def serialize(self) -> dict[str, Any]:
+    def serialize(self) -> ScenarioReportData:
         """Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode.
 
         :return: Serialized report.

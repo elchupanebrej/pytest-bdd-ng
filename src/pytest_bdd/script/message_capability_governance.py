@@ -5,10 +5,9 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Final, cast
 
-from jsonschema import validators
-
+from pytest_bdd.compatibility.jsonschema import build_validator
 from pytest_bdd.model.coverage.inventory import (
     SCHEMA_DIR,
     canonical_capability_id,
@@ -37,6 +36,7 @@ from pytest_bdd.model.message_status_governance import (
     validate_mandatory_scope_decision,
 )
 from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
+from pytest_bdd.types.json import JSONObject
 
 ALLOWED_CATEGORIES: Final[set[str]] = {"core", "lifecycle", "hook", "attachment", "parameter", "metadata"}
 ALLOWED_IMPACTS: Final[set[str]] = {
@@ -82,19 +82,17 @@ def discover_governance_schema_path() -> Path | None:
     return normalized_candidates[0]
 
 
-def load_governance_report_schema(schema_path: Path | None = None) -> dict[str, Any]:
+def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject:
     effective_path = schema_path or discover_governance_schema_path()
     if effective_path is None:
         msg = "Unable to locate governance report schema."
         raise FileNotFoundError(msg)
-    return cast(dict[str, Any], _load_json(effective_path))
+    return cast(JSONObject, _load_json(effective_path))
 
 
-def validate_governance_report_payload(payload: dict[str, Any], schema_path: Path | None = None) -> None:
+def validate_governance_report_payload(payload: JSONObject, schema_path: Path | None = None) -> None:
     schema = load_governance_report_schema(schema_path)
-    validator_class = validators.validator_for(schema)
-    validator_class.check_schema(schema)
-    validator = validator_class(schema)
+    validator = build_validator(schema)
     errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
     if errors:
         error = errors[0]
@@ -103,8 +101,8 @@ def validate_governance_report_payload(payload: dict[str, Any], schema_path: Pat
         raise ValueError(msg)
 
 
-def _load_json(path: Path) -> Any:
-    return cast(Any, json.loads(path.read_text(encoding="utf-8")))
+def _load_json(path: Path) -> object:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _load_capabilities(path: Path) -> list[MessageCapability]:
@@ -492,7 +490,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             current_capabilities=current_capabilities,
             generated_at=datetime.now(timezone.utc),
         )
-        payload = governance_value_to_dict(diff_result)
+        payload = cast(JSONObject, governance_value_to_dict(diff_result))
         payload["cadence"] = WEEKLY_CADENCE
         _emit_text(json.dumps(payload, sort_keys=True), output_path=args.output)
         return 0
@@ -540,7 +538,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 release_target=args.baseline_release,
             )
 
-        capabilities_list: list[dict[str, Any]] = []
+        capabilities_list: list[JSONObject] = []
         implemented_count = 0
         blocked_count = 0
         deferred_count = 0

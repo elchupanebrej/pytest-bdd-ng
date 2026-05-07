@@ -7,31 +7,44 @@ Options:
     --snapshot=<snapshot_path> Path to save snapshot on found diff between old and new documentation
 """
 
+from __future__ import annotations
+
 import re
 import sys
 from collections import deque
-from collections.abc import Sequence
 from filecmp import dircmp
 from functools import lru_cache, reduce
 from operator import truediv
 from os.path import commonpath
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
-from typing import cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pypandoc  # type: ignore[import-not-found, import-untyped]
 from attrs import frozen
 from docopt import docopt
-from jinja2 import Environment
+from jinja2 import Environment, Template
 from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
 
 from pytest_bdd.compatibility.importlib.resources import files
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 SECTION_SYMBOLS = "-~^\"$%&'()*+,./:;<=>?@[\\]^_`{|}#!="
 AUTO_GENERATED_START_MARKER = ".. BEGIN AUTO-GENERATED FEATURES TREE"
 AUTO_GENERATED_END_MARKER = ".. END AUTO-GENERATED FEATURES TREE"
 ORDERING_PREFIX_PATTERN = re.compile(r"^(?P<prefix>\d+)[ _-]+(?P<label>.+)$")
 TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa: S701
+
+
+class _DirCmp(Protocol):
+    diff_files: list[str]
+    left_only: list[str]
+    right_only: list[str]
+    subdirs: Mapping[str, _DirCmp]
+
+    def report(self) -> None: ...
 
 
 @frozen
@@ -50,7 +63,7 @@ class OrderedSource:
 
 
 class OrderingValidationError(ValueError):
-    def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str):
+    def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str) -> None:
         self.error_code = error_code
         self.scope_path = scope_path
         self.source_path = source_path
@@ -65,17 +78,19 @@ class OrderingValidationError(ValueError):
 
 
 @lru_cache(maxsize=8)
-def load_template(template_name: str):
+def load_template(template_name: str) -> Template:
     template_source = files("pytest_bdd.template").joinpath(template_name).read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 
 
-def diff_folders(dcmp):
-    if any(diff := [dcmp.diff_files, dcmp.left_only, dcmp.right_only]):
+def diff_folders(dcmp: _DirCmp) -> list[object] | None:
+    diff: list[object] = [dcmp.diff_files, dcmp.left_only, dcmp.right_only]
+    if any(diff):
         dcmp.report()
         return diff
-    if any(diff := list(map(diff_folders, dcmp.subdirs.values()))):
-        return diff
+    subdiffs: list[object] = [result for child in dcmp.subdirs.values() if (result := diff_folders(child)) is not None]
+    if any(subdiffs):
+        return subdiffs
     return None
 
 
@@ -253,7 +268,7 @@ def render_include_page(title: str, rel_path: Path, include_path: str, code_type
     return rendered_include.rstrip("\n") + "\n"
 
 
-def convert(features_path: Path, output_path: Path, temp_path: Path):
+def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
     output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)
@@ -323,8 +338,13 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
     index_file.write_text(render_generated_index(sections, existing_index_file), newline="\n")
 
 
-def main():  # pragma: no cover
+def ensure_pandoc_installed() -> None:
+    pypandoc.ensure_pandoc_installed()
+
+
+def main() -> None:  # pragma: no cover
     arguments = docopt(__doc__)
+    ensure_pandoc_installed()
     features_dir = Path(arguments["<features_dir>"]).resolve()
     if not features_dir.exists() or not features_dir.is_dir():
         msg = f"Wrong input features directory {features_dir} is provided"
@@ -340,7 +360,7 @@ def main():  # pragma: no cover
         except OrderingValidationError as exc:
             sys.exit(str(exc))
 
-        if diff := diff_folders(dircmp(str(output_dir), temp_dir)):
+        if diff := diff_folders(cast(_DirCmp, dircmp(str(output_dir), temp_dir))):
             if snapshot_dir is not None:
                 rmtree(snapshot_dir, ignore_errors=True)
                 copytree(output_dir, str(snapshot_dir), dirs_exist_ok=True)

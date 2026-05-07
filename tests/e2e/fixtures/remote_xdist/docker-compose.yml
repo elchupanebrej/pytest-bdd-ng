@@ -1,3 +1,4 @@
+---
 services:
   controller:
     image: pytest-bdd-remote-xdist-controller:local
@@ -12,7 +13,8 @@ services:
       VERIFY_REPORT_MODE: ${VERIFY_REPORT_MODE:-success}
       PYTEST_REMOTE_EXTRA_ARGS: ${PYTEST_REMOTE_EXTRA_ARGS:-}
       PYTEST_REMOTE_FAKE_NODE_ROOT: ${PYTEST_REMOTE_FAKE_NODE_ROOT:-}
-      PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR: ${PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR:-}
+      PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR: >-
+        ${PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR:-}
     depends_on:
       - proxy
       - worker1

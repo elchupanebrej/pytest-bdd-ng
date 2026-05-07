@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from attrs import frozen
 
 from pytest_bdd.util.tests_group_ordering import (
     GroupAssignment,
@@ -22,13 +22,13 @@ pytest_plugins = ("pytester",)
 REPO_SRC = Path(__file__).parents[2] / "src"
 
 
-@dataclass(frozen=True)
+@frozen
 class FakeMarker:
     name: str
     args: tuple[object, ...] = ()
 
 
-@dataclass(frozen=True)
+@frozen
 class FakeNode:
     source: str
     own_markers: list[FakeMarker]

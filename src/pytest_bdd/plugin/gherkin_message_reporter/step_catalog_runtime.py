@@ -4,7 +4,7 @@ import logging
 from contextlib import suppress
 from inspect import getfile, signature
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
@@ -14,6 +14,7 @@ from cucumber_messages import (
     JavaStackTraceElement,
     Location,
     ParameterType,
+    Pickle,
     SourceReference,
     StepMatchArgument,
     StepMatchArgumentsList,
@@ -31,9 +32,21 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+
+    from pytest_bdd.compatibility.pytest import Item
+    from pytest_bdd.plugin.gherkin_message_reporter.hook_catalog_runtime import HookCatalogService
+    from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+
+
+class _CucumberGroup(Protocol):
+    start: int | None
+    value: str | None
+    children: list[object]
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +54,19 @@ logger = logging.getLogger(__name__)
 class StepCatalogService(ReporterServiceBase):
     plugin_suffix = "steps"
 
-    def __init__(self, reporter, *, lifecycle_service, hook_catalog_service) -> None:
+    def __init__(
+        self,
+        reporter: GherkinMessageReporter,
+        *,
+        lifecycle_service: LifecycleService,
+        hook_catalog_service: HookCatalogService,
+    ) -> None:
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.hook_catalog_service = hook_catalog_service
 
     @pytest.hookimpl(wrapper=True)
-    def pytest_runtest_setup(self, item):
+    def pytest_runtest_setup(self, item: Item) -> Iterator[None]:
         yield
         if self.reporter.is_disabled:
             return
@@ -67,6 +86,7 @@ class StepCatalogService(ReporterServiceBase):
         if gherkin_document is None or pickle is None:
             logger.warning("Execution context does not carry runtime feature/pickle during pytest_runtest_setup.")
             return
+        runtime_pickle = cast(Pickle, pickle)
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)
@@ -83,12 +103,12 @@ class StepCatalogService(ReporterServiceBase):
                 )
                 for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(
                     request=request,
-                    pickle=pickle,
+                    pickle=runtime_pickle,
                 )
             ]
         )
 
-        for step in pickle.steps:
+        for step in runtime_pickle.steps:
             try:
                 scenario_run.step_object = step
                 scenario_run.previous_step_object = previous_step
@@ -123,7 +143,7 @@ class StepCatalogService(ReporterServiceBase):
         resolved_run_started_id = Run.from_stash(cast(Config, config).stash).reporting_state.run_started_id
         test_case = TestCase(
             id=next(IdGenerator.from_stash(cast(Config, config).stash)),
-            pickle_id=pickle.id,
+            pickle_id=runtime_pickle.id,
             test_steps=test_steps,
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
         )
@@ -138,7 +158,7 @@ class StepCatalogService(ReporterServiceBase):
             step_registry = request.getfixturevalue("step_registry")
         except (FixtureLookupError, AssertionError):
             return
-        seen_steps = set()
+        seen_steps: set[int] = set()
         while step_registry is not None:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
@@ -171,11 +191,12 @@ class StepCatalogService(ReporterServiceBase):
             matches = parser.rebuild_expression_in_test_context(request).match(step_text)
             if matches:
 
-                def build_group(group: Any) -> Group:
+                def build_group(group: object) -> Group:
+                    typed_group = cast(_CucumberGroup, group)
                     return Group(
-                        **({"start": group.start} if getattr(group, "start", None) is not None else {}),
-                        **({"value": group.value} if getattr(group, "value", None) is not None else {}),
-                        children=[build_group(child) for child in (getattr(group, "children", []) or [])],
+                        **({"start": typed_group.start} if typed_group.start is not None else {}),
+                        **({"value": typed_group.value} if typed_group.value is not None else {}),
+                        children=[build_group(child) for child in typed_group.children],
                     )
 
                 step_match_arguments = []
@@ -219,7 +240,7 @@ class StepCatalogService(ReporterServiceBase):
             )
         return [StepMatchArgumentsList(step_match_arguments=parsed_step_match_arguments)]
 
-    def _build_parameter_type_source_reference(self, config: Config, parameter_type: Any):
+    def _build_parameter_type_source_reference(self, config: Config, parameter_type: object) -> SourceReference | None:
         transformer = getattr(parameter_type, "transformer", None)
         if transformer is None:
             return None
@@ -252,18 +273,22 @@ class StepCatalogService(ReporterServiceBase):
             step_registry = request.getfixturevalue("step_registry")
         except (FixtureLookupError, AssertionError):
             return
-        seen_steps = set()
+        seen_steps: set[int] = set()
         while step_registry is not None:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
-                    parameter_type_registry_getter: Callable[[FixtureRequest], ParameterTypeRegistry] = deepattrgetter(
+                    parameter_type_registry_getter_candidate = deepattrgetter(
                         "_get_parameter_type_registry",
                         default=None,
                     )(step_definition.parser)[0]
 
-                    if parameter_type_registry_getter is None:
+                    if parameter_type_registry_getter_candidate is None:
                         continue
 
+                    parameter_type_registry_getter = cast(
+                        "Callable[[FixtureRequest], ParameterTypeRegistry]",
+                        parameter_type_registry_getter_candidate,
+                    )
                     parameter_type_registry = parameter_type_registry_getter(request)
                     parameter_types = {
                         id(parameter_type): parameter_type for parameter_type in parameter_type_registry.parameter_types

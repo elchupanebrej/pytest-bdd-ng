@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .cucumber_formatter_support.base import FormatterOutputMode, FormatterReporterPlugin
+
+if TYPE_CHECKING:
+    from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest, ResolveOutputPath
 
 
 class SummaryFormatterPlugin(FormatterReporterPlugin):
@@ -21,7 +26,12 @@ class SummaryFormatterPlugin(FormatterReporterPlugin):
     def build_addoption_kwargs(self) -> dict[str, object]:
         return self.build_boolean_addoption_kwargs()
 
-    def build_request_from_value(self, raw_value: object, *, resolve_output_path):
+    def build_request_from_value(
+        self,
+        raw_value: object,
+        *,
+        resolve_output_path: ResolveOutputPath,
+    ) -> CucumberFormatterRequest:
         _ = raw_value, resolve_output_path
         return self.build_builtin_terminal_request()
 

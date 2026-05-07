@@ -8,6 +8,7 @@ from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from pytest_bdd.model.message_extension import EventEnvelope
     from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRenderResult
 
 QuietTerminalRestorer = Callable[[], None] | None
@@ -30,7 +31,7 @@ class ReporterLifecycleContract(Protocol):
 
 @runtime_checkable
 class FormatterRenderingContract(Protocol):
-    def read_envelopes_from_path(self, messages_file_path: Path): ...
+    def read_envelopes_from_path(self, messages_file_path: Path) -> list[EventEnvelope]: ...
 
     def render_requested_cucumber_formatters_from_path(
         self,

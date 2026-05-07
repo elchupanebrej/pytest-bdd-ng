@@ -14,160 +14,160 @@ Rule:
 Background:
            
 
--  Given File "Passed.feature" with content:
+- Given File "Passed.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      @passed
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Passed
-          Given I produce passed test
+     @passed
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Passed
+         Given I produce passed test
 
--  Given File "Failed.feature" with content:
+- Given File "Failed.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      @failed
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Failed
-          Given I produce failed test
+     @failed
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Failed
+         Given I produce failed test
 
--  Given File "Both.feature" with content:
+- Given File "Both.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      @both
-      Feature: Steps are executed by corresponding step keyword decorator
-        Scenario: Passed
-          Given I produce passed test
+     @both
+     Feature: Steps are executed by corresponding step keyword decorator
+       Scenario: Passed
+         Given I produce passed test
 
-        Scenario: Failed
-          Given I produce failed test
+       Scenario: Failed
+         Given I produce failed test
 
--  Given File "pytest.ini" with content:
+- Given File "pytest.ini" with content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      markers =
-        passed
-        failed
-        both
+     [pytest]
+     markers =
+       passed
+       failed
+       both
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+     from pytest_bdd.compatibility.pytest import fail
+     from pytest_bdd import given
 
-      @given('I produce passed test')
-      def passing_step():
-        ...
+     @given('I produce passed test')
+     def passing_step():
+       ...
 
-      @given('I produce failed test')
-      def failing_step():
-        fail('Enforce fail')
+     @given('I produce failed test')
+     def failing_step():
+       fail('Enforce fail')
 
 Scenario: Run pytest with marker passed
                                        
 
--  When run pytest
+- When run pytest
 
-   ======== == ======
-   cli_args -m passed
-   ======== == ======
-   ======== == ======
+  ======== == ======
+  cli_args -m passed
+  ======== == ======
+  ======== == ======
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
 Scenario: Run pytest with marker failed
                                        
 
--  When run pytest
+- When run pytest
 
-   ======== == ======
-   cli_args -m failed
-   ======== == ======
-   ======== == ======
+  ======== == ======
+  cli_args -m failed
+  ======== == ======
+  ======== == ======
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   0      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  0      1
+  ====== ======
 
 Scenario: Run pytest with marker passed or failed
                                                  
 
--  When run pytest
+- When run pytest
 
-   ======== == ================
-   cli_args -m passed or failed
-   ======== == ================
-   ======== == ================
+  ======== == ================
+  cli_args -m passed or failed
+  ======== == ================
+  ======== == ================
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
 Scenario: Run pytest with marker not both
                                          
 
--  When run pytest
+- When run pytest
 
-   ======== == ========
-   cli_args -m not both
-   ======== == ========
-   ======== == ========
+  ======== == ========
+  cli_args -m not both
+  ======== == ========
+  ======== == ========
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
 Scenario: Run pytest with marker both
                                      
 
--  When run pytest
+- When run pytest
 
-   ======== == ====
-   cli_args -m both
-   ======== == ====
-   ======== == ====
+  ======== == ====
+  cli_args -m both
+  ======== == ====
+  ======== == ====
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      1
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      1
+  ====== ======
 
 Scenario: Run pytest with no marker
                                    
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   2      2
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  2      2
+  ====== ======

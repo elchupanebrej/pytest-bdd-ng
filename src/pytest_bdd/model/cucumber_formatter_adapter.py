@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from attrs import define, field
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 _ZERO_DURATION = {"seconds": 0, "nanos": 0}
 _ZERO_TIMESTAMP = {"seconds": 0, "nanos": 0}
@@ -28,11 +31,11 @@ class CucumberFormatterEnvelopeAdapter:
     """
 
     def __init__(self) -> None:
-        self._test_cases_by_id: dict[str, dict[str, Any]] = {}
+        self._test_cases_by_id: dict[str, JSONObject] = {}
         self._attempts_by_started_id: dict[str, _FormatterAttemptState] = {}
 
-    def adapt_envelope_dict(self, envelope_dict: dict[str, Any]) -> tuple[dict[str, Any], ...]:
-        synthetic_envelopes: list[dict[str, Any]] = []
+    def adapt_envelope_dict(self, envelope_dict: JSONObject) -> tuple[JSONObject, ...]:
+        synthetic_envelopes: list[JSONObject] = []
 
         test_case = envelope_dict.get("testCase")
         if isinstance(test_case, dict):
@@ -59,15 +62,15 @@ class CucumberFormatterEnvelopeAdapter:
                                 timestamp_payload=test_case_finished.get("timestamp"),
                             )
                         )
-                    elif isinstance(envelope_dict.get("testRunFinished"), dict):
-                        synthetic_envelopes.extend(
-                            self.flush(timestamp_payload=envelope_dict["testRunFinished"].get("timestamp"))
-                        )
+                    else:
+                        test_run_finished = envelope_dict.get("testRunFinished")
+                        if isinstance(test_run_finished, dict):
+                            synthetic_envelopes.extend(self.flush(timestamp_payload=test_run_finished.get("timestamp")))
 
         return (*synthetic_envelopes, envelope_dict)
 
-    def flush(self, *, timestamp_payload: object | None = None) -> tuple[dict[str, Any], ...]:
-        synthetic_envelopes: list[dict[str, Any]] = []
+    def flush(self, *, timestamp_payload: object | None = None) -> tuple[JSONObject, ...]:
+        synthetic_envelopes: list[JSONObject] = []
         for test_case_started_id in list(self._attempts_by_started_id):
             synthetic_envelopes.extend(
                 self._synthesize_missing_pickle_step_results(
@@ -77,7 +80,7 @@ class CucumberFormatterEnvelopeAdapter:
             )
         return tuple(synthetic_envelopes)
 
-    def _record_test_step_result(self, test_step_finished: dict[str, Any]) -> None:
+    def _record_test_step_result(self, test_step_finished: JSONObject) -> None:
         test_case_started_id = test_step_finished.get("testCaseStartedId")
         test_step_id = test_step_finished.get("testStepId")
         if not isinstance(test_case_started_id, str) or not test_case_started_id:
@@ -94,7 +97,7 @@ class CucumberFormatterEnvelopeAdapter:
         *,
         test_case_started_id: str,
         timestamp_payload: object | None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[JSONObject]:
         if not test_case_started_id:
             return []
         attempt_state = self._attempts_by_started_id.get(test_case_started_id)
@@ -104,8 +107,10 @@ class CucumberFormatterEnvelopeAdapter:
         if test_case is None:
             return []
         resolved_timestamp = self._normalize_timestamp(timestamp_payload)
-        synthetic_envelopes: list[dict[str, Any]] = []
-        for test_step in test_case.get("testSteps", ()):
+        synthetic_envelopes: list[JSONObject] = []
+        raw_test_steps = test_case.get("testSteps", [])
+        test_steps = raw_test_steps if isinstance(raw_test_steps, list) else []
+        for test_step in test_steps:
             if not isinstance(test_step, dict):
                 continue
             test_step_id = test_step.get("id")
@@ -144,10 +149,12 @@ class CucumberFormatterEnvelopeAdapter:
         }
 
 
-def normalize_formatter_envelope_dicts(envelope_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def normalize_formatter_envelope_dicts(envelope_dicts: JSONArray) -> JSONArray:
     adapter = CucumberFormatterEnvelopeAdapter()
-    normalized_envelopes: list[dict[str, Any]] = []
+    normalized_envelopes: list[JSONValue] = []
     for envelope_dict in envelope_dicts:
+        if not isinstance(envelope_dict, dict):
+            continue
         normalized_envelopes.extend(adapter.adapt_envelope_dict(envelope_dict))
     normalized_envelopes.extend(adapter.flush())
     return normalized_envelopes

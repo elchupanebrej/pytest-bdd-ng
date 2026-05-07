@@ -1,4 +1,6 @@
 from collections import deque
+from io import BufferedIOBase, TextIOBase
+from typing import TYPE_CHECKING, Protocol
 
 import pytest
 from cucumber_messages import PickleStep as Step  # type:ignore[import-untyped]
@@ -17,6 +19,26 @@ from pytest_bdd.util.other import IdGenerator
 
 from .const import Steps
 from .plugin import PickleRunner
+
+if TYPE_CHECKING:
+    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+
+
+class AttachmentCallable(Protocol):
+    def __call__(
+        self,
+        attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
+        media_type: str | None = None,
+        file_name: str | None = None,
+        *,
+        source_data: str | None = None,
+        source_media_type: str | None = None,
+        source_uri: str | None = None,
+        url: str | None = None,
+        as_external: bool = False,
+        test_run_hook_started_id: str | None = None,
+        test_run_started_id: str | None = None,
+    ) -> None: ...
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
@@ -75,7 +97,7 @@ step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[a
 
 
 @pytest.fixture
-def step_matcher(pytestconfig) -> StepDefinitionManager.Matcher:
+def step_matcher(pytestconfig: Config) -> StepDefinitionManager.Matcher:
     """Fixture containing matcher to help find step definition for selected step of scenario"""
     return StepDefinitionManager.Matcher(pytestconfig)  # type: ignore[call-arg]
 
@@ -87,19 +109,19 @@ def steps_left() -> deque[Step]:
 
 
 @pytest.fixture
-def parameter_type_registry():
+def parameter_type_registry() -> "ParameterTypeRegistry":
     """Fixture parameter type registry for Cucumber expressions"""
     return cucumber_expression.parameter_type_registry
 
 
 @pytest.fixture
-def attach(request: FixtureRequest):
+def attach(request: FixtureRequest) -> AttachmentCallable:
     """Fixture parameter type registry for Cucumber expressions"""
 
     def add_attachment(
-        attachment,
+        attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
         media_type: str | None = None,
-        file_name=None,
+        file_name: str | None = None,
         *,
         source_data: str | None = None,
         source_media_type: str | None = None,
@@ -108,7 +130,7 @@ def attach(request: FixtureRequest):
         as_external: bool = False,
         test_run_hook_started_id: str | None = None,
         test_run_started_id: str | None = None,
-    ):
+    ) -> None:
         request.config.hook.pytest_bdd_attach(
             request=request,
             attachment=attachment,
@@ -127,6 +149,6 @@ def attach(request: FixtureRequest):
 
 
 @pytest.fixture(scope="session")
-def run_context(request: FixtureRequest):
+def run_context(request: FixtureRequest) -> Run:
     """Session-scoped fixture exposing canonical Run."""
     return Run.from_stash(request.config.stash)

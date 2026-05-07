@@ -1,6 +1,6 @@
 # Data Model: Test Group Ordering
 
-**Feature**: 020-test-group-ordering  
+**Feature**: 020-test-group-ordering
 **Date**: 2026-05-05
 
 ## Entities

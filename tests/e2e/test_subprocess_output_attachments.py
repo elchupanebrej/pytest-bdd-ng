@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
+from attrs import define
 
 from tests.support.pytest_results import (
     attach_command_result_outputs,
@@ -26,7 +25,7 @@ class _PytesterLikeResult:
         self.ret = ret
 
 
-@dataclass
+@define
 class _CompletedProcessLikeResult:
     stdout: str
     stderr: str

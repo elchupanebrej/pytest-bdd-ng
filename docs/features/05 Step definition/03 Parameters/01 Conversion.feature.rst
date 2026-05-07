@@ -7,41 +7,41 @@ you need to postprocess step arguments after the parser.
 Background:
            
 
--  Given File "Example.feature" with content:
+- Given File "Example.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature:
-        Scenario:
-          Given I have a cucumber
+     Feature:
+       Scenario:
+         Given I have a cucumber
 
 Scenario: for non-anonymous groups
                                   
 
--  Given File "conftest.py" with content:
+- Given File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from enum import Enum
-      from pytest_bdd import given
-      from re import compile as parse
+     from enum import Enum
+     from pytest_bdd import given
+     from re import compile as parse
 
-      class Item(Enum):
-        CUCUMBER = 'cucumber'
+     class Item(Enum):
+       CUCUMBER = 'cucumber'
 
-      @given(parse(r"I have a (?P<item>\w+)"), converters=dict(item=Item))
-      def i_have_item(item):
-          assert item == Item.CUCUMBER
+     @given(parse(r"I have a (?P<item>\w+)"), converters=dict(item=Item))
+     def i_have_item(item):
+         assert item == Item.CUCUMBER
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | passed |
-   +========+
-   | 1      |
-   +--------+
+  +--------+
+  | passed |
+  +========+
+  | 1      |
+  +--------+
 
 Rule: for anonymous groups
                           
@@ -52,70 +52,70 @@ them before conversion
 Scenario: anonymous group parameter conversion with named mapping
                                                                  
 
--  Given File "conftest.py" with content:
+- Given File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from enum import Enum
-      from pytest_bdd import given
-      from re import compile as parse
+     from enum import Enum
+     from pytest_bdd import given
+     from re import compile as parse
 
-      class Item(Enum):
-        CUCUMBER = 'cucumber'
+     class Item(Enum):
+       CUCUMBER = 'cucumber'
 
-      @given(
-        parse(r"I have a (\w+)"),
-        anonymous_group_names=('item',),
-        converters=dict(item=Item)
-      )
-      def i_have_item(item):
-          assert item == Item.CUCUMBER
+     @given(
+       parse(r"I have a (\w+)"),
+       anonymous_group_names=('item',),
+       converters=dict(item=Item)
+     )
+     def i_have_item(item):
+         assert item == Item.CUCUMBER
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | passed |
-   +========+
-   | 1      |
-   +--------+
+  +--------+
+  | passed |
+  +========+
+  | 1      |
+  +--------+
 
 Scenario: cucumber expressions parameter conversion
                                                    
 
--  Given File "conftest.py" with content:
+- Given File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from enum import Enum
-      from pytest_bdd import given
-      from functools import partial
-      from cucumber_expressions.expression import CucumberExpression
-      from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+     from enum import Enum
+     from pytest_bdd import given
+     from functools import partial
+     from cucumber_expressions.expression import CucumberExpression
+     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
-      parse = partial(
-        CucumberExpression,
-        parameter_type_registry = ParameterTypeRegistry()
-      )
+     parse = partial(
+       CucumberExpression,
+       parameter_type_registry = ParameterTypeRegistry()
+     )
 
-      class Item(Enum):
-        CUCUMBER = 'cucumber'
+     class Item(Enum):
+       CUCUMBER = 'cucumber'
 
-      @given(
-        parse(r"I have a {word}"),
-        anonymous_group_names=('item',),
-        converters=dict(item=Item)
-      )
-      def i_have_item(item):
-          assert item == Item.CUCUMBER
+     @given(
+       parse(r"I have a {word}"),
+       anonymous_group_names=('item',),
+       converters=dict(item=Item)
+     )
+     def i_have_item(item):
+         assert item == Item.CUCUMBER
 
--  When run pytest
+- When run pytest
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +--------+
-   | passed |
-   +========+
-   | 1      |
-   +--------+
+  +--------+
+  | passed |
+  +========+
+  | 1      |
+  +--------+

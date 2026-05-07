@@ -1,14 +1,44 @@
 import argparse
 import filecmp
+import importlib
 import shutil
 import stat
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Protocol, cast
 
 SCHEMA_PATH = Path(__file__).parent.parent / "model" / "message_jsonschema"
 SCHEMA_REPOSITORY_URL = "https://github.com/cucumber/messages.git"
 SCHEMA_REPOSITORY_FOLDER = Path("jsonschema", "src")
+
+
+class _GitRemote(Protocol):
+    def fetch(self, *args: object, **kwargs: object) -> object: ...
+
+
+class _GitRemotes(Protocol):
+    origin: _GitRemote
+
+
+class _GitGit(Protocol):
+    def config(self, *args: object, **kwargs: object) -> object: ...
+
+    def checkout(self, *args: object, **kwargs: object) -> object: ...
+
+
+class _GitRepo(Protocol):
+    git: _GitGit
+    remotes: _GitRemotes
+
+    @classmethod
+    def init(cls, path: Path) -> "_GitRepo": ...
+
+    def create_remote(self, name: str, url: str) -> object: ...
+
+
+class _GitModule(Protocol):
+    Repo: type[_GitRepo]
 
 
 def copy_schema_tree(source: Path, destination: Path) -> None:
@@ -19,16 +49,15 @@ def copy_schema_tree(source: Path, destination: Path) -> None:
 
 
 def fetch_schema_tree(destination: Path) -> None:
-    from git import Remote, Repo
-
     from pytest_bdd.util.packaging import get_distribution_version
 
+    git_module = cast(_GitModule, importlib.import_module("git"))
     tag_name = f"v{get_distribution_version('cucumber_messages')}"
 
     with TemporaryDirectory() as tmpdir:
         repo_path = Path(tmpdir) / "messages"
         repo_path.mkdir(parents=True)
-        repo = Repo.init(repo_path)
+        repo = git_module.Repo.init(repo_path)
         repo.git.config("core.sparseCheckout", "true")
         repo.create_remote("origin", SCHEMA_REPOSITORY_URL)
 
@@ -36,9 +65,7 @@ def fetch_schema_tree(destination: Path) -> None:
         with sparse_checkout_file.open("w", encoding="utf-8") as f:
             f.write(f"{SCHEMA_REPOSITORY_FOLDER.as_posix()}/**\n")
 
-        from typing import cast
-
-        cast(Remote, repo.remotes.origin).fetch(f"refs/tags/{tag_name}:refs/tags/{tag_name}")
+        repo.remotes.origin.fetch(f"refs/tags/{tag_name}:refs/tags/{tag_name}")
         repo.git.checkout(tag_name)
         copy_schema_tree(repo_path / SCHEMA_REPOSITORY_FOLDER, destination)
 

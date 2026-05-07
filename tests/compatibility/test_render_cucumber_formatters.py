@@ -200,10 +200,11 @@ def test_pyproject_lists_live_formatter_bridge_template_as_package_data() -> Non
     package_data = pyproject["tool"]["setuptools"]["package-data"]
 
     assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" in package_data
-    assert "live_formatter_bridge.mjs.j2" in package_data[
-        "pytest_bdd.plugin.gherkin_message_reporter.resources.templates"
-    ]
-    assert "formatter_adapter_support.cjs.j2" in package_data[
-        "pytest_bdd.plugin.gherkin_message_reporter.resources.templates"
-    ]
+    assert (
+        "live_formatter_bridge.mjs.j2" in package_data["pytest_bdd.plugin.gherkin_message_reporter.resources.templates"]
+    )
+    assert (
+        "formatter_adapter_support.cjs.j2"
+        in package_data["pytest_bdd.plugin.gherkin_message_reporter.resources.templates"]
+    )
     assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" in package_data

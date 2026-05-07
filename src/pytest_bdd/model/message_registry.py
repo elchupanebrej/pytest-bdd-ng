@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from attrs import define, field
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pytest_bdd.model.message_extension import EventEnvelope
 
 
-def _iter_object_graph(root: Any) -> Iterator[Any]:
+def _iter_object_graph(root: object) -> Iterator[object]:
     stack = [root]
     seen: set[int] = set()
 
@@ -50,7 +50,7 @@ def _iter_object_graph(root: Any) -> Iterator[Any]:
             stack.extend(values.values())
 
 
-def _resolve_identifiable_id(candidate: Any) -> str | None:
+def _resolve_identifiable_id(candidate: object) -> str | None:
     if not isinstance(candidate, Identifiable):
         return None
 
@@ -66,12 +66,12 @@ def _resolve_identifiable_id(candidate: Any) -> str | None:
 class IdentifiableObjectRegistry:
     objects_by_id: dict[str, Identifiable] = field(factory=dict)
 
-    def index_tree(self, root: Any) -> None:
+    def index_tree(self, root: object) -> None:
         for candidate in _iter_object_graph(root):
             identifier = _resolve_identifiable_id(candidate)
             if identifier is None:
                 continue
-            self.objects_by_id[identifier] = candidate
+            self.objects_by_id[identifier] = cast(Identifiable, candidate)
 
     def resolve(self, object_id: str) -> Identifiable:
         return self.objects_by_id[object_id]
@@ -88,7 +88,7 @@ class EnvelopeRegistry(StashBound):
         self.envelopes.append(envelope)
         self.identifiable.index_tree(envelope)
 
-    def resolve(self, object_id: str) -> Any | None:
+    def resolve(self, object_id: str) -> Identifiable | None:
         return self.identifiable.resolve(object_id)
 
     @classmethod

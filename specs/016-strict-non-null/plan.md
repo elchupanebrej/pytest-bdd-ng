@@ -13,14 +13,14 @@ Refactor the internal runtime lifecycle so every in-scope lifecycle accessor ret
 
 ## Technical Context
 
-**Language/Version**: Python 3.10-3.14  
-**Primary Dependencies**: `attrs`, `pytest>=7`, pluggy hook system, `cucumber-messages`, `gherkin`, internal `pickle_runner` and `gherkin_message_reporter` runtime layers  
-**Storage**: In-memory `Run`/`ScenarioRun`/binding state in `pytest.config.stash` plus transient reporting and parse-error payloads; no new persistent storage  
-**Testing**: pytest hook/feature/contract/compatibility suites, targeted runtime unit tests, `tox`, `mypy`, `pre-commit`  
-**Target Platform**: Linux/macOS/Windows CI matrix  
-**Project Type**: Single Python library plus pytest plugin  
-**Performance Goals**: O(1) access to active lifecycle objects at hook time; no measurable regression in targeted runtime, reporting, and contract suites; fewer normal-path conditional branches around lifecycle access  
-**Constraints**: Preserve the public `run` hook argument, `run_context` fixture/stash identity, and hook/decorator symbol surface; do not use `None` as the in-scope lifecycle contract outside pytest hook implementations; define dedicated Empty-State Objects for inactive-by-design lifecycle slots; centralize lifecycle invariant enforcement through reusable guards rather than inline per-method checks  
+**Language/Version**: Python 3.10-3.14
+**Primary Dependencies**: `attrs`, `pytest>=7`, pluggy hook system, `cucumber-messages`, `gherkin`, internal `pickle_runner` and `gherkin_message_reporter` runtime layers
+**Storage**: In-memory `Run`/`ScenarioRun`/binding state in `pytest.config.stash` plus transient reporting and parse-error payloads; no new persistent storage
+**Testing**: pytest hook/feature/contract/compatibility suites, targeted runtime unit tests, `tox`, `mypy`, `pre-commit`
+**Target Platform**: Linux/macOS/Windows CI matrix
+**Project Type**: Single Python library plus pytest plugin
+**Performance Goals**: O(1) access to active lifecycle objects at hook time; no measurable regression in targeted runtime, reporting, and contract suites; fewer normal-path conditional branches around lifecycle access
+**Constraints**: Preserve the public `run` hook argument, `run_context` fixture/stash identity, and hook/decorator symbol surface; do not use `None` as the in-scope lifecycle contract outside pytest hook implementations; define dedicated Empty-State Objects for inactive-by-design lifecycle slots; centralize lifecycle invariant enforcement through reusable guards rather than inline per-method checks
 **Scale/Scope**: Internal run/scenario/step lifecycle across `scenario_run`, `stash_access`, `run_access`, `run_transitions`, parser error emission, and reporter consumers; external schema or transport optionals remain out of primary scope unless promoted into lifecycle-managed runtime state
 
 **Cross-Platform Validation Rule**: Non-native platform test environments MUST use the Docker skill, except Windows targets which MAY use non-Docker execution paths.

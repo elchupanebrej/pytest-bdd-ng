@@ -1,7 +1,7 @@
 # Research: Test Group Ordering
 
-**Feature**: 020-test-group-ordering  
-**Date**: 2026-05-05  
+**Feature**: 020-test-group-ordering
+**Date**: 2026-05-05
 **Status**: Complete
 
 ## Decision 1: Third-Party Ordering Plugin

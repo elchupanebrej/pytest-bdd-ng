@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, cast
+from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
+
+from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
 from .message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from .message_serialization import MessageSerializationProfile, normalize_envelope_dict_for_profile
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _resolve_registry_index(
@@ -25,7 +30,7 @@ def _resolve_registry_index(
 class ExecutionProjection:
     envelope: EventEnvelope
     payload_kind: PayloadKind
-    payload: Any
+    payload: object
     registry: IdentifiableObjectRegistry | None = None
 
     @property
@@ -35,7 +40,7 @@ class ExecutionProjection:
             return None
         return str(raw_id)
 
-    def resolve(self, object_id: str) -> Any | None:
+    def resolve(self, object_id: str) -> object | None:
         if self.registry is None:
             return None
         return self.registry.resolve(str(object_id))
@@ -51,12 +56,12 @@ class ExecutionMessageAdapter:
     @classmethod
     def _transform_ids(
         cls,
-        value: Any,
+        value: JSONValue,
         *,
-        transform: Any,
-    ) -> Any:
+        transform: Callable[[str], str],
+    ) -> JSONValue:
         if isinstance(value, dict):
-            transformed: dict[str, Any] = {}
+            transformed: JSONObject = {}
             for key, item in value.items():
                 if key == "id" and isinstance(item, str):
                     transformed[key] = transform(item)
@@ -66,9 +71,10 @@ class ExecutionMessageAdapter:
                         transformed[key] = transform(item)
                         continue
                     if isinstance(item, list):
-                        transformed[key] = [
-                            transform(candidate) if isinstance(candidate, str) else candidate for candidate in item
-                        ]
+                        transformed[key] = cast(
+                            JSONArray,
+                            [transform(candidate) if isinstance(candidate, str) else candidate for candidate in item],
+                        )
                         continue
                 transformed[key] = cls._transform_ids(item, transform=transform)
             return transformed
@@ -77,20 +83,20 @@ class ExecutionMessageAdapter:
         return value
 
     @classmethod
-    def namespace_dict_ids(cls, envelope_dict: dict[str, Any], *, namespace: str) -> dict[str, Any]:
+    def namespace_dict_ids(cls, envelope_dict: JSONObject, *, namespace: str) -> JSONObject:
         prefix = f"{namespace}:"
 
         def _namespace(value: str) -> str:
             return value if value.startswith(prefix) else f"{prefix}{value}"
 
-        return cast(dict[str, Any], cls._transform_ids(deepcopy(envelope_dict), transform=_namespace))
+        return cast(JSONObject, cls._transform_ids(deepcopy(envelope_dict), transform=_namespace))
 
     @classmethod
-    def rewrite_dict_ids(cls, envelope_dict: dict[str, Any], remap: dict[str, str]) -> dict[str, Any]:
+    def rewrite_dict_ids(cls, envelope_dict: JSONObject, remap: dict[str, str]) -> JSONObject:
         if not remap:
-            return cast(dict[str, Any], deepcopy(envelope_dict))
+            return cast(JSONObject, deepcopy(envelope_dict))
         return cast(
-            dict[str, Any],
+            JSONObject,
             cls._transform_ids(deepcopy(envelope_dict), transform=lambda value: remap.get(value, value)),
         )
 
@@ -108,7 +114,7 @@ class ExecutionMessageAdapter:
         envelope: EventEnvelope,
         *,
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
-    ) -> dict[str, Any]:
+    ) -> JSONObject:
         envelope_dict = envelope_to_dict(envelope)
         return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
 
@@ -135,7 +141,7 @@ class ExecutionMessageAdapter:
     @classmethod
     def deserialize_dict(
         cls,
-        payload: dict[str, Any],
+        payload: JSONObject,
         *,
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:

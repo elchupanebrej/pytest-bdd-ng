@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from inspect import getfile, signature
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 from _pytest.mark import Mark
@@ -18,18 +18,32 @@ from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
 from pytest_bdd.util.inspect_extra import get_first_source_line
 from pytest_bdd.util.other import IdGenerator
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+
 logger = logging.getLogger(__name__)
+
+
+class _ScenarioTag(Protocol):
+    name: str
+
+
+class _PickleWithTags(Protocol):
+    tags: list[_ScenarioTag]
 
 
 class HookCatalogService(ReporterServiceBase):
     plugin_suffix = "fixtures"
 
-    def __init__(self, reporter, *, lifecycle_service) -> None:
+    def __init__(self, reporter: GherkinMessageReporter, *, lifecycle_service: LifecycleService) -> None:
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
+    def pytest_fixture_setup(self, fixturedef: FixtureDef, request: FixtureRequest) -> Iterator[None]:
         if self.reporter.is_disabled:
             yield
             return
@@ -92,7 +106,11 @@ class HookCatalogService(ReporterServiceBase):
 
         yield
 
-    def _iter_matching_hook_registrations(self, request: FixtureRequest, pickle: Any):
+    def _iter_matching_hook_registrations(
+        self,
+        request: FixtureRequest,
+        pickle: _PickleWithTags,
+    ) -> Iterator[HookRegistration]:
         for hook_registration in self.reporter.hook_registration_registry.values():
             if self._hook_expression_matches(
                 request=request,
@@ -106,7 +124,7 @@ class HookCatalogService(ReporterServiceBase):
         self,
         *,
         request: FixtureRequest,
-        pickle: Any,
+        pickle: _PickleWithTags,
         expression: str,
         kind: str,
     ) -> bool:
@@ -115,15 +133,15 @@ class HookCatalogService(ReporterServiceBase):
 
         try:
             if kind == "mark":
-                parsed_expression = MarksTagExpression.parse(expression)
-                return bool(parsed_expression.evaluate(list(request.node.iter_markers())))
+                mark_expression = MarksTagExpression.parse(expression)
+                return bool(mark_expression.evaluate(list(request.node.iter_markers())))
             if kind == "tag":
-                parsed_expression = GherkinTagExpression.parse(expression)
+                tag_expression = GherkinTagExpression.parse(expression)
                 scenario_tags = []
                 for tag in pickle.tags:
                     mark = Mark(tag.name, args=(), kwargs={}, _ispytest=True)
                     scenario_tags.append(mark)
-                return bool(parsed_expression.evaluate(scenario_tags))
+                return bool(tag_expression.evaluate(scenario_tags))
         except Exception:  # noqa: BLE001
             return False
 

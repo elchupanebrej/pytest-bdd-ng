@@ -8,80 +8,80 @@ and base-URL resolution mode.
 Scenario: Load feature from explicit HTTP URL
                                              
 
--  Given Localserver endpoint "/feature" responding content:
+- Given Localserver endpoint "/feature" responding content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: minimal
-        Scenario: Passing cukes
-          Given I have 42 cukes in my belly
+     Feature: minimal
+       Scenario: Passing cukes
+         Given I have 42 cukes in my belly
 
--  And File "test_http.py" with fixture templated content:
+- And File "test_http.py" with fixture templated content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given, scenarios, FeaturePathType
-      from pytest_bdd.mimetype import Mimetype
+     from pytest_bdd import given, scenarios, FeaturePathType
+     from pytest_bdd.mimetype import Mimetype
 
-      @given("I have 42 cukes in my belly")
-      def _results():
-        pass
+     @given("I have 42 cukes in my belly")
+     def _results():
+       pass
 
-      test_cukes = scenarios(
-        "http://localhost:{httpserver_port}/feature",
-        features_mimetype=Mimetype.gherkin_plain,
-        features_path_type=FeaturePathType.URL,
-      )
+     test_cukes = scenarios(
+       "http://localhost:{httpserver_port}/feature",
+       features_mimetype=Mimetype.gherkin_plain,
+       features_path_type=FeaturePathType.URL,
+     )
 
--  When run pytest
+- When run pytest
 
-   \| cli_args \| -k \| test_http.py \|
+  \| cli_args \| -k \| test_http.py \|
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
 .. _scenario-load-feature-using-http-base-url-from-pytestini:
 
 Scenario: Load feature using HTTP base URL from pytest.ini
                                                           
 
--  Given Localserver endpoint "/feature" responding content:
+- Given Localserver endpoint "/feature" responding content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: minimal
-        Scenario: Passing cukes
-          Given I have 42 cukes in my belly
+     Feature: minimal
+       Scenario: Passing cukes
+         Given I have 42 cukes in my belly
 
--  And File "test_http.py" with fixture templated content:
+- And File "test_http.py" with fixture templated content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import scenarios
-      from pytest_bdd import given
+     from pytest_bdd import scenarios
+     from pytest_bdd import given
 
-      @given("I have 42 cukes in my belly")
-      def _results():
-        pass
+     @given("I have 42 cukes in my belly")
+     def _results():
+       pass
 
-      test_cukes = scenarios(
-        "/feature",
-        features_base_url="http://localhost:{httpserver_port}",
-      )
+     test_cukes = scenarios(
+       "/feature",
+       features_base_url="http://localhost:{httpserver_port}",
+     )
 
--  When run pytest
+- When run pytest
 
-   \| cli_args \| -k \| test_http.py \|
+  \| cli_args \| -k \| test_http.py \|
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

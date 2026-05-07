@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import base64
 import pickle  # noqa:S403
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
@@ -10,7 +12,7 @@ _DUMP_START = "_pytest_bdd_>>>"
 _DUMP_END = "<<<_pytest_bdd_"
 
 
-def dump_obj(*objects: Any) -> None:
+def dump_obj(*objects: object) -> None:
     """Dump objects to stdout so that they can be inspected by the test suite."""
     for obj in objects:
         dump = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
@@ -18,7 +20,7 @@ def dump_obj(*objects: Any) -> None:
         print(f"{_DUMP_START}{encoded}{_DUMP_END}")  # noqa: T201 intentional non-debug output
 
 
-def collect_dumped_objects(result: "RunResult"):
+def collect_dumped_objects(result: RunResult) -> list[object]:
     """Parse all the objects dumped with `dump_object` from the result.
 
     Note: You must run the result with output to stdout enabled.

@@ -36,7 +36,7 @@ from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore
 from cucumber_messages import (
     UndefinedParameterType as _UndefinedParameterType,
 )
-from git import Repo, Git
+from git import Git, Repo
 from packaging import version
 from pydantic import ValidationError
 
@@ -48,6 +48,7 @@ if TYPE_CHECKING:  # pragma: nocover
 
 MESSAGE_REPORTER_PLUGIN = "pytest_bdd.plugin.gherkin_message_reporter.entrypoint"
 MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
+
 
 @pytest.fixture
 def compatibility_kit_repo(tmpdir):
@@ -62,18 +63,11 @@ def compatibility_kit_repo(tmpdir):
     ]
 
     version_pattern = re.compile(r"((.*/)?)v(\d+\.\d+\.\d+)")
-    last_version = sorted(
-        map(
-            version.parse,
-            map(
-                lambda match: match.groups()[-1],
-                filter(
-                    lambda match: match is not None,
-                    map(lambda tag: re.match(version_pattern, tag), repo_tags),
-                ),
-            ),
-        )
-    )[-1]
+    last_version = max(
+        version.parse(match.groups()[-1])
+        for match in (re.match(version_pattern, tag) for tag in repo_tags)
+        if match is not None
+    )
 
     last_version_tag = next(filter(lambda tag: re.search(re.escape(str(last_version)), tag), repo_tags))
 

@@ -7,23 +7,23 @@ during feature execution.
 Background:
 '''''''''''
 
--  Given File "Passing.feature" with content:
+- Given File "Passing.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Passing feature
-        Scenario: Passing scenario
-          Given Passing step
+     Feature: Passing feature
+       Scenario: Passing scenario
+         Given Passing step
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import step
+     from pytest_bdd import step
 
-      @step('Passing step')
-      def _():
-        ...
+     @step('Passing step')
+     def _():
+       ...
 
 Scenario: NDJson(JSONL) could be produced on the feature run
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -31,18 +31,45 @@ Scenario: NDJson(JSONL) could be produced on the feature run
 Output file could be fed into other @cucumber tools for more verbose
 report `Messages <https://github.com/cucumber/messages>`__
 
--  When run uv-tox
+- When run pytest
 
--  When run uv-tox
+  .. raw:: html
 
-   .. raw:: html
+       <!-- markdownlint-disable-next-line MD013 -->
 
-        <!-- markdownlint-disable-next-line MD013 -->
+  ========== ================= ==========
+  cli_args   --messages-ndjson out.ndjson
+  ========== ================= ==========
+  subprocess true              
+  ========== ================= ==========
 
-   ========== =============== ========
-   cli_args   --cucumber-html out.html
-   ========== =============== ========
-   subprocess true            
-   ========== =============== ========
+- Then File "out.ndjson" has at least "15" lines
 
--  Then File "out.html" is not empty
+- Then Report "out.ndjson" parsable into messages
+
+Scenario: HTML report could be produced on the feature run
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+Dummy reporter based on
+`@cucumber/html-formatter <https://github.com/cucumber/html-formatter>`__
+
+- Given Install npm packages
+
+  ======== ========================
+  packages @cucumber/html-formatter
+  ======== ========================
+  ======== ========================
+
+- When run pytest
+
+  .. raw:: html
+
+       <!-- markdownlint-disable-next-line MD013 -->
+
+  ========== =============== ========
+  cli_args   --cucumber-html out.html
+  ========== =============== ========
+  subprocess true            
+  ========== =============== ========
+
+- Then File "out.html" is not empty

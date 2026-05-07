@@ -30,30 +30,34 @@ repos:
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
+        exclude: ^specs/
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.45.0
     hooks:
       - id: markdownlint
+        # Use a managed nodeenv so WSL does not pick up the Windows npm shim.
+        language_version: 22.0.0
+        exclude: ^(specs/|AGENTS\.md$)
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
       - id: pretty-format-toml
         args: [--autofix]
-#  - repo: local
-#    hooks:
-#      - id: generate-feature-doc
-#        name: generate-feature-doc
-#        entry: >-
-#          uv run python
-#          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
-#        language: system
-#        pass_filenames: false
-#      - id: validate-feature-headings
-#        name: validate-feature-headings
-#        entry: >-
-#          uv run python
-#          src/pytest_bdd/script/validate_feature_headings.py
-#          --root-path features
-#        language: system
-#        files: ^features/
-#        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: generate-feature-doc
+        name: generate-feature-doc
+        entry: >-
+          uv run --extra doc-gen --frozen python
+          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+        language: system
+        pass_filenames: false
+      - id: validate-feature-headings
+        name: validate-feature-headings
+        entry: >-
+          uv run python
+          src/pytest_bdd/script/validate_feature_headings.py
+          --root-path features
+        language: system
+        files: ^features/
+        pass_filenames: false

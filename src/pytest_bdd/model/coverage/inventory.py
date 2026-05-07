@@ -3,11 +3,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 from attrs import define, field
 
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
+from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "message_jsonschema"
 
@@ -75,7 +76,7 @@ def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
     return target_path
 
 
-def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def _resolve_schema(schema_dir: Path, ref: str, root_schema: JSONObject) -> tuple[JSONObject, JSONObject]:
     if "#" in ref:
         file_part, path_part = ref.split("#", 1)
     else:
@@ -87,22 +88,28 @@ def _resolve_schema(schema_dir: Path, ref: str, root_schema: dict[str, Any]) -> 
         if not target_path.is_file():
             msg = f"Referenced schema file '{normalized_file}' was not found in '{schema_dir}'."
             raise FileNotFoundError(msg)
-        new_root = json.loads(target_path.read_text(encoding="utf-8"))
+        new_root = cast(JSONObject, json.loads(target_path.read_text(encoding="utf-8")))
     else:
         new_root = root_schema
 
-    resolved: Any = new_root
+    resolved: JSONValue = new_root
     if path_part:
         for part in (p for p in path_part.split("/") if p):
+            if not isinstance(resolved, dict):
+                msg = f"Schema reference '{ref}' resolved through non-object segment '{part}'."
+                raise TypeError(msg)
             resolved = resolved[part]
 
+    if not isinstance(resolved, dict):
+        msg = f"Schema reference '{ref}' did not resolve to an object."
+        raise TypeError(msg)
     return resolved, new_root
 
 
 def _extract_fields(  # noqa: C901
     schema_dir: Path,
-    schema: dict[str, Any],
-    root_schema: dict[str, Any],
+    schema: JSONObject,
+    root_schema: JSONObject,
     payload_kind: str,
     current_path: str,
     inventory: CapabilityInventory,
@@ -129,9 +136,13 @@ def _extract_fields(  # noqa: C901
         return
 
     if schema.get("type") == "object" or "properties" in schema:
-        properties = schema.get("properties", {})
-        required_fields = set(schema.get("required", ()))
+        raw_properties = schema.get("properties", {})
+        properties = raw_properties if isinstance(raw_properties, dict) else {}
+        raw_required_fields = schema.get("required", [])
+        required_fields = set(raw_required_fields if isinstance(raw_required_fields, list) else [])
         for property_name, property_schema in properties.items():
+            if not isinstance(property_schema, dict):
+                continue
             child_path = f"{current_path}.{property_name}" if current_path else property_name
             _extract_fields(
                 schema_dir,
@@ -146,9 +157,12 @@ def _extract_fields(  # noqa: C901
         return
 
     if schema.get("type") == "array" and "items" in schema:
+        items_schema = schema["items"]
+        if not isinstance(items_schema, dict):
+            return
         _extract_fields(
             schema_dir,
-            schema["items"],
+            items_schema,
             root_schema,
             payload_kind,
             current_path,
@@ -159,8 +173,11 @@ def _extract_fields(  # noqa: C901
         return
 
     for union_keyword in ("anyOf", "allOf", "oneOf"):
-        if union_keyword in schema:
-            for sub_schema in schema[union_keyword]:
+        raw_union_schemas = schema.get(union_keyword)
+        if isinstance(raw_union_schemas, list):
+            for sub_schema in raw_union_schemas:
+                if not isinstance(sub_schema, dict):
+                    continue
                 _extract_fields(
                     schema_dir,
                     sub_schema,
@@ -174,7 +191,8 @@ def _extract_fields(  # noqa: C901
             return
 
     if current_path:
-        field_type: str | list[str] | None = schema.get("type")
+        raw_field_type = schema.get("type")
+        field_type: str | JSONArray | None = raw_field_type if isinstance(raw_field_type, (str, list)) else None
         if field_type is None and "enum" in schema:
             field_type = "enum"
         if field_type is None:
@@ -194,7 +212,11 @@ def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
     envelope_schema, _ = _resolve_schema(resolved_schema_dir, "Envelope.json", {})
 
     inventory = CapabilityInventory()
-    for payload_kind, payload_schema in envelope_schema.get("properties", {}).items():
+    raw_envelope_properties = envelope_schema.get("properties", {})
+    envelope_properties = raw_envelope_properties if isinstance(raw_envelope_properties, dict) else {}
+    for payload_kind, payload_schema in envelope_properties.items():
+        if not isinstance(payload_schema, dict):
+            continue
         canonical_kind = canonical_payload_kind(payload_kind)
         if canonical_kind not in inventory.payload_kinds:
             inventory.payload_kinds.append(canonical_kind)
@@ -210,8 +232,8 @@ def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
     return inventory
 
 
-def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> list[dict[str, Any]]:
-    payload: list[dict[str, Any]] = []
+def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> JSONArray:
+    payload: JSONArray = []
     for capability_id in iter_capability_ids(inventory):
         payload_kind, path = parse_capability_id(capability_id)
         field_meta = inventory.fields[payload_kind, path]
@@ -222,7 +244,7 @@ def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_
                 "name": capability_id,
                 "description": field_meta.description or field_meta.path,
                 "category": "core",
-                "affects": ["emitted_envelope_payload"],
+                "affects": cast(JSONArray, ["emitted_envelope_payload"]),
                 "source_reference": "messages/jsonschema/src/Envelope.json",
                 "explicit_relevance": "relevant",
             }

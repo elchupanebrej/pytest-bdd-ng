@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pytest_bdd.scenario import FeaturePathType, scenario, scenarios
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover
 __all__ = ["given", "scenario", "scenarios", "step", "then", "when"]
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> object:
     if name in {"given", "step", "then", "when"}:
         from pytest_bdd.steps import given, step, then, when
 
@@ -31,4 +31,5 @@ def __getattr__(name: str) -> Any:
         from pytest_bdd.util.packaging import get_distribution_version
 
         return str(get_distribution_version("pytest-bdd-ng"))
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

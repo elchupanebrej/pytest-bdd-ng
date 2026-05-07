@@ -8,7 +8,7 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import monotonic, sleep
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 from filelock import FileLock
@@ -24,20 +24,29 @@ from pytest_bdd.model.message_transport import (
 )
 from pytest_bdd.plugin.gherkin_message_reporter.message_stream import ensure_xdist_controller_batch_patch
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
+    _format_reporting_worker_id,
     _is_xdist_worker_process,
     _resolve_reporting_worker_identity,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
+from pytest_bdd.types.json import JSONObject
 from pytest_bdd.util.live_reporting import (
-    format_reporting_worker_id,
     node_gateway_mode,
     node_worker_id,
 )
+
+
+class _WorkerNode(Protocol):
+    workerinput: dict[str, object]
+    workeroutput: dict[str, object]
+
 
 if TYPE_CHECKING:
     from cucumber_messages import Envelope as Message
 
     from pytest_bdd.compatibility.pytest import Config
+    from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +61,7 @@ def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
 class TransportService(ReporterServiceBase):
     plugin_suffix = "transport"
 
-    def __init__(self, reporter, *, live_formatter_service) -> None:
+    def __init__(self, reporter: GherkinMessageReporter, *, live_formatter_service: LiveFormatterService) -> None:
         super().__init__(reporter)
         self.live_formatter_service = live_formatter_service
 
@@ -92,7 +101,7 @@ class TransportService(ReporterServiceBase):
 
     def _current_reporting_worker_id(self, config: Config) -> str:
         worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
-        return format_reporting_worker_id(worker_id, gateway_mode)
+        return _format_reporting_worker_id(worker_id, gateway_mode)
 
     def _activate_xdist_controller_mode(self) -> None:
         if self.reporter.is_disabled or self.reporter.is_xdist_worker or self.reporter.is_xdist_controller:
@@ -120,7 +129,7 @@ class TransportService(ReporterServiceBase):
         }
 
     @pytest.hookimpl(optionalhook=True)
-    def pytest_configure_node(self, node: Any) -> None:
+    def pytest_configure_node(self, node: _WorkerNode) -> None:
         if self.reporter.is_disabled:
             return
         self._activate_xdist_controller_mode()
@@ -141,7 +150,7 @@ class TransportService(ReporterServiceBase):
             "manifest_received": False,
         }
 
-    def pytest_bdd_xdist_message_batch(self, config: Config, node: Any, batch: dict[str, Any]) -> None:
+    def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: JSONObject) -> None:
         _ = config, node
         if (
             self.reporter.is_disabled
@@ -150,18 +159,20 @@ class TransportService(ReporterServiceBase):
         ):
             return
         self.reporter.xdist_transport_session.receive_remote_event(REPORTING_BATCH_EVENT, {"batch": batch})
+        raw_envelopes = batch.get("envelopes", [])
+        envelopes = raw_envelopes if isinstance(raw_envelopes, list) else []
         self.live_formatter_service._emit_live_formatter_json_lines(
-            [json.dumps(envelope_dict) for envelope_dict in batch.get("envelopes", [])],
+            [json.dumps(envelope_dict) for envelope_dict in envelopes],
             source="xdist worker batch forwarding",
         )
 
     @pytest.hookimpl(optionalhook=True)
-    def pytest_testnodedown(self, node: Any, error: object | None) -> None:
+    def pytest_testnodedown(self, node: _WorkerNode, error: object | None) -> None:
         if self.reporter.is_disabled:
             return
         if not self.reporter.is_xdist_controller:
             return
-        workeroutput = cast(dict[str, Any], getattr(node, "workeroutput", {}))
+        workeroutput = cast(dict[str, object], getattr(node, "workeroutput", {}))
         worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or node_worker_id(node))
         existing_record = self.reporter._xdist_fragment_records.get(
             worker_id,
@@ -189,7 +200,7 @@ class TransportService(ReporterServiceBase):
             existing_record["interruption_reason"] = str(error) if error is not None else None
         self.reporter._xdist_fragment_records[worker_id] = existing_record
 
-    def start_process_messages_thread(self):
+    def start_process_messages_thread(self) -> None:
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
         self.reporter._process_messages_thread_error = None
@@ -201,7 +212,7 @@ class TransportService(ReporterServiceBase):
         self.reporter.process_messages_thread.start()
         sleep(0)
 
-    def finish_process_messages_thread(self):
+    def finish_process_messages_thread(self) -> None:
         deadline = monotonic() + 10
         while self.reporter.process_messages_io_queue.unfinished_tasks:
             if self.reporter._process_messages_thread_error is not None:
@@ -237,13 +248,13 @@ class TransportService(ReporterServiceBase):
 
     @staticmethod
     def process_messages(  # noqa: C901
-        queue: Queue,
+        queue: Queue[str],
         stop_event: Event,
         messages_file_path: str | Path,
         transport_client: ReportingTransportClient | None = None,
         *,
         force_transport_publish_failure: bool = False,
-    ):
+    ) -> None:
         messages_path = Path(messages_file_path)
         lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
         last_enter = False
@@ -252,7 +263,7 @@ class TransportService(ReporterServiceBase):
                 last_enter = True
 
             lines = []
-            batch_envelopes: list[dict[str, Any]] = []
+            batch_envelopes: list[JSONObject] = []
             while not queue.empty():
                 try:
                     message_json = queue.get(timeout=1)
@@ -261,7 +272,7 @@ class TransportService(ReporterServiceBase):
                     continue
 
                 try:
-                    envelope_dict = json.loads(message_json)
+                    envelope_dict = cast(JSONObject, json.loads(message_json))
                     envelope_from_dict(envelope_dict)
                 except (TypeError, ValueError):
                     logger.exception("Failed to parse:\n%s\n", pformat(message_json))
@@ -308,7 +319,7 @@ class TransportService(ReporterServiceBase):
             envelopes.append(envelope_from_dict(json.loads(line)))
         return envelopes
 
-    def _write_final_messages_file(self, envelope_dicts: tuple[dict[str, Any], ...]) -> list[Message]:
+    def _write_final_messages_file(self, envelope_dicts: tuple[JSONObject, ...]) -> list[Message]:
         self.reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         self.reporter.final_messages_file_path.write_text(
             "".join(f"{json.dumps(envelope_dict)}\n" for envelope_dict in envelope_dicts),

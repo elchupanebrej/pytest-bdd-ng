@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable
 from contextlib import suppress
 from inspect import signature
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from attrs import define
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -14,32 +14,34 @@ from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark, get_config_root_path
+from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import StringRepresentable
 from pytest_bdd.util.url import is_url_parsable
 
 
 class FeatureLocatorArgs(TypedDict):
     feature_paths: list[Path | str]  # List of paths to features
-    filter_: Callable[[Config, GherkinDocument, Any], bool] | None  # Callable or string filter
+    filter_: ScenarioLocatorFilterT | str | StringRepresentable | None  # Callable or string filter
     return_test_decorator: bool | None
     encoding: str | None
     features_base_dir: Path | str | None
     features_base_url: str | None
     features_path_type: FeaturePathType | str | None  # Enum or string
-    features_mimetype: str | None
+    features_mimetype: Mimetype | str | None
     parser_type: type[ParserProtocol] | None
     parse_args: Args | None
-    locators: Iterable[Any] | None  # Iterable for locators
+    locators: Iterable[object] | None  # Iterable for locators
 
 
 def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
     """Retrieve and bind the arguments from the mark to their default values."""
     raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
     raw_mark_arguments.apply_defaults()
-    return FeatureLocatorArgs(**cast(FeatureLocatorArgs, raw_mark_arguments.arguments))
+    return cast(FeatureLocatorArgs, raw_mark_arguments.arguments)
 
 
 @define(slots=False)
@@ -64,11 +66,11 @@ class ScenarioLocatorBuilder:
                 return str(base_url)
         return None
 
-    def build_for_pytest_mark(self, mark: Mark) -> Iterable[Any]:
+    def build_for_pytest_mark(self, mark: Mark) -> Iterable[object]:
         """Build scenario locators for all provided marks."""
         yield from self.build_for_feature_locator_args(enrich_feature_locator_args(mark))
 
-    def build_for_feature_locator_args(self, feature_locator_args: FeatureLocatorArgs) -> Iterable[Any]:
+    def build_for_feature_locator_args(self, feature_locator_args: FeatureLocatorArgs) -> Iterable[object]:
         yield from feature_locator_args.get("locators") or []
         features_base_dir = self.resolve_features_base_dir(feature_locator_args.get("features_base_dir"))
         features_base_url = self.resolve_features_base_url(feature_locator_args.get("features_base_url"))
@@ -95,16 +97,16 @@ class ScenarioLocatorBuilder:
             resolved_features_base_dir = str(features_base_dir)
         return resolved_features_base_dir
 
-    def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> Any:
+    def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> str | None:
         """Resolve the base URL for the features from the mark or config."""
         if features_base_url is None:
             features_base_url = self.default_features_base_url
         if callable(features_base_url):
             features_base_url = features_base_url(self.config)
-        return features_base_url
+        return None if features_base_url is None else str(features_base_url)
 
     @staticmethod
-    def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> Any:
+    def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> FeaturePathType:
         """Resolve the type of feature paths (PATH, URL, or UNDEFINED)."""
         if feature_path_type is None:
             return FeaturePathType.UNDEFINED
@@ -119,9 +121,9 @@ class ScenarioLocatorBuilder:
     def _create_file_locator(
         feature_locator_args: FeatureLocatorArgs,
         filter_: ScenarioLocatorFilterT | None,
-        features_base_dir: Any,
-        features_path_type: Any,
-    ) -> Any:
+        features_base_dir: str,
+        features_path_type: FeaturePathType,
+    ) -> FileScenarioLocator | None:
         """Create a FileScenarioLocator instance if applicable."""
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
         if features_path_type is FeaturePathType.PATH:
@@ -148,9 +150,9 @@ class ScenarioLocatorBuilder:
     def _create_url_locator(
         feature_locator_args: FeatureLocatorArgs,
         filter_: ScenarioLocatorFilterT | None,
-        features_base_url: Any,
-        features_path_type: Any,
-    ) -> Any:
+        features_base_url: str | None,
+        features_path_type: FeaturePathType,
+    ) -> UrlScenarioLocator | None:
         """Create a UrlScenarioLocator instance if applicable."""
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
 
@@ -189,7 +191,7 @@ class ScenarioLocatorBuilder:
             filter_ = str(filter_)
 
         def updated_filter(
-            config: Config,  # noqa: ARG001 typecheck
+            config: Config | HasPytestStash,  # noqa: ARG001 typecheck
             gherkin_document: GherkinDocument,  # noqa: ARG001 typecheck
             pickle: Pickle,
         ) -> bool:

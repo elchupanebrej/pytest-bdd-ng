@@ -124,7 +124,7 @@ def allure_report(
 
 
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
-def file(name, extension, testdir, step):
+def file(name, extension, testdir, _step):
     testdir.makefile(extension, **{name: deepattrgetter("argument.doc_string.content", default="")})
 
 

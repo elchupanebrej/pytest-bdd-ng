@@ -1,12 +1,15 @@
+from __future__ import annotations
+
+import io
 import os
+from collections.abc import Callable
 from contextlib import suppress
-from pathlib import Path
-from typing import Any, ClassVar, TextIO, cast
+from typing import TYPE_CHECKING, ClassVar, TextIO, cast
 
 import pytest
 from attrs import frozen
 
-from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager, TerminalReporter
+from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager, Stash, TerminalReporter
 from pytest_bdd.model.stash_access import StashBound
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_contract import ReporterLifecycleContract
 from pytest_bdd.util.cucumber_formatters import (
@@ -21,6 +24,9 @@ from .plugin import (
     CucumberFormatterConfigurationError,
     GherkinMessageReporter,
 )
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 _REPORTING_OUTPUT_OPTION_FLAGS = (
     "--messagesndjson",
@@ -72,11 +78,13 @@ def _reporting_requested_from_args(args: list[str]) -> bool:
 
 
 def _terminal_formatter_flags_requested(args: list[str]) -> bool:
-    return terminal_formatter_flags_requested(args)
+    impl = cast(Callable[[list[str]], bool], terminal_formatter_flags_requested)
+    return impl(args)
 
 
 def _pytest_capture_already_configured(args: list[str]) -> bool:
-    return _pytest_capture_already_configured_impl(args)
+    impl = cast(Callable[[list[str]], bool], _pytest_capture_already_configured_impl)
+    return impl(args)
 
 
 def _running_on_windows() -> bool:
@@ -84,10 +92,7 @@ def _running_on_windows() -> bool:
 
 
 def _remote_xdist_requested(args: list[str]) -> bool:
-    return any(
-        arg in {"--tx", "--px"} or arg.startswith("--tx=") or arg.startswith("--px=")
-        for arg in args
-    )
+    return any(arg in {"--tx", "--px"} or arg.startswith(("--tx=", "--px=")) for arg in args)
 
 
 def _pytest_cache_already_configured(args: list[str]) -> bool:
@@ -105,12 +110,12 @@ def _pytest_cache_already_configured(args: list[str]) -> bool:
     return False
 
 
-def _replace_terminal_reporter_with_quiet_variant(config: Config):
+def _replace_terminal_reporter_with_quiet_variant(config: Config) -> Callable[[], None] | None:
     current_reporter = config.pluginmanager.getplugin("terminalreporter")
     if current_reporter is None or current_reporter.__class__ != TerminalReporter:
         return None
 
-    quiet_stream = Path(os.devnull).open("w", encoding="utf-8")  # noqa: SIM115
+    quiet_stream = io.StringIO()
     quiet_reporter = _QuietTerminalReporter(config, quiet_stream=quiet_stream)
     config.pluginmanager.unregister(current_reporter)
     config.pluginmanager.register(quiet_reporter, "terminalreporter")
@@ -132,10 +137,10 @@ def _replace_terminal_reporter_with_quiet_variant(config: Config):
     return restore
 
 
-def _config_stash(config: Config) -> Any:
+def _config_stash(config: Config) -> Stash:
     stash = getattr(config, "stash", None)
     if stash is None:
-        stash = {}
+        stash = Stash()
         config.stash = stash
     return stash
 
@@ -154,7 +159,7 @@ def _clear_reporter_state(config: Config) -> None:
     if stash is None:
         return
     with suppress(KeyError, AttributeError):
-        del cast(Any, stash)[_ReporterStateEntry.STASH_KEY]
+        del stash[_ReporterStateEntry.STASH_KEY]
 
 
 def _require_reporter_lifecycle_contract(reporter: object) -> ReporterLifecycleContract:
@@ -189,7 +194,7 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_load_initial_conftests(early_config, parser, args) -> None:  # noqa: ARG001
+def pytest_load_initial_conftests(_early_config: Config, _parser: Parser, args: list[str]) -> None:
     if (
         _running_on_windows()
         and _reporting_requested_from_args(list(args))
@@ -253,7 +258,7 @@ def pytest_configure(config: Config) -> None:
 
 
 @pytest.hookimpl(optionalhook=True, tryfirst=True)
-def pytest_xdist_getremotemodule():
+def pytest_xdist_getremotemodule() -> ModuleType:
     from pytest_bdd_worker_bootstrap import xdist_remote
 
     return xdist_remote

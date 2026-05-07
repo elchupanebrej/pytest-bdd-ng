@@ -1,22 +1,34 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from enum import Enum
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Literal, NamedTuple, Protocol, TypeAlias, cast, overload
 
 import pytest
 
 from pytest_bdd.compatibility.parser import ParserProtocol
+from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import compose
 
 
+class ScenarioFunction(Protocol):
+    __name__: str
+
+    def __call__(self) -> object: ...
+
+
 class Args(NamedTuple):
-    args: tuple[Any, ...]
-    kwargs: dict[str, Any]
+    args: tuple[object, ...]
+    kwargs: dict[str, object]
 
 
-def get_python_name_generator(name: str) -> Iterable[str]:
+ScenarioDecorator: TypeAlias = Callable[[ScenarioFunction], ScenarioFunction]
+ScenarioTest: TypeAlias = Callable[[], object]
+ScenarioFilterT: TypeAlias = str | Callable[[Config, object, object], bool] | None
+
+
+def get_python_name_generator(name: str) -> Iterator[str]:
     """Generate a sequence of suitable python names out of given arbitrary string name."""
     python_name = format_as_simplified_python_identifier(name)
     suffix = ""
@@ -40,20 +52,54 @@ class FeaturePathType(Enum):
     UNDEFINED = "undefined"
 
 
+@overload
 def scenario(
     feature_name: Path | str | None = None,
     scenario_name: str | None = None,
     encoding: str = "utf-8",
     features_base_dir: Path | str | None = None,
-    features_base_url=None,
+    features_base_url: str | None = None,
     features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
     features_mimetype: Mimetype | None = None,
     parser_type: type[ParserProtocol] | None = None,
     parse_args: Args | None = None,
-    locators=(),
+    locators: Iterable[object] = (),
     *,
-    return_test_decorator=True,
-):
+    return_test_decorator: Literal[True] = True,
+) -> ScenarioDecorator: ...
+
+
+@overload
+def scenario(
+    feature_name: Path | str | None = None,
+    scenario_name: str | None = None,
+    encoding: str = "utf-8",
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
+    locators: Iterable[object] = (),
+    *,
+    return_test_decorator: Literal[False],
+) -> ScenarioTest: ...
+
+
+def scenario(
+    feature_name: Path | str | None = None,
+    scenario_name: str | None = None,
+    encoding: str = "utf-8",
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
+    locators: Iterable[object] = (),
+    *,
+    return_test_decorator: bool = True,
+) -> ScenarioDecorator | ScenarioTest:
     """Scenario decorator.
 
     :param feature_name: Feature file name. Absolute or relative to the configured feature base path.
@@ -68,25 +114,47 @@ def scenario(
     :param locators: Feature locators to load Features; Could be custom
     :param return_test_decorator; Return test decorator or generated test
     """
-    return scenarios(
-        *([feature_name] if feature_name is not None else []),
-        filter_=scenario_name,
-        encoding=encoding,
-        features_base_dir=features_base_dir,
-        features_base_url=features_base_url,
-        features_path_type=features_path_type,
-        features_mimetype=features_mimetype,
-        return_test_decorator=return_test_decorator,
-        locators=locators,
-        parser_type=parser_type,
-        parse_args=parse_args,
+    feature_paths = [feature_name] if feature_name is not None else []
+    if return_test_decorator:
+        return cast(
+            ScenarioDecorator,
+            scenarios(
+                *feature_paths,
+                filter_=scenario_name,
+                encoding=encoding,
+                features_base_dir=features_base_dir,
+                features_base_url=features_base_url,
+                features_path_type=features_path_type,
+                features_mimetype=features_mimetype,
+                return_test_decorator=True,
+                locators=locators,
+                parser_type=parser_type,
+                parse_args=parse_args,
+            ),
+        )
+    return cast(
+        ScenarioTest,
+        scenarios(
+            *feature_paths,
+            filter_=scenario_name,
+            encoding=encoding,
+            features_base_dir=features_base_dir,
+            features_base_url=features_base_url,
+            features_path_type=features_path_type,
+            features_mimetype=features_mimetype,
+            return_test_decorator=False,
+            locators=locators,
+            parser_type=parser_type,
+            parse_args=parse_args,
+        ),
     )
 
 
+@overload
 def scenarios(
     *feature_paths: Path | str,
-    filter_: str | Callable | None = None,
-    return_test_decorator=False,
+    filter_: ScenarioFilterT = None,
+    return_test_decorator: Literal[True],
     encoding: str = "utf-8",
     features_base_dir: Path | str | None = None,
     features_base_url: str | None = None,
@@ -94,8 +162,39 @@ def scenarios(
     features_mimetype: Mimetype | None = None,
     parser_type: type[ParserProtocol] | None = None,
     parse_args: Args | None = None,
-    locators=(),
-):
+    locators: Iterable[object] = (),
+) -> ScenarioDecorator: ...
+
+
+@overload
+def scenarios(
+    *feature_paths: Path | str,
+    filter_: ScenarioFilterT = None,
+    return_test_decorator: Literal[False] = False,
+    encoding: str = "utf-8",
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
+    locators: Iterable[object] = (),
+) -> ScenarioTest: ...
+
+
+def scenarios(
+    *feature_paths: Path | str,
+    filter_: ScenarioFilterT = None,
+    return_test_decorator: bool = False,
+    encoding: str = "utf-8",
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Args | None = None,
+    locators: Iterable[object] = (),
+) -> ScenarioDecorator | ScenarioTest:
     """Function to bind feature files to pytest runtime
 
     :param feature_paths: Features file names. Absolute or relative to the configured feature base path.
@@ -122,20 +221,23 @@ def scenarios(
     elif features_base_url:
         features_path_type = FeaturePathType.URL
 
-    decorator = compose(
-        pytest.mark.pytest_bdd_scenario,
-        pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),
-        pytest.mark.scenarios(
-            *feature_paths,
-            filter_=filter_,
-            encoding=encoding,
-            features_base_dir=features_base_dir,
-            features_base_url=features_base_url,
-            features_path_type=features_path_type,
-            features_mimetype=features_mimetype,
-            parser_type=parser_type,
-            parse_args=parse_args,
-            locators=locators,
+    decorator = cast(
+        ScenarioDecorator,
+        compose(
+            pytest.mark.pytest_bdd_scenario,
+            pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),
+            pytest.mark.scenarios(
+                *feature_paths,
+                filter_=filter_,
+                encoding=encoding,
+                features_base_dir=features_base_dir,
+                features_base_url=features_base_url,
+                features_path_type=features_path_type,
+                features_mimetype=features_mimetype,
+                parser_type=parser_type,
+                parse_args=parse_args,
+                locators=locators,
+            ),
         ),
     )
 
@@ -143,7 +245,8 @@ def scenarios(
         return decorator
 
     @decorator
-    def test(): ...
+    def test() -> None:
+        return None
 
     test.__name__ = next(iter(test_names))
 

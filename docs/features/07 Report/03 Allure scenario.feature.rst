@@ -7,41 +7,41 @@ validates plugin-gated execution when Allure integration is unavailable.
 Scenario: Scenario reporting is guarded by Allure availability
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given Copy path from "features/07 Report/06 Allure/01
-   scenario.feature" to test path "scenario.feature"
+- Given Copy path from "features/07 Report/06 Allure/01
+  scenario.feature" to test path "scenario.feature"
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given('passing step')
-      def _():
-        ...
+     @given('passing step')
+     def _():
+       ...
 
--  And File "test_sample.py" with content:
+- And File "test_sample.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      import pytest
-      from pytest_bdd import scenarios
-      from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+     import pytest
+     from pytest_bdd import scenarios
+     from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 
-      pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
-      test = scenarios("scenario.feature")
+     pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
+     test = scenarios("scenario.feature")
 
--  When run uv-tox
+- When run pytest
 
-   ======== =================
-   cli_args -k test_sample.py
-   ======== =================
-   ======== =================
+  ======== =================
+  cli_args -k test_sample.py
+  ======== =================
+  ======== =================
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +---------+
-   | skipped |
-   +=========+
-   | 1       |
-   +---------+
+  +---------+
+  | skipped |
+  +=========+
+  | 1       |
+  +---------+

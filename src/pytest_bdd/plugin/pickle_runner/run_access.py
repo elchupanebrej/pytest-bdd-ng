@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
@@ -18,7 +18,10 @@ from pytest_bdd.model.scenario_run import (
 from .run_transitions import build_lifecycle_ref
 
 if TYPE_CHECKING:
+    from cucumber_messages import GherkinDocument, Pickle, PickleStep, Source
+
     from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.types.protocol import Identifiable
 
 
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
@@ -31,22 +34,22 @@ def require_feature_binding(run: Run, *, hook_name: str) -> FeatureRuntimeBindin
     return scenario_run.require_feature_binding(hook_name=hook_name)
 
 
-def require_feature_object(run: Run, *, hook_name: str) -> Any:
+def require_feature_object(run: Run, *, hook_name: str) -> GherkinDocument:
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_gherkin_document(hook_name=hook_name)
 
 
-def require_pickle_object(run: Run, *, hook_name: str) -> Any:
+def require_pickle_object(run: Run, *, hook_name: str) -> Pickle:
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_pickle(hook_name=hook_name)
 
 
-def require_step_object(run: Run, *, hook_name: str) -> Any:
+def require_step_object(run: Run, *, hook_name: str) -> PickleStep:
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_step_object(hook_name=hook_name)
 
 
-def resolve_feature_object(run: Run) -> Any | None:
+def resolve_feature_object(run: Run) -> GherkinDocument | None:
     binding = run.active_feature_binding
     if binding is not None:
         return binding.gherkin_document
@@ -54,7 +57,7 @@ def resolve_feature_object(run: Run) -> Any | None:
     return scenario_run.gherkin_document if scenario_run is not None else None
 
 
-def resolve_feature_source(run: Run) -> Any | None:
+def resolve_feature_source(run: Run) -> Source | None:
     binding = run.active_feature_binding
     if binding is not None:
         return binding.source
@@ -62,17 +65,17 @@ def resolve_feature_source(run: Run) -> Any | None:
     return scenario_run.feature_source if scenario_run is not None else None
 
 
-def resolve_pickle_object(run: Run) -> Any | None:
+def resolve_pickle_object(run: Run) -> Pickle | None:
     scenario_run = run.active_scenario_run
     return scenario_run.pickle if scenario_run is not None else None
 
 
-def resolve_step_object(run: Run) -> Any | None:
+def resolve_step_object(run: Run) -> PickleStep | None:
     scenario_run = run.active_scenario_run
     return scenario_run.step_object if scenario_run is not None else None
 
 
-def resolve_previous_step_object(run: Run) -> Any | None:
+def resolve_previous_step_object(run: Run) -> PickleStep | object | None:
     scenario_run = run.active_scenario_run
     return scenario_run.previous_step_object if scenario_run is not None else None
 
@@ -164,7 +167,7 @@ def resolve_registry_node(
     feature_binding: FeatureRuntimeBinding | None,
     ast_node_id: str,
     scenario_run: ScenarioRun | None = None,
-) -> Any | None:
+) -> Identifiable | None:
     node = None
     if feature_binding is not None:
         with suppress(KeyError):
@@ -177,7 +180,7 @@ def resolve_registry_node(
 
 def resolve_scenario_description(
     *,
-    pickle: Any,
+    pickle: Pickle,
     feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
 ) -> str | None:
@@ -201,10 +204,10 @@ def resolve_scenario_description(
 
 def resolve_step_runtime_enrichment(
     *,
-    step: Any,
+    step: PickleStep,
     feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     model_step = effective_binding.pickle_step_ast_step(step) if effective_binding is not None else None
     if model_step is None:

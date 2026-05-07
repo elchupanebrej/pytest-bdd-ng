@@ -1,5 +1,5 @@
 class IncompatiblePluginError(Exception):
-    def __init__(self, reporter):
+    def __init__(self, reporter: object) -> None:
         super().__init__(
             "gherkin-terminal-reporter is not compatible with any other terminal reporter."
             "You can use only one terminal reporter."
@@ -9,5 +9,5 @@ class IncompatiblePluginError(Exception):
 
 
 class IncompatiblePluginConfigurationError(Exception):
-    def __init__(self, plugin):
+    def __init__(self, plugin: object) -> None:
         super().__init__(f"gherkin-terminal-reporter is not compatible with '{plugin}' plugin.")

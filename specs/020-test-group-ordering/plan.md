@@ -1,6 +1,6 @@
 # Implementation Plan: Test Group Ordering
 
-**Branch**: `020-test-group-ordering` | **Date**: 2026-05-05 | **Spec**: [spec.md](./spec.md)  
+**Branch**: `020-test-group-ordering` | **Date**: 2026-05-05 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/spec.md`
 
 ## Summary
@@ -13,14 +13,14 @@ Runtime ordering must preserve group barriers under xdist: no test from a later 
 
 ## Technical Context
 
-**Language/Version**: Python 3.10-3.14  
-**Primary Dependencies**: `pytest >= 7`, `pytest-order` (new, test dependency), `pytest-xdist >= 3.8.0` (existing)  
-**Storage**: N/A  
-**Testing**: `pytest`, `tox`, `pre-commit`, `ruff`, `mypy` where applicable  
-**Target Platform**: Windows (native), Linux, macOS  
-**Project Type**: Python library plus internal test infrastructure  
-**Performance Goals**: <= 2 seconds collection-phase wall-clock overhead compared between `pytest --collect-only` with grouping enabled and disabled  
-**Constraints**: No hardcoded group names; no test tree moves; no direct item sorting in project hooks; xdist runtime group barriers; pytest ini-style configuration only; all documentation in English  
+**Language/Version**: Python 3.10-3.14
+**Primary Dependencies**: `pytest >= 7`, `pytest-order` (new, test dependency), `pytest-xdist >= 3.8.0` (existing)
+**Storage**: N/A
+**Testing**: `pytest`, `tox`, `pre-commit`, `ruff`, `mypy` where applicable
+**Target Platform**: Windows (native), Linux, macOS
+**Project Type**: Python library plus internal test infrastructure
+**Performance Goals**: <= 2 seconds collection-phase wall-clock overhead compared between `pytest --collect-only` with grouping enabled and disabled
+**Constraints**: No hardcoded group names; no test tree moves; no direct item sorting in project hooks; xdist runtime group barriers; pytest ini-style configuration only; all documentation in English
 **Scale/Scope**: Existing mixed `tests/` tree classified through pytest ini path mappings and markers; initial example config contains five groups
 
 ## Constitution Check

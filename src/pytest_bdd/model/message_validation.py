@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Final, Literal, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 from attrs import frozen
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+
+from pytest_bdd.compatibility.jsonschema import SchemaValidator, ValidationError, build_validator
 
 from .coverage.inventory import canonical_capability_id, canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
@@ -28,9 +30,11 @@ from .message_outcome_mapping import (
 from .message_serialization import MessageSerializationProfile
 from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASES, normalize_capability_status
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
-def _build_schema_validator() -> tuple[Any | None, str | None]:
-    from jsonschema import validators
+
+def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
     from referencing import Registry, Resource
 
     try:
@@ -47,15 +51,13 @@ def _build_schema_validator() -> tuple[Any | None, str | None]:
         registry = registry.with_resource(schema_path.name, resource)
         registry = registry.with_resource(f"./{schema_path.name}", resource)
 
-    validator_class = validators.validator_for(envelope_schema)
-    validator_class.check_schema(envelope_schema)
-    return validator_class(envelope_schema, registry=registry), None
+    return build_validator(envelope_schema, registry=registry), None
 
 
-_VALIDATOR_STATE: tuple[Any | None, str | None] | None = None
+_VALIDATOR_STATE: tuple[SchemaValidator | None, str | None] | None = None
 
 
-def _schema_validator_state() -> tuple[Any | None, str | None]:
+def _schema_validator_state() -> tuple[SchemaValidator | None, str | None]:
     global _VALIDATOR_STATE
     if _VALIDATOR_STATE is None:
         _VALIDATOR_STATE = _build_schema_validator()
@@ -257,7 +259,7 @@ def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
     return result
 
 
-def _track_fields(payload_kind: str, current_path: str, data: object, observed_coverage: ObservedCoverage):
+def _track_fields(payload_kind: str, current_path: str, data: object, observed_coverage: ObservedCoverage) -> None:
     if isinstance(data, dict):
         for k, v in data.items():
             if v is not None and v != "":
@@ -269,7 +271,7 @@ def _track_fields(payload_kind: str, current_path: str, data: object, observed_c
             _track_fields(payload_kind, current_path, item, observed_coverage)
 
 
-def _payload_object_for_kind(envelope_dict: dict[str, object], payload_kind: str) -> object:
+def _payload_object_for_kind(envelope_dict: Mapping[str, object], payload_kind: str) -> object:
     if payload_kind in envelope_dict:
         return envelope_dict[payload_kind]
     if "_" in payload_kind:
@@ -280,7 +282,7 @@ def _payload_object_for_kind(envelope_dict: dict[str, object], payload_kind: str
     return {}
 
 
-def _schema_violation(error: Any) -> MessageValidationViolation:
+def _schema_violation(error: ValidationError) -> MessageValidationViolation:
     json_path = tuple(str(part) for part in error.absolute_path)
     schema_path = tuple(str(part) for part in error.absolute_schema_path)
     return MessageValidationViolation(
@@ -347,7 +349,7 @@ def format_xdist_transport_compatibility_error(reason: str) -> str:
 
 
 def validate_envelope_dict_against_schema(
-    envelope_dict: dict[str, object],
+    envelope_dict: Mapping[str, object],
 ) -> tuple[MessageValidationViolation, ...]:
     clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
     validator, validator_init_error = _schema_validator_state()

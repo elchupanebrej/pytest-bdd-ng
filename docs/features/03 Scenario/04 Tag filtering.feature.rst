@@ -8,104 +8,103 @@ after background sections.
 Scenario: Select scenarios by marker expression
 '''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given File "pytest.ini" with content:
+- Given File "pytest.ini" with content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      markers =
-          feature_tag_1
-          feature_tag_2
-          scenario_tag_01
-          scenario_tag_02
-          scenario_tag_10
-          scenario_tag_20
+     [pytest]
+     markers =
+         feature_tag_1
+         feature_tag_2
+         scenario_tag_01
+         scenario_tag_02
+         scenario_tag_10
+         scenario_tag_20
 
--  And File "tags.feature" with content:
+- And File "tags.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      @feature_tag_1 @feature_tag_2
-      Feature: Tags
+     @feature_tag_1 @feature_tag_2
+     Feature: Tags
 
-        @scenario_tag_01 @scenario_tag_02
-        Scenario: Tags
-          Given I have a bar
+       @scenario_tag_01 @scenario_tag_02
+       Scenario: Tags
+         Given I have a bar
 
-        @scenario_tag_10 @scenario_tag_20
-        Scenario: Tags 2
-          Given I have a bar
+       @scenario_tag_10 @scenario_tag_20
+       Scenario: Tags 2
+         Given I have a bar
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given("I have a bar")
-      def _bar():
-        return "bar"
+     @given("I have a bar")
+     def _bar():
+       return "bar"
 
--  When run pytest
+- When run pytest
 
-   \| cli_args \| -m \| scenario_tag_10 and not scenario_tag_01 \| -vv
-   \|
+  \| cli_args \| -m \| scenario_tag_10 and not scenario_tag_01 \| -vv \|
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======
 
 Scenario: Keep tags working after background blocks
 '''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given File "pytest.ini" with content:
+- Given File "pytest.ini" with content:
 
-   .. code:: ini
+  .. code:: ini
 
-      [pytest]
-      markers = tag
+     [pytest]
+     markers = tag
 
--  And File "tags_after_background.feature" with content:
+- And File "tags_after_background.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Tags after background
-        Background:
-          Given I have a bar
+     Feature: Tags after background
+       Background:
+         Given I have a bar
 
-        @tag
-        Scenario: Tagged scenario
-          Given I have a baz
+       @tag
+       Scenario: Tagged scenario
+         Given I have a baz
 
-        Scenario: Untagged scenario
-          Given I have a baz
+       Scenario: Untagged scenario
+         Given I have a baz
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given("I have a bar")
-      def _bar():
-        return "bar"
+     @given("I have a bar")
+     def _bar():
+       return "bar"
 
-      @given("I have a baz")
-      def _baz():
-        return "baz"
+     @given("I have a baz")
+     def _baz():
+       return "baz"
 
--  When run pytest
+- When run pytest
 
-   \| cli_args \| -m \| tag \| -vv \|
+  \| cli_args \| -m \| tag \| -vv \|
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

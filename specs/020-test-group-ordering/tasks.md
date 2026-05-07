@@ -4,7 +4,7 @@ description: "Task list for feature: Test Group Ordering"
 
 # Tasks: Test Group Ordering
 
-**Input**: Design documents from `/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/`  
+**Input**: Design documents from `/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/`
 **Prerequisites**: [plan.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/plan.md), [spec.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/spec.md), [research.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/research.md), [data-model.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/data-model.md), [contracts/group-config.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/contracts/group-config.md), [quickstart.md](/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/quickstart.md)
 
 **Tests**: Required by the feature's TDD Contract and Agentic Validation Constraints. Test tasks must be completed RED before related implementation tasks.

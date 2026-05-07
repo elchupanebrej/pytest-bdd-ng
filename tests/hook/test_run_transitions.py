@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
+from attrs import define
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
@@ -18,13 +17,13 @@ from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner
 from pytest_bdd.plugin.pickle_runner.run_transitions import apply_transition
 
 
-@dataclass(slots=True)
+@define
 class _Dummy:
     name: str
     id: str
 
 
-@dataclass(slots=True)
+@define
 class _TransitionInputs:
     feature: _Dummy
     scenario: _Dummy

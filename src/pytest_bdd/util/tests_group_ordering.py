@@ -6,9 +6,10 @@ import os
 import time
 import warnings
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypedDict
+
+from attrs import frozen
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -21,13 +22,13 @@ from pytest_bdd.compatibility.tomllib import loads as load_toml
 ResolutionSource = Literal["dir_convention", "path_pattern", "conftest_marker", "test_marker", "default"]
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class GroupPathMapping:
     pattern: str
     group_name: str
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class GroupConfig:
     groups: list[str]
     default: str
@@ -35,7 +36,7 @@ class GroupConfig:
     rootpath: Path
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class GroupAssignment:
     item_nodeid: str
     group_name: str
@@ -43,12 +44,19 @@ class GroupAssignment:
     resolution_source: ResolutionSource
 
 
-@dataclass(frozen=True, slots=True)
+@frozen
 class RuntimeGroupBarrierObservation:
     item_nodeid: str
     group_name: str
     event: Literal["start", "finish"]
     timestamp: float
+
+
+class _BarrierState(TypedDict):
+    groups: list[str]
+    expected: dict[str, int]
+    finished: dict[str, int]
+    finished_nodeids: list[str]
 
 
 _BUILTIN_PYTEST_MARKERS = {
@@ -301,7 +309,7 @@ def _resolve_marker_group(item: pytest.Item, group_config: GroupConfig) -> tuple
     return None
 
 
-def _iter_markers_with_nodes(item: pytest.Item):
+def _iter_markers_with_nodes(item: pytest.Item) -> Iterator[tuple[pytest.Item, Mark]]:
     marker_iter = getattr(item, "iter_markers_with_node", None)
     if marker_iter is not None:
         yield from marker_iter()
@@ -348,21 +356,22 @@ def _initialize_barrier_state(state_path: Path, groups: list[str], expected: dic
     with _barrier_lock(state_path):
         if state_path.exists():
             return
+        state: _BarrierState = {
+            "groups": groups,
+            "expected": expected,
+            "finished": dict.fromkeys(groups, 0),
+            "finished_nodeids": [],
+        }
         _write_barrier_state(
             state_path,
-            {
-                "groups": groups,
-                "expected": expected,
-                "finished": dict.fromkeys(groups, 0),
-                "finished_nodeids": [],
-            },
+            state,
         )
 
 
-def _previous_groups_finished(state: dict[str, object], assignment: GroupAssignment) -> bool:
-    groups = list(state.get("groups", []))
-    expected = dict(state.get("expected", {}))
-    finished = dict(state.get("finished", {}))
+def _previous_groups_finished(state: _BarrierState, assignment: GroupAssignment) -> bool:
+    groups = state["groups"]
+    expected = state["expected"]
+    finished = state["finished"]
     for group_name in groups[: assignment.ordinal - 1]:
         if int(finished.get(group_name, 0)) < int(expected.get(group_name, 0)):
             return False
@@ -372,10 +381,10 @@ def _previous_groups_finished(state: dict[str, object], assignment: GroupAssignm
 def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> None:
     with _barrier_lock(state_path):
         state = _read_barrier_state(state_path)
-        finished_nodeids = set(state.get("finished_nodeids", []))
+        finished_nodeids = set(state["finished_nodeids"])
         if assignment.item_nodeid in finished_nodeids:
             return
-        finished = dict(state.get("finished", {}))
+        finished = state["finished"]
         finished[assignment.group_name] = int(finished.get(assignment.group_name, 0)) + 1
         finished_nodeids.add(assignment.item_nodeid)
         state["finished"] = finished
@@ -383,13 +392,41 @@ def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> Non
         _write_barrier_state(state_path, state)
 
 
-def _read_barrier_state(state_path: Path) -> dict[str, object]:
+def _read_barrier_state(state_path: Path) -> _BarrierState:
     if not state_path.exists():
         return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
-    return json.loads(state_path.read_text(encoding="utf-8"))
+    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
+    return {
+        "groups": _coerce_string_list(payload.get("groups")),
+        "expected": _coerce_int_mapping(payload.get("expected")),
+        "finished": _coerce_int_mapping(payload.get("finished")),
+        "finished_nodeids": _coerce_string_list(payload.get("finished_nodeids")),
+    }
 
 
-def _write_barrier_state(state_path: Path, state: dict[str, object]) -> None:
+def _coerce_string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if str(item).strip()]
+
+
+def _coerce_int_mapping(value: object) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, int] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            continue
+        try:
+            result[key] = int(item)
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _write_barrier_state(state_path: Path, state: _BarrierState) -> None:
     temp_path = state_path.with_suffix(f".{os.getpid()}.tmp")
     temp_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
     temp_path.replace(state_path)

@@ -1,21 +1,19 @@
-from typing import Any
+from typing import cast
 
 from pytest_bdd.compatibility.pytest import Config, TerminalReporter, TestReport
-from pytest_bdd.plugin.scenario_reporter.report import normalize_runtime_step_status
+from pytest_bdd.plugin.scenario_reporter.report import ScenarioReportData, StepReportData, normalize_runtime_step_status
 
 
-def canonical_terminal_step_status(step: dict[str, Any]) -> str:
-    return normalize_runtime_step_status(step.get("status"), failed_fallback=bool(step.get("failed")))
+def canonical_terminal_step_status(step: StepReportData) -> str:
+    return normalize_runtime_step_status(step["status"], failed_fallback=step["failed"])
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
     def __init__(self, config: Config) -> None:
         super().__init__(config)
 
-    def pytest_runtest_logreport(self, report: TestReport) -> Any:
-        rep = report
-        res = self.config.hook.pytest_report_teststatus(report=rep, config=self.config)
-        cat, letter, word = res
+    def pytest_runtest_logreport(self, report: TestReport) -> None:
+        cat, letter, word = self.config.hook.pytest_report_teststatus(report=report, config=self.config)
 
         if not letter and not word:
             # probably passed setup/teardown
@@ -23,18 +21,18 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
 
         if isinstance(word, tuple):
             word, word_markup = word
-        elif rep.passed:
+        elif report.passed:
             word_markup = {"green": True}
-        elif rep.failed:
+        elif report.failed:
             word_markup = {"red": True}
-        elif rep.skipped:
+        elif report.skipped:
             word_markup = {"yellow": True}
         scenario_markup = word_markup
 
         if self.verbosity <= 0 or not hasattr(report, "scenario"):
             return super().pytest_runtest_logreport(report)
 
-        scenario = report.scenario
+        scenario = cast(ScenarioReportData, report.scenario)
         self.ensure_newline()
         self._tw.write(f"Feature: {scenario['feature']['name']}\n", blue=True)
         self._tw.write(f"    Scenario: {scenario['name']}", **scenario_markup)
@@ -55,5 +53,5 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
                     **step_markup,
                 )
         self._tw.write(f"    {word}\n", **word_markup)
-        self.stats.setdefault(cat, []).append(rep)
+        self.stats.setdefault(cat, []).append(report)
         return None

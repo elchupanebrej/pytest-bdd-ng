@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Stash
@@ -13,7 +13,7 @@ class HasPytestStash(Protocol):
 
 @runtime_checkable
 class Identifiable(Protocol):
-    id: Any
+    id: object
 
 
 @runtime_checkable

@@ -1,10 +1,11 @@
 import mimetypes
+from collections.abc import Generator, Mapping
 from contextlib import suppress
 from functools import partial
 from inspect import getmembers
 from operator import contains
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Protocol
 
 import pytest
 
@@ -15,8 +16,16 @@ from .model import StepPrototype
 from .parser import StructBDDParser
 
 
+class _HookCallOutcome(Protocol):
+    def get_result(self) -> object: ...
+
+
+class _ParserFactory(Protocol):
+    def __call__(self, *, loader: object | None = None) -> StructBDDParser: ...
+
+
 class StructBDDPlugin:
-    extension_to_mimetype: ClassVar = {
+    extension_to_mimetype: ClassVar[Mapping[StructBDDParser.KIND, Mimetype]] = {
         StructBDDParser.KIND.YAML: Mimetype.struct_bdd_yaml,
         StructBDDParser.KIND.HOCON: Mimetype.struct_bdd_hocon,
         StructBDDParser.KIND.JSON5: Mimetype.struct_bdd_json5,
@@ -30,7 +39,7 @@ class StructBDDPlugin:
         self,
         config: Config,  # noqa: ARG002 hookspec
         mimetype: str,
-    ):
+    ) -> _ParserFactory | None:
         with suppress(KeyError, ValueError):
             return partial(  # type:ignore[call-arg]
                 StructBDDParser,
@@ -46,7 +55,7 @@ class StructBDDPlugin:
         return None
 
     @staticmethod
-    def _get_mimetype(path: Path):
+    def _get_mimetype(path: Path) -> Mimetype:
         mimetype_string, _encoding = mimetypes.guess_type(path)
         if mimetype_string is None:
             raise ValueError
@@ -70,7 +79,7 @@ class StructBDDPlugin:
         self,
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
-    ):
+    ) -> Mimetype | None:
         with suppress(ValueError):
             return self._get_mimetype(path)
         return None
@@ -80,14 +89,14 @@ class StructBDDPlugin:
         self,
         config: Config,  # noqa: ARG002 hookspec
         path: Path,
-    ):
+    ) -> bool | None:
         with suppress(ValueError):
             self._get_mimetype(path)
             return True
         return None
 
     @staticmethod
-    def _pytest_pycollect_makemodule():
+    def _pytest_pycollect_makemodule() -> Generator[None, _HookCallOutcome, None]:
         outcome = yield
         res = outcome.get_result()
         if isinstance(res, Module):
@@ -99,7 +108,7 @@ class StructBDDPlugin:
     @pytest.hookimpl(hookwrapper=True)
     def pytest_pycollect_makemodule(
         self,
-        parent,  # noqa: ARG002 hookspec
-        module_path,  # noqa: ARG002 hookspec
-    ):
+        parent: object,  # noqa: ARG002 hookspec
+        module_path: Path,  # noqa: ARG002 hookspec
+    ) -> Generator[None, _HookCallOutcome, None]:
         yield from self._pytest_pycollect_makemodule()

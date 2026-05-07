@@ -19,7 +19,7 @@ class ParserProtocol(Protocol):
         config: Config | HasPytestStash,
         path: Path,
         uri: str,
-        *args,
-        **kwargs,
+        *args: object,
+        **kwargs: object,
     ) -> tuple[GherkinDocument, str]:  # pragma: no cover
         ...

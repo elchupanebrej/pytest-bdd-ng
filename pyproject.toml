@@ -153,11 +153,16 @@ testenv = [
   "codecov"
 ]
 testtypes = [
+  "GitPython",
   "mypy",
   "types-certifi",
   "types-chevron",
   "types-docopt",
+  "types-gunicorn",
+  "types-jsonschema",
   "types-pathlib2",
+  "types-pexpect",
+  "types-Pygments",
   "types-setuptools"
 ]
 
@@ -170,93 +175,10 @@ render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-bdd_features_base_dir = "features/"
-addopts = "-p pytester --order-scope=session"
-filterwarnings = [
-  "error",
-  "ignore::DeprecationWarning",
-  "ignore::ImportWarning"
-]
-markers = [
-  "deprecated: mark test testing deprecated API",
-  "deficient: mark test with non-full coverage",
-  "docker: mark tests that require Docker-backed environments",
-  "instant: smallest in-process tests",
-  "fast: normal fast tests",
-  "medium: moderate integration tests",
-  "slow: expensive local tests",
-  "external: tests requiring external services",
-  "slow: mark tests that are intentionally excluded from short/default runs",
-  "playwright: mark browser-backed acceptance tests",
-  "surplus: mark test testing non-standard API",
-  "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
-  "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
-  "order: execution ordering marker from pytest-order"
-]
-test_group_order = ["instant", "fast", "medium", "slow", "external"]
-test_group_default = "fast"
-test_group_paths = [
-  "tests/unit/** = instant",
-  "tests/model/** = instant",
-  "tests/args/** = fast",
-  "tests/hook/** = fast",
-  "tests/steps/** = fast",
-  "tests/feature/** = medium",
-  "tests/gherkin_integration/** = medium",
-  "tests/library/** = medium",
-  "tests/struct_bdd/** = medium",
-  "tests/allure_/** = slow",
-  "tests/compatibility/** = slow",
-  "tests/contract/** = slow",
-  "tests/doc/** = slow",
-  "tests/generation/** = slow",
-  "tests/messages/** = slow",
-  "tests/messages_coverage/** = slow",
-  "tests/scripts/** = slow",
-  "tests/e2e/** = external",
-]
-
-[tool.setuptools]
-include-package-data = true
-package-dir = {"" = "src"}
-
-[tool.setuptools.package-data]
-pytest_bdd = [
-  "markdown_parser.js"
-]
-"pytest_bdd.model" = [
-  "message_jsonschema/*.json"
-]
-"pytest_bdd.plugin.gherkin_message_reporter.resources.templates" = [
-  "live_formatter_bridge.mjs.j2",
-  "formatter_adapter_support.cjs.j2"
-]
-"pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" = [
-  "pretty.cjs.j2",
-  "progress.cjs.j2",
-  "progress_bar.cjs.j2",
-  "usage.cjs.j2",
-  "junit.cjs.j2"
-]
-"pytest_bdd.template" = [
-  "feature_include.rst.jinja2",
-  "features_index.rst.jinja2",
-  "features_section.rst.jinja2",
-  "test.py.jinja2"
-]
-
-[tool.setuptools.packages.find]
-namespaces = false
-where = [
-  "src"
-]
-
 [tool.mypy]
+check_untyped_defs = true
 files = "src/pytest_bdd/**/*.py"
-install_types = true
-non_interactive = true
+install_types = false
 plugins = [
   "pydantic.mypy"
 ]
@@ -268,7 +190,6 @@ warn_unused_configs = true
 ignore_missing_imports = true
 module = [
   "allure_commons.*",
-  "allure_pytest.*",
   "attr.*",
   "ci_environment.*",
   "cucumber_messages",
@@ -276,7 +197,6 @@ module = [
   "cucumber_expressions.*",
   "cucumber_tag_expressions.*",
   "decopatch.*",
-  "execnet.*",
   "gherkin.*",
   "hjson",
   "json5",
@@ -301,6 +221,54 @@ module = [
   "pytest_bdd.model.message_validation",
   "pytest_bdd.plugin.gherkin_message_reporter.*"
 ]
+
+[tool.pytest.ini_options]
+addopts = "-p pytester --order-scope=session"
+bdd_features_base_dir = "features/"
+filterwarnings = [
+  "error",
+  "ignore::DeprecationWarning",
+  "ignore::ImportWarning"
+]
+markers = [
+  "deprecated: mark test testing deprecated API",
+  "deficient: mark test with non-full coverage",
+  "docker: mark tests that require Docker-backed environments",
+  "instant: smallest in-process tests",
+  "fast: normal fast tests",
+  "medium: moderate integration tests",
+  "slow: expensive local tests",
+  "external: tests requiring external services",
+  "slow: mark tests that are intentionally excluded from short/default runs",
+  "playwright: mark browser-backed acceptance tests",
+  "surplus: mark test testing non-standard API",
+  "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
+  "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
+  "order: execution ordering marker from pytest-order"
+]
+test_group_default = "fast"
+test_group_order = ["instant", "fast", "medium", "slow", "external"]
+test_group_paths = [
+  "tests/unit/** = instant",
+  "tests/model/** = instant",
+  "tests/args/** = fast",
+  "tests/hook/** = fast",
+  "tests/steps/** = fast",
+  "tests/feature/** = medium",
+  "tests/gherkin_integration/** = medium",
+  "tests/library/** = medium",
+  "tests/struct_bdd/** = medium",
+  "tests/allure_/** = slow",
+  "tests/compatibility/** = slow",
+  "tests/contract/** = slow",
+  "tests/doc/** = slow",
+  "tests/generation/** = slow",
+  "tests/messages/** = slow",
+  "tests/messages_coverage/** = slow",
+  "tests/scripts/** = slow",
+  "tests/e2e/** = external"
+]
+testpaths = ["tests"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
@@ -442,7 +410,43 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]
 "tests/*" = ["D103", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "S101", "S506"]
+"tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # e2e test intentionally starts fixed local execnet socket servers.
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true
+
+[tool.setuptools]
+include-package-data = true
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+pytest_bdd = [
+  "markdown_parser.js"
+]
+"pytest_bdd.model" = [
+  "message_jsonschema/*.json"
+]
+"pytest_bdd.plugin.gherkin_message_reporter.resources.templates" = [
+  "live_formatter_bridge.mjs.j2",
+  "formatter_adapter_support.cjs.j2"
+]
+"pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters" = [
+  "pretty.cjs.j2",
+  "progress.cjs.j2",
+  "progress_bar.cjs.j2",
+  "usage.cjs.j2",
+  "junit.cjs.j2"
+]
+"pytest_bdd.template" = [
+  "feature_include.rst.jinja2",
+  "features_index.rst.jinja2",
+  "features_section.rst.jinja2",
+  "test.py.jinja2"
+]
+
+[tool.setuptools.packages.find]
+namespaces = false
+where = [
+  "src"
+]

@@ -7,10 +7,11 @@ import shutil
 import subprocess  # noqa: S404
 import sys
 import tempfile
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from threading import Thread
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING, Protocol, cast
 
 import pytest
 from filelock import FileLock
@@ -36,11 +37,26 @@ if TYPE_CHECKING:
 
     from cucumber_messages import Envelope as Message
 
+    from pytest_bdd.types.json import JSONArray, JSONObject
+
 logger = logging.getLogger(__name__)
 
 
+class LiveFormatterProcess(Protocol):
+    stdin: IO[str] | None
+    stdout: IO[str] | None
+    stderr: IO[str] | None
+    returncode: int | None
+
+    def poll(self) -> int | None: ...
+
+    def wait(self, timeout: float | None = None) -> int: ...
+
+    def kill(self) -> None: ...
+
+
 class LiveFormatterService(ReporterServiceBase):
-    def _finalize_live_formatter_process(self, process: subprocess.Popen[str]) -> None:
+    def _finalize_live_formatter_process(self, process: LiveFormatterProcess) -> None:
         flush_lines = self._build_live_formatter_flush_json_lines()
         if flush_lines:
             self._emit_live_formatter_json_lines(flush_lines, source="formatter session final flush")
@@ -53,7 +69,7 @@ class LiveFormatterService(ReporterServiceBase):
                 f"Live cucumber formatter session exited with code {process.returncode}."
             )
 
-    def _wait_for_live_formatter_process(self, process: subprocess.Popen[str]) -> None:
+    def _wait_for_live_formatter_process(self, process: LiveFormatterProcess) -> None:
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
@@ -430,10 +446,10 @@ class LiveFormatterService(ReporterServiceBase):
         line = getattr(location, "line", 0)
         return int(line or 0)
 
-    def _build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> dict[str, Any]:
-        step_definitions: list[dict[str, Any]] = []
-        hooks: list[dict[str, Any]] = []
-        parameter_types: list[dict[str, Any]] = []
+    def _build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> JSONObject:
+        step_definitions: JSONArray = []
+        hooks: JSONArray = []
+        parameter_types: JSONArray = []
         seen_step_definition_ids: set[str] = set()
         seen_hook_ids: set[str] = set()
         seen_parameter_type_ids: set[str] = set()
@@ -513,7 +529,7 @@ class LiveFormatterService(ReporterServiceBase):
             "parameterTypes": parameter_types,
         }
 
-    def build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> dict[str, Any]:
+    def build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> JSONObject:
         return self._build_cucumber_formatter_support_code_payload(envelopes)
 
     def _build_cucumber_formatter_payload(
@@ -522,7 +538,7 @@ class LiveFormatterService(ReporterServiceBase):
         envelopes: list[Message],
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
         messages_path: Path | None = None,
-    ) -> dict[str, Any]:
+    ) -> JSONObject:
         return {
             "cwd": str(get_config_root_path(self.reporter.config)),
             "messagesPath": str(messages_path) if messages_path is not None else None,
@@ -550,7 +566,10 @@ class LiveFormatterService(ReporterServiceBase):
     ) -> dict[str, str]:
         render_runtime_assets = getattr(self.reporter, "render_runtime_assets", None)
         if callable(render_runtime_assets):
-            return render_runtime_assets(formatter_requests)
+            return cast(
+                Callable[[list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...]], dict[str, str]],
+                render_runtime_assets,
+            )(formatter_requests)
         pluginmanager = getattr(self.reporter.config, "pluginmanager", None)
         return render_live_formatter_runtime_assets(formatter_requests, pluginmanager=pluginmanager)
 
@@ -762,14 +781,14 @@ class LiveFormatterService(ReporterServiceBase):
     ) -> CucumberFormatterRenderResult:
         return self._run_requested_cucumber_formatters(envelopes)
 
-    def generate_html_report(self):
+    def generate_html_report(self) -> None:
         if self.reporter.is_disabled:
             return
         script_path = Path(
             next(
                 find_resource(
                     self.reporter.npm_formatter_package,
-                    Path("dist") / "main.js",
+                    str(Path("dist") / "main.js"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
                 )
             )
@@ -778,7 +797,7 @@ class LiveFormatterService(ReporterServiceBase):
             next(
                 find_resource(
                     self.reporter.npm_formatter_package,
-                    Path("dist") / "main.css",
+                    str(Path("dist") / "main.css"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
                 )
             )
@@ -787,7 +806,7 @@ class LiveFormatterService(ReporterServiceBase):
             next(
                 find_resource(
                     self.reporter.npm_formatter_package,
-                    Path("src") / "index.mustache.html",
+                    str(Path("src") / "index.mustache.html"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
                 )
             )
@@ -798,7 +817,7 @@ class LiveFormatterService(ReporterServiceBase):
             icon_match = next(
                 find_resource(
                     self.reporter.npm_formatter_package,
-                    Path("src") / "icon.url",
+                    str(Path("src") / "icon.url"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
                 ),
                 None,
@@ -825,7 +844,7 @@ class LiveFormatterService(ReporterServiceBase):
             encoding="utf-8",
         )
 
-    def check_npm_and_cucumber_packages(self):
+    def check_npm_and_cucumber_packages(self) -> None:
         provision_result = self._ensure_node_packages_available(
             (self.reporter.npm_formatter_package,),
             purpose="HTML report generation",

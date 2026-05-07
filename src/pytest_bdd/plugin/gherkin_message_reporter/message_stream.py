@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import Protocol, cast
 
 import pytest
 
@@ -10,7 +11,37 @@ from pytest_bdd.model.message_transport import REPORTING_BATCH_EVENT
 logger = logging.getLogger(__name__)
 
 
-def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, Any]:
+class _WorkerControllerConfigProtocol(Protocol):
+    hook: _WorkerControllerHookProtocol
+
+    def notify_exception(self, excinfo: pytest.ExceptionInfo[BaseException]) -> None: ...
+
+
+class _WorkerControllerHookProtocol(Protocol):
+    def pytest_bdd_xdist_message_batch(
+        self,
+        *,
+        config: _WorkerControllerConfigProtocol,
+        node: _WorkerControllerProtocol,
+        batch: dict[str, object],
+    ) -> None: ...
+
+
+class _WorkerControllerProtocol(Protocol):
+    config: _WorkerControllerConfigProtocol
+
+    def shutdown(self) -> None: ...
+
+    def notify_inproc(self, event: str, **kwargs: object) -> None: ...
+
+
+class _PatchedProcessFromRemote(Protocol):
+    __pytest_bdd_reporting_patch__: bool
+
+    def __call__(self, controller: _WorkerControllerProtocol, eventcall: object) -> None: ...
+
+
+def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
     if isinstance(batch_payload, dict):
         return batch_payload
     msg = "xdist reporter batch payload must be a dictionary"
@@ -23,16 +54,16 @@ def ensure_xdist_controller_batch_patch() -> bool:
     except ImportError:
         return False
 
-    original = workermanage.WorkerController.process_from_remote
+    original = cast(Callable[[object, object], None], workermanage.WorkerController.process_from_remote)
     if getattr(original, "__pytest_bdd_reporting_patch__", False):
         return True
 
     marker_end = workermanage.Marker.END
 
-    def patched_process_from_remote(self: Any, eventcall: Any) -> None:
-        if eventcall is not marker_end:
+    def patched_process_from_remote(self: _WorkerControllerProtocol, eventcall: object) -> None:
+        if eventcall is not marker_end and isinstance(eventcall, tuple) and len(eventcall) == 2:
             event_name, kwargs = eventcall
-            if event_name == REPORTING_BATCH_EVENT:
+            if event_name == REPORTING_BATCH_EVENT and isinstance(kwargs, dict):
                 try:
                     batch_payload = coerce_reporting_batch_payload(kwargs.get("batch"))
                     self.config.hook.pytest_bdd_xdist_message_batch(
@@ -50,8 +81,10 @@ def ensure_xdist_controller_batch_patch() -> bool:
                     self.notify_inproc("errordown", node=self, error=excinfo)
                 return
         original(self, eventcall)
-        return
 
-    patched_process_from_remote.__pytest_bdd_reporting_patch__ = True
-    workermanage.WorkerController.process_from_remote = patched_process_from_remote
+    patched_process_from_remote_with_attr = cast(_PatchedProcessFromRemote, patched_process_from_remote)
+    patched_process_from_remote_with_attr.__pytest_bdd_reporting_patch__ = True
+    workermanage.WorkerController.process_from_remote = cast(
+        Callable[[object, object], None], patched_process_from_remote_with_attr
+    )
     return True

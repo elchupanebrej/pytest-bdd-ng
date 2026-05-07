@@ -4,14 +4,15 @@ import json
 import logging
 from threading import Lock
 from time import monotonic, sleep
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from attrs import define, field, frozen
 
 from pytest_bdd.model.stash_access import StashBound
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from pytest_bdd.compatibility.pytest import Stash
+    from pytest_bdd.types.json import JSONObject
 
 logger = logging.getLogger(__name__)
 
@@ -19,24 +20,28 @@ REPORTING_BATCH_EVENT = "pytest_bdd_message_chunk"
 REPORTING_TRANSPORT_BINDING_STASH_KEY = "_pytest_bdd_xdist_transport_binding"
 
 
+class ReportingEventSender(Protocol):
+    def __call__(self, name: str, **kwargs: object) -> None: ...
+
+
 @frozen
 class ReportingEventSenderBinding(StashBound):
     STASH_KEY: ClassVar[str] = REPORTING_TRANSPORT_BINDING_STASH_KEY
-    sender: Callable[..., None]
+    sender: ReportingEventSender
     gateway_mode: str | None = None
 
 
-def _config_stash(config: Any) -> Any:
-    stash = getattr(config, "stash", None)
-    if stash is None:
-        stash = {}
-        config.stash = stash
-    return stash
+class _ConfigWithStash(Protocol):
+    stash: Stash
+
+
+def _config_stash(config: _ConfigWithStash) -> Stash:
+    return config.stash
 
 
 def install_reporting_event_sender(
-    config: Any,
-    sender: Callable[..., None],
+    config: _ConfigWithStash,
+    sender: ReportingEventSender,
     *,
     gateway_mode: str | None = None,
 ) -> None:
@@ -46,7 +51,7 @@ def install_reporting_event_sender(
     ).set_in_stash(_config_stash(config))
 
 
-def resolve_reporting_event_sender(config: Any) -> Callable[..., None] | None:
+def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSender | None:
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -54,7 +59,7 @@ def resolve_reporting_event_sender(config: Any) -> Callable[..., None] | None:
     return sender if callable(sender) else None
 
 
-def resolve_reporting_gateway_mode(config: Any) -> str | None:
+def resolve_reporting_gateway_mode(config: _ConfigWithStash) -> str | None:
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -62,16 +67,26 @@ def resolve_reporting_gateway_mode(config: Any) -> str | None:
     return gateway_mode if isinstance(gateway_mode, str) and gateway_mode else None
 
 
+def _payload_int(payload: JSONObject, key: str, default: int | None = None) -> int:
+    raw_value = payload.get(key, default)
+    if isinstance(raw_value, (str, int, float)):
+        return int(raw_value)
+    if default is not None:
+        return default
+    msg = f"Expected integer-compatible transport field: {key}"
+    raise TypeError(msg)
+
+
 @frozen
 class WorkerChunkBatch:
     worker_id: str
     batch_sequence: int
-    envelopes: tuple[dict[str, Any], ...]
+    envelopes: tuple[JSONObject, ...]
     is_terminal_batch: bool = False
     byte_count: int = 0
     gateway_mode: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "worker_id": self.worker_id,
             "batch_sequence": self.batch_sequence,
@@ -82,16 +97,17 @@ class WorkerChunkBatch:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> WorkerChunkBatch:
-        raw_envelopes = payload.get("envelopes", ())
-        envelopes = tuple(candidate for candidate in raw_envelopes if isinstance(candidate, dict))
+    def from_dict(cls, payload: JSONObject) -> WorkerChunkBatch:
+        raw_envelopes = payload.get("envelopes", [])
+        envelope_candidates = raw_envelopes if isinstance(raw_envelopes, list) else []
+        envelopes = tuple(candidate for candidate in envelope_candidates if isinstance(candidate, dict))
         gateway_mode = payload.get("gateway_mode")
         return cls(
             worker_id=str(payload["worker_id"]),
-            batch_sequence=int(payload["batch_sequence"]),
+            batch_sequence=_payload_int(payload, "batch_sequence"),
             envelopes=envelopes,
             is_terminal_batch=bool(payload.get("is_terminal_batch")),
-            byte_count=int(payload.get("byte_count", 0)),
+            byte_count=_payload_int(payload, "byte_count", 0),
             gateway_mode=str(gateway_mode) if gateway_mode is not None else None,
         )
 
@@ -106,7 +122,7 @@ class WorkerCompletionManifest:
     interruption_reason: str | None = None
     gateway_mode: str | None = None
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> JSONObject:
         return {
             "worker_id": self.worker_id,
             "complete": self.complete,
@@ -118,17 +134,17 @@ class WorkerCompletionManifest:
         }
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> WorkerCompletionManifest:
+    def from_dict(cls, payload: JSONObject) -> WorkerCompletionManifest:
         interruption_reason = payload.get("interruption_reason")
         gateway_mode = payload.get("gateway_mode")
         return cls(
             worker_id=str(payload["worker_id"]),
             complete=bool(payload.get("complete")),
             last_batch_sequence=(
-                int(payload["last_batch_sequence"]) if payload.get("last_batch_sequence") is not None else None
+                _payload_int(payload, "last_batch_sequence") if payload.get("last_batch_sequence") is not None else None
             ),
-            transferred_batch_count=int(payload.get("transferred_batch_count", 0)),
-            transferred_envelope_count=int(payload.get("transferred_envelope_count", 0)),
+            transferred_batch_count=_payload_int(payload, "transferred_batch_count", 0),
+            transferred_envelope_count=_payload_int(payload, "transferred_envelope_count", 0),
             interruption_reason=str(interruption_reason) if interruption_reason is not None else None,
             gateway_mode=str(gateway_mode) if gateway_mode is not None else None,
         )
@@ -156,7 +172,7 @@ class ReportingTransportSession:
         with self._lock:
             self._batches_by_worker.setdefault(batch.worker_id, []).append(batch)
 
-    def receive_remote_event(self, event_name: str, payload: dict[str, Any]) -> None:
+    def receive_remote_event(self, event_name: str, payload: JSONObject) -> None:
         if event_name != REPORTING_BATCH_EVENT:
             logger.warning("Ignoring unknown reporting event '%s'.", event_name)
             return
@@ -205,14 +221,14 @@ class ReportingTransportSession:
 @define
 class ReportingTransportClient:
     worker_id: str
-    sender: Callable[..., None]
+    sender: ReportingEventSender
     gateway_mode: str | None = None
     batch_sequence: int = 0
     transferred_batch_count: int = 0
     transferred_envelope_count: int = 0
     last_publish_error: str | None = None
 
-    def publish_envelopes(self, envelope_dicts: list[dict[str, Any]]) -> WorkerChunkBatch:
+    def publish_envelopes(self, envelope_dicts: list[JSONObject]) -> WorkerChunkBatch:
         if not envelope_dicts:
             msg = "Cannot publish an empty transport batch."
             raise ValueError(msg)

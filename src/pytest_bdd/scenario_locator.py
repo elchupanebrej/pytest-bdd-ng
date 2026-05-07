@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import os
 import ssl
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import suppress
 from enum import Enum
-from functools import partial, reduce
+from functools import reduce
 from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath
@@ -26,10 +26,11 @@ from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import Config, get_config_root_path
 from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.url import is_local_url
 
@@ -37,7 +38,6 @@ if TYPE_CHECKING:
     import aiohttp
 
     from pytest_bdd.compatibility.parser import ParserProtocol
-    from pytest_bdd.types.protocol import HasPytestStash
 
 
 @runtime_checkable
@@ -72,14 +72,30 @@ class ScenarioLocatorResolver(Protocol):
         ...
 
 
-ScenarioLocatorFilterT: TypeAlias = Callable[[Config, GherkinDocument, Pickle], bool]
+class ScenarioLocatorHookProtocol(Protocol):
+    def pytest_bdd_get_mimetype(self, *, config: Config, path: Path) -> Mimetype | str | Enum | None: ...
+
+    def pytest_bdd_get_parser(
+        self,
+        *,
+        config: Config | HasPytestStash,
+        mimetype: Mimetype,
+    ) -> type[ParserProtocol] | None: ...
+
+
+ScenarioLocatorFilterT: TypeAlias = Callable[[Config | HasPytestStash, GherkinDocument, Pickle], bool]
 
 
 @define
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
     filter_: ScenarioLocatorFilterT | None = field(default=None, kw_only=True)
 
-    def filter_scenarios(self, gherkin_document: GherkinDocument, pickles: Iterable[Pickle], config):
+    def filter_scenarios(
+        self,
+        gherkin_document: GherkinDocument,
+        pickles: Iterable[Pickle],
+        config: Config | HasPytestStash,
+    ) -> Iterable[tuple[GherkinDocument, Pickle]]:
         return (
             (gherkin_document, pickle)
             for pickle in pickles
@@ -91,7 +107,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         gherkin_document: GherkinDocument,
         source: Source,
         config: Config | HasPytestStash,
-    ):
+    ) -> FeatureRuntimeBinding:
         run = Run.from_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
         binding.ensure_pickles(id_generator=IdGenerator.from_stash(config.stash))
@@ -102,7 +118,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         config: Config | HasPytestStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
-    ):
+    ) -> Iterator[tuple[GherkinDocument, Pickle, Source]]:
         for gherkin_document, feature_source in self.resolve_features(config):
             binding = self._bind_feature(gherkin_document, feature_source, config)
             if observer is not None:
@@ -116,40 +132,41 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
 
 @define
 class UrlScenarioLocator(ScenarioLocatorFilterMixin):
-    url_paths = field()
-    encoding = field()
-    features_base_url = field()
-    mimetype = field()
-    parser_type = field()
-    parse_args = field()
+    url_paths: list[str | Path] = field()
+    encoding: str | None = field(default=None)
+    features_base_url: str | Callable[[Config | HasPytestStash], str | None] | None = field(default=None)
+    mimetype: Mimetype | str | Enum | None = field(default=None)
+    parser_type: type[ParserProtocol] | None = field(default=None)
+    parse_args: Args | None = field(default=None)
 
-    async def fetch(self, session: aiohttp.ClientSession, url):
+    async def fetch(self, session: aiohttp.ClientSession, url: str) -> tuple[str, str]:
         import certifi
 
         sslcontext = ssl.create_default_context(cafile=certifi.where())
         async with session.get(url, ssl=sslcontext) as response:
-            return response.content_type, await response.text(encoding=self.encoding)
+            return response.content_type, await response.text(encoding=self.encoding or "utf-8")
 
-    async def fetch_all(self, urls):
+    async def fetch_all(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         import aiohttp
 
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Config | HasPytestStash):
+    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
         urls = self._build_urls()
         if not urls:
             return
         responses = self._fetch_feature_responses(urls)
-        hook_handler = cast(Config, config).hook
-        encoding = self.encoding
+        hook_handler = cast(ScenarioLocatorHookProtocol, cast(Config, config).hook)
+        encoding = self.encoding or "utf-8"
 
         for url, response in zip(urls, responses, strict=False):
-            if isinstance(response, Exception):
+            if isinstance(response, BaseException):
                 continue
 
             mimetype_raw, feature_content = response
-            mimetype = Mimetype(self.mimetype if self.mimetype is not None else mimetype_raw)
+            mimetype_source = self.mimetype if self.mimetype is not None else mimetype_raw
+            mimetype = Mimetype(str(mimetype_source))
             parser_type = self._get_parser_type(hook_handler, config, mimetype)
             if parser_type is None:
                 break
@@ -158,18 +175,15 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
             yield from self._parse_and_yield_feature(parser, config, url, feature_content, mimetype, encoding)
 
-    def _build_urls(self):
-        urls = [*filterfalse(is_local_url, self.url_paths)]
+    def _build_urls(self) -> list[str]:
+        urls = [str(url) for url in filterfalse(is_local_url, self.url_paths)]
         if self.features_base_url is not None:
             urls.extend(
-                map(
-                    partial(urljoin, f"{self.features_base_url}/"),
-                    filter(is_local_url, self.url_paths),
-                )
+                str(urljoin(f"{self.features_base_url}/", str(path))) for path in filter(is_local_url, self.url_paths)
             )
         return urls
 
-    def _fetch_feature_responses(self, urls):
+    def _fetch_feature_responses(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         loop = asyncio.new_event_loop()
         responses = loop.run_until_complete(self.fetch_all(urls))
         # Wait 250 ms for the underlying SSL connections to close
@@ -177,7 +191,12 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         loop.close()
         return responses
 
-    def _get_parser_type(self, hook_handler, config, mimetype):
+    def _get_parser_type(
+        self,
+        hook_handler: ScenarioLocatorHookProtocol,
+        config: Config | HasPytestStash,
+        mimetype: Mimetype,
+    ) -> type[ParserProtocol] | None:
         if self.parser_type is None:
             return hook_handler.pytest_bdd_get_parser(
                 config=config,
@@ -185,22 +204,31 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             )
         return self.parser_type
 
-    def _parse_and_yield_feature(self, parser, config, url, feature_content, mimetype, encoding):
+    def _parse_and_yield_feature(
+        self,
+        parser: ParserProtocol,
+        config: Config | HasPytestStash,
+        url: str,
+        feature_content: str,
+        mimetype: Mimetype,
+        encoding: str,
+    ) -> Iterator[tuple[GherkinDocument, Source]]:
         filename = None
         try:
             with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
                 filename = f.name
                 f.write(feature_content)
             try:
+                parse_args = self.parse_args or Args((), {})
                 feature, feature_data = parser.parse(
                     config,
                     Path(filename),
                     url,
-                    *self.parse_args.args,
-                    **{"encoding": encoding, **self.parse_args.kwargs},
+                    *parse_args.args,
+                    **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
-                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     return
                 else:
                     raise
@@ -214,11 +242,11 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
 class FileScenarioLocatorDefaults:
     @staticmethod
-    def encoding():
+    def encoding() -> str:
         return "utf-8"
 
     @staticmethod
-    def parse_args():
+    def parse_args() -> Args:
         return Args((), {})
 
 
@@ -226,37 +254,32 @@ class FileScenarioLocatorDefaults:
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
     Defaults = FileScenarioLocatorDefaults
     feature_paths: list[str | Path] = field(factory=list)
-    encoding = field(
-        default=FileScenarioLocatorDefaults.encoding,
-        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.encoding(),
-    )
-    features_base_dir: str | Path | None = field(default=None)
-    mimetype: str | Enum | None = field(default=None)
+    encoding: str | None = field(default=None)
+    features_base_dir: str | Path | Callable[[Config | HasPytestStash], str | Path] | None = field(default=None)
+    mimetype: Mimetype | str | Enum | None = field(default=None)
     parser_type: type[ParserProtocol] | None = field(default=None)
-    parse_args: Args = field(
-        factory=FileScenarioLocatorDefaults.parse_args,
-        converter=lambda _: _ if _ is not None else FileScenarioLocatorDefaults.parse_args(),
-    )
+    parse_args: Args | None = field(default=None)
 
-    def _resolve_features_base_dir(self, config: Config | HasPytestStash):
+    def _resolve_features_base_dir(self, config: Config | HasPytestStash) -> Path:
         try:
+            # TODO: refactor, move out from class usage to initialization or higher
+            # TODO: add base dir command line option
+            base_dir: str | Path | Callable[[Config | HasPytestStash], str | Path]
             if self.features_base_dir is None:
-                # TODO: refactor, move out from class usage to initialization or higher
-                # TODO: add base dir command line option
-                features_base_dir = cast(Config, config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
+                base_dir = cast(Config, config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
             else:
-                features_base_dir = self.features_base_dir
+                base_dir = self.features_base_dir
         except (ValueError, KeyError):
-            features_base_dir = get_config_root_path(cast(Config, config))
+            base_dir = get_config_root_path(cast(Config, config))
         else:
-            if callable(features_base_dir):
-                features_base_dir = features_base_dir(config)
+            if callable(base_dir):
+                base_dir = cast(str | Path, base_dir(config))
 
-            features_base_dir = (get_config_root_path(cast(Config, config)) / Path(features_base_dir)).resolve()
+            base_dir = (get_config_root_path(cast(Config, config)) / Path(base_dir)).resolve()
 
-        return features_base_dir
+        return cast(Path, base_dir)
 
-    def _gen_feature_paths(self, features_base_dir):
+    def _gen_feature_paths(self, features_base_dir: Path) -> Iterator[Path]:
         for feature_pathlike in self.feature_paths:
             if isinstance(feature_pathlike, Path):
                 feature_path = features_base_dir / feature_pathlike
@@ -274,7 +297,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
 
     @staticmethod
-    def _build_file_uri(features_base_dir: Path, feature_path: Path):
+    def _build_file_uri(features_base_dir: Path, feature_path: Path) -> str:
         if feature_path.is_absolute():
             try:
                 common_path = Path(commonpath([feature_path, features_base_dir]))
@@ -289,9 +312,9 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Config | HasPytestStash):
+    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
         features_base_dir = self._resolve_features_base_dir(config)
-        already_resolved_feature_paths = set()
+        already_resolved_feature_paths: set[str] = set()
 
         for feature_path in self._gen_feature_paths(features_base_dir=features_base_dir):
             feature_path_key = str(feature_path)
@@ -301,10 +324,10 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             uri = self._build_file_uri(features_base_dir, feature_path)
             already_resolved_feature_paths.add(feature_path_key)
             hook_handler = cast(Config, config).hook
-            encoding = self.encoding
+            encoding = self.encoding or "utf-8"
 
             if self.mimetype is None:
-                media_type = hook_handler.pytest_bdd_get_mimetype(config=config, path=feature_path)
+                media_type = hook_handler.pytest_bdd_get_mimetype(config=cast(Config, config), path=feature_path)
             elif isinstance(self.mimetype, (Enum,)):
                 media_type = self.mimetype.value
             else:
@@ -324,12 +347,13 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             parser = parser_type(id_generator=IdGenerator.from_stash(config.stash))
 
             try:
+                parse_args = self.parse_args or Args((), {})
                 feature, feature_data = parser.parse(
                     config,
                     feature_path,
                     uri,
-                    *self.parse_args.args,
-                    **{"encoding": encoding, **self.parse_args.kwargs},
+                    *parse_args.args,
+                    **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
                 if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):

@@ -1,5 +1,5 @@
 from operator import attrgetter
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from attrs import define, field
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
@@ -20,10 +20,10 @@ class TagExpression(Protocol):
 
 @define
 class _ModernTagExpression(TagExpression):
-    expression: Optional["Expression"] = field()
+    expression: Expression | None = field()
 
     @classmethod
-    def parse(cls, expression: str):
+    def parse(cls, expression: str) -> Self:
         try:
             return cls(expression=Expression.compile(expression) if expression else None)
         except ParseError as e:
@@ -35,7 +35,7 @@ class _ModernTagExpression(TagExpression):
 class _EnhancedMarksTagExpression(_ModernTagExpression):
     """Used for 8.3<=pytest"""
 
-    def evaluate(self, marks):
+    def evaluate(self, marks: list[Mark]) -> bool:
         return self.expression.evaluate(MarkMatcher.from_markers(marks)) if self.expression is not None else True
 
 
@@ -43,9 +43,9 @@ class _EnhancedMarksTagExpression(_ModernTagExpression):
 class _MarksTagExpression(_ModernTagExpression):
     """Used for 6.0<=pytest<8.3"""
 
-    def evaluate(self, marks):
+    def evaluate(self, marks: list[Mark]) -> bool:
         return (
-            self.expression.evaluate(MarkMatcher(map(attrgetter("name"), marks)))
+            self.expression.evaluate(MarkMatcher({mark.name: [mark] for mark in marks}))
             if self.expression is not None
             else True
         )
@@ -60,15 +60,15 @@ class GherkinTagExpression(TagExpression):
     expression: TagExpressionParser = field()
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str) -> Self:
         try:
             return cls(expression=TagExpressionParser.parse(expression))
         except TagExpressionError as e:
             msg = f"Unable parse tag expression: {expression}: {e}"
             raise ValueError(msg) from e
 
-    def evaluate(self, marks):
-        return self.expression.evaluate(map(attrgetter("name"), marks))
+    def evaluate(self, marks: list[Mark]) -> bool:
+        return bool(self.expression.evaluate(map(attrgetter("name"), marks)))
 
 
 TagExpressionType = _EnhancedMarksTagExpression | _MarksTagExpression | GherkinTagExpression

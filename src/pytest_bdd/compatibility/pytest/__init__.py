@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, NoReturn, Protocol, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+    from os import PathLike
+
+    from _pytest.scope import Scope, _ScopeName
 
 import pytest
 from _pytest.compat import NotSetType
@@ -58,7 +64,7 @@ __all__ = [
 
 
 # region pytest version dependent imports
-def is_pytest_version_greater_or_equal(version: str):
+def is_pytest_version_greater_or_equal(version: str) -> bool:
     return compare_distribution_version("pytest", version, ge)
 
 
@@ -87,10 +93,10 @@ else:
 
 class Module(pytest.Module):
     @classmethod
-    def build(cls, parent, file_path):
+    def build(cls, parent: Collector, file_path: str | PathLike[str]) -> Module:
         return cls.from_parent(parent, path=Path(file_path))
 
-    def get_path(self):
+    def get_path(self) -> Path:
         return getattr(self, "path", Path(self.fspath))
 
 
@@ -118,16 +124,21 @@ def get_config_root_path(config: Config) -> Path:
     return Path(cast(Config, config).rootpath)
 
 
-def fail(reason, *, pytrace=True):
+def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
     __tracebackhide__ = True
-    return pytest.fail(reason, pytrace=pytrace)
+    pytest.fail(reason, pytrace=pytrace)
 
 
-def is_set(obj):
+def is_set(obj: object) -> bool:
     return not isinstance(obj, NotSetType)
 
 
-def get_metafunc_call_arg(call, arg):
+class _MetafuncCall(Protocol):
+    params: dict[str, object]
+    funcargs: dict[str, object]
+
+
+def get_metafunc_call_arg(call: _MetafuncCall, arg: str) -> object:
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
@@ -135,13 +146,43 @@ def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
 
 
-def build_fixture_def(request, *args, **kwargs):
-    return FixtureDef(
-        *args,
-        **kwargs,
-        **({"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}),
-        **({"_ispytest": True} if PYTEST8 else {}),
-    )
+class _LegacyFixtureDefFactory(Protocol):
+    def __call__(
+        self,
+        fixturemanager: object,
+        baseid: str | None,
+        argname: str,
+        func: Callable[[], object],
+        scope: _ScopeName | Scope | Callable[[str, Config], _ScopeName] | None,
+        params: Sequence[object] | None,
+        ids: tuple[object | None, ...] | Callable[[object], object | None] | None = None,
+        *,
+        _ispytest: bool = False,
+    ) -> FixtureDef[object]: ...
+
+
+def build_fixture_def(
+    request: FixtureRequest,
+    *,
+    baseid: str | None,
+    argname: str,
+    func: Callable[[], object],
+    scope: _ScopeName | Scope | Callable[[str, Config], _ScopeName] | None,
+    params: Sequence[object] | None,
+) -> FixtureDef[object]:
+    if PYTEST81:
+        return FixtureDef(
+            request.config,
+            baseid,
+            argname,
+            func,
+            scope,
+            params,
+            None,
+            _ispytest=PYTEST8,
+        )
+    legacy_fixture_def = cast(_LegacyFixtureDefFactory, FixtureDef)
+    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)
 
 
 Expression = _mark_expression.Expression

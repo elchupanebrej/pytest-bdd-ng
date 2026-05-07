@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Test Group Ordering
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-05-05  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-05-05
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess  # noqa: S404
+import subprocess  # noqa: S404 - test intentionally exercises subprocess-driven integration flow
 from pathlib import Path
 
 import pytest
@@ -66,8 +66,14 @@ def _run_local_xdist(  # noqa: C901
     if remote_mode == "socket":
         servers.extend(
             (
-                subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env),
-                subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"], env=env),
+                subprocess.Popen(
+                    [sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"],
+                    env=env,
+                ),
+                subprocess.Popen(
+                    [sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"],
+                    env=env,
+                ),
             )
         )
         wait_for_endpoint("127.0.0.1", 8888)
@@ -78,7 +84,10 @@ def _run_local_xdist(  # noqa: C901
         )
     elif remote_mode == "via":
         servers.append(
-            subprocess.Popen([sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"], env=env)
+            subprocess.Popen(
+                [sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"],
+                env=env,
+            )
         )
         wait_for_endpoint("127.0.0.1", 8888)
         raw_xdist_args = (
@@ -127,7 +136,7 @@ def _run_local_xdist(  # noqa: C901
     ]
 
     try:
-        pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, env=env)  # noqa: S603
+        pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, env=env)
 
         # Verify step
         verify_cmd = [
@@ -141,7 +150,7 @@ def _run_local_xdist(  # noqa: C901
         if verify_mode == "success-live":
             verify_cmd.extend(["--min-console-writes", "2", "--expect-controller-only"])
 
-        subprocess.run(verify_cmd, capture_output=True, text=True, env=env)  # noqa: S603
+        subprocess.run(verify_cmd, capture_output=True, text=True, env=env)
 
         return pytest_result
     finally:

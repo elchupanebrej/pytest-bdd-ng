@@ -8,55 +8,55 @@ including empty strings.
 Scenario: Scenario outline accepts empty example values
                                                        
 
--  Given File "outline.feature" with content:
+- Given File "outline.feature" with content:
 
-   .. code:: gherkin
+  .. code:: gherkin
 
-      Feature: Outline
-        Scenario Outline: Outlined with empty example values
-          Given there are <start> cucumbers
-          When I eat <eat> cucumbers
-          Then I should have <left> cucumbers
+     Feature: Outline
+       Scenario Outline: Outlined with empty example values
+         Given there are <start> cucumbers
+         When I eat <eat> cucumbers
+         Then I should have <left> cucumbers
 
-          Examples:
-            | start | eat | left |
-            | #     |     |      |
+         Examples:
+           | start | eat | left |
+           | #     |     |      |
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given, when, then, parsers
+     from pytest_bdd import given, when, then, parsers
 
-      @given(parsers.re("there are (?P<start>.*?) cucumbers"), target_fixture="captured")
-      def _start_cucumbers(start):
-        return {"start": start}
+     @given(parsers.re("there are (?P<start>.*?) cucumbers"), target_fixture="captured")
+     def _start_cucumbers(start):
+       return {"start": start}
 
-      @when(parsers.re("I eat (?P<eat>.*?) cucumbers"))
-      def _eat_cucumbers(captured, eat):
-        captured["eat"] = eat
+     @when(parsers.re("I eat (?P<eat>.*?) cucumbers"))
+     def _eat_cucumbers(captured, eat):
+       captured["eat"] = eat
 
-      @then(parsers.re("I should have (?P<left>.*?) cucumbers"))
-      def _left_cucumbers(captured, left):
-        captured["left"] = left
-        assert captured == {"start": "#", "eat": "", "left": ""}
+     @then(parsers.re("I should have (?P<left>.*?) cucumbers"))
+     def _left_cucumbers(captured, left):
+       captured["left"] = left
+       assert captured == {"start": "#", "eat": "", "left": ""}
 
--  And File "test_outline.py" with content:
+- And File "test_outline.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import scenarios
+     from pytest_bdd import scenarios
 
-      test_outline = scenarios('outline.feature')
+     test_outline = scenarios('outline.feature')
 
--  When run pytest
+- When run pytest
 
-   \| cli_args \| -k \| test_outline.py \|
+  \| cli_args \| -k \| test_outline.py \|
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   ====== ======
-   passed failed
-   ====== ======
-   1      0
-   ====== ======
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

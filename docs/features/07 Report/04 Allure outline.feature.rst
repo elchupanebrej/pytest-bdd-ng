@@ -7,42 +7,42 @@ including plugin-gated execution when Allure integration is unavailable.
 Scenario: Outline reporting is guarded by Allure availability
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
--  Given Copy path from "features/07 Report/06 Allure/02
-   outline.feature" to test path "outline.feature"
+- Given Copy path from "features/07 Report/06 Allure/02 outline.feature"
+  to test path "outline.feature"
 
--  And File "conftest.py" with content:
+- And File "conftest.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      from pytest_bdd import given
+     from pytest_bdd import given
 
-      @given("value one")
-      @given("value two")
-      def _value():
-        pass
+     @given("value one")
+     @given("value two")
+     def _value():
+       pass
 
--  And File "test_sample.py" with content:
+- And File "test_sample.py" with content:
 
-   .. code:: python
+  .. code:: python
 
-      import pytest
-      from pytest_bdd import scenarios
-      from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+     import pytest
+     from pytest_bdd import scenarios
+     from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 
-      pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
-      test = scenarios("outline.feature", "Scenario outline")
+     pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
+     test = scenarios("outline.feature", "Scenario outline")
 
--  When run uv-tox
+- When run pytest
 
-   ======== ==============
-   cli_args -k test_sample
-   ======== ==============
-   ======== ==============
+  ======== ==============
+  cli_args -k test_sample
+  ======== ==============
+  ======== ==============
 
--  Then pytest outcome must contain tests with statuses:
+- Then pytest outcome must contain tests with statuses:
 
-   +---------+
-   | skipped |
-   +=========+
-   | 1       |
-   +---------+
+  +---------+
+  | skipped |
+  +=========+
+  | 1       |
+  +---------+

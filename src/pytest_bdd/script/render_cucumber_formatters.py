@@ -6,12 +6,66 @@ import argparse
 import sys
 from pathlib import Path
 
+from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterPlugin, _coerce_cli_aliases
 from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.gherkin_message_reporter.standalone_renderer import (
     CucumberFormatterConfigurationError,
     StandaloneCucumberFormatterRenderer,
 )
 from pytest_bdd.util.cucumber_formatters import any_cucumber_formatter_requested
+
+
+def _require_str(value: object, field_name: str) -> str:
+    if isinstance(value, str):
+        return value
+    message = f"Formatter option field {field_name} must be a string: {value!r}"
+    raise TypeError(message)
+
+
+def _register_formatter_argument(parser: argparse.ArgumentParser, plugin: FormatterReporterPlugin) -> None:
+    addoption_kwargs = plugin.build_addoption_kwargs()
+    cli_aliases = _coerce_cli_aliases(addoption_kwargs.pop("cli_aliases", ()))
+    dest = _require_str(addoption_kwargs["dest"], "dest")
+    help_text = _require_str(addoption_kwargs["help"], "help")
+    action = _require_str(addoption_kwargs["action"], "action")
+    if action == "store_true":
+        parser.add_argument(
+            plugin.cli_flag,
+            *cli_aliases,
+            dest=dest,
+            help=help_text,
+            action="store_true",
+            default=False,
+        )
+        return
+    if action == "store":
+        metavar = _require_str(addoption_kwargs["metavar"], "metavar")
+        if addoption_kwargs.get("nargs") == "?":
+            const = _require_str(addoption_kwargs["const"], "const")
+            parser.add_argument(
+                plugin.cli_flag,
+                *cli_aliases,
+                dest=dest,
+                help=help_text,
+                action="store",
+                nargs="?",
+                const=const,
+                metavar=metavar,
+                default=None,
+            )
+            return
+        parser.add_argument(
+            plugin.cli_flag,
+            *cli_aliases,
+            dest=dest,
+            help=help_text,
+            action="store",
+            metavar=metavar,
+            default=None,
+        )
+        return
+    message = f"Unsupported formatter option action: {action!r}"
+    raise TypeError(message)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -25,9 +79,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Path to an existing canonical cucumber messages NDJSON file.",
     )
     for plugin in catalog.plugins:
-        argparse_kwargs = dict(plugin.build_addoption_kwargs())
-        cli_aliases = tuple(argparse_kwargs.pop("cli_aliases", ()))
-        parser.add_argument(plugin.cli_flag, *cli_aliases, **argparse_kwargs)
+        _register_formatter_argument(parser, plugin)
     args = parser.parse_args(argv)
 
     if not any_cucumber_formatter_requested(args):

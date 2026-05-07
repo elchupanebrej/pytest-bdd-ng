@@ -9,7 +9,7 @@ from inspect import getfile
 from pathlib import Path
 from platform import machine, processor, system, version
 from time import time_ns
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from ci_environment import detect_ci_environment
@@ -63,10 +63,14 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.packaging import get_distribution_version
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping
 
-    from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.compatibility.pytest import ExitCode, FixtureRequest, Session
+    from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
     from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
+    from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
+    from pytest_bdd.types.json import JSONObject
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +78,13 @@ logger = logging.getLogger(__name__)
 class LifecycleService(ReporterServiceBase):
     plugin_suffix = "lifecycle"
 
-    def __init__(self, reporter, *, transport_service, live_formatter_service) -> None:
+    def __init__(
+        self,
+        reporter: GherkinMessageReporter,
+        *,
+        transport_service: TransportService,
+        live_formatter_service: LiveFormatterService,
+    ) -> None:
         super().__init__(reporter)
         self.transport_service = transport_service
         self.live_formatter_service = live_formatter_service
@@ -124,7 +134,7 @@ class LifecycleService(ReporterServiceBase):
         return format_requested_cucumber_formatter_labels(formatter_requests)
 
     @staticmethod
-    def get_timestamp():
+    def get_timestamp() -> Timestamp:
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
@@ -134,7 +144,7 @@ class LifecycleService(ReporterServiceBase):
         self,
         config: Config,
         message: Message,
-    ):
+    ) -> None:
         message = ExecutionMessageAdapter.serialize(message)
         if not has_single_payload(message):
             message_text = "Cannot emit envelope with zero or multiple payloads"
@@ -176,7 +186,7 @@ class LifecycleService(ReporterServiceBase):
         self._emit_envelope(config, Message(pickle=pickle))
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtestloop(self, session: pytest.Session):
+    def pytest_runtestloop(self, session: Session) -> Iterator[None]:
         if self.reporter.is_disabled:
             yield
             return
@@ -224,7 +234,7 @@ class LifecycleService(ReporterServiceBase):
             ),
         )
 
-    def pytest_sessionstart(self, session):
+    def pytest_sessionstart(self, session: Session) -> None:
         if self.reporter.is_disabled:
             self._emit_disabled_warning_once()
             return
@@ -299,7 +309,7 @@ class LifecycleService(ReporterServiceBase):
         return message_converter.from_dict(enriched_payload, Ci)
 
     @staticmethod
-    def _enrich_ci_payload(ci_payload: dict[str, Any], env: Mapping[str, str]) -> dict[str, Any]:
+    def _enrich_ci_payload(ci_payload: JSONObject, env: Mapping[str, str]) -> JSONObject:
         """Patch CI payload with branch when detector omits it for PR-style builds.
 
         `ci_environment` provides a solid baseline payload, but some providers
@@ -355,7 +365,7 @@ class LifecycleService(ReporterServiceBase):
         return cast(str, run_started_id)
 
     @staticmethod
-    def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[Any | None, Any | None]:
+    def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
         scenario_run = run.active_scenario_run
         if scenario_run is None:
             return None, None
@@ -405,7 +415,7 @@ class LifecycleService(ReporterServiceBase):
     def resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         return self._resolve_test_step_id_for_runtime_step(request=request, step=step)
 
-    def pytest_sessionfinish(self, session, exitstatus):  # noqa: C901
+    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901
         if self.reporter.is_disabled:
             return
         config = session.config
@@ -465,7 +475,7 @@ class LifecycleService(ReporterServiceBase):
 
         self.transport_service.finish_process_messages_thread()
         if self.reporter.is_xdist_worker:
-            workeroutput = cast(dict[str, Any], getattr(config, "workeroutput", {}))
+            workeroutput = cast(dict[str, object], getattr(config, "workeroutput", {}))
             worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
             if self.reporter.xdist_transport_client is not None:
                 workeroutput["pytest_bdd_messages_manifest"] = self.reporter.xdist_transport_client.build_manifest(

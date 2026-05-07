@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import count
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
@@ -36,7 +36,7 @@ PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
 }
 
 
-def runtime_object_id(obj: Any) -> str:
+def runtime_object_id(obj: object) -> str:
     if obj is None:
         return "none"
     explicit_id = getattr(obj, "id", None)
@@ -54,14 +54,14 @@ def runtime_object_id(obj: Any) -> str:
     return str(id(obj))
 
 
-def runtime_object_name(obj: Any) -> str | None:
+def runtime_object_name(obj: object) -> str | None:
     if obj is None:
         return None
     name = getattr(obj, "name", None)
     return str(name) if name is not None else None
 
 
-def build_lifecycle_ref(kind: LifecycleKind, value: Any, *, is_active: bool) -> LifecycleObjectRef | None:
+def build_lifecycle_ref(kind: LifecycleKind, value: object, *, is_active: bool) -> LifecycleObjectRef | None:
     if value is None:
         return None
     return LifecycleObjectRef(
@@ -77,6 +77,117 @@ def _inactive_ref(kind: LifecycleKind, *, reason: str, fail_fast_code: str | Non
     return LifecycleObjectRef.inactive(kind, reason=reason, fail_fast_code=fail_fast_code)
 
 
+def _resolve_lifecycle_ref(
+    kind: LifecycleKind,
+    value: object | None,
+    *,
+    is_active: bool,
+    inactive_reason: str,
+    fail_fast_code: str | None = None,
+) -> LifecycleObjectRef:
+    if value is None:
+        return _inactive_ref(kind, reason=inactive_reason, fail_fast_code=fail_fast_code)
+    lifecycle_ref = build_lifecycle_ref(kind, value, is_active=is_active)
+    if lifecycle_ref is not None:
+        return lifecycle_ref
+    return _inactive_ref(kind, reason=inactive_reason, fail_fast_code=fail_fast_code)
+
+
+def _resolve_transition_refs(
+    scenario_run: ScenarioRun,
+    *,
+    hook_phase: HookPhase,
+    gherkin_document: GherkinDocument | None,
+    pickle: object | None,
+    step: object | None,
+    previous_step: object | None,
+) -> tuple[LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef]:
+    run_ref = scenario_run.run_ref
+    if scenario_run.run is not None:
+        run_ref = _resolve_lifecycle_ref("run", scenario_run.run, is_active=True, inactive_reason="idle")
+
+    scenario_is_active = hook_phase not in {HookPhase.after_scenario, HookPhase.step_error, HookPhase.step_lookup_error}
+    feature_is_active = scenario_is_active
+    step_is_active = (
+        hook_phase is HookPhase.run_step
+        or hook_phase is HookPhase.before_step
+        or hook_phase is HookPhase.before_step_call
+    )
+
+    feature_ref = _resolve_lifecycle_ref(
+        "feature",
+        gherkin_document,
+        is_active=feature_is_active,
+        inactive_reason="idle" if not feature_is_active else "unresolved_external",
+    )
+    scenario_ref = _resolve_lifecycle_ref(
+        "scenario",
+        pickle,
+        is_active=scenario_is_active,
+        inactive_reason="idle" if not scenario_is_active else "unresolved_external",
+    )
+
+    if hook_phase is HookPhase.after_scenario:
+        step_ref = _inactive_ref("step", reason="finished", fail_fast_code="object_inactive")
+        previous_step_ref = _inactive_ref("step", reason="finished")
+    else:
+        step_ref = _resolve_lifecycle_ref(
+            "step",
+            step,
+            is_active=step_is_active,
+            inactive_reason="idle",
+            fail_fast_code="object_inactive",
+        )
+        previous_step_ref = _resolve_lifecycle_ref(
+            "step",
+            previous_step,
+            is_active=previous_step is not None,
+            inactive_reason="no_previous_step",
+        )
+    return run_ref, feature_ref, scenario_ref, step_ref, previous_step_ref
+
+
+def _sync_step_node(
+    scenario_run: ScenarioRun,
+    *,
+    step_ref: LifecycleObjectRef,
+    step_is_active: bool,
+) -> None:
+    if step_ref.is_active and step_is_active:
+        parent_id = scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
+        scenario_run.step_node = RunNode(
+            id=f"step-{step_ref.object_id}-{scenario_run.transition_index + 1}",
+            parent_id=parent_id,
+            kind="step",
+            object_ref=step_ref,
+            is_active=True,
+            opened_at_transition=scenario_run.transition_index + 1,
+        )
+        return
+    scenario_run.step_node = None
+
+
+def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObjectRef) -> None:
+    if scenario_run.scenario_node is not None:
+        scenario_run.scenario_node.close(scenario_run.transition_index)
+    if scenario_run.feature_node is not None:
+        scenario_run.feature_node.close(scenario_run.transition_index)
+
+    scenario_run.stage = RunStage.finished
+    scenario_run.step_object = None
+    scenario_run.previous_step_object = NoPreviousStep()
+    scenario_run.set_active_set(
+        ActiveObjectSet(
+            run=run_ref,
+            feature=_inactive_ref("feature", reason="finished"),
+            scenario=_inactive_ref("scenario", reason="finished"),
+            step=_inactive_ref("step", reason="finished", fail_fast_code="object_inactive"),
+            previous_step=_inactive_ref("step", reason="finished"),
+            captured_at_stage=RunStage.finished,
+        )
+    )
+
+
 def initial_scenario_run_id(request: FixtureRequest) -> str:
     node_id = getattr(getattr(request, "node", None), "nodeid", None)
     key = node_id or f"unknown-{next(_context_index)}"
@@ -88,60 +199,22 @@ def apply_transition(
     *,
     hook_phase: HookPhase,
     gherkin_document: GherkinDocument | None = None,
-    pickle: Any | None = None,
-    step: Any | None = None,
-    previous_step: Any | None = None,
+    pickle: object | None = None,
+    step: object | None = None,
+    previous_step: object | None = None,
     status: RunStatus | None = None,
 ) -> ScenarioRun:
     stage = PHASE_TO_STAGE[hook_phase]
     run = scenario_run.run
-
-    run_ref = scenario_run.run_ref if run is None else build_lifecycle_ref("run", run, is_active=True)
-    if run_ref is None:
-        run_ref = scenario_run.run_ref
-
-    scenario_is_active = stage not in {RunStage.idle, RunStage.finished}
-    feature_is_active = scenario_is_active
-    step_is_active = stage is RunStage.step_running
-
-    feature_ref = (
-        build_lifecycle_ref("feature", gherkin_document, is_active=feature_is_active)
-        if gherkin_document is not None
-        else _inactive_ref("feature", reason="idle" if not feature_is_active else "unresolved_external")
+    run_ref, feature_ref, scenario_ref, step_ref, previous_step_ref = _resolve_transition_refs(
+        scenario_run,
+        hook_phase=hook_phase,
+        gherkin_document=gherkin_document,
+        pickle=pickle,
+        step=step,
+        previous_step=previous_step,
     )
-    scenario_ref = (
-        build_lifecycle_ref("scenario", pickle, is_active=scenario_is_active)
-        if pickle is not None
-        else _inactive_ref("scenario", reason="idle" if not scenario_is_active else "unresolved_external")
-    )
-
-    if hook_phase is HookPhase.after_scenario:
-        step_ref = _inactive_ref("step", reason="finished", fail_fast_code="object_inactive")
-        previous_step_ref = _inactive_ref("step", reason="finished")
-        scenario_run.step_node = None
-    else:
-        step_ref = (
-            build_lifecycle_ref("step", step, is_active=step_is_active)
-            if step is not None
-            else _inactive_ref("step", reason="idle", fail_fast_code="object_inactive")
-        )
-        previous_step_ref = (
-            build_lifecycle_ref("step", previous_step, is_active=previous_step is not None)
-            if previous_step is not None
-            else _inactive_ref("step", reason="no_previous_step")
-        )
-        if step_ref.is_active and step_is_active:
-            parent_id = scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
-            scenario_run.step_node = RunNode(
-                id=f"step-{step_ref.object_id}-{scenario_run.transition_index + 1}",
-                parent_id=parent_id,
-                kind="step",
-                object_ref=step_ref,
-                is_active=True,
-                opened_at_transition=scenario_run.transition_index + 1,
-            )
-        else:
-            scenario_run.step_node = None
+    step_is_active = hook_phase in {HookPhase.run_step, HookPhase.before_step, HookPhase.before_step_call}
 
     scenario_run.active_hook = hook_phase
     scenario_run.stage = stage
@@ -157,6 +230,8 @@ def apply_transition(
     scenario_run.pickle = pickle
     scenario_run.step_object = step
     scenario_run.previous_step_object = previous_step if previous_step is not None else NoPreviousStep()
+
+    _sync_step_node(scenario_run, step_ref=step_ref, step_is_active=step_is_active)
 
     scenario_run.set_active_set(
         ActiveObjectSet(
@@ -180,23 +255,6 @@ def apply_transition(
         )
 
     if hook_phase is HookPhase.after_scenario:
-        if scenario_run.scenario_node is not None:
-            scenario_run.scenario_node.close(scenario_run.transition_index)
-        if scenario_run.feature_node is not None:
-            scenario_run.feature_node.close(scenario_run.transition_index)
-
-        scenario_run.stage = RunStage.finished
-        scenario_run.step_object = None
-        scenario_run.previous_step_object = NoPreviousStep()
-        scenario_run.set_active_set(
-            ActiveObjectSet(
-                run=run_ref,
-                feature=_inactive_ref("feature", reason="finished"),
-                scenario=_inactive_ref("scenario", reason="finished"),
-                step=_inactive_ref("step", reason="finished", fail_fast_code="object_inactive"),
-                previous_step=_inactive_ref("step", reason="finished"),
-                captured_at_stage=RunStage.finished,
-            )
-        )
+        _finalize_after_scenario(scenario_run, run_ref=run_ref)
 
     return scenario_run

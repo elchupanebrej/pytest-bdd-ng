@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
 from importlib import import_module
 from io import StringIO
 from queue import Queue
 from types import SimpleNamespace
 
 import pytest
+from attrs import define
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import (
     Hook as CucumberHook,
@@ -106,7 +106,7 @@ def _build_request_with_context(scenario_run: ScenarioRun) -> SimpleNamespace:
     return request
 
 
-@dataclass
+@define
 class _FakeStepDefinitionRegistry:
     items: list[object]
     parent: _FakeStepDefinitionRegistry | None = None
@@ -920,7 +920,7 @@ def test_controller_forwards_worker_batches_into_live_formatter_session(tmp_path
     assert [json.loads(line) for line in forwarded.getvalue().splitlines() if line.strip()] == batch["envelopes"]
 
 
-@dataclass
+@define
 class _RecordingStdin:
     writes: list[str]
     flush_count: int = 0

@@ -1,8 +1,8 @@
 ---
 default: true
-# Line length
-MD013:
-  line_length: 120
+# Line length is intentionally not enforced globally. Generated docs and
+# contract fixtures use long lines that are not meaningful to wrap.
+MD013: false
 # Headings should be surrounded by blank lines
 MD022: false
 # No trailing punctuation in headings

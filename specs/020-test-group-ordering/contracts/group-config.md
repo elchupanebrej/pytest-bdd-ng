@@ -1,7 +1,7 @@
 # Contract: Group Configuration Schema
 
-**Feature**: 020-test-group-ordering  
-**Contract Type**: Pytest ini configuration interface  
+**Feature**: 020-test-group-ordering
+**Contract Type**: Pytest ini configuration interface
 **Date**: 2026-05-05
 
 ## Overview

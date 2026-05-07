@@ -1,6 +1,6 @@
-from itertools import filterfalse
+from collections.abc import Iterable, Iterator, Sequence
 from operator import attrgetter
-from typing import Any, cast
+from typing import Generic, TypeVar, cast
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -25,20 +25,22 @@ from .model import Join as StructJoin
 from .model import StepPrototype as StructStep
 from .model import Table as StructTable
 
+ModelT = TypeVar("ModelT")
+
 
 @define
-class _ASTBuilder:
-    model: Any
+class _ASTBuilder(Generic[ModelT]):
+    model: ModelT
 
-    def build(self, *args, **kwargs):  # pragma: no cover
+    def build(self, id_generator: object) -> object:  # pragma: no cover
         raise NotImplementedError
 
 
 @define
-class GherkinDocumentBuilder(_ASTBuilder):
+class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
     model: StructStep = field()
 
-    def build(self, id_generator):
+    def build(self, id_generator: object) -> GherkinDocument:
         comments = [
             Comment(
                 location=Location(column=1, line=index + 1),
@@ -52,7 +54,7 @@ class GherkinDocumentBuilder(_ASTBuilder):
             feature=StepToFeatureASTBuilder(self.model).build(id_generator=id_generator),
         )
 
-    def build_feature(self, filename, uri, id_generator):
+    def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
         gherkin_document._pytest_bdd_filename = filename
@@ -60,10 +62,10 @@ class GherkinDocumentBuilder(_ASTBuilder):
 
 
 @define
-class StepToFeatureASTBuilder(_ASTBuilder):
+class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
     model: StructStep = field()
 
-    def build(self, id_generator):
+    def build(self, id_generator: object) -> Feature:
         return Feature(
             children=self._build_children(id_generator=id_generator),
             description=self.model.description or "",
@@ -74,12 +76,12 @@ class StepToFeatureASTBuilder(_ASTBuilder):
             keyword="Feature",
         )
 
-    def _build_children(self, id_generator):
-        def _():
+    def _build_children(self, id_generator: object) -> list[FeatureChild]:
+        def _() -> Iterator[FeatureChild]:
             for route in self.model.routes:
                 if route.steps:
 
-                    def steps_gen(steps):
+                    def steps_gen(steps: Iterable[StructStep]) -> Iterator[Step]:
                         previous_step_keyword_type = None
                         for step in steps:
                             step_keyword_type = (
@@ -88,62 +90,16 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 else step.keyword_type
                             )
                             yield Step(
-                                id=next(id_generator),
-                                keyword=(
-                                    step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
-                                ),
+                                id=next(cast(Iterator[str], id_generator)),
+                                keyword=self._step_keyword(step),
                                 location=Location(column=1, line=1),
-                                text=step.action,
-                                keyword_type=step_keyword_type.value,
-                                **(
-                                    (
-                                        lambda rows: (
-                                            {
-                                                "data_table": DataTable(
-                                                    rows=rows,
-                                                    location=Location(column=1, line=1),  # type: ignore[call-arg]
-                                                ),  # type: ignore[call-arg]
-                                            }
-                                            if rows
-                                            else {}
-                                        )
-                                    )(
-                                        [
-                                            *filterfalse(
-                                                lambda row: row is None,
-                                                (
-                                                    (
-                                                        (
-                                                            lambda cells: (
-                                                                TableRow(
-                                                                    id=next(id_generator),
-                                                                    location=Location(column=1, line=1),  # type: ignore[call-arg]
-                                                                    cells=cells,
-                                                                )  # type: ignore[call-arg]
-                                                                if cells
-                                                                else None
-                                                            )
-                                                        )(
-                                                            [
-                                                                *(
-                                                                    TableCell(
-                                                                        location=Location(
-                                                                            column=1,
-                                                                            line=1,
-                                                                        ),
-                                                                        value=parameter,
-                                                                    )
-                                                                    for parameter in row_values
-                                                                ),
-                                                            ],
-                                                        )
-                                                    )
-                                                    for row_values in StructJoin(tables=step.data).rowed_values
-                                                ),
-                                            ),
-                                        ],
-                                    )
+                                text=self._step_action(step),
+                                keyword_type=(
+                                    step_keyword_type.value
+                                    if step_keyword_type is not None
+                                    else StepKeywordType.unknown.value
                                 ),
+                                **self._build_data_table(step, id_generator),
                                 **(
                                     {
                                         "doc_string": DocString(
@@ -158,7 +114,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                             )
                             previous_step_keyword_type = step_keyword_type
 
-                    steps = [*steps_gen(filter(lambda step: step.action is not None, route.steps))]
+                    steps = [*steps_gen(filter(lambda step: self._step_action(step) is not None, route.steps))]
 
                     yield FeatureChild(
                         scenario=Scenario(
@@ -168,7 +124,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 if route.example_table.values
                                 else []
                             ),
-                            id=next(id_generator),
+                            id=next(cast(Iterator[str], id_generator)),
                             keyword="Scenario",
                             location=Location(column=1, line=1),
                             name=next(
@@ -178,11 +134,11 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                             tags=[
                                 *(
                                     Tag(
-                                        id=next(id_generator),
+                                        id=next(cast(Iterator[str], id_generator)),
                                         location=Location(column=1, line=1),
                                         name=tag_name,
                                     )
-                                    for tag_name in route.tags
+                                    for tag_name in route.tags or []
                                 ),
                             ],
                             steps=steps,
@@ -191,22 +147,73 @@ class StepToFeatureASTBuilder(_ASTBuilder):
 
         return list(_())
 
+    @staticmethod
+    def _step_keyword(step: StructStep) -> str:
+        return step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
+
+    @staticmethod
+    def _step_action(step: StructStep) -> str | None:
+        return cast(str | None, getattr(step, "action", None))
+
+    @staticmethod
+    def _build_data_table(step: StructStep, id_generator: object) -> dict[str, DataTable]:
+        rows = [
+            row
+            for row in (
+                StepToFeatureASTBuilder._build_data_table_row(row_values, id_generator)
+                for row_values in StructJoin(tables=step.data).rowed_values
+            )
+            if row is not None
+        ]
+        return (
+            {
+                "data_table": DataTable(
+                    rows=rows,
+                    location=Location(column=1, line=1),  # type: ignore[call-arg]
+                ),  # type: ignore[call-arg]
+            }
+            if rows
+            else {}
+        )
+
+    @staticmethod
+    def _build_data_table_row(row_values: Sequence[object], id_generator: object) -> TableRow | None:
+        cells = [
+            TableCell(
+                location=Location(
+                    column=1,
+                    line=1,
+                ),
+                value=parameter,
+            )
+            for parameter in row_values
+        ]
+        return (
+            TableRow(
+                id=next(cast(Iterator[str], id_generator)),
+                location=Location(column=1, line=1),  # type: ignore[call-arg]
+                cells=cells,
+            )  # type: ignore[call-arg]
+            if cells
+            else None
+        )
+
 
 @define
-class ExampleASTBuilder(_ASTBuilder):
+class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
     model: StructJoin | StructTable = field()
 
-    def build(self, id_generator):
+    def build(self, id_generator: object) -> Examples:
         return Examples(
             description=self.model.description,
-            id=next(id_generator),
+            id=next(cast(Iterator[str], id_generator)),
             keyword="Examples",
             location=Location(column=1, line=1),
             name=self.model.name,
             table_body=[
                 *(
                     TableRow(
-                        id=next(id_generator),
+                        id=next(cast(Iterator[str], id_generator)),
                         location=Location(column=1, line=1),
                         cells=[
                             *(
@@ -224,15 +231,15 @@ class ExampleASTBuilder(_ASTBuilder):
             tags=[
                 *(
                     Tag(
-                        id=next(id_generator),
+                        id=next(cast(Iterator[str], id_generator)),
                         location=Location(column=1, line=1),
                         name=tag_name,
                     )
-                    for tag_name in self.model.tags
+                    for tag_name in self.model.tags or []
                 ),
             ],
             table_header=TableRow(
-                id=next(id_generator),
+                id=next(cast(Iterator[str], id_generator)),
                 location=Location(column=1, line=1),
                 cells=[
                     *(
@@ -240,7 +247,7 @@ class ExampleASTBuilder(_ASTBuilder):
                             location=Location(column=1, line=1),
                             value=parameter,
                         )
-                        for parameter in self.model.parameters
+                        for parameter in self.model.parameters or []
                     ),
                 ],
             ),

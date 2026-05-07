@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 from attrs import frozen
@@ -13,7 +13,7 @@ from pytest_bdd.compatibility.importlib.resources import files
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pytest_bdd.compatibility.pytest import Config
+    from pytest_bdd.compatibility.pytest import Config, Parser
     from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
 
     ResolveOutputPath = Callable[[str], Path]
@@ -35,6 +35,18 @@ def load_formatter_adapter_template(template_name: str) -> str:
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters",
         template_name,
     )
+
+
+def _coerce_cli_aliases(raw_value: object) -> tuple[str, ...]:
+    if raw_value in (None, ()):
+        return ()
+    if not isinstance(raw_value, tuple):
+        message = f"Unexpected formatter CLI aliases value: {raw_value!r}"
+        raise TypeError(message)
+    if not all(isinstance(alias, str) for alias in raw_value):
+        message = f"Formatter CLI aliases must be strings: {raw_value!r}"
+        raise TypeError(message)
+    return raw_value
 
 
 class FormatterOutputMode(StrEnum):
@@ -94,7 +106,7 @@ class FormatterReporterPlugin(ABC):
     def module_runtime_path(self) -> str:
         return f"formatters/{Path(self.module_runtime_template_name).stem}"
 
-    def _option_value(self, option_source: Any) -> object:
+    def _option_value(self, option_source: object) -> object:
         if isinstance(option_source, dict):
             return option_source.get(self.option_attr)
         option_values = getattr(option_source, "__dict__", None)
@@ -102,10 +114,10 @@ class FormatterReporterPlugin(ABC):
             return option_values.get(self.option_attr)
         return getattr(option_source, self.option_attr, None)
 
-    def addoption(self, parser: Any) -> None:
+    def addoption(self, parser: Parser) -> None:
         group = parser.getgroup("bdd", "Cucumber Formatters")
         addoption_kwargs = self.build_addoption_kwargs()
-        cli_aliases = tuple(addoption_kwargs.pop("cli_aliases", ()))
+        cli_aliases = _coerce_cli_aliases(addoption_kwargs.pop("cli_aliases", ()))
         group.addoption(self.cli_flag, *cli_aliases, **addoption_kwargs)
 
     @abstractmethod
@@ -243,7 +255,7 @@ class FormatterReporterPlugin(ABC):
 
     def iter_requests_from_options(
         self,
-        option_source: Any,
+        option_source: object,
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> tuple[CucumberFormatterRequest, ...]:
@@ -253,7 +265,7 @@ class FormatterReporterPlugin(ABC):
         return (self.build_request_from_value(raw_value, resolve_output_path=resolve_output_path),)
 
     @pytest.hookimpl
-    def pytest_addoption(self, parser: Any) -> None:
+    def pytest_addoption(self, parser: Parser) -> None:
         self.addoption(parser)
 
     @pytest.hookimpl

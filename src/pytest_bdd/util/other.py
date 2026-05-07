@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import re
-from typing import Any, ClassVar, Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
 from gherkin.stream.id_generator import IdGenerator as BaseIdGenerator
 
@@ -7,7 +9,7 @@ from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX
 from pytest_bdd.model.stash_access import StashBound
 
 
-def format_as_python_identifier(s: Any) -> str:
+def format_as_python_identifier(s: object) -> str:
     s1: str = str(s)
     s2 = re.sub(r"[^.a-zA-Z0-9]", "_", s1)
     s3 = re.sub(r"_+", "_", s2)
@@ -32,10 +34,10 @@ def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
 class IdGenerator(BaseIdGenerator, StashBound):
     STASH_KEY: ClassVar[str] = "_pytest_bdd_id_generator"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._id_counter = 0
 
-    def __next__(self):
+    def __next__(self) -> str:
         try:
             return str(self._id_counter)
         finally:

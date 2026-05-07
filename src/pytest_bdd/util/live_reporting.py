@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Any, cast
+from typing import cast
 
 from pytest_bdd.compatibility.pytest import Config
 
-GatewayModeResolver = Callable[[Config], str]
+GatewayModeResolver = Callable[[Config], str | None]
 
 
 def is_xdist_worker_process(config: Config) -> bool:
@@ -22,7 +22,7 @@ def resolve_reporting_worker_identity(
 ) -> tuple[str, str | None]:
     if not is_xdist_worker_process(config):
         return "master", None
-    workerinput = cast(dict[str, Any], getattr(config, "workerinput", {}))
+    workerinput = cast(Mapping[str, object], getattr(config, "workerinput", {}))
     worker_id = str(
         workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput.get("workerid") or "worker"
     )
@@ -38,13 +38,13 @@ def format_reporting_worker_id(worker_id: str, gateway_mode: str | None) -> str:
     return f"{gateway_mode}:{worker_id}"
 
 
-def node_worker_id(node: Any) -> str:
+def node_worker_id(node: object) -> str:
     gateway = getattr(node, "gateway", None)
     gateway_id = getattr(gateway, "id", None)
     return str(gateway_id or "worker")
 
 
-def node_gateway_mode(node: Any) -> str:
+def node_gateway_mode(node: object) -> str:
     gateway = getattr(node, "gateway", None)
     spec = getattr(gateway, "spec", None)
     if spec is None:

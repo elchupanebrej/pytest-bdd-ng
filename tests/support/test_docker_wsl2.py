@@ -712,7 +712,7 @@ class TestDockerClusterManagerBackend:
 
             mgr.get_cluster("ssh", Path("/fixtures"), Path("/repo"))
 
-            assert mgr._session_start == 1000.0
+            assert mgr._session_start == pytest.approx(1000.0)
 
 
 class TestDockerComposeRelativeMounts:

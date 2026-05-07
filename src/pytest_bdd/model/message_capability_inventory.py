@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable  # noqa: TC003
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 from attrs import frozen
+
+from pytest_bdd.types.json import JSONObject
 
 from .message_capability import MessageCapability, capability_is_relevant
 
@@ -207,10 +209,10 @@ def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
     raise FileNotFoundError(msg)
 
 
-def load_envelope_schema(schema_dir: Path | None = None) -> tuple[Path, dict[str, Any]]:
+def load_envelope_schema(schema_dir: Path | None = None) -> tuple[Path, JSONObject]:
     resolved_schema_dir = resolve_messages_schema_dir(schema_dir)
     envelope_path = _envelope_path(resolved_schema_dir)
-    return resolved_schema_dir, json.loads(envelope_path.read_text(encoding="utf-8"))
+    return resolved_schema_dir, cast(JSONObject, json.loads(envelope_path.read_text(encoding="utf-8")))
 
 
 def sync_capability_inventory(

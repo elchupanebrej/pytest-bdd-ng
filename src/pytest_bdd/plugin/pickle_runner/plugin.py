@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import suppress
 from functools import partial
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 from cucumber_messages import (
     GherkinDocument,  # type:ignore[attr-defined, import-untyped]
     Pickle,  # type:ignore[import-untyped]
     PickleStep,  # type:ignore[attr-defined, import-untyped]
+    Source,
 )
 
 import pytest_bdd.types.exception as exceptions
@@ -20,7 +22,7 @@ from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import inject_fixture
-from pytest_bdd.util.toolz_extra import DefaultMapping
+from pytest_bdd.util.toolz_extra import DefaultMapping, ObjectCallable
 
 from .run_access import (
     require_feature_binding,
@@ -36,8 +38,18 @@ from .run_transitions import apply_transition
 if TYPE_CHECKING:
     from collections import deque
 
+    from pytest_bdd.compatibility.pytest import Session
+
 
 UNSET = object()
+
+
+class _StepCaller(Protocol):
+    def __call__(self) -> object: ...
+
+
+class _FixtureCaller(Protocol):
+    def __call__(self, *, fixturefunc: object, request: FixtureRequest, kwargs: Mapping[str, object]) -> object: ...
 
 
 class PickleRunner:
@@ -47,10 +59,28 @@ class PickleRunner:
         self.request: FixtureRequest | None = None
         self.gherkin_document: GherkinDocument | None = None
         self.pickle: Pickle | None = None
-        self.feature_source: Any | None = None
+        self.feature_source: Source | None = None
+
+    def _require_request(self) -> FixtureRequest:
+        if self.request is None:
+            msg = "Pickle runner request is unavailable before pytest_runtest_protocol."
+            raise RuntimeError(msg)
+        return self.request
+
+    def _require_gherkin_document(self) -> GherkinDocument:
+        if self.gherkin_document is None:
+            msg = "Pickle runner gherkin document is unavailable before pytest_runtest_protocol."
+            raise RuntimeError(msg)
+        return self.gherkin_document
+
+    def _require_pickle(self) -> Pickle:
+        if self.pickle is None:
+            msg = "Pickle runner pickle is unavailable before pytest_runtest_protocol."
+            raise RuntimeError(msg)
+        return self.pickle
 
     @staticmethod
-    def _resolve_runtime_params(item: Item) -> tuple[Any | None, Any | None, Any | None]:
+    def _resolve_runtime_params(item: Item) -> tuple[object | None, object | None, object | None]:
         callspec = getattr(item, "callspec", None)
         params = getattr(callspec, "params", None)
         if isinstance(params, dict):
@@ -62,7 +92,7 @@ class PickleRunner:
         return None, None, None
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_sessionstart(self, session) -> None:
+    def pytest_sessionstart(self, session: Session) -> None:
         run = Run.from_stash(session.config.stash)
         if run.reporting_state.run_started_id is None:
             run.reporting_state.run_started_id = next(IdGenerator.from_stash(session.config.stash))
@@ -88,7 +118,7 @@ class PickleRunner:
         )
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_runtest_call(self, item: Item):
+    def pytest_runtest_call(self, item: Item) -> None:
         __tracebackhide__ = True
         mark_names = [mark.name for mark in item.iter_markers()]
         if PYTEST_BDD_MARK not in mark_names:
@@ -126,7 +156,7 @@ class PickleRunner:
             item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
 
     @pytest.hookimpl(trylast=True)
-    def pytest_runtest_teardown(self, item: Item, nextitem: Item | None):  # noqa: ARG002
+    def pytest_runtest_teardown(self, item: Item, nextitem: Item | None) -> Iterator[None]:  # noqa: ARG002
         __tracebackhide__ = True
         yield
         Run.pop_scenario_run(item._request)
@@ -138,11 +168,11 @@ class PickleRunner:
         request: FixtureRequest,
         gherkin_document: GherkinDocument,
         pickle: Pickle,
-        step: Any = UNSET,
-        previous_step: Any = UNSET,
+        step: object = UNSET,
+        previous_step: object = UNSET,
         status: RunStatus | None = None,
-        **extra_kwargs: Any,
-    ) -> Any:
+        **extra_kwargs: object,
+    ) -> object:
         run = Run.from_stash(request.config.stash)
         scenario_run = run.active_scenario_run
 
@@ -162,7 +192,7 @@ class PickleRunner:
                 status=status,
             )
 
-        hook_kwargs: dict[str, Any] = {
+        hook_kwargs: dict[str, object] = {
             "request": request,
             "run": run,
         }
@@ -173,7 +203,7 @@ class PickleRunner:
         self,
         request: FixtureRequest,
         run: Run,
-    ):
+    ) -> object:
         """Execute scenarios via step dispatcher."""
         __tracebackhide__ = True
         require_feature_object(run, hook_name="pytest_bdd_run_scenario")
@@ -191,11 +221,11 @@ class PickleRunner:
         self,
         request: FixtureRequest,
         run: Run,
-    ):
+    ) -> Callable[[deque[PickleStep]], None]:
         """Provide alternative approach to execute steps."""
         __tracebackhide__ = True
 
-        def dispatcher(left_steps):
+        def dispatcher(left_steps: deque[PickleStep]) -> None:
             __tracebackhide__ = True
             previous_step = None
             gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
@@ -216,9 +246,9 @@ class PickleRunner:
 
     def pytest_bdd_run_step(
         self,
-        request,
+        request: FixtureRequest,
         run: Run,
-    ):
+    ) -> None:
         __tracebackhide__ = True
         scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_run_step")
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
@@ -238,10 +268,12 @@ class PickleRunner:
                 scenario_run=scenario_run,
             )
             scenario_run.step_run.step = step
-            scenario_run.step_run.keyword = step_runtime_enrichment.get("keyword")
+            keyword = step_runtime_enrichment.get("keyword")
+            scenario_run.step_run.keyword = keyword if isinstance(keyword, str) else None
             scenario_run.step_run.doc_string = step_runtime_enrichment.get("doc_string")
             scenario_run.step_run.data_table = step_runtime_enrichment.get("data_table")
-            scenario_run.step_run.line_number = step_runtime_enrichment.get("line_number")
+            line_number = step_runtime_enrichment.get("line_number")
+            scenario_run.step_run.line_number = line_number if isinstance(line_number, int) else None
 
         scenario_description = resolve_scenario_description(
             pickle=pickle,
@@ -320,7 +352,7 @@ class PickleRunner:
                     step_func_args=step_function_kwargs,
                     step_definition=step_definition,
                 )
-                step_result = step_caller()
+                step_result = cast(_StepCaller, step_caller)()
 
                 self._inject_target_fixtures(step_definition, step_result)
                 self._invoke_bdd_hook(
@@ -358,15 +390,15 @@ class PickleRunner:
     @pytest.hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(
         self,
-        request,
-        run,  # noqa: ARG002
-        step_func,  # noqa: ARG002
-        step_func_args,
-        step_definition,
-    ):
+        request: FixtureRequest,
+        run: Run,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
+        step_func_args: Mapping[str, object],
+        step_definition: StepDefinitionManager.Definition,
+    ) -> Callable[[], object]:
         # Execute the step as if it was a fixture to support generator fixtures.
         return partial(
-            call_fixture_func,
+            cast(_FixtureCaller, call_fixture_func),
             fixturefunc=step_definition.func,
             request=request,
             kwargs=step_func_args,
@@ -374,57 +406,65 @@ class PickleRunner:
 
     def _inject_step_parameters_as_fixtures(
         self,
-        step_params: dict | None = None,
-        params_fixtures_mapping: dict | None = None,
-    ):
+        step_params: Mapping[str, object] | None = None,
+        params_fixtures_mapping: bool | Collection[str] | Mapping[object, str | None] | None = None,  # noqa: FBT001
+    ) -> None:
         step_params = step_params or {}
-        params_fixtures_mapping = (
-            DefaultMapping.instantiate_from_collection_or_bool(
-                params_fixtures_mapping or {},
-                warm_up_keys=step_params.keys(),
-            )
-            or {}
+        resolved_mapping: Mapping[object, object] = DefaultMapping.instantiate_from_collection_or_bool(
+            params_fixtures_mapping if params_fixtures_mapping is not None else {},
+            warm_up_keys=step_params.keys(),
         )
 
-        for param, fixture_name in params_fixtures_mapping.items():
+        for param, fixture_name in resolved_mapping.items():
             if fixture_name is None or fixture_name is ...:
                 continue
-            inject_fixture(cast(FixtureRequest, self.request), fixture_name, step_params[param])
+            inject_fixture(self._require_request(), str(fixture_name), step_params[str(param)])
 
-    def _get_step_function_kwargs(self, step, step_definition, step_params):
-        for param in get_args(step_definition.func):
+    def _get_step_function_kwargs(
+        self,
+        step: PickleStep,
+        step_definition: StepDefinitionManager.Definition,
+        step_params: Mapping[str, object],
+    ) -> Iterator[tuple[str, object]]:
+        request = self._require_request()
+        for param in get_args(cast(ObjectCallable, step_definition.func)):
             try:
                 yield param, step_params[param]
             except KeyError:  # noqa: PERF203
                 try:
                     yield param, {"step": step}[param]
                 except KeyError:
-                    yield param, self.request.getfixturevalue(param)
+                    yield param, request.getfixturevalue(param)
 
-    def _inject_target_fixtures(self, step_definition, step_result):
+    def _inject_target_fixtures(self, step_definition: StepDefinitionManager.Definition, step_result: object) -> None:
         if len(step_definition.target_fixtures) == 1:
-            injectable_fixtures = [(step_definition.target_fixtures[0], step_result)]
+            injectable_fixtures: Iterable[tuple[str, object]] = [(step_definition.target_fixtures[0], step_result)]
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
-            injectable_fixtures = zip(step_definition.target_fixtures, step_result, strict=False)
+            injectable_fixtures = zip(
+                step_definition.target_fixtures, cast(Iterable[object], step_result), strict=False
+            )
         else:
             injectable_fixtures = zip_longest(step_definition.target_fixtures, [])
 
         for target_fixture, return_value in injectable_fixtures:
-            inject_fixture(self.request, target_fixture, return_value)
+            inject_fixture(self._require_request(), str(target_fixture), return_value)
 
-    def _match_to_step(self, run: Run):
+    def _match_to_step(self, run: Run) -> StepDefinitionManager.Definition:
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         request = cast(FixtureRequest, self.request)
         try:
-            return request.config.hook.pytest_bdd_match_step_definition_to_step(
-                request=request,
-                run=run,
+            return cast(
+                StepDefinitionManager.Definition,
+                request.config.hook.pytest_bdd_match_step_definition_to_step(
+                    request=request,
+                    run=run,
+                ),
             )
         except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
             scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_match_step_definition_to_step")
             step_to_report = scenario_run.step_run if scenario_run.step_run is not None else step
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(
-                self.gherkin_document, self.pickle, step_to_report
+                self._require_gherkin_document(), self._require_pickle(), step_to_report
             )
             with suppress(Exception):
                 step_registry = request.getfixturevalue("step_registry")

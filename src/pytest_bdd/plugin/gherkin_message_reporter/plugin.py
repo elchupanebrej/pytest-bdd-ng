@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol, cast
 
 from attrs import define, field
 
@@ -17,7 +17,7 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly import (
     finalize_reporter_runtime,
     initialize_reporter_runtime,
 )
-from pytest_bdd.plugin.gherkin_message_reporter.runtime_contract import ReporterLifecycleContract
+from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterConfigurationError as _CucumberFormatterConfigurationError,
 )
@@ -29,7 +29,6 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import (
 )
 
 if TYPE_CHECKING:
-    import subprocess
     import tempfile
     from collections.abc import Callable
     from queue import Queue
@@ -43,18 +42,26 @@ if TYPE_CHECKING:
     from pytest_bdd.plugin.gherkin_message_reporter.attachment_runtime import AttachmentService
     from pytest_bdd.plugin.gherkin_message_reporter.hook_catalog_runtime import HookCatalogService
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
-    from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
+    from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import (
+        LiveFormatterProcess,
+        LiveFormatterService,
+    )
     from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import HookRegistration
     from pytest_bdd.plugin.gherkin_message_reporter.scenario_runtime import ScenarioService
     from pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime import StepCatalogService
     from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
+
+
+class _HookNamedService(Protocol):
+    plugin_name: str
+
 
 logger = logging.getLogger(__name__)
 CucumberFormatterConfigurationError = _CucumberFormatterConfigurationError
 
 
 @define(eq=False, auto_attribs=False, slots=False)
-class GherkinMessageReporter(ReporterLifecycleContract):
+class GherkinMessageReporter:
     BEFORE_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.before-test-run"
     AFTER_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.after-test-run"
     config: Config = field()
@@ -62,7 +69,7 @@ class GherkinMessageReporter(ReporterLifecycleContract):
     hook_registry: set[int]
     hook_registration_registry: dict[int, HookRegistration]
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
-    plugin_name: ClassVar[str] = "pytest-bdd-internal-gherkin-message-reporter"
+    plugin_name: str = "pytest-bdd-internal-gherkin-message-reporter"
 
     process_messages_io_queue: Queue[str]
     process_messages_stop_event: Event
@@ -71,7 +78,7 @@ class GherkinMessageReporter(ReporterLifecycleContract):
     messages_file_path: Path
     is_messages_file_temp: bool
     xdist_fragment_dir: Path | None
-    _xdist_fragment_records: dict[str, dict[str, Any]]
+    _xdist_fragment_records: dict[str, dict[str, object]]
     xdist_transport_session: ReportingTransportSession | None
     xdist_transport_client: ReportingTransportClient | None
     _xdist_worker_temp_messages_path: Path | None
@@ -85,7 +92,7 @@ class GherkinMessageReporter(ReporterLifecycleContract):
     requested_cucumber_formatters: tuple[CucumberFormatterRequest, ...]
     live_formatters: tuple[CucumberFormatterRequest, ...]
     deferred_formatters: tuple[CucumberFormatterRequest, ...]
-    _live_formatter_process: subprocess.Popen[str] | None
+    _live_formatter_process: LiveFormatterProcess | None
     _live_formatter_temp_dir: tempfile.TemporaryDirectory | None
     _live_formatter_lock: Lock
     _live_formatter_stdout_thread: Thread | None
@@ -106,10 +113,10 @@ class GherkinMessageReporter(ReporterLifecycleContract):
     scenario_service: ScenarioService
     attachment_service: AttachmentService
     live_formatter_service: LiveFormatterService
-    _services: tuple[object, ...]
-    _hook_services: tuple[object, ...]
+    _services: tuple[ReporterServiceBase, ...]
+    _hook_services: tuple[ReporterServiceBase, ...]
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self._live_formatter_lock = Lock()
         initialize_reporter_runtime(self)
         service_graph = assemble_reporter_runtime(self)
@@ -120,8 +127,8 @@ class GherkinMessageReporter(ReporterLifecycleContract):
         self.scenario_service = service_graph.scenario_service
         self.attachment_service = service_graph.attachment_service
         self.live_formatter_service = service_graph.live_formatter_service
-        self._hook_services = service_graph.hook_services
-        self._services = service_graph.services
+        self._hook_services = cast(tuple[ReporterServiceBase, ...], service_graph.hook_services)
+        self._services = cast(tuple[ReporterServiceBase, ...], service_graph.services)
         finalize_reporter_runtime(self)
 
     def _resolve_output_path(self, output_path: str) -> Path:
@@ -186,11 +193,13 @@ class GherkinMessageReporter(ReporterLifecycleContract):
 
     def register_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
         for hook_service in self._hook_services:
-            pluginmanager.register(hook_service, name=hook_service.plugin_name)
+            named_hook_service = cast(_HookNamedService, hook_service)
+            pluginmanager.register(named_hook_service, name=named_hook_service.plugin_name)
 
     def unregister_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
         for hook_service in reversed(self._hook_services):
-            pluginmanager.unregister(name=hook_service.plugin_name)
+            named_hook_service = cast(_HookNamedService, hook_service)
+            pluginmanager.unregister(name=named_hook_service.plugin_name)
 
     def configure(
         self,

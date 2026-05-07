@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -14,13 +14,23 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound="StashBound")
 
 
+class _StringKeyStash(Protocol):
+    def __getitem__(self, key: str) -> object: ...
+
+    def __setitem__(self, key: str, value: object) -> None: ...
+
+    def __contains__(self, key: str) -> bool: ...
+
+    def get(self, key: str, default: object | None = None) -> object | None: ...
+
+
 class StashAccess:
     @staticmethod
-    def _stash_get(stash: Stash, key: str) -> Any | None:
-        stash_any = cast(Any, stash)
-        if hasattr(stash_any, "get"):
-            return stash_any.get(key, None)
-        return stash_any[key] if key in stash_any else None  # noqa: SIM401
+    def _stash_get(stash: Stash, key: str) -> object | None:
+        string_stash = cast(_StringKeyStash, stash)
+        if hasattr(string_stash, "get"):
+            return string_stash.get(key, None)
+        return string_stash[key] if key in string_stash else None  # noqa: SIM401
 
     @classmethod
     def get_optional(cls, stash: Stash, stash_type: type[T]) -> T | None:
@@ -44,7 +54,7 @@ class StashAccess:
 
     @classmethod
     def set(cls, stash: Stash, value: T) -> T:
-        cast(Any, stash)[value.STASH_KEY] = value
+        cast(_StringKeyStash, stash)[value.STASH_KEY] = value
         return value
 
     @classmethod
