@@ -13,6 +13,8 @@ test_scenarios = scenarios(Path(__file__).with_name("fixtures") / "mandatory_cov
 
 
 class Coordinate:
+    __hash__ = None  # type: ignore[assignment]
+
     def __init__(self, x: int, y: int, z: int):
         self.x = x
         self.y = y

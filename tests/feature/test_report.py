@@ -27,7 +27,11 @@ def matchreport(
     names="pytest_runtest_logreport pytest_collectreport",
     when=None,
 ):
-    """Return a testreport whose dotted import path matches"""
+    """Return a testreport whose dotted import path matches.
+
+    Raises:
+        ValueError: If no report or more than one report matches.
+    """
     values = []
     for rep in result.getreports(names=names):
         if not when and rep.when != "call" and rep.passed:

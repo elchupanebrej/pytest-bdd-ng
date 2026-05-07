@@ -53,7 +53,13 @@ def get_code_generation_template() -> Template:
 # TODO Rework into plugin class
 # TODO Use wrapping around other plugins
 def check_existence(file_name: str) -> Path:
-    """Check file or directory name for existence."""
+    """
+    Check file or directory name for existence.
+
+    Raises:
+        argparse.ArgumentTypeError: If the file or directory does not exist.
+
+    """
     if not Path(file_name).exists():
         msg = f"{file_name} is an invalid file or directory name"
         raise argparse.ArgumentTypeError(msg)
@@ -80,7 +86,7 @@ def generate_code(
 
 
 def generate_and_print_missing_code_callback(config: Config, session: Session) -> None:
-    """Preparing fixture duplicates for output."""
+    """Prepare fixture duplicates for output."""
     tw = py.io.TerminalWriter()
     config.hook.pytest_collection(session=session)
 
@@ -138,7 +144,7 @@ def process_single_item(
     seen_feature_pickles_ids: set[tuple[str, str]],
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> None:
-    """Handles processing for a single test item."""
+    """Handle processing for a single test item."""
     item.session._setupstate.setup(item)
     item_request: FixtureRequest = item._request
     pickle: Pickle = item_request.getfixturevalue("pickle")
@@ -262,7 +268,7 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
 
 
 def generate_and_print_code_callback(config: Config, session: Session) -> None:
-    """Preparing fixture duplicates for output."""
+    """Prepare fixture duplicates for output."""
     tw = py.io.TerminalWriter()
 
     if config.option.features is None:

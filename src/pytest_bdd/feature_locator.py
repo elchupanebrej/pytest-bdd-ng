@@ -47,7 +47,7 @@ def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
 @define(slots=False)
 class ScenarioLocatorBuilder:
     """
-    A dataclass to encapsulate the logic of building scenario locators based on provided
+    A dataclass to encapsulate the logic of building scenario locators based on provided.
 
     marks and configuration.
     """
@@ -115,7 +115,13 @@ class ScenarioLocatorBuilder:
 
     @staticmethod
     def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> FeaturePathType:
-        """Resolve the type of feature paths (PATH, URL, or UNDEFINED)."""
+        """
+        Resolve the type of feature paths (PATH, URL, or UNDEFINED).
+
+        Raises:
+            ValueError: If the feature path type is unknown.
+
+        """
         if feature_path_type is None:
             return FeaturePathType.UNDEFINED
         if isinstance(feature_path_type, str):

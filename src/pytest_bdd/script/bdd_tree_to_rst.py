@@ -1,5 +1,5 @@
 """
-Converts directory tree containing Gherkin files into a tree which would be included into rst files
+Converts directory tree containing Gherkin files into a tree which would be included into rst files.
 
 Usage:
     bdd_tree_to_rst.py [--snapshot=<snapshot_path>] <features_dir> <output_dir>

@@ -202,11 +202,11 @@ class parse(StepParser):  # noqa:N801 intentional API
     def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
         if isinstance(format_, (StringRepresentable, str, bytes)):
             builder = cast(_ParserBuilder, kwargs.pop("builder", base_parse.compile))
-            self.__init_stringable__(format_, *args, builder=builder, **kwargs)
+            self._init_stringable(format_, *args, builder=builder, **kwargs)
         else:
             raise ParserBuildValueError(format_)  # pragma: no cover
 
-    def __init_stringable__(
+    def _init_stringable(
         self,
         format_: StringRepresentable | str | bytes,
         *args: object,

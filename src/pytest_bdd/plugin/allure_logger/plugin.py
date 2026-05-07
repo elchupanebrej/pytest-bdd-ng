@@ -146,7 +146,7 @@ class AllureLogger:
         step_func_args: Mapping[str, object],
         step_definition: StepDefinitionManager.Definition,
     ) -> None:
-        """Called before step function is set up."""
+        """Call before step function is set up."""
         step = require_step_object(run, hook_name="pytest_bdd_before_step_call")
         step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 

@@ -38,7 +38,7 @@ def collect_hook_public_symbols() -> list[str]:
 
 def load_api_baseline(path: str | Path) -> JSONObject:
     baseline_path = Path(path)
-    payload = json.loads(baseline_path.read_text())
+    payload = json.loads(baseline_path.read_text(encoding="utf-8"))
     return cast(JSONObject, payload)
 
 

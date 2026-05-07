@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class GherkinMessageReporterHookSpec:
     @pytest.hookspec
     def pytest_bdd_message(self, config: Config, message: EventEnvelope) -> None:
-        """Implement cucumber message protocol https://github.com/cucumber/messages"""
+        """Implement cucumber message protocol https://github.com/cucumber/messages."""
 
     @pytest.hookspec
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: dict[str, object]) -> None:

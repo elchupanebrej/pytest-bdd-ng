@@ -203,7 +203,7 @@ def scenarios(
     locators: Iterable[object] = (),
 ) -> ScenarioDecorator | ScenarioTest:
     """
-    Function to bind feature files to pytest runtime
+    Bind feature files to pytest runtime.
 
     :param feature_paths: Features file names. Absolute or relative to the configured feature base path.
     :param filter_: Callable to filter scenarios
@@ -217,6 +217,10 @@ def scenarios(
     :param parse_args: args consumed by parser during parsing
     :param return_test_decorator; Return test decorator or generated test
     :param locators: Feature locators to load Features; Could be custom
+
+    Raises:
+        ValueError: If both features_base_dir and features_base_url are specified.
+
     """
     if parse_args is None:
         parse_args = Args((), {})

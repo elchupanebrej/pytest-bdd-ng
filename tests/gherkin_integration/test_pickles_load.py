@@ -14,7 +14,7 @@ test_data = Path(__file__).parent.parent.parent / "gherkin" / "testdata"
     (pytest.param(file, id=file.name) for file in (test_data / "good").glob("*.pickles.ndjson")),
 )
 def test_simple_load_pickle(pickle_path: Path):
-    with pickle_path.open(mode="r") as pickle_file:
+    with pickle_path.open(encoding="utf-8", mode="r") as pickle_file:
         for pickle_line in pickle_file:
             pickle_data = json.loads(pickle_line)["pickle"]
             pickle = message_converter.from_dict(pickle_data, Pickle)  # type: ignore[attr-defined] # migration to pydantic2

@@ -33,7 +33,7 @@ class _ModernTagExpression(TagExpression):
 
 @define
 class _EnhancedMarksTagExpression(_ModernTagExpression):
-    """Used for 8.3<=pytest"""
+    """Used for 8.3<=pytest."""
 
     def evaluate(self, marks: list[Mark]) -> bool:
         return self.expression.evaluate(MarkMatcher.from_markers(marks)) if self.expression is not None else True
@@ -41,7 +41,7 @@ class _EnhancedMarksTagExpression(_ModernTagExpression):
 
 @define
 class _MarksTagExpression(_ModernTagExpression):
-    """Used for 6.0<=pytest<8.3"""
+    """Used for 6.0<=pytest<8.3."""
 
     def evaluate(self, marks: list[Mark]) -> bool:
         return (

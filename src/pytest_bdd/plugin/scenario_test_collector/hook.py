@@ -12,15 +12,15 @@ from pytest_bdd.parser import ParserProtocol
 class ScenarioTestCollectorHookSpec:
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_is_collectible(self, config: Config, path: Path) -> bool | None:
-        """Verifies if path could be collected by pytest_bdd"""
+        """Verify if path could be collected by pytest_bdd."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_get_parser(self, config: Config, mimetype: str) -> type[ParserProtocol] | None:
-        """Get parser for specific file path"""
+        """Get parser for specific file path."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_get_mimetype(self, config: Config, path: Path) -> Mimetype | None:
-        """Get parser for specific file path"""
+        """Get parser for specific file path."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_convert_tag_to_marks(

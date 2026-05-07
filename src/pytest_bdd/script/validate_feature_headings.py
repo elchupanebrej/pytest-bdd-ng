@@ -136,7 +136,13 @@ def build_baseline_audit(
 
 
 def parse_gherkin_document(path: Path) -> JSONObject:
-    """Parse a gherkin or gherkin-markdown document into raw AST dictionary."""
+    """
+    Parse a gherkin or gherkin-markdown document into raw AST dictionary.
+
+    Raises:
+        ValueError: If the feature document cannot be parsed.
+
+    """
     parser = Parser(ast_builder=AstBuilder(id_generator=IdGenerator()))
     feature_file_data = path.read_text(encoding="utf-8")
 

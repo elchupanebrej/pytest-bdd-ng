@@ -1,4 +1,4 @@
-"""Compatibility module for pytest"""
+"""Compatibility module for pytest."""
 
 from __future__ import annotations
 
@@ -109,7 +109,7 @@ def assert_outcomes(
     xpassed: int = 0,
     xfailed: int = 0,
 ) -> None:
-    """Compatibility function for result.assert_outcomes"""
+    """Compatibility function for result.assert_outcomes."""
     result.assert_outcomes(
         errors=errors,
         passed=passed,

@@ -317,11 +317,7 @@ ignore = [
   "D106",  # undocumented-public - nested-class - Legacy/Noisy - ~18 errors
   "D107",  # undocumented-public - init - Legacy/Noisy - ~43 errors
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
-  "D400",  # missing-trailing - period - Legacy/Noisy - ~27 errors
-  "D401",  # non-imperative - mood - Legacy/Noisy - ~17 errors
-  "D415",  # missing-terminal - punctuation - Legacy/Noisy - ~27 errors
   "DOC201",  # docstring-missing - returns - Legacy/Noisy - ~73 errors
-  "DOC501",  # docstring-missing - exception - Legacy/Noisy - ~10 errors
   "E501",  # line-too - long - Linter-Formatter interference - ~19 errors
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
   "PLC0415",  # import-outside - top-level - Legacy/Noisy - ~66 errors
@@ -337,9 +333,6 @@ ignore = [
   "PLR2004",  # magic-value - comparison - Legacy/Noisy - ~12 errors
   "PLR6301",  # no-self - use - Legacy/Noisy - ~104 errors
   "PLW0603",  # global-statement - Legacy/Noisy - ~1 errors
-  "PLW1514",  # unspecified-encoding - Legacy/Noisy - ~12 errors
-  "PLW1641",  # eq-without - hash - Legacy/Noisy - ~1 errors
-  "PLW3201",  # bad-dunder - method-name - Legacy/Noisy - ~1 errors
   "SLF001",  # private-member - access - Legacy/Noisy - ~207 errors
   "TC006",  # runtime-cast - value - PyCharm cast string bug - ~206 errors
   "TD002",  # missing-todo - author - Legacy/Noisy - ~14 errors

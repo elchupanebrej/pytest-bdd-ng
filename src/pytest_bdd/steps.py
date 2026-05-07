@@ -604,7 +604,7 @@ class StepDefinitionManager:
 
         def decorator(step_func: StepFunc) -> StepFunc:
             """
-            Step decorator
+            Step decorator.
 
             :param function step_func: Step definition function
             """

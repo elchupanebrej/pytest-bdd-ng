@@ -10,20 +10,20 @@ from pytest_bdd.steps import Step, StepDefinitionManager, StepFunc
 
 class PickleRunnerHookSpec:
     def pytest_bdd_before_scenario(self, request: FixtureRequest, run: Run) -> None:
-        """Called before scenario is executed."""
+        """Call before scenario is executed."""
 
     def pytest_bdd_run_scenario(self, request: FixtureRequest, run: Run) -> object:
-        """Execution scenario protocol"""
+        """Execute scenario protocol."""
 
     def pytest_bdd_after_scenario(self, request: FixtureRequest, run: Run) -> None:
-        """Called after scenario is executed."""
+        """Call after scenario is executed."""
 
     def pytest_bdd_run_step(
         self,
         request: FixtureRequest,
         run: Run,
     ) -> None:
-        """Execution of run step protocol"""
+        """Execute run step protocol."""
 
     def pytest_bdd_before_step(
         self,
@@ -31,7 +31,7 @@ class PickleRunnerHookSpec:
         run: Run,
         step_func: StepFunc,
     ) -> None:
-        """Called before step function is set up."""
+        """Call before step function is set up."""
 
     def pytest_bdd_before_step_call(
         self,
@@ -41,7 +41,7 @@ class PickleRunnerHookSpec:
         step_func_args: dict[str, object],
         step_definition: StepDefinitionManager.Definition,
     ) -> None:
-        """Called before step function is executed."""
+        """Call before step function is executed."""
 
     def pytest_bdd_after_step(
         self,
@@ -51,7 +51,7 @@ class PickleRunnerHookSpec:
         step_func_args: dict[str, object],
         step_definition: StepDefinitionManager.Definition,
     ) -> None:
-        """Called after step function is successfully executed."""
+        """Call after step function is successfully executed."""
 
     def pytest_bdd_step_error(
         self,
@@ -62,7 +62,7 @@ class PickleRunnerHookSpec:
         exception: Exception,
         step_definition: StepDefinitionManager.Definition,
     ) -> None:
-        """Called when step function failed to execute."""
+        """Call when step function failed to execute."""
 
     def pytest_bdd_step_func_lookup_error(
         self,
@@ -70,7 +70,7 @@ class PickleRunnerHookSpec:
         run: Run,
         exception: Exception,
     ) -> None:
-        """Called when step lookup failed."""
+        """Call when step lookup failed."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_match_step_definition_to_step(
@@ -78,7 +78,7 @@ class PickleRunnerHookSpec:
         request: FixtureRequest,
         run: Run,
     ) -> StepDefinitionManager.Definition | None:
-        """Find match between scenario step and user defined step function"""
+        """Find match between scenario step and user defined step function."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_get_step_caller(
@@ -89,7 +89,7 @@ class PickleRunnerHookSpec:
         step_func_args: dict[str, object],
         step_definition: StepDefinitionManager.Definition,
     ) -> Callable[[], object] | None:
-        """Provide alternative approach to execute step"""
+        """Provide alternative approach to execute step."""
 
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_get_step_dispatcher(
@@ -97,7 +97,7 @@ class PickleRunnerHookSpec:
         request: FixtureRequest,
         run: Run,
     ) -> Callable[[deque[Step]], object] | None:
-        """Provide alternative approach to execute scenario steps"""
+        """Provide alternative approach to execute scenario steps."""
 
     def pytest_bdd_attach(
         self,
@@ -113,4 +113,4 @@ class PickleRunnerHookSpec:
         test_run_hook_started_id: str | None,
         test_run_started_id: str | None,
     ) -> None:
-        """Internal hook to add attachment to a test case"""
+        """Add attachment to a test case from an internal hook."""

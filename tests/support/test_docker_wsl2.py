@@ -721,7 +721,7 @@ class TestDockerComposeRelativeMounts:
         import yaml
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
-        with Path(compose_path).open() as f:
+        with Path(compose_path).open(encoding="utf-8") as f:
             compose = yaml.safe_load(f)
 
         for svc_name, svc in compose.get("services", {}).items():
@@ -734,7 +734,7 @@ class TestDockerComposeRelativeMounts:
         import yaml
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
-        with Path(compose_path).open() as f:
+        with Path(compose_path).open(encoding="utf-8") as f:
             compose = yaml.safe_load(f)
 
         expected_context = "../../../.."
@@ -747,7 +747,7 @@ class TestDockerComposeRelativeMounts:
         import yaml
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
-        with Path(compose_path).open() as f:
+        with Path(compose_path).open(encoding="utf-8") as f:
             compose = yaml.safe_load(f)
         for svc_name, svc in compose.get("services", {}).items():
             build = svc.get("build", {})
@@ -760,7 +760,7 @@ class TestDockerComposeRelativeMounts:
         import yaml
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
-        with Path(compose_path).open() as f:
+        with Path(compose_path).open(encoding="utf-8") as f:
             compose = yaml.safe_load(f)
         for svc_name, svc in compose.get("services", {}).items():
             for vol in svc.get("volumes", []):
@@ -771,7 +771,7 @@ class TestDockerComposeRelativeMounts:
         import yaml
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
-        with Path(compose_path).open() as f:
+        with Path(compose_path).open(encoding="utf-8") as f:
             compose = yaml.safe_load(f)
         for svc_name, svc in compose.get("services", {}).items():
             build = svc.get("build", {})
@@ -790,7 +790,7 @@ class TestEntrypointsSelfContained:
         entrypoint_path = (
             Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"
         )
-        tree = ast.parse(Path(entrypoint_path).read_text())
+        tree = ast.parse(Path(entrypoint_path).read_text(encoding="utf-8"))
         allowed = {
             "os",
             "shlex",
@@ -858,7 +858,7 @@ class TestDockerfilesRelativeContext:
         """controller.Dockerfile COPY source paths should be relative to build context."""
 
         dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller.Dockerfile"
-        content = Path(dockerfile_path).read_text()
+        content = Path(dockerfile_path).read_text(encoding="utf-8")
         for line in content.splitlines():
             stripped = line.strip()
             if stripped.startswith("COPY"):
@@ -873,7 +873,7 @@ class TestDockerfilesRelativeContext:
     def test_worker_dockerfile_no_absolute_repo_paths(self):
         """worker.Dockerfile COPY source paths should be relative to build context."""
         dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "worker.Dockerfile"
-        content = Path(dockerfile_path).read_text()
+        content = Path(dockerfile_path).read_text(encoding="utf-8")
         for line in content.splitlines():
             stripped = line.strip()
             if stripped.startswith("COPY"):

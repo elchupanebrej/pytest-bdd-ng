@@ -89,7 +89,7 @@ _step_registry = StepDefinitionManager.Registry()
 
 @pytest.fixture
 def step_registry() -> StepDefinitionManager.Registry:
-    """Fixture containing registry of all user-defined steps"""
+    """Fixture containing registry of all user-defined steps."""
     return _step_registry
 
 
@@ -98,25 +98,25 @@ step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[a
 
 @pytest.fixture
 def step_matcher(pytestconfig: Config) -> StepDefinitionManager.Matcher:
-    """Fixture containing matcher to help find step definition for selected step of scenario"""
+    """Fixture containing matcher to help find step definition for selected step of scenario."""
     return StepDefinitionManager.Matcher(pytestconfig)  # type: ignore[call-arg]
 
 
 @pytest.fixture
 def steps_left() -> deque[Step]:
-    """Fixture containing steps which are left to be executed"""
+    """Fixture containing steps which are left to be executed."""
     return deque()
 
 
 @pytest.fixture
 def parameter_type_registry() -> "ParameterTypeRegistry":
-    """Fixture parameter type registry for Cucumber expressions"""
+    """Fixture parameter type registry for Cucumber expressions."""
     return cucumber_expression.parameter_type_registry
 
 
 @pytest.fixture
 def attach(request: FixtureRequest) -> AttachmentCallable:
-    """Fixture parameter type registry for Cucumber expressions"""
+    """Fixture parameter type registry for Cucumber expressions."""
 
     def add_attachment(
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,

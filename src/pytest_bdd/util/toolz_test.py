@@ -34,7 +34,7 @@ def collect_dumped_objects(result: RunResult) -> list[object]:
 
 class InstanceOfType:
     """
-    Helper for equality checks: returns True if
+    Helper for equality checks: returns True if.
 
     the other object is an instance of the given type
     (or always True if no type is specified).

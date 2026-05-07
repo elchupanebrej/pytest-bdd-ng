@@ -77,7 +77,11 @@ def _alpine_wsl2_available() -> bool:
 
 
 def _start_docker_desktop() -> None:
-    """Launch Docker Desktop via PowerShell.  Raise *RuntimeError* on failure."""
+    """Launch Docker Desktop via PowerShell.
+
+    Raises:
+        RuntimeError: If PowerShell is unavailable or Docker Desktop fails to start.
+    """
     ps = _resolve_tool_path("powershell")
     if ps is None:
         msg = "PowerShell not found"

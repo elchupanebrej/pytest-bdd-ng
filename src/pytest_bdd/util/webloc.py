@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 def read(path: str | PathLike[str]) -> str | None:
-    """Return webloc url"""
+    """Return webloc url."""
     load = getattr(plistlib, "load", None)
     if load is not None:
         with Path(path).open("rb") as f:
@@ -22,7 +22,7 @@ def read(path: str | PathLike[str]) -> str | None:
 
 
 def write(path: str | PathLike[str], url: object) -> None:
-    """Write url to webloc file"""
+    """Write url to webloc file."""
     data = {"URL": str(url)}
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     dump = getattr(plistlib, "dump", None)
