@@ -133,7 +133,9 @@ def _semantic_clone(value: JSONValue, *, strip_reference_ids: bool) -> JSONValue
 def _payload_root(envelope_dict: JSONObject, payload_kind: str) -> JSONObject:
     if payload_kind in envelope_dict and isinstance(envelope_dict[payload_kind], dict):
         return cast(JSONObject, envelope_dict[payload_kind])
-    camel_case_payload_kind = payload_kind.split("_")[0] + "".join(part.title() for part in payload_kind.split("_")[1:])
+    camel_case_payload_kind = payload_kind.split("_", maxsplit=1)[0] + "".join(
+        part.title() for part in payload_kind.split("_")[1:]
+    )
     payload = envelope_dict.get(camel_case_payload_kind)
     return payload if isinstance(payload, dict) else {}
 

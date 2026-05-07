@@ -1,4 +1,5 @@
-"""Reporting functionality.
+"""
+Reporting functionality.
 
 Collection of the scenario execution statuses, timing and other information
 that enriches the pytest test reporting.

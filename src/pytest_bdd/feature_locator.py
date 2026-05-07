@@ -46,7 +46,9 @@ def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
 
 @define(slots=False)
 class ScenarioLocatorBuilder:
-    """A dataclass to encapsulate the logic of building scenario locators based on provided
+    """
+    A dataclass to encapsulate the logic of building scenario locators based on provided
+
     marks and configuration.
     """
 
@@ -67,7 +69,13 @@ class ScenarioLocatorBuilder:
         return None
 
     def build_for_pytest_mark(self, mark: Mark) -> Iterable[object]:
-        """Build scenario locators for all provided marks."""
+        """
+        Build scenario locators for all provided marks.
+
+        Yields:
+            Scenario locators derived from the provided mark.
+
+        """
         yield from self.build_for_feature_locator_args(enrich_feature_locator_args(mark))
 
     def build_for_feature_locator_args(self, feature_locator_args: FeatureLocatorArgs) -> Iterable[object]:

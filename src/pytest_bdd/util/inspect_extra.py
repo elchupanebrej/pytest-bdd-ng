@@ -14,7 +14,8 @@ class ObjectCallable(Protocol):
 
 
 def get_args(func: ObjectCallable) -> Sequence[str]:
-    """Get a list of argument names for a function.
+    """
+    Get a list of argument names for a function.
 
     :param func: The function to inspect.
 
@@ -38,7 +39,8 @@ def get_first_source_line(obj: object) -> int:
 
 
 def get_caller_module_locals(stacklevel: int = 1) -> dict[str, object]:
-    """Get the caller module locals dictionary.
+    """
+    Get the caller module locals dictionary.
 
     We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
     all the frames in the stack.
@@ -47,7 +49,8 @@ def get_caller_module_locals(stacklevel: int = 1) -> dict[str, object]:
 
 
 def get_caller_module_path(stacklevel: int = 1) -> str:
-    """Get the caller module path.
+    """
+    Get the caller module path.
 
     We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
     all the frames in the stack.

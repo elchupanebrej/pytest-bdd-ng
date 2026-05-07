@@ -55,7 +55,8 @@ class StepReport:
     stopped: float | None = field(default=None)
 
     def serialize(self, feature_binding: FeatureRuntimeBinding) -> StepReportData:
-        """Serialize the step execution report.
+        """
+        Serialize the step execution report.
 
         :return: Serialized step execution report.
         :rtype: dict
@@ -78,7 +79,8 @@ class StepReport:
         }
 
     def finalize(self, *, failed: bool = False) -> None:
-        """Stop collecting information and finalize the report.
+        """
+        Stop collecting information and finalize the report.
 
         :param bool failed: Whether the step execution is failed.
         """
@@ -87,7 +89,8 @@ class StepReport:
 
     @property
     def duration(self) -> float:
-        """Step execution duration.
+        """
+        Step execution duration.
 
         :return: Step execution duration.
         :rtype: float
@@ -109,7 +112,8 @@ class ScenarioReport:
 
     @property
     def current_step_report(self) -> StepReport:
-        """Get current step report.
+        """
+        Get current step report.
 
         :return: Last or current step report.
         :rtype: pytest_bdd.reporting.StepReport
@@ -117,7 +121,8 @@ class ScenarioReport:
         return self.step_reports[-1]
 
     def add_step_report(self, step_report: StepReport) -> None:
-        """Add new step report.
+        """
+        Add new step report.
 
         :param step_report: New current step report.
         :type step_report: pytest_bdd.reporting.StepReport
@@ -128,7 +133,8 @@ class ScenarioReport:
         self.context_snapshot = context_snapshot
 
     def serialize(self) -> ScenarioReportData:
-        """Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode.
+        """
+        Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode.
 
         :return: Serialized report.
         :rtype: dict

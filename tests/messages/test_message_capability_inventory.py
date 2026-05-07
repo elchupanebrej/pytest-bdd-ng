@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest_bdd.model.message_capability_inventory as message_capability_inventory
+from pytest_bdd.model import message_capability_inventory
 from pytest_bdd.model.coverage.inventory import SCHEMA_DIR, generate_inventory, iter_capability_ids
 from pytest_bdd.model.message_capability import capability_is_relevant, classify_capability_relevance
 from pytest_bdd.model.message_capability_inventory import (

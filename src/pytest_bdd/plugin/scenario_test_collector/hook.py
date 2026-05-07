@@ -26,7 +26,8 @@ class ScenarioTestCollectorHookSpec:
     def pytest_bdd_convert_tag_to_marks(
         self, gherkin_document: GherkinDocument, pickle: Pickle, tag: str
     ) -> Iterable[Mark] | None:
-        """Apply a tag (from a ``.feature`` file) to the given test item.
+        """
+        Apply a tag (from a ``.feature`` file) to the given test item.
 
         The default implementation does the equivalent of
         ``getattr(pytest.mark, tag)(function)``, but you can override this hook and

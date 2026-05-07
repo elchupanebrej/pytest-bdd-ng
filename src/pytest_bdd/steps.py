@@ -1,4 +1,5 @@
-"""Step decorators.
+"""
+Step decorators.
 
 Example:
 @given("I have an article", target_fixture="article")
@@ -105,7 +106,8 @@ def given(
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Given step decorator.
+    """
+    Given step decorator.
 
     :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
@@ -147,7 +149,8 @@ def when(
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """When step decorator.
+    """
+    When step decorator.
 
     :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
@@ -188,7 +191,8 @@ def then(
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Then step decorator.
+    """
+    Then step decorator.
 
     :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
@@ -229,7 +233,8 @@ def step(
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Liberal step decorator which could be used with any keyword.
+    """
+    Liberal step decorator which could be used with any keyword.
 
     :param parserlike: Step name or a parser object.
     :param anonymous_group_names: Grant names for anonymous groups of parserlike
@@ -566,7 +571,8 @@ class StepDefinitionManager:
         liberal: bool | None = None,
         stacklevel: int = 2,
     ) -> StepDecorator:
-        """Step decorator for the type and the name.
+        """
+        Step decorator for the type and the name.
 
         :param step_type: Step type (CONTEXT, ACTION or OUTCOME).
         :param step_parserlike: Step name as in the feature file.
@@ -597,7 +603,8 @@ class StepDefinitionManager:
         )
 
         def decorator(step_func: StepFunc) -> StepFunc:
-            """Step decorator
+            """
+            Step decorator
 
             :param function step_func: Step definition function
             """

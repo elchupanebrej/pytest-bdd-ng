@@ -1,4 +1,4 @@
-"""This files represents simple `Application under test`"""
+"""Simple `Application under test` catalog."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -14,15 +14,15 @@ class Book:
 class Catalog:
     storage: list[Book] = field(default_factory=list)
 
-    def add_books_to_catalog(self, books: Iterable[Book]):
+    def add_books_to_catalog(self, books: Iterable[Book]) -> None:
         self.storage.extend(books)
 
-    def search_by_author(self, term: str):
+    def search_by_author(self, term: str) -> Iterable[Book]:
         for book in self.storage:
             if term in book.author:
                 yield book
 
-    def search_by_title(self, term: str):
+    def search_by_title(self, term: str) -> Iterable[Book]:
         for book in self.storage:
             if term in book.title:
                 yield book

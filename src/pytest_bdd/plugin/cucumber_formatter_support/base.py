@@ -38,7 +38,7 @@ def load_formatter_adapter_template(template_name: str) -> str:
 
 
 def _coerce_cli_aliases(raw_value: object) -> tuple[str, ...]:
-    if raw_value in (None, ()):
+    if raw_value in {None, ()}:
         return ()
     if not isinstance(raw_value, tuple):
         message = f"Unexpected formatter CLI aliases value: {raw_value!r}"
@@ -260,7 +260,7 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> tuple[CucumberFormatterRequest, ...]:
         raw_value = self._option_value(option_source)
-        if raw_value in (None, False):
+        if raw_value in {None, False}:
             return ()
         return (self.build_request_from_value(raw_value, resolve_output_path=resolve_output_path),)
 

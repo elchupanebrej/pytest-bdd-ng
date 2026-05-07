@@ -73,6 +73,6 @@ def pytest_capture_already_configured(args: Sequence[str]) -> bool:
 
 def any_cucumber_formatter_requested(options: object) -> bool:
     return any(
-        getattr(options, option_attr, None) not in (None, False)
+        getattr(options, option_attr, None) not in {None, False}
         for option_attr, *_rest in cucumber_formatter_definitions()
     )

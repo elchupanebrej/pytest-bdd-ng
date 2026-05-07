@@ -1,4 +1,5 @@
-"""xdist worker bootstrap for pytest-bdd reporting.
+"""
+xdist worker bootstrap for pytest-bdd reporting.
 
 This module is selected via ``pytest_xdist_getremotemodule`` by the live
 reporting entrypoint. It must avoid importing ``pytest_bdd`` before

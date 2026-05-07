@@ -18,7 +18,8 @@ class _FormatterAttemptState:
 
 
 class CucumberFormatterEnvelopeAdapter:
-    """Normalize schema-valid streams for stricter upstream formatter assumptions.
+    """
+    Normalize schema-valid streams for stricter upstream formatter assumptions.
 
     The canonical pytest-bdd-ng NDJSON stream remains untouched. This adapter is
     formatter-only compatibility glue for `@cucumber/cucumber`, whose formatter

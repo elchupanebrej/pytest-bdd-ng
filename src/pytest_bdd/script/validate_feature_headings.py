@@ -186,7 +186,7 @@ def validate_heading_records(
         if record.heading_type not in active_policy.enforced_heading_types:
             continue
         normalized_name = active_policy.normalize_name(record.name_raw)
-        if active_policy.empty_name_is_violation and normalized_name == "":
+        if active_policy.empty_name_is_violation and not normalized_name:
             violations.append(
                 HeadingValidationViolation(
                     path=record.document_path,

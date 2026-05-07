@@ -8,7 +8,7 @@ from pathlib import Path
 def main():
     remote_mode = os.environ.get("PYTEST_REMOTE_MODE", "socket")
 
-    if remote_mode in ("socket", "via", "proxy"):
+    if remote_mode in {"socket", "via", "proxy"}:
         python_executable = sys.executable
         os.execl(  # noqa: S606
             python_executable,

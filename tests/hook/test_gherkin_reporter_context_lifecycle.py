@@ -444,7 +444,7 @@ def test_reporter_truncates_existing_explicit_messages_file_on_startup(tmp_path)
         )
     )
 
-    assert messages_path.read_text(encoding="utf-8") == ""
+    assert not messages_path.read_text(encoding="utf-8")
 
 
 def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
@@ -734,10 +734,14 @@ def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_start
     )
 
     monkeypatch.setattr(entrypoint, "GherkinMessageReporter", _FakeReporter)
+
+    def remember_quiet_replacement_config(replacement_config) -> None:
+        quiet_replacement_calls.append(replacement_config)
+
     monkeypatch.setattr(
         entrypoint,
         "_replace_terminal_reporter_with_quiet_variant",
-        lambda replacement_config: quiet_replacement_calls.append(replacement_config),
+        remember_quiet_replacement_config,
     )
 
     entrypoint.pytest_configure(config)

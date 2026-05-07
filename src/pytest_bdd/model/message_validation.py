@@ -262,7 +262,7 @@ def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
 def _track_fields(payload_kind: str, current_path: str, data: object, observed_coverage: ObservedCoverage) -> None:
     if isinstance(data, dict):
         for k, v in data.items():
-            if v is not None and v != "":
+            if v is not None and v:
                 new_path = f"{current_path}.{k}" if current_path else k
                 observed_coverage.record_field(payload_kind, new_path)
                 _track_fields(payload_kind, new_path, v, observed_coverage)
@@ -404,11 +404,11 @@ def validate_message_stream(  # noqa: C901
 
     observed_coverage = ObservedCoverage() if track_coverage else None
 
-    for position, envelope in enumerate(envelopes):
+    for position, raw_envelope in enumerate(envelopes):
         from .execution_message_adapter import ExecutionMessageAdapter
 
         try:
-            projection = ExecutionMessageAdapter.deserialize(envelope)
+            projection = ExecutionMessageAdapter.deserialize(raw_envelope)
         except TypeError as exc:
             violations.append(
                 MessageValidationViolation(

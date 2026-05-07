@@ -50,7 +50,7 @@ def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
 
 def ensure_xdist_controller_batch_patch() -> bool:
     try:
-        import xdist.workermanage as workermanage
+        from xdist import workermanage
     except ImportError:
         return False
 

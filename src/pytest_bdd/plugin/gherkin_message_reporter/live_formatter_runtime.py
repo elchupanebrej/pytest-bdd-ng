@@ -64,7 +64,7 @@ class LiveFormatterService(ReporterServiceBase):
             with suppress(OSError, ValueError):
                 process.stdin.close()
         self._wait_for_live_formatter_process(process)
-        if process.returncode not in (None, 0):
+        if process.returncode not in {None, 0}:
             self._record_live_formatter_failure(
                 f"Live cucumber formatter session exited with code {process.returncode}."
             )

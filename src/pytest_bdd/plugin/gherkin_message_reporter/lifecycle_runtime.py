@@ -310,7 +310,8 @@ class LifecycleService(ReporterServiceBase):
 
     @staticmethod
     def _enrich_ci_payload(ci_payload: JSONObject, env: Mapping[str, str]) -> JSONObject:
-        """Patch CI payload with branch when detector omits it for PR-style builds.
+        """
+        Patch CI payload with branch when detector omits it for PR-style builds.
 
         `ci_environment` provides a solid baseline payload, but some providers
         expose branch only via platform-specific env vars in merge-request

@@ -13,7 +13,9 @@ from pytest_bdd.compatibility.pytest import FixtureDef, FixtureRequest, build_fi
 
 
 def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
-    """Inject fixture into pytest fixture request.
+    """
+    Inject fixture into pytest fixture request.
+
     :param request: pytest fixture request
     :param arg: argument name
     :param value: argument value
@@ -58,7 +60,10 @@ def doesnt_raise(
     match: str | Pattern[str] | None = None,
     suppress_not_matched: bool = True,
 ) -> Iterator[None]:
-    """:param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
+    """
+    Temporarily allow a configured exception.
+
+    :param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
     :param match: Message which will be count as failing test. If message is not matched - function passes
     :param suppress_not_matched: If specified - all non-matched exceptions will be suppressed
     :return:

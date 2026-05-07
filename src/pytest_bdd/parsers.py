@@ -81,7 +81,8 @@ class StepParser(StepParserProtocol, ABC):
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object] | None:
-        """Get step arguments from the given step name.
+        """
+        Get step arguments from the given step name.
 
         :return: `dict` of step arguments
         """
@@ -105,7 +106,8 @@ class StepParser(StepParserProtocol, ABC):
 
     @classmethod
     def build(cls, parserlike: StepParserLike) -> "StepParser":
-        """Get parser by given name.
+        """
+        Get parser by given name.
 
         :param parserlike: name of the step to parse
 
@@ -278,7 +280,8 @@ class string(StepParser):  # noqa: N801 intentional API
         name: str,  # noqa: ARG002 overload
         anonymous_group_names: Iterable[str] | None = None,  # noqa: ARG002 overload
     ) -> dict[str, object]:
-        """No parameters are available for simple string step.
+        """
+        No parameters are available for simple string step.
 
         :return: `dict` of step arguments
         """

@@ -1,4 +1,6 @@
-"""conftest.py is local per-directory plugin of pytest.
+"""
+conftest.py is local per-directory plugin of pytest.
+
 Its mission is to define fixtures, steps, and hooks which will be used
 by tests gathered by pytest from directory structure below
 

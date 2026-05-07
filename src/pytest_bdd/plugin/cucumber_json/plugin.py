@@ -20,7 +20,8 @@ class LogBDDCucumberJSON:
         self.features: dict[str, JSONObject] = {}
 
     def _get_result(self, step: JSONObject, report: TestReport, *, error_message: bool = False) -> JSONObject:
-        """Get scenario test run result.
+        """
+        Get scenario test run result.
 
         :param step: `Step` step we get result for
         :param report: pytest `Report` object
@@ -42,7 +43,8 @@ class LogBDDCucumberJSON:
         return result
 
     def _serialize_tags(self, item: JSONObject) -> JSONArray:
-        """Serialize item's tags.
+        """
+        Serialize item's tags.
 
         :param item: json-serialized `Scenario` or `Feature`.
         :return: `list` of `dict` in the form of:

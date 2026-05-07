@@ -21,7 +21,8 @@ def dump_obj(*objects: object) -> None:
 
 
 def collect_dumped_objects(result: RunResult) -> list[object]:
-    """Parse all the objects dumped with `dump_object` from the result.
+    """
+    Parse all the objects dumped with `dump_object` from the result.
 
     Note: You must run the result with output to stdout enabled.
     For example, using ``testdir.runpytest("-s")``.
@@ -34,6 +35,7 @@ def collect_dumped_objects(result: RunResult) -> list[object]:
 class InstanceOfType:
     """
     Helper for equality checks: returns True if
+
     the other object is an instance of the given type
     (or always True if no type is specified).
     """

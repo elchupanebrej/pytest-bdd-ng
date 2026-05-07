@@ -78,7 +78,7 @@ def discover_governance_schema_path() -> Path | None:
         candidates.extend(sorted(root.glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB)))
     if not candidates:
         return None
-    normalized_candidates = sorted({candidate.resolve() for candidate in candidates}, key=lambda path: str(path))
+    normalized_candidates = sorted({candidate.resolve() for candidate in candidates}, key=str)
     return normalized_candidates[0]
 
 
@@ -514,9 +514,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         envelopes = []
         with Path(args.messages_file).open(encoding="utf-8") as f:
             for line in f:
-                line = line.strip()
-                if line:
-                    envelopes.append(envelope_from_dict(json.loads(line)))
+                stripped_line = line.strip()
+                if stripped_line:
+                    envelopes.append(envelope_from_dict(json.loads(stripped_line)))
 
         validation_result = validate_message_stream(envelopes, track_coverage=True)
         observed_capability_ids = set(collect_observed_capability_ids(envelopes))

@@ -136,7 +136,7 @@ def _run_local_xdist(  # noqa: C901
     ]
 
     try:
-        pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, env=env)
+        pytest_result = subprocess.run(pytest_cmd, capture_output=True, text=True, env=env, check=False)
 
         # Verify step
         verify_cmd = [
@@ -150,7 +150,7 @@ def _run_local_xdist(  # noqa: C901
         if verify_mode == "success-live":
             verify_cmd.extend(["--min-console-writes", "2", "--expect-controller-only"])
 
-        subprocess.run(verify_cmd, capture_output=True, text=True, env=env)
+        subprocess.run(verify_cmd, capture_output=True, text=True, env=env, check=False)
 
         return pytest_result
     finally:
@@ -167,7 +167,7 @@ def _run_remote_xdist_compose(
     fail_transport_workers: str = "",
 ) -> subprocess.CompletedProcess[str]:
     original_cwd = Path.cwd()
-    if remote_mode in ("socket", "via"):
+    if remote_mode in {"socket", "via"}:
         try:
             return _run_local_xdist(
                 tmp_path,

@@ -138,7 +138,7 @@ def _formatter_options_requested(config: Config) -> bool:
     return any(
         option_name.startswith("cucumber_")
         and option_name != "cucumber_html_path"
-        and option_value not in (None, False)
+        and option_value not in {None, False}
         for option_name, option_value in option_values.items()
     )
 

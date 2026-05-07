@@ -29,7 +29,13 @@ ScenarioFilterT: TypeAlias = str | Callable[[Config, object, object], bool] | No
 
 
 def get_python_name_generator(name: str) -> Iterator[str]:
-    """Generate a sequence of suitable python names out of given arbitrary string name."""
+    """
+    Generate a sequence of suitable python names out of given arbitrary string name.
+
+    Yields:
+        Candidate Python test names.
+
+    """
     python_name = format_as_simplified_python_identifier(name)
     suffix = ""
     index = 0
@@ -100,7 +106,8 @@ def scenario(
     *,
     return_test_decorator: bool = True,
 ) -> ScenarioDecorator | ScenarioTest:
-    """Scenario decorator.
+    """
+    Scenario decorator.
 
     :param feature_name: Feature file name. Absolute or relative to the configured feature base path.
     :param scenario_name: Scenario name.
@@ -195,7 +202,8 @@ def scenarios(
     parse_args: Args | None = None,
     locators: Iterable[object] = (),
 ) -> ScenarioDecorator | ScenarioTest:
-    """Function to bind feature files to pytest runtime
+    """
+    Function to bind feature files to pytest runtime
 
     :param feature_paths: Features file names. Absolute or relative to the configured feature base path.
     :param filter_: Callable to filter scenarios
