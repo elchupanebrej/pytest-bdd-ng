@@ -45,8 +45,8 @@ def test_xdist_consolidated_stream_contract_requires_remote_safe_transport() -> 
     contract_text = _contract_text()
     assert "remote worker topologies where participants do not share a filesystem" in contract_text
     assert (
-        "The controller must be able to finalize the stream from transferred chunk data plus completion manifests alone."
-        in contract_text
+        "The controller must be able to finalize the stream from transferred chunk data "
+        "plus completion manifests alone." in contract_text
     )
     assert (
         "Docker acceptance tests verify that mixed worker outcomes survive consolidation across isolated containers."

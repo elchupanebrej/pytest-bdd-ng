@@ -14,6 +14,7 @@ The following rules were removed from `tool.ruff.lint.ignore` and the reported v
 | D404 | Tutorial module docstring started with `This`. | Reworded the docstring summary. |
 | DOC402 | Generator docstrings did not describe yielded values. | Added `Yields` sections. |
 | DOC501 | Docstrings omitted exception documentation for direct raises. | Added concise `Raises` sections. |
+| E501 | Some lines exceeded the configured 120-character limit. | Wrapped comments, messages, generated markdown rows, and embedded test snippets. |
 | PLC0207 | A string split call asked for more splits than the code consumed. | Let ruff simplify the split. |
 | PLC1901 | Empty-string comparisons were used where truthiness was equivalent. | Replaced with truthiness checks. |
 | PLR0402 | Some module imports used aliases where direct `from ... import ...` is clearer. | Let ruff rewrite direct imports. |
@@ -37,7 +38,6 @@ Counts below come from `uv run --extra test ruff check src tests docs --isolated
 | D100-D107 | 1,897 total | Public modules, classes, methods, functions, packages, nested classes, magic methods, and `__init__` methods lack docstrings. | Requires documentation policy and broad authoring work, not mechanical cleanup. |
 | D212 | 41 | The project currently follows the opposite multi-line docstring convention, enforced by active D213. | Conflicts with the active convention; enabling D212 would require disabling D213 and flipping docstring style. |
 | DOC201 | 73 | Docstrings omit return sections. | Requires validating public API return contracts, not just adding boilerplate. |
-| E501 | 19 | Some lines exceed the configured 120-character limit. | Mostly docs, generated-looking literals, or long declarations; should be reviewed case by case to avoid readability loss. |
 | FIX002, TD002, TD003, TD004 | 51 total | TODO comments lack the stricter task metadata required by flake8-todos. | Needs an issue-tracking convention for author and links before enforcement. |
 | PLC0415 | 66 | Imports are intentionally inside functions/hooks to avoid optional dependencies, pytest plugin side effects, or cycles. | Needs dependency-boundary review before moving imports. |
 | PLC2701, SLF001 | 238 total | Tests and compatibility layers access private names. | Many accesses are deliberate white-box tests or compatibility shims; needs API boundary decisions. |

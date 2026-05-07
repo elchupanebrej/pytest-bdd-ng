@@ -139,7 +139,9 @@ def validate_xdist_reporting_compatibility(
     if is_controller and not remote_module_available:
         return XdistReportingCompatibilityResult(
             status="fail",
-            reason="Distributed reporting requires pytest_xdist_getremotemodule, but the hook integration is unavailable.",
+            reason=(
+                "Distributed reporting requires pytest_xdist_getremotemodule, but the hook integration is unavailable."
+            ),
         )
     if is_controller and not controller_event_patch_installed:
         return XdistReportingCompatibilityResult(

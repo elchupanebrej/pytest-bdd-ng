@@ -48,7 +48,8 @@ def these_books_in_the_catalog(
     target_fixture="search_results",
 )
 def a_search_type_is_performed_for_search_term(
-    # `search_results` is a usual pytest fixture defined somewhere else (at conftest.py, plugin or module) and injected by pytest dependency injection mechanism.
+    # `search_results` is a usual pytest fixture defined somewhere else (at conftest.py, plugin or module)
+    # and injected by pytest dependency injection mechanism.
     # In this case it will be provided by conftest.py
     search_results: list[Book],
     # `search_type` and `search_term` are parameters of this step and are injected by step definition

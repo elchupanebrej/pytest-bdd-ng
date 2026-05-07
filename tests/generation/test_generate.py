@@ -49,7 +49,10 @@ def test_generate(testdir):
             )
 
 
-            @scenario(Path('scripts/generate.feature'), 'Given and when using the same fixture should not evaluate it twice')
+            @scenario(
+                Path('scripts/generate.feature'),
+                'Given and when using the same fixture should not evaluate it twice',
+            )
             def test_given_and_when_using_the_same_fixture_should_not_evaluate_it_twice():
                 """Given and when using the same fixture should not evaluate it twice."""
 

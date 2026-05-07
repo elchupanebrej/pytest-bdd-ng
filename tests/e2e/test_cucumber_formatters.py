@@ -230,7 +230,10 @@ def test_missing_cucumber_package_is_auto_installed_for_console_formatter(
     assert_pytest_terminal_reporter_suppressed(result.stdout.str())
     result.stderr.fnmatch_lines(
         [
-            "*Installing missing global npm package(s) for cucumber formatter rendering (--cucumber-progress): @cucumber/cucumber*"
+            (
+                "*Installing missing global npm package(s) for cucumber formatter rendering "
+                "(--cucumber-progress): @cucumber/cucumber*"
+            )
         ]
     )
     result.stdout.fnmatch_lines([f"*{escape(expected_formatter_visible_line('progress'))}*"])

@@ -318,7 +318,6 @@ ignore = [
   "D107",  # undocumented-public - init - Legacy/Noisy - ~43 errors
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
   "DOC201",  # docstring-missing - returns - Legacy/Noisy - ~73 errors
-  "E501",  # line-too - long - Linter-Formatter interference - ~19 errors
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
   "PLC0415",  # import-outside - top-level - Legacy/Noisy - ~66 errors
   "PLC2701",  # import-private - name - Legacy/Noisy - ~31 errors

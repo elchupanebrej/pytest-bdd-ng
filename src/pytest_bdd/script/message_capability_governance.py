@@ -722,7 +722,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             lines = [
                 "# Message Status Governance Checklist",
                 "",
-                "**Purpose**: Release-facing checklist for capability status governance and message-to-status traceability.",
+                (
+                    "**Purpose**: Release-facing checklist for capability status governance "
+                    "and message-to-status traceability."
+                ),
                 "**Scope**: All relevant message envelopes that can affect emitted payloads, lifecycle linkage,",
                 "status mapping, or checklist output.",
                 "",
@@ -744,7 +747,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     "",
                     "## Status Decision Matrix",
                     "",
-                    "| Capability / Message | Status | Rationale | Decision Owner | Evidence Refs | Reviewed At | Hook / Formation Point |",
+                    (
+                        "| Capability / Message | Status | Rationale | Decision Owner | Evidence Refs | "
+                        "Reviewed At | Hook / Formation Point |"
+                    ),
                     "|----------------------|--------|-----------|----------------|---------------|-------------|------------------------|",
                 ]
             )
@@ -752,7 +758,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             for payload_kind in ["test_step_finished", "test_case_finished", "test_run_finished", "attachment"]:
                 status = "Implemented" if payload_kind in observed_kinds else "Pending"
                 lines.append(
-                    f"| `{payload_kind}` outcome mapping | {status} | Automatically tracked | Automation | `tests/messages/` | {datetime.now(timezone.utc).date()} | Runtime |"
+                    f"| `{payload_kind}` outcome mapping | {status} | Automatically tracked | Automation | "
+                    f"`tests/messages/` | {datetime.now(timezone.utc).date()} | Runtime |"
                 )
 
             lines.extend(
@@ -760,10 +767,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     "",
                     "## Release Decision",
                     "",
-                    f"- [{'X' if not runtime_scope_reconciliation.has_unclassified_non_runtime_gaps else ' '}] No non-runtime-required capability is missing classification.",
-                    "- [X] All `Partly-Applicable`, `Non-Implementable`, `Not-Acceptable`, `Not-Applicable`, and `Pending` entries have",
+                    (
+                        f"- [{'X' if not runtime_scope_reconciliation.has_unclassified_non_runtime_gaps else ' '}] "
+                        "No non-runtime-required capability is missing classification."
+                    ),
+                    (
+                        "- [X] All `Partly-Applicable`, `Non-Implementable`, `Not-Acceptable`, "
+                        "`Not-Applicable`, and `Pending` entries have"
+                    ),
                     "      `rationale`, `decision_owner`, `evidence_refs`, and `reviewed_at`.",
-                    f"- [{'X' if runtime_required_missing_count == 0 else ' '}] Runtime-required capabilities are covered by runtime evidence.",
+                    (
+                        f"- [{'X' if runtime_required_missing_count == 0 else ' '}] "
+                        "Runtime-required capabilities are covered by runtime evidence."
+                    ),
                 ]
             )
 

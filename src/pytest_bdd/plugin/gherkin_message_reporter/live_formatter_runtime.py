@@ -120,7 +120,8 @@ class LiveFormatterService(ReporterServiceBase):
         stdin = process.stdin
         if stdin is None:
             self._record_live_formatter_failure(
-                f"Live cucumber formatter delivery from {source} failed because the formatter stdin pipe is unavailable."
+                f"Live cucumber formatter delivery from {source} failed because "
+                "the formatter stdin pipe is unavailable."
             )
             return
         if process.poll() is not None:
@@ -594,7 +595,8 @@ class LiveFormatterService(ReporterServiceBase):
         node_env = self._augment_node_env_for_live_terminal_stream(node_env)
         if node_executable is None:
             self._record_live_formatter_failure(
-                f"Unable to start the live cucumber formatter session for {formatter_labels} because Node.js was not found in PATH."
+                f"Unable to start the live cucumber formatter session for {formatter_labels} "
+                "because Node.js was not found in PATH."
             )
             return
 
@@ -602,7 +604,8 @@ class LiveFormatterService(ReporterServiceBase):
 
         if not runnable_requests:
             self._record_live_formatter_failure(
-                f"Unable to start the live cucumber formatter session for {formatter_labels} because required formatter packages are unavailable."
+                f"Unable to start the live cucumber formatter session for {formatter_labels} "
+                "because required formatter packages are unavailable."
             )
             return
 

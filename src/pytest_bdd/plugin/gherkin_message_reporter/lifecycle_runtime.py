@@ -535,7 +535,8 @@ class LifecycleService(ReporterServiceBase):
             and self.reporter._live_formatter_failure_message is None
         ):
             self.live_formatter_service._record_live_formatter_failure(
-                "Requested cucumber formatters were not attached to a live session; post-run replay is disabled for live formatter runs."
+                "Requested cucumber formatters were not attached to a live session; "
+                "post-run replay is disabled for live formatter runs."
             )
         if self.reporter.config.option.cucumber_html_path is not None:
             self.live_formatter_service.generate_html_report()

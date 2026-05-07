@@ -157,8 +157,8 @@ def test_render_cucumber_formatters_auto_installs_missing_packages(
 
     assert code == 0
     assert (
-        "Installing missing global npm package(s) for cucumber formatter rendering (--cucumber-progress): @cucumber/cucumber"
-        in captured.err
+        "Installing missing global npm package(s) for cucumber formatter rendering "
+        "(--cucumber-progress): @cucumber/cucumber" in captured.err
     )
     assert "Progress: .F" in captured.out
     telemetry = read_fake_formatter_telemetry(tmp_path)
