@@ -101,7 +101,7 @@ class StructBDDPlugin:
         res = outcome.get_result()
         if isinstance(res, Module):
             for member_name, member in getmembers(res.module):
-                # TODO check startwith test_ usage to be aligned with pytest options itself
+                # TODO: check startwith test_ usage to be aligned with pytest options itself
                 if isinstance(member, StepPrototype) and member_name.startswith("test_"):
                     setattr(res.module, member_name, member.as_test(res.module.__file__))
 

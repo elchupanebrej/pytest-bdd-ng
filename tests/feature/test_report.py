@@ -46,7 +46,7 @@ def matchreport(
             or (isinstance(inamepart_match, re.Pattern) and any(map(inamepart_match.match, iname_parts)))
         ):
             values.append(rep)
-    # TODO use extracted exceptions
+    # TODO: use extracted exceptions
     if not values:
         msg = f"Could not find test report matching {inamepart_match}: no test reports at all!"
         raise ValueError(msg)

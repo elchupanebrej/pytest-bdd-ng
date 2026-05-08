@@ -274,7 +274,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
     output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)
-    # TODO move side effect from this method
+    # TODO: move side effect from this method
     index_file = temp_path / "features.rst"
     existing_index_file = output_path / "features.rst"
 

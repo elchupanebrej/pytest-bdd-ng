@@ -268,6 +268,8 @@ class StepDefinitionManager:
 
     @define
     class Matcher:
+        """Match scenario steps to registered step definitions."""
+
         config: Config = field()
         request: FixtureRequest = field(init=False)
         feature: Feature = field(init=False)
@@ -278,7 +280,7 @@ class StepDefinitionManager:
         step_type_context: PickleStepType | None = field(default=None)
 
         class MatchNotFoundError(RuntimeError):
-            pass
+            """Raised when no step definition matches a scenario step."""
 
         def __call__(
             self,
@@ -374,6 +376,8 @@ class StepDefinitionManager:
 
     @define(eq=False)
     class Definition:
+        """Registered step definition."""
+
         func: StepFunc = field()
         type_: str | PickleStepType | None = field()
         parser: StepParser = field()
@@ -479,16 +483,24 @@ class StepDefinitionManager:
 
     @runtime_checkable
     class StepProtocol(Protocol):
+        """Protocol for callables carrying pytest-bdd step definitions."""
+
         __pytest_bdd_step_definitions__: set["StepDefinitionManager.Definition"]
 
     @runtime_checkable
     class NamespaceStepRegistryProtocol(Protocol):
+        """Protocol for objects carrying a namespace step registry."""
+
         _step_registry: "StepDefinitionManager.Registry"
 
     @define
     class Registry:
+        """Collection of step definitions with optional parent registry."""
+
         @runtime_checkable
         class RegistryFixtureProtocol(Protocol):
+            """Protocol for fixtures carrying an attached step registry."""
+
             __pytest_bdd_step_registry__: "StepDefinitionManager.Registry"
 
         registry: set["StepDefinitionManager.Definition"] = field(factory=set)

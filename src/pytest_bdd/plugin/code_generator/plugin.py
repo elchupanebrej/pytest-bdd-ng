@@ -50,8 +50,8 @@ def get_code_generation_template() -> Template:
     return TEMPLATE_ENV.from_string(template_source)
 
 
-# TODO Rework into plugin class
-# TODO Use wrapping around other plugins
+# TODO: Rework into plugin class
+# TODO: Use wrapping around other plugins
 def check_existence(file_name: str) -> Path:
     """
     Check file or directory name for existence.

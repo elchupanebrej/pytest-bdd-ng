@@ -22,6 +22,8 @@ class Loader(Protocol):
 @define
 class StructBDDParser(ParserProtocol):
     class KIND(StrEnum):
+        """Supported struct BDD source formats."""
+
         HOCON = "hocon"
         HJSON = "hjson"
         JSON = "json"
@@ -63,7 +65,7 @@ class StructBDDParser(ParserProtocol):
         )
         return gherkin_document, content
 
-    # TODO make loaders part of public API
+    # TODO: make loaders part of public API
     def build_loader(self) -> Loader | None:
         if self.kind is self.KIND.YAML:
             from yaml import FullLoader

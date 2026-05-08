@@ -265,6 +265,8 @@ class StepPrototype(Node):
     keyword_type: StepKeywordType | None = Field(StepKeywordType.unknown)
 
     class Route(NamedTuple):
+        """Step route with inherited tags, steps, and example table."""
+
         tags: Sequence[str] | None
         steps: list["StepPrototype"]
         example_table: TableNode
@@ -332,6 +334,8 @@ class StepPrototype(Node):
 
     @define
     class Locator(ScenarioLocatorFilterMixin):
+        """Scenario locator for a struct BDD step prototype."""
+
         step: "StepPrototype" = field()
         filename: str = field()
         uri: str = field()

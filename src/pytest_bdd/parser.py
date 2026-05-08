@@ -192,7 +192,7 @@ class MarkdownGherkinParser(BaseParser):
             ) from e
 
         gherkin_document_raw_dict["uri"] = uri
-        # TODO create a defect for a gherkin parser repo
+        # TODO: create a defect for a gherkin parser repo
         gherkin_document_raw_dict["feature"].setdefault("keyword", "")
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 

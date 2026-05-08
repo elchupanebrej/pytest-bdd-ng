@@ -25,7 +25,7 @@ def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Cucumber JSON")
     help_ = "create cucumber json style report file at given path."
-    # TODO we dont't need legacy support for this option anymore
+    # TODO: we dont't need legacy support for this option anymore
     group.addoption(
         "--cucumberjson",
         action="store",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import cache
 from typing import TYPE_CHECKING, Final, Literal, cast
 
 from attrs import frozen
@@ -54,14 +55,9 @@ def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
     return build_validator(envelope_schema, registry=registry), None
 
 
-_VALIDATOR_STATE: tuple[SchemaValidator | None, str | None] | None = None
-
-
+@cache
 def _schema_validator_state() -> tuple[SchemaValidator | None, str | None]:
-    global _VALIDATOR_STATE
-    if _VALIDATOR_STATE is None:
-        _VALIDATOR_STATE = _build_schema_validator()
-    return _VALIDATOR_STATE
+    return _build_schema_validator()
 
 
 AllowedImplementationStatus = str

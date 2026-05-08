@@ -313,14 +313,12 @@ ignore = [
   "D102",  # undocumented-public - method - Legacy/Noisy - ~373 errors
   "D103",  # undocumented-public - function - Legacy/Noisy - ~210 errors
   "D104",  # undocumented-public - package - Legacy/Noisy - ~24 errors
-  "D106",  # undocumented-public - nested-class - Legacy/Noisy - ~18 errors
   "D107",  # undocumented-public - init - Legacy/Noisy - ~43 errors
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
   "DOC201",  # docstring-missing - returns - Legacy/Noisy - ~73 errors
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
   "PLC0415",  # import-outside - top-level - Legacy/Noisy - ~66 errors
   "PLC2701",  # import-private - name - Legacy/Noisy - ~31 errors
-  "PLR0904",  # too-many - public-methods - Legacy/Noisy - ~2 errors
   "PLR0911",  # too-many - return-statements - Legacy/Noisy - ~6 errors
   "PLR0912",  # too-many - branches - Legacy/Noisy - ~5 errors
   "PLR0913",  # too-many - arguments - Legacy/Noisy - ~27 errors
@@ -330,12 +328,10 @@ ignore = [
   "PLR1702",  # too-many - nested-blocks - Requires control-flow refactor
   "PLR2004",  # magic-value - comparison - Legacy/Noisy - ~12 errors
   "PLR6301",  # no-self - use - Legacy/Noisy - ~104 errors
-  "PLW0603",  # global-statement - Legacy/Noisy - ~1 errors
   "SLF001",  # private-member - access - Legacy/Noisy - ~207 errors
   "TC006",  # runtime-cast - value - PyCharm cast string bug - ~206 errors
   "TD002",  # missing-todo - author - Legacy/Noisy - ~14 errors
   "TD003",  # missing-todo - link - Legacy/Noisy - ~14 errors
-  "TD004",  # missing-todo - colon - Legacy/Noisy - ~9 errors
 ]
 preview = true
 select = [
@@ -419,6 +415,8 @@ max-complexity = 10  # TODO target is 6
 "docs/tutorial/tests/*" = ["S101"]  # S101: ~2 errors
 "src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001: ~3 errors
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF: ~16 errors
+"src/pytest_bdd/model/scenario_run.py" = ["PLR0904"]  # Lifecycle model intentionally exposes broad query API.
+"src/pytest_bdd/plugin/cucumber_formatter_support/base.py" = ["PLR0904"]  # Formatter plugin base API is intentionally broad.
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001: ~11 errors
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]  # S301: ~1 errors
 "tests/*" = ["ANN", "D", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors

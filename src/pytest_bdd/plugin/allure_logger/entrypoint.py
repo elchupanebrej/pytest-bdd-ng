@@ -19,7 +19,7 @@ def pytest_configure(config: Config) -> None:
     if not allure_accessible:
         return
 
-    # TODO refactor/reimplement Allure plugin
+    # TODO: refactor/reimplement Allure plugin
     # listener = next(
     #     filter(
     #         partial(flip(isinstance), AllureListener),
