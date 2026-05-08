@@ -24,7 +24,6 @@ from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.model.stash_access import StashBound
-from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 from pytest_bdd.types.protocol import Identifiable, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     from gherkin.stream.id_generator import IdGenerator
 
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Session, Stash
+    from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 LifecycleKind = Literal["run", "feature", "scenario", "step"]
 NodeKind = Literal["feature", "scenario", "step"]
@@ -242,7 +242,7 @@ class ReportingLifecycleState:
             "runtime_step_to_test_step_id": {
                 str(key): value for key, value in self.runtime_step_to_pickle_step_id.items()
             },
-            "scenario_attempt_context": cast(JSONObject, dict(self.scenario_attempt_context))
+            "scenario_attempt_context": cast("JSONObject", dict(self.scenario_attempt_context))
             if self.scenario_attempt_context is not None
             else None,
             "step_started_timestamp": self.step_started_timestamp,
@@ -397,7 +397,7 @@ class FeatureRuntimeBinding:
         if self.pickles:
             return self.pickles
 
-        gherkin_document_payload = cast(JSONObject, message_converter.to_dict(self.gherkin_document))
+        gherkin_document_payload = cast("JSONObject", message_converter.to_dict(self.gherkin_document))
         pickles_data = PicklesCompiler(id_generator=id_generator).compile(
             cast("GherkinDocumentWithURI", gherkin_document_payload),
         )
@@ -1056,7 +1056,7 @@ class Run(StashBound):
             "run_ref": self.run_ref.as_dict(),
             "status": self.status.value,
             "transition_index": self.transition_index,
-            "feature_bindings_by_uri": cast(JSONArray, sorted(self.feature_bindings_by_uri)),
+            "feature_bindings_by_uri": cast("JSONArray", sorted(self.feature_bindings_by_uri)),
             "active_feature_id": self.active_feature_id,
             "active_feature_uri": self.active_feature_uri,
             "active_scenario_id": active_scenario_id,
@@ -1412,9 +1412,9 @@ class ExternalApiCompatibilityRecord:
         return {
             "api_surface_id": self.api_surface_id,
             "baseline_reference": self.baseline_reference,
-            "changed_symbols": cast(JSONArray, list(self.changed_symbols)),
-            "removed_symbols": cast(JSONArray, list(self.removed_symbols)),
-            "renamed_symbols": cast(JSONArray, list(self.renamed_symbols)),
-            "additive_symbols": cast(JSONArray, list(self.additive_symbols)),
+            "changed_symbols": cast("JSONArray", list(self.changed_symbols)),
+            "removed_symbols": cast("JSONArray", list(self.removed_symbols)),
+            "renamed_symbols": cast("JSONArray", list(self.renamed_symbols)),
+            "additive_symbols": cast("JSONArray", list(self.additive_symbols)),
             "consumer_migration_required": self.consumer_migration_required,
         }

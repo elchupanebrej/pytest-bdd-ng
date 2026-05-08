@@ -81,7 +81,7 @@ class ScenarioReporter:
         """
         outcome = yield
         if call.when != "setup":
-            rep = cast(_ScenarioReportTestReport, outcome.get_result())
+            rep = cast("_ScenarioReportTestReport", outcome.get_result())
             """Store item in the report object."""
             scenario_report = self.current_report
             if scenario_report is not None:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
@@ -22,6 +21,8 @@ from pytest_bdd.plugin.cucumber_formatter_support.base import (
 )
 
 if TYPE_CHECKING:
+    from importlib.resources.abc import Traversable
+
     from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
 
 
@@ -179,12 +180,12 @@ def normalize_cucumber_formatter_output_key(output_path: Path) -> str:
 
 
 def _read_template_asset(package: str, template_name: str) -> str:
-    template = cast(Traversable, files(package).joinpath(template_name))
+    template = cast("Traversable", files(package).joinpath(template_name))
     return template.read_text(encoding="utf-8")
 
 
 def _formatter_options_requested(config: Config) -> bool:
-    option_values = cast(dict[str, object], getattr(getattr(config, "option", None), "__dict__", {}))
+    option_values = cast("dict[str, object]", getattr(getattr(config, "option", None), "__dict__", {}))
     return any(
         option_name.startswith("cucumber_")
         and option_name != "cucumber_html_path"
@@ -207,7 +208,7 @@ def _resolve_formatter_request_hook(config: Config) -> _FormatterRequestHook | N
             )
             raise RuntimeError(msg)
         return None
-    return cast(_FormatterRequestHook, hook)
+    return cast("_FormatterRequestHook", hook)
 
 
 def _require_formatter_runtime_assets_hook(pluginmanager: PytestPluginManager | None) -> _FormatterRuntimeAssetsHook:
@@ -218,7 +219,7 @@ def _require_formatter_runtime_assets_hook(pluginmanager: PytestPluginManager | 
             "was not configured."
         )
         raise RuntimeError(msg)
-    return cast(_FormatterRuntimeAssetsHook, hook)
+    return cast("_FormatterRuntimeAssetsHook", hook)
 
 
 def resolve_requested_cucumber_formatters(
@@ -328,7 +329,7 @@ def load_formatter_adapter_support_template() -> str:
         Template content.
 
     """
-    loader = cast(Callable[[], str], _load_formatter_adapter_support_template)
+    loader = cast("Callable[[], str]", _load_formatter_adapter_support_template)
     return loader()
 
 
@@ -340,7 +341,7 @@ def load_formatter_adapter_template(template_name: str) -> str:
         Template content.
 
     """
-    loader = cast(Callable[[str], str], _load_formatter_adapter_template)
+    loader = cast("Callable[[str], str]", _load_formatter_adapter_template)
     return loader(template_name)
 
 

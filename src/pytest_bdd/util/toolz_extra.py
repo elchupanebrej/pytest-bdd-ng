@@ -113,7 +113,7 @@ def itemgetter_(*items: object) -> Callable[[object], object]:
         Item getter function.
 
     """
-    getter = cast(Callable[[object], object], itemgetter(*items))
+    getter = cast("Callable[[object], object]", itemgetter(*items))
 
     def func(obj: object) -> object:
         if len(items) == 0:
@@ -165,7 +165,7 @@ def getitemdefault(
         def default_factory() -> object:
             return default
 
-    getitem_ = cast(Callable[[object, object], object], getitem)
+    getitem_ = cast("Callable[[object, object], object]", getitem)
 
     try:
         item = getitem_(obj, index)
@@ -274,7 +274,7 @@ def compose(*funcs: ObjectCallable) -> ObjectCallable:
         Composed function.
 
     """
-    return cast(ObjectCallable, reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs))
+    return cast("ObjectCallable", reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs))
 
 
 def flip(func: ObjectCallable) -> ObjectCallable:
@@ -301,4 +301,4 @@ def flip(func: ObjectCallable) -> ObjectCallable:
 class _NoneExceptionError(Exception): ...
 
 
-chain_map: ObjectCallable = compose(cast(ObjectCallable, chain.from_iterable), cast(ObjectCallable, map))
+chain_map: ObjectCallable = compose(cast("ObjectCallable", chain.from_iterable), cast("ObjectCallable", map))

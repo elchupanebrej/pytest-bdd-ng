@@ -33,7 +33,7 @@ class Module(PytestModule):
 
         """
         StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(self.obj)
-        return cast(Iterable[Item | Collector], super().collect())
+        return cast("Iterable[Item | Collector]", super().collect())
 
 
 class FeatureFileModule(Module):
@@ -63,7 +63,7 @@ class FeatureFileModule(Module):
         module_name = format_as_python_identifier(f"{path}_{uuid4()}")
 
         module_spec = ModuleSpec(module_name, None)
-        module = cast(ModuleType, module_from_spec(module_spec))
+        module = cast("ModuleType", module_from_spec(module_spec))
 
         module.test_scenarios = scenarios(  # type:ignore[attr-defined]
             *((path,) if path is not None else []),
@@ -152,4 +152,4 @@ class FeatureFileModule(Module):
             Tuple of (feature_path, path_type, None).
 
         """
-        return *cls.detect_uri_pathtype(cast(str, webloc_read(str(path)))), None
+        return *cls.detect_uri_pathtype(cast("str", webloc_read(str(path)))), None

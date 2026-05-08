@@ -90,14 +90,14 @@ class HookCatalogService(ReporterServiceBase):
             source_file = getfile(func)
             source_line = get_first_source_line(func)
 
-            hook_message_id = next(IdGenerator.from_stash(cast(Config, config).stash))
+            hook_message_id = next(IdGenerator.from_stash(cast("Config", config).stash))
             hook_message = Hook(
                 id=hook_message_id,
                 **({"name": hook_name} if hook_name is not None else {}),
                 source_reference=SourceReference(
                     uri=relpath(
                         source_file,
-                        str(get_config_root_path(cast(Config, config))),
+                        str(get_config_root_path(cast("Config", config))),
                     ),
                     location=Location(line=source_line, column=1),
                     java_method=JavaMethod(

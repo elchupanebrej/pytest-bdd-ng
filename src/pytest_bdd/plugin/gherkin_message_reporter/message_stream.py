@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-from typing import Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 
 from pytest_bdd.model.message_transport import REPORTING_BATCH_EVENT
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +75,7 @@ def ensure_xdist_controller_batch_patch() -> bool:
     except ImportError:
         return False
 
-    original = cast(Callable[[object, object], None], workermanage.WorkerController.process_from_remote)
+    original = cast("Callable[[object, object], None]", workermanage.WorkerController.process_from_remote)
     if getattr(original, "__pytest_bdd_reporting_patch__", False):
         return True
 
@@ -101,10 +103,10 @@ def ensure_xdist_controller_batch_patch() -> bool:
                 return
         original(self, eventcall)
 
-    patched_process_from_remote_with_attr = cast(_PatchedProcessFromRemote, patched_process_from_remote)
+    patched_process_from_remote_with_attr = cast("_PatchedProcessFromRemote", patched_process_from_remote)
     patched_process_from_remote_with_attr.__pytest_bdd_reporting_patch__ = True
     workermanage.WorkerController.process_from_remote = cast(
-        Callable[[object, object], None],
+        "Callable[[object, object], None]",
         patched_process_from_remote_with_attr,
     )
     return True

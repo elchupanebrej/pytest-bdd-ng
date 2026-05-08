@@ -76,7 +76,7 @@ class IdentifiableObjectRegistry:
             identifier = _resolve_identifiable_id(candidate)
             if identifier is None:
                 continue
-            self.objects_by_id[identifier] = cast(Identifiable, candidate)
+            self.objects_by_id[identifier] = cast("Identifiable", candidate)
 
     def resolve(self, object_id: str) -> Identifiable:
         """

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 from contextlib import suppress
 from functools import partial
 from itertools import zip_longest
@@ -39,6 +38,7 @@ from .run_transitions import apply_transition
 
 if TYPE_CHECKING:
     from collections import deque
+    from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
 
     from pytest_bdd.compatibility.pytest import Session
 
@@ -404,7 +404,7 @@ class PickleRunner:
                     step_func_args=step_function_kwargs,
                     step_definition=step_definition,
                 )
-                step_result = cast(_StepCaller, step_caller)()
+                step_result = cast("_StepCaller", step_caller)()
 
                 self._inject_target_fixtures(step_definition, step_result)
                 self._invoke_bdd_hook(
@@ -456,7 +456,7 @@ class PickleRunner:
 
         """
         return partial(
-            cast(_FixtureCaller, call_fixture_func),
+            cast("_FixtureCaller", call_fixture_func),
             fixturefunc=step_definition.func,
             request=request,
             kwargs=step_func_args,
@@ -485,7 +485,7 @@ class PickleRunner:
         step_params: Mapping[str, object],
     ) -> Iterator[tuple[str, object]]:
         request = self._require_request()
-        for param in get_args(cast(ObjectCallable, step_definition.func)):
+        for param in get_args(cast("ObjectCallable", step_definition.func)):
             try:
                 yield param, step_params[param]
             except KeyError:  # noqa: PERF203
@@ -500,7 +500,7 @@ class PickleRunner:
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
             injectable_fixtures = zip(
                 step_definition.target_fixtures,
-                cast(Iterable[object], step_result),
+                cast("Iterable[object]", step_result),
                 strict=False,
             )
         else:
@@ -511,10 +511,10 @@ class PickleRunner:
 
     def _match_to_step(self, run: Run) -> StepDefinitionManager.Definition:
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
-        request = cast(FixtureRequest, self.request)
+        request = cast("FixtureRequest", self.request)
         try:
             return cast(
-                StepDefinitionManager.Definition,
+                "StepDefinitionManager.Definition",
                 request.config.hook.pytest_bdd_match_step_definition_to_step(
                     request=request,
                     run=run,

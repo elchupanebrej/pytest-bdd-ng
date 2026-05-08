@@ -134,7 +134,7 @@ class StepParser(StepParserProtocol, ABC):
 
         """
         if isinstance(parserlike, StepParserProtocol):
-            parser = cast(StepParser, parserlike)
+            parser = cast("StepParser", parserlike)
         elif isinstance(parserlike, _RePattern):
             parser = re(parserlike)
         elif isinstance(parserlike, base_parse.Parser):
@@ -170,7 +170,7 @@ class re(StepParser):  # noqa:N801 intentional API
     def _(self, pattern: str, *args: object, **kwargs: object) -> None:
         """Compile regex."""
         self.pattern = pattern
-        self.regex = cast(_RegexCompiler, re_compile)(self.pattern, *args, **kwargs)
+        self.regex = cast("_RegexCompiler", re_compile)(self.pattern, *args, **kwargs)
 
     @__init__.register
     def _(self, pattern: _RePattern[str]) -> None:
@@ -196,7 +196,7 @@ class re(StepParser):  # noqa:N801 intentional API
             Dictionary of parsed arguments.
 
         """
-        match = cast(Match, self.regex.fullmatch(name))  # Can't be None because is already matched
+        match = cast("Match", self.regex.fullmatch(name))  # Can't be None because is already matched
         group_dict = match.groupdict()
         if anonymous_group_names is not None:
             group_dict.update(
@@ -273,7 +273,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
         """
         if isinstance(format_, (StringRepresentable, str, bytes)):
-            builder = cast(_ParserBuilder, kwargs.pop("builder", base_parse.compile))
+            builder = cast("_ParserBuilder", kwargs.pop("builder", base_parse.compile))
             self._init_stringable(format_, *args, builder=builder, **kwargs)
         else:
             raise ParserBuildValueError(format_)  # pragma: no cover
@@ -286,7 +286,7 @@ class parse(StepParser):  # noqa:N801 intentional API
         **kwargs: object,
     ) -> None:
         self.format = normalize_to_string(format_)
-        self.parser = cast(base_parse.Parser, builder(self.format, *args, **kwargs))
+        self.parser = cast("base_parse.Parser", builder(self.format, *args, **kwargs))
 
     @__init__.register
     def _(self, format_: base_parse.Parser) -> None:
@@ -307,7 +307,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
         """
         kwargs.setdefault("builder", base_cfparse.Parser)
-        return cast(parse, cls(*args, **kwargs))
+        return cast("parse", cls(*args, **kwargs))
 
     def parse_arguments(
         self,
@@ -327,7 +327,7 @@ class parse(StepParser):  # noqa:N801 intentional API
             Dictionary of parsed arguments.
 
         """
-        match = cast(_ParseMatchProtocol, self.parser.parse(name))
+        match = cast("_ParseMatchProtocol", self.parser.parse(name))
         group_dict = dict(match.named)
         if anonymous_group_names is not None:
             group_dict.update(dict(zip(anonymous_group_names, match.fixed, strict=False)))

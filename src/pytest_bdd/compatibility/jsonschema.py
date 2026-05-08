@@ -38,5 +38,5 @@ def build_validator(schema: object, *, registry: object | None = None) -> Schema
     validator_class = validators.validator_for(schema)
     validator_class.check_schema(schema)
     if registry is None:
-        return cast(SchemaValidator, validator_class(schema))
-    return cast(SchemaValidator, validator_class(schema, registry=registry))
+        return cast("SchemaValidator", validator_class(schema))
+    return cast("SchemaValidator", validator_class(schema, registry=registry))

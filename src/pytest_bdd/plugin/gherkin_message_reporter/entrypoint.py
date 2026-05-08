@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import os
-from collections.abc import Callable
 from contextlib import suppress
 from typing import TYPE_CHECKING, ClassVar, TextIO, cast
 
@@ -28,6 +27,7 @@ from .plugin import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import ModuleType
 
 _REPORTING_OUTPUT_OPTION_FLAGS = (
@@ -80,12 +80,12 @@ def _reporting_requested_from_args(args: list[str]) -> bool:
 
 
 def _terminal_formatter_flags_requested(args: list[str]) -> bool:
-    impl = cast(Callable[[list[str]], bool], terminal_formatter_flags_requested)
+    impl = cast("Callable[[list[str]], bool]", terminal_formatter_flags_requested)
     return impl(args)
 
 
 def _pytest_capture_already_configured(args: list[str]) -> bool:
-    impl = cast(Callable[[list[str]], bool], _pytest_capture_already_configured_impl)
+    impl = cast("Callable[[list[str]], bool]", _pytest_capture_already_configured_impl)
     return impl(args)
 
 

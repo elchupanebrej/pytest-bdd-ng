@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
@@ -12,7 +11,6 @@ from pytest_bdd.plugin.cucumber_formatter_support.standalone import (
     resolve_standalone_formatter_requests,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
-from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterConfigurationError,
     CucumberFormatterRenderResult,
@@ -21,9 +19,11 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import (
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 
 @frozen
@@ -53,10 +53,7 @@ class _StandaloneReporterRuntime:
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
         renderer = cast(
-            Callable[
-                [list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...]],
-                dict[str, str],
-            ],
+            "Callable[[list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...]], dict[str, str]]",
             self.formatter_catalog.render_runtime_assets,
         )
         return renderer(formatter_requests)
@@ -64,7 +61,7 @@ class _StandaloneReporterRuntime:
 
 class _StandaloneLiveFormatterService(LiveFormatterService):
     def __init__(self, reporter: _StandaloneReporterRuntime) -> None:
-        self.reporter = cast(GherkinMessageReporter, reporter)
+        self.reporter = cast("GherkinMessageReporter", reporter)
 
 
 @frozen
@@ -102,7 +99,7 @@ class StandaloneCucumberFormatterRenderer:
 
         """
         return cast(
-            tuple[CucumberFormatterRequest, ...],
+            "tuple[CucumberFormatterRequest, ...]",
             resolve_standalone_formatter_requests(
                 rootpath=rootpath,
                 formatter_option_values=formatter_option_values,

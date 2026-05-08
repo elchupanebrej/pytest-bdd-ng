@@ -45,7 +45,7 @@ def resolve_reporting_worker_identity(
     """
     if not is_xdist_worker_process(config):
         return "master", None
-    workerinput = cast(Mapping[str, object], getattr(config, "workerinput", {}))
+    workerinput = cast("Mapping[str, object]", getattr(config, "workerinput", {}))
     worker_id = str(
         workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput.get("workerid") or "worker",
     )

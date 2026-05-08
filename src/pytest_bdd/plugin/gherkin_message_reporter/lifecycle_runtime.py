@@ -256,7 +256,7 @@ class LifecycleService(ReporterServiceBase):
                     id=before_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=self.transport_service._current_reporting_worker_id(cast(Config, config)),
+                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),
                 ),
             ),
         )
@@ -337,13 +337,13 @@ class LifecycleService(ReporterServiceBase):
             ),
         )
         self._emit_run_hook_definition(
-            cast(Config, config),
+            cast("Config", config),
             hook_id=self.reporter.BEFORE_TEST_RUN_HOOK_ID,
             hook_type=HookType.before_test_run,
             hook_name="before-test-run",
         )
         self._emit_run_hook_definition(
-            cast(Config, config),
+            cast("Config", config),
             hook_id=self.reporter.AFTER_TEST_RUN_HOOK_ID,
             hook_type=HookType.after_test_run,
             hook_name="after-test-run",
@@ -422,7 +422,7 @@ class LifecycleService(ReporterServiceBase):
                 "Execution plugins must initialize session root state before reporter lifecycle emission."
             )
             raise RuntimeError(msg)
-        return cast(str, run_started_id)
+        return cast("str", run_started_id)
 
     @staticmethod
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
@@ -467,7 +467,7 @@ class LifecycleService(ReporterServiceBase):
 
     def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         run = Run.from_stash(request.config.stash)
-        test_step_id = cast(str | None, run.resolve_test_step_id_for_runtime_step(pickle_step=step))
+        test_step_id = cast("str | None", run.resolve_test_step_id_for_runtime_step(pickle_step=step))
         if test_step_id is None:
             logger.warning("Unable to resolve cucumber TestStep id for runtime step object: %r", step)
         return test_step_id
@@ -487,16 +487,16 @@ class LifecycleService(ReporterServiceBase):
         if self.reporter.is_disabled:
             return
         config = session.config
-        run_started_id = self._require_run_started_id(config=cast(Config, config))
+        run_started_id = self._require_run_started_id(config=cast("Config", config))
         run_success = is_testrun_success(exitstatus)
         run_exception = (
             CucumberException(type="PytestExitCode", message=str(exitstatus), stack_trace=str(exitstatus))
             if not run_success
             else None
         )
-        after_test_run_hook_started_id = next(IdGenerator.from_stash(cast(Config, config).stash))
+        after_test_run_hook_started_id = next(IdGenerator.from_stash(cast("Config", config).stash))
         self._emit_run_hook_definition(
-            cast(Config, config),
+            cast("Config", config),
             hook_id=self.reporter.AFTER_TEST_RUN_HOOK_ID,
             hook_type=HookType.after_test_run,
             hook_name="after-test-run",
@@ -509,7 +509,7 @@ class LifecycleService(ReporterServiceBase):
                     id=after_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=self.transport_service._current_reporting_worker_id(cast(Config, config)),
+                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),
                 ),
             ),
         )
@@ -543,7 +543,7 @@ class LifecycleService(ReporterServiceBase):
 
         self.transport_service.finish_process_messages_thread()
         if self.reporter.is_xdist_worker:
-            workeroutput = cast(dict[str, object], getattr(config, "workeroutput", {}))
+            workeroutput = cast("dict[str, object]", getattr(config, "workeroutput", {}))
             worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
             if self.reporter.xdist_transport_client is not None:
                 workeroutput["pytest_bdd_messages_manifest"] = self.reporter.xdist_transport_client.build_manifest(

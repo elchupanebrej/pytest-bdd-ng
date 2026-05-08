@@ -19,7 +19,6 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly import (
     finalize_reporter_runtime,
     initialize_reporter_runtime,
 )
-from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterConfigurationError as _CucumberFormatterConfigurationError,
 )
@@ -50,6 +49,7 @@ if TYPE_CHECKING:
     )
     from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import HookRegistration
     from pytest_bdd.plugin.gherkin_message_reporter.scenario_runtime import ScenarioService
+    from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
     from pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime import StepCatalogService
     from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
 
@@ -132,8 +132,8 @@ class GherkinMessageReporter:
         self.scenario_service = service_graph.scenario_service
         self.attachment_service = service_graph.attachment_service
         self.live_formatter_service = service_graph.live_formatter_service
-        self._hook_services = cast(tuple[ReporterServiceBase, ...], service_graph.hook_services)
-        self._services = cast(tuple[ReporterServiceBase, ...], service_graph.services)
+        self._hook_services = cast("tuple[ReporterServiceBase, ...]", service_graph.hook_services)
+        self._services = cast("tuple[ReporterServiceBase, ...]", service_graph.services)
         finalize_reporter_runtime(self)
 
     def _resolve_output_path(self, output_path: str) -> Path:
@@ -242,13 +242,13 @@ class GherkinMessageReporter:
     def register_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
         """Register hook plugins."""
         for hook_service in self._hook_services:
-            named_hook_service = cast(_HookNamedService, hook_service)
+            named_hook_service = cast("_HookNamedService", hook_service)
             pluginmanager.register(named_hook_service, name=named_hook_service.plugin_name)
 
     def unregister_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
         """Handle unregister hook plugins."""
         for hook_service in reversed(self._hook_services):
-            named_hook_service = cast(_HookNamedService, hook_service)
+            named_hook_service = cast("_HookNamedService", hook_service)
             pluginmanager.unregister(name=named_hook_service.plugin_name)
 
     def configure(

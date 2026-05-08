@@ -45,7 +45,7 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
         if self.verbosity <= 0 or not hasattr(report, "scenario"):
             return super().pytest_runtest_logreport(report)
 
-        scenario = cast(ScenarioReportData, report.scenario)
+        scenario = cast("ScenarioReportData", report.scenario)
         self.ensure_newline()
         self._tw.write(f"Feature: {scenario['feature']['name']}\n", blue=True)
         self._tw.write(f"    Scenario: {scenario['name']}", **scenario_markup)

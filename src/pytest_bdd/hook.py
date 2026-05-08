@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from enum import Enum
 from inspect import Signature, signature
 from itertools import count, product, starmap
-from types import FunctionType
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
@@ -16,12 +14,15 @@ from decopatch import function_decorator
 from makefun import wraps
 
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
-from pytest_bdd.util.toolz_extra import ObjectCallable
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Generator, Iterable
+    from types import FunctionType
+
     from decopatch.main import _Decorator
 
     from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.util.toolz_extra import ObjectCallable
 
 expression_count_gen = count()
 
@@ -109,7 +110,7 @@ def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list[Mark]:
         List of marks.
 
     """
-    pickle_tags = cast(Iterable[_PickleTagProtocol], request.getfixturevalue("pickle").tags)
+    pickle_tags = cast("Iterable[_PickleTagProtocol]", request.getfixturevalue("pickle").tags)
     return list(
         {
             HookKind.mark: request.node.iter_markers(),
@@ -180,7 +181,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
         expression_: str = expression if expression is not None else ""
 
         def decorator(func: object) -> Callable[[FixtureRequest], Generator[None, None, None]]:
-            func_sig = signature(cast(FunctionType, func))
+            func_sig = signature(cast("FunctionType", func))
 
             fixture_decorator = pytest.fixture(
                 name=f"{conjunction_.value}_{kind_.value}_expression_{expression_}_{next(expression_count_gen)}",
@@ -196,20 +197,20 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
 
                 if is_matching:
                     if conjunction_ is HookConjunction.before:
-                        cast(ObjectCallable, func)(*args_, **kwargs_)
+                        cast("ObjectCallable", func)(*args_, **kwargs_)
                         yield None
                     elif conjunction_ is HookConjunction.after:
                         yield None
-                        cast(ObjectCallable, func)(*args_, **kwargs_)
+                        cast("ObjectCallable", func)(*args_, **kwargs_)
                     elif conjunction_ is HookConjunction.around:
-                        with contextmanager(cast(_AroundHookCallable, func))(*args_, **kwargs_):
+                        with contextmanager(cast("_AroundHookCallable", func))(*args_, **kwargs_):
                             yield None
                     else:  # pragma: no cover
                         yield None
                 else:
                     yield None
 
-            hook = cast(_HookFunctionProtocol, wraps(func, prepend_args="request", remove_args="request")(hook))
+            hook = cast("_HookFunctionProtocol", wraps(func, prepend_args="request", remove_args="request")(hook))
 
             hook.__pytest_bdd_is_hook__ = True
             if name is not None:

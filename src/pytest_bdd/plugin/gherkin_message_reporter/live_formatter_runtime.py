@@ -9,7 +9,6 @@ import shutil
 import subprocess  # noqa: S404
 import sys
 import tempfile
-from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from threading import Thread
@@ -35,7 +34,7 @@ from pytest_bdd.plugin.gherkin_message_reporter.stream_relay import relay_live_f
 from pytest_bdd.util.npm_resource import find_resource
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from cucumber_messages import Envelope as Message
 
@@ -590,7 +589,7 @@ class LiveFormatterService(ReporterServiceBase):
         render_runtime_assets = getattr(self.reporter, "render_runtime_assets", None)
         if callable(render_runtime_assets):
             return cast(
-                Callable[[list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...]], dict[str, str]],
+                "Callable[[list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...]], dict[str, str]]",
                 render_runtime_assets,
             )(formatter_requests)
         pluginmanager = getattr(self.reporter.config, "pluginmanager", None)

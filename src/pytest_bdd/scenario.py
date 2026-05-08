@@ -138,7 +138,7 @@ def scenario(
     feature_paths = [feature_name] if feature_name is not None else []
     if return_test_decorator:
         return cast(
-            ScenarioDecorator,
+            "ScenarioDecorator",
             scenarios(
                 *feature_paths,
                 filter_=scenario_name,
@@ -154,7 +154,7 @@ def scenario(
             ),
         )
     return cast(
-        ScenarioTest,
+        "ScenarioTest",
         scenarios(
             *feature_paths,
             filter_=scenario_name,
@@ -251,7 +251,7 @@ def scenarios(
         features_path_type = FeaturePathType.URL
 
     decorator = cast(
-        ScenarioDecorator,
+        "ScenarioDecorator",
         compose(
             pytest.mark.pytest_bdd_scenario,
             pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),

@@ -180,7 +180,7 @@ def render_toctree_section(section: ToctreeSection) -> str:
     underline = SECTION_SYMBOLS[section.depth - 1] * len(section.heading) if section.heading else ""
     template = load_template("features_section.rst.jinja2")
     rendered_section = cast(
-        str,
+        "str",
         template.render(
             heading=section.heading,
             underline=underline,
@@ -205,7 +205,7 @@ def render_index_document(intro_block: str, sections_content: str, suffix_block:
     """
     template = load_template("features_index.rst.jinja2")
     rendered_index = cast(
-        str,
+        "str",
         template.render(
             intro_block=intro_block,
             start_marker=AUTO_GENERATED_START_MARKER,
@@ -433,7 +433,7 @@ def render_include_page(title: str, rel_path: Path, include_path: str, code_type
     """
     template = load_template("feature_include.rst.jinja2")
     rendered_include = cast(
-        str,
+        "str",
         template.render(
             title=title,
             underline=SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(title),
@@ -553,7 +553,7 @@ def main() -> None:  # pragma: no cover
         except OrderingValidationError as exc:
             sys.exit(str(exc))
 
-        if diff := diff_folders(cast(_DirCmp, dircmp(str(output_dir), temp_dir))):
+        if diff := diff_folders(cast("_DirCmp", dircmp(str(output_dir), temp_dir))):
             if snapshot_dir is not None:
                 rmtree(snapshot_dir, ignore_errors=True)
                 copytree(output_dir, str(snapshot_dir), dirs_exist_ok=True)

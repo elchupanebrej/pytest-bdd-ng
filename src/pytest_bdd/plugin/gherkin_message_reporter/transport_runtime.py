@@ -31,7 +31,6 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
     _resolve_reporting_worker_identity,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
-from pytest_bdd.types.json import JSONObject
 from pytest_bdd.util.live_reporting import (
     node_gateway_mode,
     node_worker_id,
@@ -49,6 +48,7 @@ if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Config
     from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+    from pytest_bdd.types.json import JSONObject
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +186,7 @@ class TransportService(ReporterServiceBase):
             return
         if not self.reporter.is_xdist_controller:
             return
-        workeroutput = cast(dict[str, object], getattr(node, "workeroutput", {}))
+        workeroutput = cast("dict[str, object]", getattr(node, "workeroutput", {}))
         worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or node_worker_id(node))
         existing_record = self.reporter._xdist_fragment_records.get(
             worker_id,
@@ -295,7 +295,7 @@ class TransportService(ReporterServiceBase):
                     continue
 
                 try:
-                    envelope_dict = cast(JSONObject, json.loads(message_json))
+                    envelope_dict = cast("JSONObject", json.loads(message_json))
                     envelope_from_dict(envelope_dict)
                 except (TypeError, ValueError):
                     logger.exception("Failed to parse:\n%s\n", pformat(message_json))

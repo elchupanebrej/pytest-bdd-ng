@@ -133,7 +133,7 @@ def _patched_asdict(
         value_serializer = patched_value_serializer
 
     kwargs["value_serializer"] = patched_value_serializer
-    attrs_asdict = cast(AttrsAsDict, asdict)
+    attrs_asdict = cast("AttrsAsDict", asdict)
     return attrs_asdict(*args, **kwargs)
 
 

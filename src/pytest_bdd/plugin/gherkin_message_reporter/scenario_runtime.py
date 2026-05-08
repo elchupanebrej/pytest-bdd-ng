@@ -21,7 +21,6 @@ from cucumber_messages import (
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
 
-from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.pickle_runner.run_access import require_step_object
 from pytest_bdd.util.other import IdGenerator
@@ -29,7 +28,7 @@ from pytest_bdd.util.other import IdGenerator
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.compatibility.pytest import Config, FixtureRequest
     from pytest_bdd.model.scenario_run import Run
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
@@ -109,7 +108,7 @@ class ScenarioService(ReporterServiceBase):
         if pickle_step_id is None:
             return
 
-        suggestion_id = next(IdGenerator.from_stash(cast(Config, config).stash))
+        suggestion_id = next(IdGenerator.from_stash(cast("Config", config).stash))
         suggestion = Suggestion(
             id=suggestion_id,
             pickle_step_id=str(pickle_step_id),
@@ -147,10 +146,10 @@ class ScenarioService(ReporterServiceBase):
         if test_case_id is None:
             return
         attempt_index = getattr(request.node, "execution_count", 0)
-        worker_id = self.transport_service._current_reporting_worker_id(cast(Config, config))
+        worker_id = self.transport_service._current_reporting_worker_id(cast("Config", config))
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
-            id=next(IdGenerator.from_stash(cast(Config, config).stash)),
+            id=next(IdGenerator.from_stash(cast("Config", config).stash)),
             test_case_id=test_case_id,
             worker_id=worker_id,
             timestamp=self.lifecycle_service.get_timestamp(),
@@ -259,7 +258,7 @@ class ScenarioService(ReporterServiceBase):
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
         reporting_state.step_finished_timestamp = step_finish_timestamp
         step_duration = self._duration_between(
-            start_timestamp=cast(Timestamp | None, reporting_state.step_started_timestamp),
+            start_timestamp=cast("Timestamp | None", reporting_state.step_started_timestamp),
             finish_timestamp=step_finish_timestamp,
         )
 
@@ -301,7 +300,7 @@ class ScenarioService(ReporterServiceBase):
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
         reporting_state.step_finished_timestamp = step_finish_timestamp
         step_duration = self._duration_between(
-            start_timestamp=cast(Timestamp | None, reporting_state.step_started_timestamp),
+            start_timestamp=cast("Timestamp | None", reporting_state.step_started_timestamp),
             finish_timestamp=step_finish_timestamp,
         )
 

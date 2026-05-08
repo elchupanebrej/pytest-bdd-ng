@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
 
-from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
-
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
 from .message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
@@ -16,6 +14,8 @@ from .message_serialization import MessageSerializationProfile, normalize_envelo
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 
 def _resolve_registry_index(
@@ -92,7 +92,7 @@ class ExecutionMessageAdapter:
                         continue
                     if isinstance(item, list):
                         transformed[key] = cast(
-                            JSONArray,
+                            "JSONArray",
                             [transform(candidate) if isinstance(candidate, str) else candidate for candidate in item],
                         )
                         continue
@@ -116,7 +116,7 @@ class ExecutionMessageAdapter:
         def _namespace(value: str) -> str:
             return value if value.startswith(prefix) else f"{prefix}{value}"
 
-        return cast(JSONObject, cls._transform_ids(deepcopy(envelope_dict), transform=_namespace))
+        return cast("JSONObject", cls._transform_ids(deepcopy(envelope_dict), transform=_namespace))
 
     @classmethod
     def rewrite_dict_ids(cls, envelope_dict: JSONObject, remap: dict[str, str]) -> JSONObject:
@@ -128,9 +128,9 @@ class ExecutionMessageAdapter:
 
         """
         if not remap:
-            return cast(JSONObject, deepcopy(envelope_dict))
+            return cast("JSONObject", deepcopy(envelope_dict))
         return cast(
-            JSONObject,
+            "JSONObject",
             cls._transform_ids(deepcopy(envelope_dict), transform=lambda value: remap.get(value, value)),
         )
 

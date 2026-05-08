@@ -81,18 +81,18 @@ class Node(BaseModel):
         populate_by_name=True,
     )
 
-    tags: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Tags")
+    tags: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Tags")
     name: str | None = Field(None, alias="Name")
     description: str | None = Field(None, alias="Description")
-    comments: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Comments")
+    comments: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Comments")
 
 
 class Table(Node):
     """Represent table state."""
 
     type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
-    parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
-    values: Sequence[Sequence[object]] | None = Field(default_factory=cast(Callable, list), alias="Values")
+    parameters: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Parameters")
+    values: Sequence[Sequence[object]] | None = Field(default_factory=cast("Callable", list), alias="Values")
 
     @property
     def columned_values(self) -> Sequence[Sequence[object]]:
@@ -254,7 +254,7 @@ class Join(BaseModel):
     @property
     def rowed_values(self) -> list[list[object]]:
         """Handle rowed values."""
-        return cast(list[list[object]], self.values)
+        return cast("list[list[object]]", self.values)
 
 
 TableNode: TypeAlias = Table | Join
@@ -277,8 +277,8 @@ def before_convert_to_step(value: object) -> object:
         return Step(action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
         return Step(
-            type=cast(StepStepKeywordType | None, next(iter(value.keys()))),
-            action=cast(str | None, next(iter(value.values()))),
+            type=cast("StepStepKeywordType | None", next(iter(value.keys()))),
+            action=cast("str | None", next(iter(value.values()))),
         )
     return value
 
@@ -379,7 +379,7 @@ class StepPrototype(Node):
             if self.steps
             else [[self.Route([], [], Table(parameters=[], values=[]))]]
         ):
-            routes = list(cast(Sequence[StepPrototype.Route], route_items))
+            routes = list(cast("Sequence[StepPrototype.Route]", route_items))
             steps = [self, *chain.from_iterable(map(attrgetter("steps"), routes))]
 
             if self.examples:
@@ -433,7 +433,7 @@ class StepPrototype(Node):
             Step prototype instance.
 
         """
-        return cast(StepPrototypeT, cls(*args, **kwargs, action=action))  # type: ignore[call-arg]
+        return cast("StepPrototypeT", cls(*args, **kwargs, action=action))  # type: ignore[call-arg]
 
     @define
     class Locator(ScenarioLocatorFilterMixin):

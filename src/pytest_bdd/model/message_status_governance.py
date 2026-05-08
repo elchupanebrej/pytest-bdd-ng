@@ -151,7 +151,7 @@ def normalize_capability_status(status: CapabilityStatusLike) -> CapabilityStatu
 
     """
     if status in CAPABILITY_STATUSES:
-        return cast(CapabilityStatus, status)
+        return cast("CapabilityStatus", status)
     return LEGACY_STATUS_ALIASES.get(str(status).strip().lower())
 
 

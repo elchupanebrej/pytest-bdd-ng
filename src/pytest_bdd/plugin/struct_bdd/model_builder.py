@@ -123,7 +123,7 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
                                 else step.keyword_type
                             )
                             yield Step(
-                                id=next(cast(Iterator[str], id_generator)),
+                                id=next(cast("Iterator[str]", id_generator)),
                                 keyword=self._step_keyword(step),
                                 location=Location(column=1, line=1),
                                 text=self._step_action(step),
@@ -157,7 +157,7 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
                                 if route.example_table.values
                                 else []
                             ),
-                            id=next(cast(Iterator[str], id_generator)),
+                            id=next(cast("Iterator[str]", id_generator)),
                             keyword="Scenario",
                             location=Location(column=1, line=1),
                             name=next(
@@ -167,7 +167,7 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
                             tags=[
                                 *(
                                     Tag(
-                                        id=next(cast(Iterator[str], id_generator)),
+                                        id=next(cast("Iterator[str]", id_generator)),
                                         location=Location(column=1, line=1),
                                         name=tag_name,
                                     )
@@ -182,11 +182,11 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
 
     @staticmethod
     def _step_keyword(step: StructStep) -> str:
-        return step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
+        return step.type if isinstance(step.type, str) else cast("PickleStepType", step.type).value
 
     @staticmethod
     def _step_action(step: StructStep) -> str | None:
-        return cast(str | None, getattr(step, "action", None))
+        return cast("str | None", getattr(step, "action", None))
 
     @staticmethod
     def _build_data_table(step: StructStep, id_generator: object) -> dict[str, DataTable]:
@@ -223,7 +223,7 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
         ]
         return (
             TableRow(
-                id=next(cast(Iterator[str], id_generator)),
+                id=next(cast("Iterator[str]", id_generator)),
                 location=Location(column=1, line=1),  # type: ignore[call-arg]
                 cells=cells,
             )  # type: ignore[call-arg]
@@ -248,14 +248,14 @@ class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
         """
         return Examples(
             description=self.model.description,
-            id=next(cast(Iterator[str], id_generator)),
+            id=next(cast("Iterator[str]", id_generator)),
             keyword="Examples",
             location=Location(column=1, line=1),
             name=self.model.name,
             table_body=[
                 *(
                     TableRow(
-                        id=next(cast(Iterator[str], id_generator)),
+                        id=next(cast("Iterator[str]", id_generator)),
                         location=Location(column=1, line=1),
                         cells=[
                             *(
@@ -273,7 +273,7 @@ class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
             tags=[
                 *(
                     Tag(
-                        id=next(cast(Iterator[str], id_generator)),
+                        id=next(cast("Iterator[str]", id_generator)),
                         location=Location(column=1, line=1),
                         name=tag_name,
                     )
@@ -281,7 +281,7 @@ class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
                 ),
             ],
             table_header=TableRow(
-                id=next(cast(Iterator[str], id_generator)),
+                id=next(cast("Iterator[str]", id_generator)),
                 location=Location(column=1, line=1),
                 cells=[
                     *(

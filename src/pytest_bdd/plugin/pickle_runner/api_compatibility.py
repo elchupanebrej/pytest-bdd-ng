@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 from inspect import isfunction
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from pytest_bdd.hook import after_mark, after_tag, around_mark, around_tag, before_mark, before_tag
 from pytest_bdd.model.scenario_run import ExternalApiCompatibilityRecord
-from pytest_bdd.types.json import JSONObject
 
 from .hook import PickleRunnerHookSpec
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONObject
 
 DECORATOR_PUBLIC_SYMBOLS = {
     "decorator:after_mark": after_mark,
@@ -62,7 +64,7 @@ def load_api_baseline(path: str | Path) -> JSONObject:
     """
     baseline_path = Path(path)
     payload = json.loads(baseline_path.read_text(encoding="utf-8"))
-    return cast(JSONObject, payload)
+    return cast("JSONObject", payload)
 
 
 def build_external_api_compatibility_record(

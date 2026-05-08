@@ -583,7 +583,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
     assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
     assert attachment_message.media_type == "application/octet-stream"
-    assert Path(cast(str, attachment_message.file_name)).name == "file.txt"
+    assert Path(cast("str", attachment_message.file_name)).name == "file.txt"
 
 
 def test_hook_type_messages(testdir, tmp_path):

@@ -102,10 +102,10 @@ def _prepare_worker_config(
     option_dict: _WorkerOptionDict,
 ) -> tuple[_PreparedConfig, _XdistRemoteModule]:
     config = _prepareconfig(args, None)
-    prepared_config = cast(_PreparedConfig, config)
+    prepared_config = cast("_PreparedConfig", config)
     import xdist.remote as upstream_remote
 
-    typed_remote = cast(_XdistRemoteModule, upstream_remote)
+    typed_remote = cast("_XdistRemoteModule", upstream_remote)
     typed_remote.setup_config(config, option_dict.get("basetemp"))
     prepared_config._parser.prog = Path(workerinput["mainargv"][0]).name
     prepared_config.workerinput = workerinput

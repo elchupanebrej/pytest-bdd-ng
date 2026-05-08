@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from attrs import define, field
 
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
-from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "message_jsonschema"
 
@@ -154,7 +156,7 @@ def _resolve_schema(schema_dir: Path, ref: str, root_schema: JSONObject) -> tupl
         if not target_path.is_file():
             msg = f"Referenced schema file '{normalized_file}' was not found in '{schema_dir}'."
             raise FileNotFoundError(msg)
-        new_root = cast(JSONObject, json.loads(target_path.read_text(encoding="utf-8")))
+        new_root = cast("JSONObject", json.loads(target_path.read_text(encoding="utf-8")))
     else:
         new_root = root_schema
 
@@ -325,7 +327,7 @@ def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_
                 "name": capability_id,
                 "description": field_meta.description or field_meta.path,
                 "category": "core",
-                "affects": cast(JSONArray, ["emitted_envelope_payload"]),
+                "affects": cast("JSONArray", ["emitted_envelope_payload"]),
                 "source_reference": "messages/jsonschema/src/Envelope.json",
                 "explicit_relevance": "relevant",
             },

@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Literal, cast
 
 from attrs import define, frozen
 
-from pytest_bdd.types.json import JSONObject, JSONValue
-
 from .execution_message_adapter import ExecutionMessageAdapter
 from .message_converter import envelope_from_dict
 from .message_extension import (
@@ -26,6 +24,8 @@ _PRE_RUN_HOOK_NAMES = ("pytest-bdd-ng.before-test-run",)
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from pytest_bdd.types.json import JSONObject, JSONValue
 
 
 @frozen
@@ -73,7 +73,9 @@ class MessageFragment:
             return cls(worker_id=worker_id, role=role, path=path, complete=False, envelopes=())
 
         envelopes = tuple(
-            cast(JSONObject, json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+            cast("JSONObject", json.loads(line))
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
         )
         return cls(worker_id=worker_id, role=role, path=path, complete=complete, envelopes=envelopes)
 
@@ -154,7 +156,7 @@ def _semantic_clone(value: JSONValue, *, strip_reference_ids: bool) -> JSONValue
 
 def _payload_root(envelope_dict: JSONObject, payload_kind: str) -> JSONObject:
     if payload_kind in envelope_dict and isinstance(envelope_dict[payload_kind], dict):
-        return cast(JSONObject, envelope_dict[payload_kind])
+        return cast("JSONObject", envelope_dict[payload_kind])
     camel_case_payload_kind = payload_kind.split("_", maxsplit=1)[0] + "".join(
         part.title() for part in payload_kind.split("_")[1:]
     )

@@ -40,8 +40,7 @@ from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, S
 from contextlib import suppress
 from inspect import getfile, getsourcelines
 from pathlib import Path
-from types import FunctionType
-from typing import TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias, cast
 from uuid import uuid4
 from warnings import warn
 
@@ -74,6 +73,9 @@ from pytest_bdd.util.inspect_extra import get_caller_module_locals
 from pytest_bdd.util.other import IdGenerator, format_as_python_identifier
 from pytest_bdd.util.toolz_extra import getitemdefault, setdefaultattr
 
+if TYPE_CHECKING:
+    from types import FunctionType
+
 
 class StepFunc(Protocol):
     """Represent step func state."""
@@ -87,7 +89,7 @@ ParamsFixturesMapping: TypeAlias = bool | Collection[str] | Mapping[object, str 
 
 
 def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
-    typed_func = cast(FunctionType, func)
+    typed_func = cast("FunctionType", func)
     source_file = getfile(typed_func)
     try:
         source_line = getsourcelines(typed_func)[1]
@@ -528,7 +530,7 @@ class StepDefinitionManager:
                     source_reference=SourceReference(  # type: ignore[call-arg] # migration to pydantic2
                         uri=relpath(
                             source_file,
-                            str(get_config_root_path(cast(Config, config))),
+                            str(get_config_root_path(cast("Config", config))),
                         ),
                         location=Location(line=source_line, column=1),
                         java_method=JavaMethod(
@@ -604,7 +606,7 @@ class StepDefinitionManager:
 
             # Add step registry for a namespace if step containers were found
             step_definition_registry = cast(
-                StepDefinitionManager.Registry,
+                "StepDefinitionManager.Registry",
                 setdefaultattr(
                     namespace,
                     "_step_registry",
@@ -638,7 +640,7 @@ class StepDefinitionManager:
 
                         """
                         try:
-                            return cast(object, request.getfixturevalue(fixture_name))
+                            return cast("object", request.getfixturevalue(fixture_name))
                         except FixtureLookupError:
                             return None
 
@@ -655,7 +657,7 @@ class StepDefinitionManager:
                 self.parent = step_registry
                 return self
 
-            step_registry_typed = cast(StepDefinitionManager.Registry.RegistryFixtureProtocol, step_registry)
+            step_registry_typed = cast("StepDefinitionManager.Registry.RegistryFixtureProtocol", step_registry)
             step_registry_typed.__pytest_bdd_step_registry__ = self
             return step_registry
 
@@ -742,7 +744,7 @@ class StepDefinitionManager:
             )
 
             step_definitions = cast(
-                set[StepDefinitionManager.Definition],
+                "set[StepDefinitionManager.Definition]",
                 setdefaultattr(step_func, "__pytest_bdd_step_definitions__", value_factory=set),
             )
             step_definitions.add(step_definition)

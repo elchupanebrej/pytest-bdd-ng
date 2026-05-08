@@ -155,7 +155,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         """Handle plugin registered."""
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
             StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(
-                cast(StepDefinitionManager.NamespaceStepRegistryProtocol, plugin),
+                cast("StepDefinitionManager.NamespaceStepRegistryProtocol", plugin),
             )
 
     @pytest.hookimpl
@@ -170,7 +170,7 @@ class ScenarioTestCollector(_ModernTestCollector):
             scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
             locator_builder = ScenarioLocatorBuilder(config=config)
             locators = cast(
-                Collection[_ScenarioLocatorProtocol],
+                "Collection[_ScenarioLocatorProtocol]",
                 chain_map(locator_builder.build_for_pytest_mark, scenario_marks),
             )
             feature_scenario_feature_source = _iter_resolved_feature_scenarios(config, locators)

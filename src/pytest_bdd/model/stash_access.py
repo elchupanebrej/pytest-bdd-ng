@@ -31,7 +31,7 @@ class StashAccess:
 
     @staticmethod
     def _stash_get(stash: Stash, key: str) -> object | None:
-        string_stash = cast(_StringKeyStash, stash)
+        string_stash = cast("_StringKeyStash", stash)
         if hasattr(string_stash, "get"):
             return string_stash.get(key, None)
         return string_stash[key] if key in string_stash else None  # noqa: SIM401
@@ -85,7 +85,7 @@ class StashAccess:
             The newly stored value.
 
         """
-        cast(_StringKeyStash, stash)[value.STASH_KEY] = value
+        cast("_StringKeyStash", stash)[value.STASH_KEY] = value
         return value
 
     @classmethod

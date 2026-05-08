@@ -90,8 +90,8 @@ class StepCatalogService(ReporterServiceBase):
             return
 
         session = item.session
-        config: Config = cast(Config, session.config)
-        hook_handler = cast(Config, config).hook
+        config: Config = cast("Config", session.config)
+        hook_handler = cast("Config", config).hook
         request = item._request
         run = Run.from_stash(request.config.stash)
         scenario_run = run.active_scenario_run
@@ -105,7 +105,7 @@ class StepCatalogService(ReporterServiceBase):
         if gherkin_document is None or pickle is None:
             logger.warning("Execution context does not carry runtime feature/pickle during pytest_runtest_setup.")
             return
-        runtime_pickle = cast(Pickle, pickle)
+        runtime_pickle = cast("Pickle", pickle)
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)
@@ -117,7 +117,7 @@ class StepCatalogService(ReporterServiceBase):
         test_steps.extend(
             [
                 TestStep(
-                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
+                    id=next(IdGenerator.from_stash(cast("Config", config).stash)),
                     hook_id=hook_registration.hook_message_id,
                 )
                 for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(
@@ -144,7 +144,7 @@ class StepCatalogService(ReporterServiceBase):
                     step_text=step.text,
                 )
                 test_step = TestStep(
-                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
+                    id=next(IdGenerator.from_stash(cast("Config", config).stash)),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
                     **(
@@ -159,16 +159,16 @@ class StepCatalogService(ReporterServiceBase):
             finally:
                 previous_step = step
 
-        resolved_run_started_id = Run.from_stash(cast(Config, config).stash).reporting_state.run_started_id
+        resolved_run_started_id = Run.from_stash(cast("Config", config).stash).reporting_state.run_started_id
         test_case = TestCase(
-            id=next(IdGenerator.from_stash(cast(Config, config).stash)),
+            id=next(IdGenerator.from_stash(cast("Config", config).stash)),
             pickle_id=runtime_pickle.id,
             test_steps=test_steps,
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
         )
         reporting_state.active_test_case_id = test_case.id
         self.lifecycle_service._emit_envelope(
-            cast(Config, config),
+            cast("Config", config),
             Message(test_case=test_case),
         )
 
@@ -212,7 +212,7 @@ class StepCatalogService(ReporterServiceBase):
             if matches:
 
                 def build_group(group: object) -> Group:
-                    typed_group = cast(_CucumberGroup, group)
+                    typed_group = cast("_CucumberGroup", group)
                     return Group(
                         **({"start": typed_group.start} if typed_group.start is not None else {}),
                         **({"value": typed_group.value} if typed_group.value is not None else {}),
@@ -272,7 +272,7 @@ class StepCatalogService(ReporterServiceBase):
             return SourceReference(
                 uri=relpath(
                     source_file,
-                    str(get_config_root_path(cast(Config, config))),
+                    str(get_config_root_path(cast("Config", config))),
                 ),
                 location=Location(line=source_line, column=1),
                 java_method=JavaMethod(
@@ -321,7 +321,7 @@ class StepCatalogService(ReporterServiceBase):
 
                     for parameter_type in not_yet_registered_parameter_types.values():
                         parameter_type_source_reference = self._build_parameter_type_source_reference(
-                            cast(Config, config),
+                            cast("Config", config),
                             parameter_type,
                         )
                         self.lifecycle_service._emit_envelope(
@@ -332,7 +332,7 @@ class StepCatalogService(ReporterServiceBase):
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
-                                    id=next(IdGenerator.from_stash(cast(Config, config).stash)),
+                                    id=next(IdGenerator.from_stash(cast("Config", config).stash)),
                                     **(
                                         {"source_reference": parameter_type_source_reference}
                                         if parameter_type_source_reference is not None

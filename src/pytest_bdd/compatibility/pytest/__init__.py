@@ -146,7 +146,7 @@ def get_config_root_path(config: Config) -> Path:
         Root path of the pytest configuration.
 
     """
-    return Path(cast(Config, config).rootpath)
+    return Path(cast("Config", config).rootpath)
 
 
 def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
@@ -206,7 +206,7 @@ def build_fixture_def(
             None,
             _ispytest=PYTEST8,
         )
-    legacy_fixture_def = cast(_LegacyFixtureDefFactory, FixtureDef)
+    legacy_fixture_def = cast("_LegacyFixtureDefFactory", FixtureDef)
     return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)
 
 

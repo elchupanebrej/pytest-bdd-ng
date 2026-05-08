@@ -80,12 +80,12 @@ class StructBDDParser(ParserProtocol):
 
         """
         _ = config
-        encoding = cast(str, kwargs.pop("encoding", "utf-8"))
-        mode = cast(str, kwargs.pop("mode", "r"))
+        encoding = cast("str", kwargs.pop("encoding", "utf-8"))
+        mode = cast("str", kwargs.pop("mode", "r"))
         with path.open(mode=mode, encoding=encoding) as feature_file:
-            content = cast(str, feature_file.read())
+            content = cast("str", feature_file.read())
         filename = str(path.as_posix())
-        raw_step = cast(Loader, self.loader)(content, *args, **kwargs)
+        raw_step = cast("Loader", self.loader)(content, *args, **kwargs)
         step = Step.model_validate(raw_step)
         gherkin_document = GherkinDocumentBuilder(model=step).build_feature(
             filename,
@@ -107,23 +107,23 @@ class StructBDDParser(ParserProtocol):
             from yaml import FullLoader
             from yaml import load as load_yaml
 
-            return cast(Loader, partial(load_yaml, Loader=FullLoader))
+            return cast("Loader", partial(load_yaml, Loader=FullLoader))
         if self.kind is self.KIND.TOML:
             from pytest_bdd.compatibility.tomllib import loads as load_toml
 
-            return cast(Loader, load_toml)
+            return cast("Loader", load_toml)
         if self.kind is self.KIND.JSON:
             from json import loads as load_json
 
-            return cast(Loader, load_json)
+            return cast("Loader", load_json)
         if self.kind is self.KIND.JSON5:
             from json5 import loads as load_json5
 
-            return cast(Loader, load_json5)
+            return cast("Loader", load_json5)
         if self.kind is self.KIND.HJSON:
             from hjson import loads as load_hjson
 
-            return cast(Loader, load_hjson)
+            return cast("Loader", load_hjson)
         if self.kind is self.KIND.HOCON:
             from json import loads
 
@@ -142,7 +142,7 @@ class StructBDDParser(ParserProtocol):
                 hocon_parse_kwargs = hocon_parse_kwargs or {}
                 json_kwargs = json_kwargs or {}
                 return cast(
-                    object,
+                    "object",
                     loads(
                         HOCONConverter.to_json(
                             ConfigFactory.parse_string(s, *hocon_parse_args, **hocon_parse_kwargs),
@@ -154,5 +154,5 @@ class StructBDDParser(ParserProtocol):
                     ),
                 )
 
-            return cast(Loader, load_hocon)
+            return cast("Loader", load_hocon)
         return None

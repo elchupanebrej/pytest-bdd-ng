@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from itertools import chain, filterfalse, zip_longest
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import py
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
@@ -23,9 +23,11 @@ from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
-from pytest_bdd.scenario_locator import ScenarioLocatorResolver
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
+
+if TYPE_CHECKING:
+    from pytest_bdd.scenario_locator import ScenarioLocatorResolver
 
 STEP_TYPE_TO_STEP_PREFIX = {
     PickleStepType.unknown: "*",
@@ -101,7 +103,7 @@ def generate_code(
         make_string_literal=make_string_literal,
         step_type_to_method_name=STEP_TYPE_TO_STEP_METHOD_NAME,
     )
-    return cast(str, code)
+    return cast("str", code)
 
 
 def generate_and_print_missing_code_callback(config: Config, session: Session) -> None:
@@ -165,7 +167,7 @@ def process_session_items(
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]] = []
 
     for item in session.items:
-        process_single_item(cast(Item, item), seen_feature_pickles_ids, non_matched_feature_pickle_steps)
+        process_single_item(cast("Item", item), seen_feature_pickles_ids, non_matched_feature_pickle_steps)
 
     return seen_feature_pickles_ids, non_matched_feature_pickle_steps
 
@@ -236,9 +238,9 @@ def collect_features_and_seen_uris(
     """
     locator_builder = ScenarioLocatorBuilder(config=config)
     locators = cast(
-        Sequence[ScenarioLocatorResolver],
+        "Sequence[ScenarioLocatorResolver]",
         locator_builder.build_for_feature_locator_args(
-            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features)))),
+            cast("FeatureLocatorArgs", defaultdict(feature_paths=list(map(Path, config.option.features)))),
         ),
     )
     feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [
@@ -333,9 +335,9 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
 
     locator_builder = ScenarioLocatorBuilder(config=config)
     locators = cast(
-        Sequence[ScenarioLocatorResolver],
+        "Sequence[ScenarioLocatorResolver]",
         locator_builder.build_for_feature_locator_args(
-            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features)))),
+            cast("FeatureLocatorArgs", defaultdict(feature_paths=list(map(Path, config.option.features)))),
         ),
     )
     feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [
@@ -360,7 +362,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
         chain.from_iterable(
             (
                 cast(
-                    Iterable[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
+                    "Iterable[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]]",
                     zip_longest((), feature_pickle[1].steps, fillvalue=feature_pickle),
                 )
                 for feature_pickle in feature_pickles
@@ -379,7 +381,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
             ),
             unique_step_defs_ids,
         ),
-        key=lambda feature_pickle_step: cast(str, feature_pickle_step[1].text),
+        key=lambda feature_pickle_step: cast("str", feature_pickle_step[1].text),
     )
 
     code = generate_code(features, feature_pickles, unique_feature_pickle_steps)

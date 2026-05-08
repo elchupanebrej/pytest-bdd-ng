@@ -253,7 +253,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         if not urls:
             return
         responses = self._fetch_feature_responses(urls)
-        hook_handler = cast(ScenarioLocatorHookProtocol, cast(Config, config).hook)
+        hook_handler = cast("ScenarioLocatorHookProtocol", cast("Config", config).hook)
         encoding = self.encoding or "utf-8"
 
         for url, response in zip(urls, responses, strict=False):
@@ -324,7 +324,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                     **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
-                if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     return
                 else:
                     raise
@@ -386,18 +386,18 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             # TODO: add base dir command line option
             base_dir: str | Path | Callable[[Config | HasPytestStash], str | Path]
             if self.features_base_dir is None:
-                base_dir = cast(Config, config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
+                base_dir = cast("Config", config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
             else:
                 base_dir = self.features_base_dir
         except (ValueError, KeyError):
-            base_dir = get_config_root_path(cast(Config, config))
+            base_dir = get_config_root_path(cast("Config", config))
         else:
             if callable(base_dir):
-                base_dir = cast(str | Path, base_dir(config))
+                base_dir = cast("str | Path", base_dir(config))
 
-            base_dir = (get_config_root_path(cast(Config, config)) / Path(base_dir)).resolve()
+            base_dir = (get_config_root_path(cast("Config", config)) / Path(base_dir)).resolve()
 
-        return cast(Path, base_dir)
+        return cast("Path", base_dir)
 
     def _gen_feature_paths(self, features_base_dir: Path) -> Iterator[Path]:
         for feature_pathlike in self.feature_paths:
@@ -453,11 +453,11 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             uri = self._build_file_uri(features_base_dir, feature_path)
             already_resolved_feature_paths.add(feature_path_key)
-            hook_handler = cast(Config, config).hook
+            hook_handler = cast("Config", config).hook
             encoding = self.encoding or "utf-8"
 
             if self.mimetype is None:
-                media_type = hook_handler.pytest_bdd_get_mimetype(config=cast(Config, config), path=feature_path)
+                media_type = hook_handler.pytest_bdd_get_mimetype(config=cast("Config", config), path=feature_path)
             elif isinstance(self.mimetype, (Enum,)):
                 media_type = self.mimetype.value
             else:
@@ -486,7 +486,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
-                if cast(Config, config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     continue
                 else:
                     raise

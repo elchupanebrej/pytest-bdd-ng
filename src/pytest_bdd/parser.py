@@ -37,7 +37,7 @@ class _PytestBddFilenameCarrier(Protocol):
 
 
 def _set_feature_filename(feature: GherkinDocument, path: Path) -> None:
-    cast(_PytestBddFilenameCarrier, feature)._pytest_bdd_filename = str(path.as_posix())
+    cast("_PytestBddFilenameCarrier", feature)._pytest_bdd_filename = str(path.as_posix())
 
 
 class BaseParser(ParserProtocol):
@@ -133,7 +133,7 @@ class BaseParser(ParserProtocol):
         """
         gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
         # TODO: here must adapter layer not just direct casting
-        return cast(GherkinDocument, gherkin_document)
+        return cast("GherkinDocument", gherkin_document)
 
 
 @define
@@ -165,11 +165,11 @@ class GherkinParser(BaseParser):
 
         """
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
-        encoding = cast(str, kwargs.pop("encoding", "utf-8"))
+        encoding = cast("str", kwargs.pop("encoding", "utf-8"))
         feature_file_data = path.read_text(encoding=encoding)
 
         try:
-            gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(feature_file_data))
+            gherkin_document_raw_dict = cast("GherkinDocument", gherkin_parser.parse(feature_file_data))
         except CompositeParserException as e:
             error_location = e.errors[0].location
             self.emit_parse_error(
@@ -224,12 +224,12 @@ class MarkdownGherkinParser(BaseParser):
         """
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         matcher = GherkinInMarkdownTokenMatcher()
-        encoding = cast(str, kwargs.pop("encoding", "utf-8"))
+        encoding = cast("str", kwargs.pop("encoding", "utf-8"))
         feature_file_data = path.read_text(encoding=encoding)
         token_scanner = TokenScanner(feature_file_data)
 
         try:
-            gherkin_document_raw_dict = cast(GherkinDocument, gherkin_parser.parse(token_scanner, matcher))
+            gherkin_document_raw_dict = cast("GherkinDocument", gherkin_parser.parse(token_scanner, matcher))
         except CompositeParserException as e:
             error_location = e.errors[0].location
             self.emit_parse_error(

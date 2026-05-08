@@ -427,7 +427,7 @@ def validate_envelope_dict_against_schema(
         A tuple of MessageValidationViolation instances mapping to specific JSON schema violations, if any.
 
     """
-    clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
+    clean_envelope_dict = cast("dict[str, object]", _strip_nones(envelope_dict))
     validator, validator_init_error = _schema_validator_state()
     if validator_init_error is not None:
         return (
@@ -516,7 +516,7 @@ def validate_message_stream(  # noqa: C901
 
         # JSONSchema Validation & Tracking
         envelope_dict = ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile)
-        clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
+        clean_envelope_dict = cast("dict[str, object]", _strip_nones(envelope_dict))
         violations.extend(validate_envelope_dict_against_schema(envelope_dict))
 
         if observed_coverage is not None:

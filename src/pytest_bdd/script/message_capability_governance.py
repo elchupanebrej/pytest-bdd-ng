@@ -7,7 +7,7 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Final, cast
+from typing import TYPE_CHECKING, Final, cast
 
 from pytest_bdd.compatibility.jsonschema import build_validator
 from pytest_bdd.model.coverage.inventory import (
@@ -38,7 +38,9 @@ from pytest_bdd.model.message_status_governance import (
     validate_mandatory_scope_decision,
 )
 from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
-from pytest_bdd.types.json import JSONObject
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONObject
 
 ALLOWED_CATEGORIES: Final[set[str]] = {"core", "lifecycle", "hook", "attachment", "parameter", "metadata"}
 ALLOWED_IMPACTS: Final[set[str]] = {
@@ -109,7 +111,7 @@ def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject
     if effective_path is None:
         msg = "Unable to locate governance report schema."
         raise FileNotFoundError(msg)
-    return cast(JSONObject, _load_json(effective_path))
+    return cast("JSONObject", _load_json(effective_path))
 
 
 def validate_governance_report_payload(payload: JSONObject, schema_path: Path | None = None) -> None:
@@ -147,17 +149,17 @@ def _load_capabilities(path: Path) -> list[MessageCapability]:
         affects = item.get("affects") or []
         category_raw = str(item.get("category", "core"))
         category: CapabilityCategory = cast(
-            CapabilityCategory,
+            "CapabilityCategory",
             category_raw if category_raw in ALLOWED_CATEGORIES else "core",
         )
         explicit_relevance_raw = item.get("explicit_relevance")
         explicit_relevance: CapabilityRelevance | None = (
-            cast(CapabilityRelevance, explicit_relevance_raw)
+            cast("CapabilityRelevance", explicit_relevance_raw)
             if isinstance(explicit_relevance_raw, str) and explicit_relevance_raw in ALLOWED_RELEVANCE
             else None
         )
         validated_affects = frozenset(
-            cast(CapabilityImpact, effect_text)
+            cast("CapabilityImpact", effect_text)
             for effect in affects
             for effect_text in (str(effect),)
             if effect_text in ALLOWED_IMPACTS
@@ -542,7 +544,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             current_capabilities=current_capabilities,
             generated_at=datetime.now(timezone.utc),
         )
-        payload = cast(JSONObject, governance_value_to_dict(diff_result))
+        payload = cast("JSONObject", governance_value_to_dict(diff_result))
         payload["cadence"] = WEEKLY_CADENCE
         _emit_text(json.dumps(payload, sort_keys=True), output_path=args.output)
         return 0

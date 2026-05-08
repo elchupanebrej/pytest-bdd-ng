@@ -55,7 +55,7 @@ def fetch_schema_tree(destination: Path) -> None:
     """Handle fetch schema tree."""
     from pytest_bdd.util.packaging import get_distribution_version
 
-    git_module = cast(_GitModule, importlib.import_module("git"))
+    git_module = cast("_GitModule", importlib.import_module("git"))
     tag_name = f"v{get_distribution_version('cucumber_messages')}"
 
     with TemporaryDirectory() as tmpdir:

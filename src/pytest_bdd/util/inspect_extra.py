@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from inspect import getframeinfo, getsourcelines, signature
 from sys import _getframe
-from types import CodeType, FrameType, FunctionType, MethodType, ModuleType, TracebackType
 from typing import TYPE_CHECKING, Protocol, cast
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from types import CodeType, FrameType, FunctionType, MethodType, ModuleType, TracebackType
 
 
 class ObjectCallable(Protocol):
@@ -49,7 +49,7 @@ def get_first_source_line(obj: object) -> int:
     """
     try:
         return getsourcelines(
-            cast(ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType, obj),
+            cast("ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType", obj),
         )[1]
     except (OSError, TypeError):
         code = getattr(obj, "__code__", None)

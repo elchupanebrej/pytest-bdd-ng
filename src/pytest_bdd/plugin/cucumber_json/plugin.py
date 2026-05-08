@@ -65,12 +65,12 @@ class LogBDDCucumberJSON:
         tags = raw_tags if isinstance(raw_tags, list) else []
         line_number = item.get("line_number", 1)
         line = int(line_number) if isinstance(line_number, (str, int, float)) else 1
-        return cast(JSONArray, [{"name": str(tag), "line": line - 1} for tag in tags])
+        return cast("JSONArray", [{"name": str(tag), "line": line - 1} for tag in tags])
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
         """Handle the pytest runtest logreport pytest hook."""
         try:
-            scenario = cast(JSONObject, report.scenario)
+            scenario = cast("JSONObject", report.scenario)
         except AttributeError:
             # skip reporting for non-bdd tests
             return
@@ -95,7 +95,7 @@ class LogBDDCucumberJSON:
                 "result": self._get_result(step, report, error_message=error_message),
             }
 
-        feature = cast(JSONObject, scenario["feature"])
+        feature = cast("JSONObject", scenario["feature"])
         feature_filename = str(feature["filename"])
         if feature_filename not in self.features:
             self.features[feature_filename] = {
@@ -109,7 +109,7 @@ class LogBDDCucumberJSON:
                 "elements": [],
             }
 
-        elements = cast(JSONArray, self.features[feature_filename]["elements"])
+        elements = cast("JSONArray", self.features[feature_filename]["elements"])
         raw_steps = scenario["steps"]
         steps = raw_steps if isinstance(raw_steps, list) else []
         elements.append(
@@ -121,7 +121,7 @@ class LogBDDCucumberJSON:
                 "description": "",
                 "tags": self._serialize_tags(scenario),
                 "type": "scenario",
-                "steps": cast(JSONArray, [stepmap(cast(JSONObject, step)) for step in steps]),
+                "steps": cast("JSONArray", [stepmap(cast("JSONObject", step)) for step in steps]),
             },
         )
 

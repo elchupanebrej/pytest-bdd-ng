@@ -59,4 +59,4 @@ def init_repo(path: Path) -> Repo:
     """
     git_module = import_module("git")
     repo_class = git_module.Repo
-    return cast(Repo, repo_class.init(path))
+    return cast("Repo", repo_class.init(path))

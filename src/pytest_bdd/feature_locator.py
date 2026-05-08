@@ -54,7 +54,7 @@ def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
     """
     raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
     raw_mark_arguments.apply_defaults()
-    return cast(FeatureLocatorArgs, raw_mark_arguments.arguments)
+    return cast("FeatureLocatorArgs", raw_mark_arguments.arguments)
 
 
 @define(slots=False)
