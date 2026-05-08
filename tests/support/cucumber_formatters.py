@@ -65,7 +65,7 @@ _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 
 def _active_coverage_controller() -> Any | None:
     try:
-        import coverage
+        import coverage  # noqa: PLC0415 -- deferred import in test support utility
     except ImportError:
         return None
     current = getattr(getattr(coverage, "Coverage", None), "current", None)

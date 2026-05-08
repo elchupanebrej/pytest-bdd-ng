@@ -9,6 +9,7 @@ from attrs import frozen
 
 from pytest_bdd.compatibility.importlib.metadata import entry_points
 from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterPlugin
+from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
 
 if TYPE_CHECKING:
     from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
@@ -120,8 +121,6 @@ class FormatterPluginCatalog:
             Rendered runtime assets dictionary.
 
         """
-        from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
-
         assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}
         for formatter_request in formatter_requests:
             if formatter_request.runtime_kind.value != "module":

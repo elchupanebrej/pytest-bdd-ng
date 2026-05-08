@@ -21,6 +21,7 @@ from pytest_bdd.util.cucumber_formatters import (
     pytest_capture_already_configured as _pytest_capture_already_configured_impl,
 )
 
+from .hook import GherkinMessageReporterHookSpec
 from .plugin import (
     CucumberFormatterConfigurationError,
     GherkinMessageReporter,
@@ -190,8 +191,6 @@ def _unconfigure_reporter_instance(reporter: object, pluginmanager: PytestPlugin
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from .hook import GherkinMessageReporterHookSpec
-
     pluginmanager.add_hookspecs(GherkinMessageReporterHookSpec)
 
 
@@ -276,7 +275,7 @@ def pytest_xdist_getremotemodule() -> ModuleType:
         Remote module type.
 
     """
-    from pytest_bdd_worker_bootstrap import xdist_remote
+    from pytest_bdd_worker_bootstrap import xdist_remote  # noqa: PLC0415 -- optional xdist dependency
 
     return xdist_remote
 

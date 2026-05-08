@@ -29,6 +29,7 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
 
 from pytest_bdd.compatibility.typing import Self
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.scenario import scenarios
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
@@ -455,7 +456,7 @@ class StepPrototype(Node):
                 Generated values.
 
             """
-            from pytest_bdd.plugin.struct_bdd.model_builder import (
+            from pytest_bdd.plugin.struct_bdd.model_builder import (  # noqa: PLC0415 -- circular import with model_builder.py, resolved via lazy load
                 GherkinDocumentBuilder,
             )
 
@@ -494,8 +495,6 @@ class StepPrototype(Node):
             Scenario test function.
 
         """
-        from pytest_bdd.scenario import scenarios
-
         return scenarios(
             locators=[
                 self.Locator(
@@ -516,8 +515,6 @@ class StepPrototype(Node):
             Scenario decorator.
 
         """
-        from pytest_bdd.scenario import scenarios
-
         return scenarios(
             locators=[
                 self.Locator(

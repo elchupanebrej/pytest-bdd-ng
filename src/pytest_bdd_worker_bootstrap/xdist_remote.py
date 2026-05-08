@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
+import xdist.remote as upstream_remote
 from _pytest.config import _prepareconfig
 from xdist.remote import WorkerInteractor as XdistWorkerInteractor
 
@@ -103,8 +104,6 @@ def _prepare_worker_config(
 ) -> tuple[_PreparedConfig, _XdistRemoteModule]:
     config = _prepareconfig(args, None)
     prepared_config = cast("_PreparedConfig", config)
-    import xdist.remote as upstream_remote
-
     typed_remote = cast("_XdistRemoteModule", upstream_remote)
     typed_remote.setup_config(config, option_dict.get("basetemp"))
     prepared_config._parser.prog = Path(workerinput["mainargv"][0]).name
@@ -138,7 +137,9 @@ def channel_main(reporting_channel: _ReportingChannel) -> None:
 
     config, upstream_remote = _prepare_worker_config(workerinput, args, option_dict)
 
-    from pytest_bdd.model.message_transport import install_reporting_event_sender
+    from pytest_bdd.model.message_transport import (  # noqa: PLC0415 -- must stay after _prepareconfig() for xdist workers
+        install_reporting_event_sender,
+    )
 
     class ReportingWorkerInteractor(XdistWorkerInteractor):
         def sendevent(self, name: str, **kwargs: object) -> None:

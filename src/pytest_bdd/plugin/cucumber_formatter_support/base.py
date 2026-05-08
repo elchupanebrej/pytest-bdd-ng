@@ -259,7 +259,9 @@ class FormatterReporterPlugin(ABC):
         runtime_kind: FormatterRuntimeKind,
         runtime_template_name: str | None = None,
     ) -> CucumberFormatterRequest:
-        from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
+        from pytest_bdd.plugin.gherkin_message_reporter.session import (  # noqa: PLC0415 -- circular import with session.py
+            CucumberFormatterRequest,
+        )
 
         runtime_specifier = self.runtime_specifier or self.formatter
         runtime_module_path = None

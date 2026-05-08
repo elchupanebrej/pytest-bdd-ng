@@ -110,7 +110,7 @@ def test_run_quietly_redirects_harness_stdout_and_stderr() -> None:
     """Verify run quietly redirects harness stdout and stderr."""
 
     def _noisy_runner() -> str:
-        import sys
+        import sys  # noqa: PLC0415 -- optional xdist dependency in test
 
         sys.stdout.write("runner stdout\n")
         sys.stderr.write("runner stderr\n")

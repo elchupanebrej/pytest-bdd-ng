@@ -20,6 +20,7 @@ from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
 
 from .const import Steps
+from .hook import PickleRunnerHookSpec
 from .plugin import PickleRunner
 
 if TYPE_CHECKING:
@@ -49,8 +50,6 @@ class AttachmentCallable(Protocol):
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from .hook import PickleRunnerHookSpec
-
     pluginmanager.add_hookspecs(PickleRunnerHookSpec)
 
 

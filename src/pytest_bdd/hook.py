@@ -13,6 +13,7 @@ from _pytest.mark import Mark
 from decopatch import function_decorator
 from makefun import wraps
 
+from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 
 if TYPE_CHECKING:
@@ -147,8 +148,6 @@ def _get_args_kwargs(
         Tuple of (args, kwargs).
 
     """
-    from pytest_bdd.model.scenario_run import Run
-
     return (
         args,
         {

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, cast
 
+from cucumber_expressions.errors import UndefinedParameterTypeError
 from cucumber_messages import (
     Duration,
     Snippet,
@@ -73,8 +74,6 @@ class ScenarioService(ReporterServiceBase):
         exception: Exception,
         fallback_expression: str,
     ) -> tuple[str, str] | None:
-        from cucumber_expressions.errors import UndefinedParameterTypeError
-
         explicit = getattr(exception, "undefined_parameter_type", None)
         if isinstance(explicit, tuple) and len(explicit) == 2:
             return str(explicit[0]), str(explicit[1])

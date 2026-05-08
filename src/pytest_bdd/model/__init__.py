@@ -18,7 +18,7 @@ from .message_capability import (
     classify_capability_relevance,
 )
 from .message_capability_inventory import CapabilitySyncResult, sync_capability_inventory
-from .message_converter import governance_value_to_dict, message_converter
+from .message_converter import governance_value_to_dict, message_converter, validate_envelope_shape
 from .message_governance_checklist import (
     DEFAULT_CHECKLIST_NAME,
     GovernanceChecklist,
@@ -64,7 +64,6 @@ from .message_validation import (
     observed_outcome_from_envelope,
     validate_envelope_against_schema,
     validate_envelope_dict_against_schema,
-    validate_envelope_shape,
     validate_message_stream,
 )
 from .scenario_run import (

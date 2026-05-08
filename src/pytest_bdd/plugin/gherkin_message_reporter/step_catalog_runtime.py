@@ -27,6 +27,7 @@ from cucumber_messages import (
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest, get_config_root_path
 from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.parsers import _CucumberExpression
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_first_source_line
@@ -203,8 +204,6 @@ class StepCatalogService(ReporterServiceBase):
         step_definition: StepDefinitionManager.Definition,
         step_text: str,
     ) -> list[StepMatchArgumentsList]:
-        from pytest_bdd.parsers import _CucumberExpression
-
         parser = step_definition.parser
 
         if isinstance(parser, _CucumberExpression):

@@ -40,9 +40,9 @@ def _run_local_xdist(  # noqa: C901
     verify_mode: str,
     fail_transport_workers: str = "",
 ) -> subprocess.CompletedProcess[str]:
-    import socket
-    import sys
-    import time
+    import socket  # noqa: PLC0415 -- optional worker bootstrap import
+    import sys  # noqa: PLC0415 -- optional worker bootstrap import
+    import time  # noqa: PLC0415 -- optional worker bootstrap import
 
     def endpoint_is_ready(host: str, port: int) -> tuple[bool, OSError | None]:
         try:
@@ -180,7 +180,7 @@ def _run_remote_xdist_compose(
         finally:
             os.chdir(original_cwd)
 
-    from tests.support.docker_cluster import cluster_manager
+    from tests.support.docker_cluster import cluster_manager  # noqa: PLC0415 -- optional port allocation in test
 
     try:
         cluster_manager.set_backend(require_docker_daemon())

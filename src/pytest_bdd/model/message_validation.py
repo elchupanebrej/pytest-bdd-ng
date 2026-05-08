@@ -13,13 +13,14 @@ from pytest_bdd.compatibility.jsonschema import SchemaValidator, ValidationError
 
 from .coverage.inventory import canonical_capability_id, canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
+from .execution_message_adapter import ExecutionMessageAdapter
 from .message_capability_inventory import load_envelope_schema
+from .message_converter import validate_envelope_shape
 from .message_extension import (
     REQUIRED_STATUS_PAYLOAD_KINDS,
     STATUS_CAPABLE_PAYLOAD_KINDS,
     EventEnvelope,
     get_payload_kind,
-    has_single_payload,
 )
 from .message_outcome_mapping import (
     MATRIX_PROFILE_FIXED_RELEASE_READINESS_V1,
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 
 def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
-    from referencing import Registry, Resource
+    from referencing import Registry, Resource  # noqa: PLC0415 -- optional referencing dependency
 
     try:
         schema_dir, envelope_schema = load_envelope_schema()
@@ -453,8 +454,6 @@ def validate_envelope_against_schema(
         A tuple of MessageValidationViolation instances discovered during schema validation.
 
     """
-    from .execution_message_adapter import ExecutionMessageAdapter
-
     return validate_envelope_dict_against_schema(
         ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile),
     )
@@ -497,8 +496,6 @@ def validate_message_stream(  # noqa: C901
     observed_coverage = ObservedCoverage() if track_coverage else None
 
     for position, raw_envelope in enumerate(envelopes):
-        from .execution_message_adapter import ExecutionMessageAdapter
-
         try:
             projection = ExecutionMessageAdapter.deserialize(raw_envelope)
         except TypeError as exc:
@@ -774,19 +771,6 @@ def validate_message_stream(  # noqa: C901
         violations=tuple(violations),
         observed_coverage=observed_coverage,
     )
-
-
-def validate_envelope_shape(envelope: EventEnvelope) -> None:
-    """
-    Verify that an EventEnvelope strictly adheres to the oneof payload constraint defined by the cucumber protocol.
-
-    Raises:
-        TypeError: If the envelope is missing a payload or contains multiple contradictory payloads.
-
-    """
-    if not has_single_payload(envelope):
-        message = "Envelope must include exactly one payload field"
-        raise TypeError(message)
 
 
 def parse_message_dict(payload: dict) -> EventEnvelope:

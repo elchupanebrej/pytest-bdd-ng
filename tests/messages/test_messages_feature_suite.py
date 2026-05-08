@@ -59,7 +59,7 @@ def _resolve_playwright_browsers_path() -> Path | None:
         return path if path.exists() else None
 
     if os.name == "posix":
-        import pwd
+        import pwd  # noqa: PLC0415 -- Unix-only module, must be conditional
 
         user_home = Path(pwd.getpwuid(os.getuid()).pw_dir)
         if sys.platform == "darwin":
@@ -143,6 +143,7 @@ def _generate_feature_suite_messages(
         # language=python
         """\
         import pytest
+from pytest_bdd.model.scenario_run import Run
         from cucumber_expressions.parameter_type import ParameterType
         from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 

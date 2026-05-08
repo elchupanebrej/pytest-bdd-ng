@@ -10,6 +10,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Protocol, cast
 
+from pytest_bdd.util.packaging import get_distribution_version
+
 SCHEMA_PATH = Path(__file__).parent.parent / "model" / "message_jsonschema"
 SCHEMA_REPOSITORY_URL = "https://github.com/cucumber/messages.git"
 SCHEMA_REPOSITORY_FOLDER = Path("jsonschema", "src")
@@ -53,8 +55,6 @@ def copy_schema_tree(source: Path, destination: Path) -> None:
 
 def fetch_schema_tree(destination: Path) -> None:
     """Handle fetch schema tree."""
-    from pytest_bdd.util.packaging import get_distribution_version
-
     git_module = cast("_GitModule", importlib.import_module("git"))
     tag_name = f"v{get_distribution_version('cucumber_messages')}"
 

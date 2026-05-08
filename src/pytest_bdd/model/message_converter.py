@@ -14,7 +14,7 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, i
 from cucumber_messages import json_converter  # type:ignore[import-untyped]
 
 from . import message_extension
-from .message_validation import validate_envelope_shape
+from .message_extension import has_single_payload
 
 if TYPE_CHECKING:
     from pytest_bdd.types.json import JSONObject, JSONValue
@@ -73,3 +73,16 @@ def governance_value_to_dict(value: object) -> JSONValue:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return str(value)
+
+
+def validate_envelope_shape(envelope: message_extension.EventEnvelope) -> None:
+    """
+    Verify that an EventEnvelope strictly adheres to the oneof payload constraint defined by the cucumber protocol.
+
+    Raises:
+        TypeError: If the envelope is missing a payload or contains multiple contradictory payloads.
+
+    """
+    if not has_single_payload(envelope):
+        message = "Envelope must include exactly one payload field"
+        raise TypeError(message)

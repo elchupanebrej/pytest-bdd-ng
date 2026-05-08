@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert, main
+
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 
@@ -81,7 +83,6 @@ LATEST_PY313_LINUX_ONLY = pytest.mark.skipif(
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_orders_prefixed_sections_and_entries(testdir: "Testdir") -> None:
     """Verify doc generation orders prefixed sections and entries."""
-    from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -145,7 +146,6 @@ def test_doc_generation_orders_prefixed_sections_and_entries(testdir: "Testdir")
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_preserves_manual_sections_and_positions(testdir: "Testdir") -> None:
     """Verify doc generation preserves manual sections and positions."""
-    from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -199,7 +199,6 @@ def test_doc_generation_preserves_manual_sections_and_positions(testdir: "Testdi
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_without_markers_preserves_intro_prefix_for_ordered_headings(testdir: "Testdir") -> None:
     """Verify doc generation without markers preserves intro prefix for ordered headings."""
-    from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -249,7 +248,6 @@ def test_doc_generation_without_markers_preserves_intro_prefix_for_ordered_headi
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "Testdir") -> None:
     """Verify doc generation is idempotent with existing generated markers."""
-    from pytest_bdd.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -293,7 +291,6 @@ def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_rejects_missing_ordering_prefix(testdir: "Testdir") -> None:
     """Verify doc generation rejects missing ordering prefix."""
-    from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -317,7 +314,6 @@ def test_doc_generation_rejects_missing_ordering_prefix(testdir: "Testdir") -> N
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_rejects_duplicate_ordering_prefix(testdir: "Testdir") -> None:
     """Verify doc generation rejects duplicate ordering prefix."""
-    from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -351,7 +347,6 @@ def test_doc_generation_cli_fails_when_generated_docs_are_stale(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify doc generation cli fails when generated docs are stale."""
-    from pytest_bdd.script.bdd_tree_to_rst import main
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()

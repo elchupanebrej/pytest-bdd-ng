@@ -3,13 +3,12 @@
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
 
 from .const import PYTEST_BDD_MARK, FeatureAutoLoad, FeatureBaseLoad
+from .hook import ScenarioTestCollectorHookSpec
 from .plugin import ScenarioTestCollector
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Handle addhooks."""
-    from .hook import ScenarioTestCollectorHookSpec
-
     pluginmanager.add_hookspecs(ScenarioTestCollectorHookSpec)
 
 

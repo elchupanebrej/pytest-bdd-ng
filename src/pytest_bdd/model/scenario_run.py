@@ -855,7 +855,7 @@ class Run(StashBound):
             The newly created ScenarioRun context.
 
         """
-        from pytest_bdd.plugin.pickle_runner.run_transitions import (
+        from pytest_bdd.plugin.pickle_runner.run_transitions import (  # noqa: PLC0415 -- circular import with run_transitions
             build_lifecycle_ref,
             initial_scenario_run_id,
             runtime_object_id,

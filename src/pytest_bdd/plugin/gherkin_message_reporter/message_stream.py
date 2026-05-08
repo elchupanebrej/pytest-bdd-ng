@@ -71,7 +71,7 @@ def ensure_xdist_controller_batch_patch() -> bool:
 
     """
     try:
-        from xdist import workermanage
+        from xdist import workermanage  # noqa: PLC0415 -- optional xdist dependency
     except ImportError:
         return False
 

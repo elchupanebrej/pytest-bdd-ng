@@ -104,30 +104,30 @@ class StructBDDParser(ParserProtocol):
 
         """
         if self.kind is self.KIND.YAML:
-            from yaml import FullLoader
-            from yaml import load as load_yaml
+            from yaml import FullLoader  # noqa: PLC0415 -- lazy format dispatch
+            from yaml import load as load_yaml  # noqa: PLC0415 -- lazy format dispatch
 
             return cast("Loader", partial(load_yaml, Loader=FullLoader))
         if self.kind is self.KIND.TOML:
-            from pytest_bdd.compatibility.tomllib import loads as load_toml
+            from pytest_bdd.compatibility.tomllib import loads as load_toml  # noqa: PLC0415 -- lazy format dispatch
 
             return cast("Loader", load_toml)
         if self.kind is self.KIND.JSON:
-            from json import loads as load_json
+            from json import loads as load_json  # noqa: PLC0415 -- lazy format dispatch
 
             return cast("Loader", load_json)
         if self.kind is self.KIND.JSON5:
-            from json5 import loads as load_json5
+            from json5 import loads as load_json5  # noqa: PLC0415 -- lazy format dispatch
 
             return cast("Loader", load_json5)
         if self.kind is self.KIND.HJSON:
-            from hjson import loads as load_hjson
+            from hjson import loads as load_hjson  # noqa: PLC0415 -- lazy format dispatch
 
             return cast("Loader", load_hjson)
         if self.kind is self.KIND.HOCON:
-            from json import loads
+            from json import loads  # noqa: PLC0415 -- lazy format dispatch
 
-            from pyhocon import ConfigFactory, HOCONConverter
+            from pyhocon import ConfigFactory, HOCONConverter  # noqa: PLC0415 -- lazy format dispatch
 
             def load_hocon(
                 s: str,

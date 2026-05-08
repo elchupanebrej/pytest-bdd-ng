@@ -453,7 +453,7 @@ class TestRunWslCmd:
             patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
             patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
         ):
-            from tests.support.docker_cluster import _run_wsl_cmd
+            from tests.support.docker_cluster import _run_wsl_cmd  # noqa: PLC0415 -- optional docker import in test
 
             _run_wsl_cmd(["docker", "compose", "up", "-d"], timeout=120)
             mock_run.assert_called_once()
@@ -474,7 +474,7 @@ class TestRunWslCmd:
             patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
             patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
         ):
-            from tests.support.docker_cluster import _run_wsl_cmd
+            from tests.support.docker_cluster import _run_wsl_cmd  # noqa: PLC0415 -- optional docker import in test
 
             _run_wsl_cmd(["docker", "info"], timeout=60)
             call_kwargs = mock_run.call_args.kwargs
@@ -494,7 +494,7 @@ class TestRunWslCmd:
             patch.dict("tests.support.docker_cluster.os.environ", {"PATH": "/usr/bin"}, clear=False),
             patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
         ):
-            from tests.support.docker_cluster import _run_wsl_cmd
+            from tests.support.docker_cluster import _run_wsl_cmd  # noqa: PLC0415 -- optional docker import in test
 
             _run_wsl_cmd(
                 ["docker", "compose", "up", "-d"],
@@ -519,7 +519,7 @@ class TestRunWslCmd:
             patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
             patch("tests.support.docker_cluster.subprocess.run", return_value=result),
         ):
-            from tests.support.docker_cluster import _run_wsl_cmd
+            from tests.support.docker_cluster import _run_wsl_cmd  # noqa: PLC0415 -- optional docker import in test
 
             returned = _run_wsl_cmd(["echo", "hello"], timeout=30)
             assert returned.returncode == 0
@@ -781,7 +781,7 @@ class TestDockerComposeRelativeMounts:
 
     def test_local_images_have_build_config(self):
         """docker-compose.yml local-tagged services should be buildable without registry pulls."""
-        import yaml
+        import yaml  # noqa: PLC0415 -- optional docker import in test
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
         with Path(compose_path).open(encoding="utf-8") as f:
@@ -794,7 +794,7 @@ class TestDockerComposeRelativeMounts:
 
     def test_remote_xdist_builds_use_repo_root_context(self):
         """remote xdist Dockerfiles copy repo-root files, so compose builds must use the repo root as context."""
-        import yaml
+        import yaml  # noqa: PLC0415 -- optional docker import in test
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
         with Path(compose_path).open(encoding="utf-8") as f:
@@ -807,7 +807,7 @@ class TestDockerComposeRelativeMounts:
 
     def test_no_repo_root_env_var_in_compose(self):
         """docker-compose.yml should not use ${REPO_ROOT} for build context."""
-        import yaml
+        import yaml  # noqa: PLC0415 -- optional docker import in test
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
         with Path(compose_path).open(encoding="utf-8") as f:
@@ -820,7 +820,7 @@ class TestDockerComposeRelativeMounts:
 
     def test_no_artifact_dir_env_var_in_volumes(self):
         """docker-compose.yml should not use ${ARTIFACT_DIR} in volumes."""
-        import yaml
+        import yaml  # noqa: PLC0415 -- optional docker import in test
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
         with Path(compose_path).open(encoding="utf-8") as f:
@@ -831,7 +831,7 @@ class TestDockerComposeRelativeMounts:
 
     def test_build_context_is_relative(self):
         """docker-compose.yml build contexts should be relative (.) or valid paths."""
-        import yaml
+        import yaml  # noqa: PLC0415 -- optional docker import in test
 
         compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
         with Path(compose_path).open(encoding="utf-8") as f:
@@ -850,7 +850,7 @@ class TestEntrypointsSelfContained:
 
     def test_controller_entrypoint_has_no_external_imports(self):
         """controller_entrypoint.py should only import stdlib + pytest + pytest-xdist."""
-        import ast
+        import ast  # noqa: PLC0415 -- optional docker import in test
 
         entrypoint_path = (
             Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"

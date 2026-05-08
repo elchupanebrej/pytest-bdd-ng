@@ -219,7 +219,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             Tuple of (content_type, content_text).
 
         """
-        import certifi
+        import certifi  # noqa: PLC0415 -- heavy optional certifi dependency
 
         sslcontext = ssl.create_default_context(cafile=certifi.where())
         async with session.get(url, ssl=sslcontext) as response:
@@ -236,7 +236,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             List of tuples (content_type, content_text) or exceptions.
 
         """
-        import aiohttp
+        import aiohttp  # noqa: PLC0415 -- heavy optional aiohttp dependency
 
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
