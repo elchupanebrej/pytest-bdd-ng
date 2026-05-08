@@ -138,8 +138,8 @@ class HookCatalogService(ReporterServiceBase):
             ):
                 yield hook_registration
 
+    @staticmethod
     def _hook_expression_matches(
-        self,
         *,
         request: FixtureRequest,
         pickle: _PickleWithTags,

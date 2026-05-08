@@ -110,7 +110,8 @@ class TransportService(ReporterServiceBase):
         )
         self.reporter._xdist_compatibility_error = None
 
-    def _current_reporting_worker_id(self, config: Config) -> str:
+    @staticmethod
+    def _current_reporting_worker_id(config: Config) -> str:
         worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
         return _format_reporting_worker_id(worker_id, gateway_mode)
 

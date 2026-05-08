@@ -107,7 +107,7 @@ class PickleRunner:
         return None, None, None
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_sessionstart(self, session: Session) -> None:
+    def pytest_sessionstart(self, session: Session) -> None:  # noqa: PLR6301 -- pytest hook, must be instance method
         """Handle the pytest sessionstart pytest hook."""
         run = Run.from_stash(session.config.stash)
         if run.reporting_state.run_started_id is None:
@@ -174,7 +174,7 @@ class PickleRunner:
             item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
 
     @pytest.hookimpl(trylast=True)
-    def pytest_runtest_teardown(self, item: Item, nextitem: Item | None) -> Iterator[None]:  # noqa: ARG002
+    def pytest_runtest_teardown(self, item: Item, nextitem: Item | None) -> Iterator[None]:  # noqa: ARG002, PLR6301 -- pytest hook
         """
         Handle the pytest runtest teardown pytest hook.
 
@@ -186,8 +186,8 @@ class PickleRunner:
         yield
         Run.pop_scenario_run(item._request)
 
+    @staticmethod
     def _invoke_bdd_hook(
-        self,
         *,
         hook_name: str,
         request: FixtureRequest,
@@ -224,7 +224,7 @@ class PickleRunner:
         hook_kwargs.update(extra_kwargs)
         return getattr(request.config.hook, hook_name)(**hook_kwargs)
 
-    def pytest_bdd_run_scenario(
+    def pytest_bdd_run_scenario(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         request: FixtureRequest,
         run: Run,
@@ -440,7 +440,7 @@ class PickleRunner:
             pickle.__dict__["description"] = None
 
     @pytest.hookimpl(trylast=True)
-    def pytest_bdd_get_step_caller(
+    def pytest_bdd_get_step_caller(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         request: FixtureRequest,
         run: Run,  # noqa: ARG002

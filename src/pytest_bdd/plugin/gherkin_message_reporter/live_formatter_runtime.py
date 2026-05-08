@@ -420,8 +420,8 @@ class LiveFormatterService(ReporterServiceBase):
 
         return node_executable, node_env, runnable_requests, missing_packages, provision_result.missing_packages
 
+    @staticmethod
     def _warn_about_missing_cucumber_formatter_packages(
-        self,
         missing_packages: dict[str, list[CucumberFormatterRequest]],
     ) -> None:
         for package_name, formatter_requests in missing_packages.items():

@@ -394,7 +394,7 @@ def install_formatter_hook_registry(
     resolved_catalog = FormatterPluginCatalog.discover() if catalog is None else catalog
 
     class _HookProxy:
-        def pytest_bdd_cucumber_formatter_request(self, *, config, resolve_output_path):
+        def pytest_bdd_cucumber_formatter_request(self, *, config, resolve_output_path):  # noqa: PLR6301 -- test support, pytest requires instance methods
             requests: list[CucumberFormatterRequest] = []
             for plugin in resolved_catalog.plugins:
                 request = plugin.pytest_bdd_cucumber_formatter_request(
@@ -405,7 +405,7 @@ def install_formatter_hook_registry(
                     requests.append(request)
             return requests
 
-        def pytest_bdd_cucumber_formatter_runtime_assets(self, *, formatter_request, formatter_requests):
+        def pytest_bdd_cucumber_formatter_runtime_assets(self, *, formatter_request, formatter_requests):  # noqa: PLR6301 -- test support, pytest requires instance methods
             rendered_assets: list[dict[str, str]] = []
             for plugin in resolved_catalog.plugins:
                 assets = plugin.pytest_bdd_cucumber_formatter_runtime_assets(

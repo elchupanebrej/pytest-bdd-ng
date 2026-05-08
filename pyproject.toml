@@ -310,7 +310,6 @@ ignore = [
   "D203",  # incorrect-blank-line-before-class - Conflicts with active D211 convention
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
-  "PLR6301",  # no-self - use - Legacy/Noisy - ~104 errors
   "SLF001",  # private-member - access - Legacy/Noisy - ~207 errors
   "TD002",  # missing-todo - author - Legacy/Noisy - ~14 errors
   "TD003"  # missing-todo - link - Legacy/Noisy - ~14 errors

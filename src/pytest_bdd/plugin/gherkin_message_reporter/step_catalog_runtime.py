@@ -197,8 +197,8 @@ class StepCatalogService(ReporterServiceBase):
         """Handle report step definitions."""
         self._report_step_definitions(config, request)
 
+    @staticmethod
     def _build_step_match_arguments_lists(
-        self,
         *,
         request: FixtureRequest,
         step_definition: StepDefinitionManager.Definition,
@@ -259,7 +259,8 @@ class StepCatalogService(ReporterServiceBase):
             )
         return [StepMatchArgumentsList(step_match_arguments=parsed_step_match_arguments)]
 
-    def _build_parameter_type_source_reference(self, config: Config, parameter_type: object) -> SourceReference | None:
+    @staticmethod
+    def _build_parameter_type_source_reference(config: Config, parameter_type: object) -> SourceReference | None:
         transformer = getattr(parameter_type, "transformer", None)
         if transformer is None:
             return None

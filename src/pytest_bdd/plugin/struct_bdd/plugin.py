@@ -48,7 +48,7 @@ class StructBDDPlugin:
     }
 
     @pytest.hookimpl
-    def pytest_bdd_get_parser(
+    def pytest_bdd_get_parser(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         config: Config,  # noqa: ARG002 hookspec
         mimetype: str,

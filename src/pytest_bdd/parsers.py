@@ -392,7 +392,7 @@ class string(StepParser):  # noqa: N801 intentional API
         """Initialize the string."""
         self.name = normalize_to_string(name)
 
-    def parse_arguments(
+    def parse_arguments(  # noqa: PLR6301 -- overrides abstract StepParser.parse_arguments
         self,
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,  # noqa: ARG002 overload

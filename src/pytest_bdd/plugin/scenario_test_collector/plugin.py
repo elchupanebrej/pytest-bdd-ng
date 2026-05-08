@@ -131,7 +131,7 @@ def _iter_resolved_feature_scenarios(
 
 class _ModernTestCollector:
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(
+    def pytest_pycollect_makemodule(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         parent: Collector,  # noqa: ARG002 hookimpl
         module_path: Path,  # noqa: ARG002 hookimpl
@@ -139,7 +139,7 @@ class _ModernTestCollector:
         yield from _pytest_pycollect_makemodule()
 
     @pytest.hookimpl
-    def pytest_collect_file(self, parent: Collector, file_path: Path) -> Collector | None:
+    def pytest_collect_file(self, parent: Collector, file_path: Path) -> Collector | None:  # noqa: PLR6301 -- pytest hook, must be instance method
         return _pytest_collect_file(parent=parent, file_path=file_path)
 
 
@@ -147,7 +147,7 @@ class ScenarioTestCollector(_ModernTestCollector):
     """Collect scenario-backed pytest items from feature files."""
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_plugin_registered(
+    def pytest_plugin_registered(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         plugin: object,
         manager: object,  # noqa: ARG002 hookimpl
@@ -159,7 +159,7 @@ class ScenarioTestCollector(_ModernTestCollector):
             )
 
     @pytest.hookimpl
-    def pytest_generate_tests(self, metafunc: Metafunc) -> None:
+    def pytest_generate_tests(self, metafunc: Metafunc) -> None:  # noqa: PLR6301 -- pytest hook, must be instance method
         """Handle generate tests."""
         config = metafunc.config
 
@@ -184,7 +184,7 @@ class ScenarioTestCollector(_ModernTestCollector):
             )
 
     @pytest.hookimpl(trylast=True)
-    def pytest_bdd_convert_tag_to_marks(
+    def pytest_bdd_convert_tag_to_marks(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         gherkin_document: GherkinDocument,
         pickle: Pickle,
@@ -202,7 +202,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         return [getattr(pytest.mark, tag)]
 
     @pytest.hookimpl
-    def pytest_bdd_match_step_definition_to_step(
+    def pytest_bdd_match_step_definition_to_step(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         request: FixtureRequest,
         run: Run,
@@ -224,7 +224,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         return step_matcher(request, gherkin_document, pickle, step, previous_step, step_registry)
 
     @pytest.hookimpl
-    def pytest_bdd_get_mimetype(
+    def pytest_bdd_get_mimetype(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
@@ -250,7 +250,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         return None
 
     @pytest.hookimpl
-    def pytest_bdd_get_parser(
+    def pytest_bdd_get_parser(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         config: Config,  # noqa: ARG002 hookimpl
         mimetype: str,
@@ -270,7 +270,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         return None
 
     @pytest.hookimpl
-    def pytest_bdd_is_collectible(
+    def pytest_bdd_is_collectible(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,

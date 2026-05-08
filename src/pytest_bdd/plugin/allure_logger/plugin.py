@@ -152,7 +152,7 @@ class PatchedAllureListener:
         self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
     @allure_hookimpl(hookwrapper=True, tryfirst=True)
-    def report_result(
+    def report_result(  # noqa: PLR6301 -- allure hookimpl, must be instance method
         self,
         result: object,  # noqa: ARG002 hookspec
     ) -> Iterator[None]:
@@ -177,7 +177,7 @@ class AllureLogger:
         self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
     @pytest.hookimpl
-    def pytest_bdd_before_step_call(
+    def pytest_bdd_before_step_call(  # noqa: PLR6301 -- pytest hook, must be instance method
         self,
         request: FixtureRequest,  # noqa: ARG002 hookspec
         run: Run,

@@ -445,7 +445,7 @@ class FormatterReporterPlugin(ABC):
             setattr(config.option, self.option_attr, str(request.output_path))
         return request
 
-    def build_builtin_runtime_assets(
+    def build_builtin_runtime_assets(  # noqa: PLR6301 -- overrides FormatterReporterPlugin ABC method
         self,
         formatter_request: CucumberFormatterRequest,  # noqa: ARG002
         formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002

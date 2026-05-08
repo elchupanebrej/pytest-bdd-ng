@@ -81,7 +81,7 @@ def _serve_directory(directory: Path):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(directory), **kwargs)
 
-        def log_message(self, format: str, *args) -> None:  # noqa: A002
+        def log_message(self, format: str, *args) -> None:  # noqa: A002, PLR6301 -- test support
             _ = (format, args)
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), _QuietHandler)

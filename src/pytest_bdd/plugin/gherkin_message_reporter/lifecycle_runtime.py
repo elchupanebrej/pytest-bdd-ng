@@ -414,7 +414,8 @@ class LifecycleService(ReporterServiceBase):
                 return value.removeprefix("refs/heads/")
         return None
 
-    def _require_run_started_id(self, *, config: Config) -> str:
+    @staticmethod
+    def _require_run_started_id(*, config: Config) -> str:
         run_started_id = Run.from_stash(config.stash).reporting_state.run_started_id
         if run_started_id is None:
             msg = (
@@ -465,7 +466,8 @@ class LifecycleService(ReporterServiceBase):
             ),
         )
 
-    def _resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
+    @staticmethod
+    def _resolve_test_step_id_for_runtime_step(*, request: FixtureRequest, step: object) -> str | None:
         run = Run.from_stash(request.config.stash)
         test_step_id = cast("str | None", run.resolve_test_step_id_for_runtime_step(pickle_step=step))
         if test_step_id is None:

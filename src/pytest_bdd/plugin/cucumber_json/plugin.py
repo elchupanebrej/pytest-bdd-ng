@@ -22,7 +22,8 @@ class LogBDDCucumberJSON:
         self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
         self.features: dict[str, JSONObject] = {}
 
-    def _get_result(self, step: JSONObject, report: TestReport, *, error_message: bool = False) -> JSONObject:
+    @staticmethod
+    def _get_result(step: JSONObject, report: TestReport, *, error_message: bool = False) -> JSONObject:
         """
         Get scenario test run result.
 
@@ -50,7 +51,8 @@ class LogBDDCucumberJSON:
         result["duration"] = math.floor((10**9) * duration)  # nanosec
         return result
 
-    def _serialize_tags(self, item: JSONObject) -> JSONArray:
+    @staticmethod
+    def _serialize_tags(item: JSONObject) -> JSONArray:
         """
         Serialize item's tags.
 

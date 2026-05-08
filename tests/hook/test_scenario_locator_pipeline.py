@@ -112,14 +112,14 @@ def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
     observed_callbacks: list[tuple[str, str]] = []
 
     class _Observer:
-        def on_source_loaded(self, loaded_document: GherkinDocument, loaded_source: Source) -> None:
+        def on_source_loaded(self, loaded_document: GherkinDocument, loaded_source: Source) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
             observed_callbacks.append(("source", loaded_document.uri))
             assert loaded_source is source
 
-        def on_feature_loaded(self, loaded_document: GherkinDocument) -> None:
+        def on_feature_loaded(self, loaded_document: GherkinDocument) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
             observed_callbacks.append(("feature", loaded_document.uri))
 
-        def on_pickle_loaded(self, loaded_document: GherkinDocument, loaded_pickle) -> None:
+        def on_pickle_loaded(self, loaded_document: GherkinDocument, loaded_pickle) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
             observed_callbacks.append(("pickle", loaded_document.uri))
             assert loaded_pickle.id
 

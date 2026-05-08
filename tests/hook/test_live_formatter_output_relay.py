@@ -19,7 +19,7 @@ class _RecordingTarget(io.StringIO):
         with self._lock:
             return super().write(value)
 
-    def flush(self) -> None:
+    def flush(self) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
         return None
 
     def value(self) -> str:
