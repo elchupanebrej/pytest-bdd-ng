@@ -34,7 +34,13 @@ class CapabilityInventory:
 
 
 def to_camel_case_identifier(value: str) -> str:
-    """Convert value to camelCase identifier."""
+    """
+    Convert value to camelCase identifier.
+
+    Returns:
+        camelCase formatted string.
+
+    """
     parts = [part for part in value.split("_") if part]
     if not parts:
         return value
@@ -42,7 +48,13 @@ def to_camel_case_identifier(value: str) -> str:
 
 
 def canonical_payload_kind(payload_kind: str) -> str:
-    """Get canonical payload kind."""
+    """
+    Get canonical payload kind.
+
+    Returns:
+        Canonical form of the payload kind.
+
+    """
     payload_kind = payload_kind.strip()
     if "_" not in payload_kind:
         return payload_kind
@@ -50,12 +62,24 @@ def canonical_payload_kind(payload_kind: str) -> str:
 
 
 def canonical_capability_key(payload_kind: str, field_path: str) -> tuple[str, str]:
-    """Get canonical capability key."""
+    """
+    Get canonical capability key.
+
+    Returns:
+        Tuple of (payload_kind, field_path).
+
+    """
     return canonical_payload_kind(payload_kind), field_path.strip(".")
 
 
 def parse_capability_id(capability_id: str) -> tuple[str, str]:
-    """Parse capability ID into payload kind and field path."""
+    """
+    Parse capability ID into payload kind and field path.
+
+    Returns:
+        Tuple of (payload_kind, field_path).
+
+    """
     if "." not in capability_id:
         return canonical_payload_kind(capability_id), ""
     payload_kind, field_path = capability_id.split(".", 1)
@@ -63,19 +87,37 @@ def parse_capability_id(capability_id: str) -> tuple[str, str]:
 
 
 def canonical_capability_id(capability_id: str) -> str:
-    """Get canonical capability ID."""
+    """
+    Get canonical capability ID.
+
+    Returns:
+        Canonical form of the capability ID.
+
+    """
     payload_kind, field_path = parse_capability_id(capability_id)
     return f"{payload_kind}.{field_path}" if field_path else payload_kind
 
 
 def iter_capability_ids(inventory: CapabilityInventory) -> tuple[str, ...]:
-    """Iterate capability IDs from inventory."""
+    """
+    Iterate capability IDs from inventory.
+
+    Returns:
+        Tuple of sorted, canonical capability IDs.
+
+    """
     capability_ids = [f"{payload_kind}.{path}" if path else payload_kind for payload_kind, path in inventory.fields]
     return tuple(sorted({canonical_capability_id(capability_id) for capability_id in capability_ids}))
 
 
 def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
-    """Get schema file path."""
+    """
+    Get schema file path.
+
+    Returns:
+        Path to the schema file.
+
+    """
     target_path = schema_dir / normalized_file
     if target_path.is_file():
         return target_path
@@ -92,6 +134,9 @@ def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
 def _resolve_schema(schema_dir: Path, ref: str, root_schema: JSONObject) -> tuple[JSONObject, JSONObject]:
     """
     Resolve schema reference.
+
+    Returns:
+        Tuple of (resolved_schema, new_root_schema).
 
     Raises:
         FileNotFoundError: If the referenced schema file is not found.
@@ -230,7 +275,13 @@ def _extract_fields(  # noqa: C901, PLR0912, PLR0913, PLR0917
 
 
 def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
-    """Generate capability inventory from schema."""
+    """
+    Generate capability inventory from schema.
+
+    Returns:
+        Populated CapabilityInventory instance.
+
+    """
     resolved_schema_dir = resolve_messages_schema_dir(schema_dir)
     envelope_schema, _ = _resolve_schema(resolved_schema_dir, "Envelope.json", {})
 
@@ -256,7 +307,13 @@ def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
 
 
 def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> JSONArray:
-    """Convert inventory to capability payload."""
+    """
+    Convert inventory to capability payload.
+
+    Returns:
+        JSON array of capability objects.
+
+    """
     payload: JSONArray = []
     for capability_id in iter_capability_ids(inventory):
         payload_kind, path = parse_capability_id(capability_id)

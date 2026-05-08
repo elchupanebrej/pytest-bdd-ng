@@ -16,7 +16,13 @@ except ModuleNotFoundError:  # pragma: no cover - repository-local tutorial layo
 
 def get_books_from_data_table(data_table: DataTable) -> list[Book]:
     # Gherkin data-tables have no title row by default, but we could define them if we want.
-    """Return books from data table."""
+    """
+    Return books from data table.
+
+    Returns:
+        List of Book objects.
+
+    """
     title_row, *book_rows = data_table.rows
 
     step_data_table_titles = [cell.value for cell in title_row.cells]

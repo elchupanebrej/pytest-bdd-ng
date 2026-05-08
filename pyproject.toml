@@ -307,8 +307,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 fixable = ["ALL"]
 ignore = [
   "CPY001",  # missing-copyright - notice - Requires mass header insertion - ~335 errors
+  "D203",  # incorrect-blank-line-before-class - Conflicts with active D211 convention
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
-  "DOC201",  # docstring-missing - returns - Legacy/Noisy - ~73 errors
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
   "PLC0415",  # import-outside - top-level - Legacy/Noisy - ~66 errors
   "PLR6301",  # no-self - use - Legacy/Noisy - ~104 errors
@@ -436,7 +436,7 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/util/inspect_extra.py" = ["PLC2701"]  # Signature helper supports pytest private fixture definitions.
 "src/pytest_bdd/util/toolz_test.py" = ["S301"]  # S301: ~1 errors
 "src/pytest_bdd_worker_bootstrap/xdist_remote.py" = ["PLC2701"]  # Worker bootstrap imports pytest private Config for remote startup.
-"tests/*" = ["ANN", "D", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
+"tests/*" = ["ANN", "D", "DOC201", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
 "tests/e2e/fixtures/remote_xdist/controller_entrypoint.py" = ["PLR0914", "PLR0915"]  # Fixture script intentionally keeps setup inline.
 "tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # e2e test intentionally starts fixed local execnet socket servers. - S603: ~2 errors
 "tests/hook/test_scenario_collection_read_hooks.py" = ["PLC2701"]  # Test verifies pytest private collection hook integration.

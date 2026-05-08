@@ -19,5 +19,11 @@ from .steps.library_steps import (  # noqa: F401 Steps import
 
 @pytest.fixture
 def search_results() -> list:
-    """Handle search results."""
+    """
+    Handle search results.
+
+    Returns:
+        Empty list.
+
+    """
     return []
