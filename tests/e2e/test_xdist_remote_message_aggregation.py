@@ -76,7 +76,7 @@ def _run_local_xdist(  # noqa: C901
                     [sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8889"],
                     env=env,
                 ),
-            )
+            ),
         )
         wait_for_endpoint("127.0.0.1", 8888)
         wait_for_endpoint("127.0.0.1", 8889)
@@ -89,7 +89,7 @@ def _run_local_xdist(  # noqa: C901
             subprocess.Popen(
                 [sys.executable, "-m", "execnet.script.socketserver", "127.0.0.1:8888"],
                 env=env,
-            )
+            ),
         )
         wait_for_endpoint("127.0.0.1", 8888)
         raw_xdist_args = (
@@ -189,11 +189,16 @@ def _run_remote_xdist_compose(
         if verify_mode == "success-live":
             _, artifact_dir = cluster_manager.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
             materialize_fake_node_runtime(
-                Path(artifact_dir) / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+                Path(artifact_dir) / "fake-node-runtime",
+                preinstalled_packages=("@cucumber/cucumber",),
             )
 
         result, docker_artifact_dir = cluster_manager.run_in_controller(
-            remote_mode, FIXTURE_DIR, repo_root, verify_mode, fail_transport_workers
+            remote_mode,
+            FIXTURE_DIR,
+            repo_root,
+            verify_mode,
+            fail_transport_workers,
         )
 
         docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"

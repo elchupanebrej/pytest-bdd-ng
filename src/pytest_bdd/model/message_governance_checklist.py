@@ -110,7 +110,7 @@ def build_governance_checklist(
                 release_blocker=release_blocker,
                 delta=delta,
                 disposition=disposition,
-            )
+            ),
         )
 
     unresolved_blockers = blocker_evaluation.blocker_count

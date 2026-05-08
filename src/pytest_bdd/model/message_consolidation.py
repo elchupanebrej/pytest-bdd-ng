@@ -249,7 +249,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                 severity="warning",
                 worker_id=fragment.worker_id,
                 message=f"Worker manifest for '{fragment.worker_id}' was not received.",
-            )
+            ),
         )
     if not fragment.envelopes:
         if fragment.path is None:
@@ -259,7 +259,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                     severity="warning",
                     worker_id=fragment.worker_id,
                     message=f"Worker transport data for '{fragment.worker_id}' was not registered.",
-                )
+                ),
             )
         elif not fragment.path.exists():
             diagnostics.append(
@@ -268,7 +268,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                     severity="warning",
                     worker_id=fragment.worker_id,
                     message=f"Worker fragment '{fragment.path}' is missing for '{fragment.worker_id}'.",
-                )
+                ),
             )
     elif fragment.path is not None and not fragment.path.exists():
         diagnostics.append(
@@ -277,7 +277,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                 severity="warning",
                 worker_id=fragment.worker_id,
                 message=f"Worker fragment '{fragment.path}' is missing for '{fragment.worker_id}'.",
-            )
+            ),
         )
     if fragment.interruption_reason is not None:
         diagnostics.append(
@@ -286,7 +286,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                 severity="warning",
                 worker_id=fragment.worker_id,
                 message=f"Worker transfer for '{fragment.worker_id}' was interrupted: {fragment.interruption_reason}",
-            )
+            ),
         )
     if not fragment.complete:
         diagnostics.append(
@@ -295,7 +295,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
                 severity="warning",
                 worker_id=fragment.worker_id,
                 message=f"Worker fragment for '{fragment.worker_id}' is incomplete.",
-            )
+            ),
         )
     return diagnostics
 
@@ -321,7 +321,7 @@ def consolidate_message_fragments(  # noqa: C901
                     fragment_index=fragment_index,
                     sequence_in_fragment=sequence_in_fragment,
                     discovery_index=len(records),
-                )
+                ),
             )
 
     id_remap: dict[str, str] = {}
@@ -390,7 +390,7 @@ def consolidate_message_fragments(  # noqa: C901
     ]
     hook_ids_by_started_id = _resolve_hook_id_by_started_id(retained_execution)
     retained_execution.sort(
-        key=lambda record: (_categorize_execution_record(record, hook_ids_by_started_id), *_record_sort_key(record))
+        key=lambda record: (_categorize_execution_record(record, hook_ids_by_started_id), *_record_sort_key(record)),
     )
 
     ordered_records: list[_EnvelopeRecord] = []

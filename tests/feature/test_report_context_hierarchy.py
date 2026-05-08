@@ -47,7 +47,7 @@ def test_reporting_snapshot_uses_context_hierarchy(testdir):
         @when('second step')
         def second_step():
             return None
-        """
+        """,
     )
 
     result = testdir.inline_run("-q")

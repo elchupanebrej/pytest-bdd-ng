@@ -123,7 +123,9 @@ def build_baseline_audit(
     """Build baseline compliance summary for repository feature documents."""
     active_policy = default_heading_validation_policy() if policy is None else policy
     validation_run = run_heading_validation_scan(
-        root_path=root_path, include_patterns=include_patterns, policy=active_policy
+        root_path=root_path,
+        include_patterns=include_patterns,
+        policy=active_policy,
     )
 
     return BaselineAuditSummary(
@@ -158,7 +160,9 @@ def parse_gherkin_document(path: Path) -> JSONObject:
 
 
 def extract_parsed_heading_records(
-    path: Path, gherkin_document: Mapping[str, object], root_path: Path
+    path: Path,
+    gherkin_document: Mapping[str, object],
+    root_path: Path,
 ) -> list[ParsedHeadingRecord]:
     """Extract heading records from parsed feature document."""
     relative_path = path.resolve().relative_to(root_path.resolve()).as_posix()

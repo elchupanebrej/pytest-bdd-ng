@@ -542,7 +542,8 @@ class StepDefinitionManager:
 
         @classmethod
         def inject_registry_fixture_and_register_steps(
-            cls, namespace: "StepDefinitionManager.NamespaceStepRegistryProtocol"
+            cls,
+            namespace: "StepDefinitionManager.NamespaceStepRegistryProtocol",
         ) -> None:
             # Go around namespace and search for step definition containers
             """Handle inject registry fixture and register steps."""
@@ -642,7 +643,8 @@ class StepDefinitionManager:
         param_defaults = dict(param_defaults or {})
         if target_fixture is not None and target_fixtures is not None:
             warnings.warn(
-                PytestBDDStepDefinitionWarning("Both target_fixture and target_fixtures are specified"), stacklevel=2
+                PytestBDDStepDefinitionWarning("Both target_fixture and target_fixtures are specified"),
+                stacklevel=2,
             )
         resolved_target_fixtures: list[str] = list(
             OrderedSet(

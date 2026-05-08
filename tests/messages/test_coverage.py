@@ -29,8 +29,8 @@ def test_observed_coverage_records_state_dependent_fields() -> None:
                 test_case_id="case-1",
                 timestamp=Timestamp(seconds=1, nanos=0),
                 attempt=0,
-            )
-        )
+            ),
+        ),
     ]
 
     result = validate_message_stream(envelopes, track_coverage=True)

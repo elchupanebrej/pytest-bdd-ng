@@ -15,16 +15,28 @@ from .message_capability_fixtures import make_mapping_rule
 def _fixed_matrix_rules():
     return [
         make_mapping_rule(
-            "rule-passed", outcome_scope="scenario", outcome_status="passed", capability_ids=("cap-pass",)
+            "rule-passed",
+            outcome_scope="scenario",
+            outcome_status="passed",
+            capability_ids=("cap-pass",),
         ),
         make_mapping_rule(
-            "rule-failed", outcome_scope="scenario", outcome_status="failed", capability_ids=("cap-fail",)
+            "rule-failed",
+            outcome_scope="scenario",
+            outcome_status="failed",
+            capability_ids=("cap-fail",),
         ),
         make_mapping_rule(
-            "rule-skipped", outcome_scope="scenario", outcome_status="skipped", capability_ids=("cap-skip",)
+            "rule-skipped",
+            outcome_scope="scenario",
+            outcome_status="skipped",
+            capability_ids=("cap-skip",),
         ),
         make_mapping_rule(
-            "rule-undefined", outcome_scope="scenario", outcome_status="undefined", capability_ids=("cap-undef",)
+            "rule-undefined",
+            outcome_scope="scenario",
+            outcome_status="undefined",
+            capability_ids=("cap-undef",),
         ),
         make_mapping_rule(
             "rule-interrupted",

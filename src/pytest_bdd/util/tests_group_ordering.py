@@ -152,7 +152,7 @@ def apply_order_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
         MarkDecorator(
             Mark("order", args=(assignment.ordinal,), kwargs={}, _ispytest=True),
             _ispytest=True,
-        )
+        ),
     )
 
 
@@ -162,7 +162,7 @@ def apply_group_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
         MarkDecorator(
             Mark(assignment.group_name, args=(), kwargs={}, _ispytest=True),
             _ispytest=True,
-        )
+        ),
     )
 
 

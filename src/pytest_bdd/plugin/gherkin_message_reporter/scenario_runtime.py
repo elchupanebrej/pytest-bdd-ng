@@ -129,7 +129,7 @@ class ScenarioService(ReporterServiceBase):
                     undefined_parameter_type=UndefinedParameterType(
                         expression=expression,
                         name=parameter_name,
-                    )
+                    ),
                 ),
             )
 
@@ -186,7 +186,7 @@ class ScenarioService(ReporterServiceBase):
                     test_case_started_id=test_case_started_id,
                     timestamp=self.lifecycle_service.get_timestamp(),
                     will_be_retried=False,
-                )
+                ),
             ),
         )
         reporting_state.reset_scenario_scope()
@@ -271,7 +271,7 @@ class ScenarioService(ReporterServiceBase):
                     timestamp=step_finish_timestamp,
                     test_step_id=test_step_id,
                     test_step_result=TestStepResult(duration=step_duration, status=TestStepResultStatus.passed),
-                )
+                ),
             ),
         )
         reporting_state.active_test_step_id = None
@@ -322,7 +322,7 @@ class ScenarioService(ReporterServiceBase):
                             stack_trace=repr(exception),
                         ),
                     ),
-                )
+                ),
             ),
         )
         reporting_state.active_test_step_id = None

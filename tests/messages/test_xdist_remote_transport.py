@@ -330,9 +330,9 @@ def test_process_messages_writes_without_temporary_directory(monkeypatch, tmp_pa
                 "testRunStarted": {
                     "id": "run-1",
                     "timestamp": {"seconds": 0, "nanos": 0},
-                }
-            }
-        )
+                },
+            },
+        ),
     )
     stop_event.set()
     messages_path = tmp_path / "messages.ndjson"
@@ -340,7 +340,7 @@ def test_process_messages_writes_without_temporary_directory(monkeypatch, tmp_pa
     TransportService.process_messages(queue, stop_event, messages_path)
 
     assert messages_path.read_text(encoding="utf-8").splitlines() == [
-        '{"testRunStarted": {"id": "run-1", "timestamp": {"seconds": 0, "nanos": 0}}}'
+        '{"testRunStarted": {"id": "run-1", "timestamp": {"seconds": 0, "nanos": 0}}}',
     ]
 
 

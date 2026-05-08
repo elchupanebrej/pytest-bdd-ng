@@ -36,7 +36,7 @@ def test_governance_report_generation_conforms_to_contract_shape(tmp_path) -> No
             "v32.0.1",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     assert exit_code == 0
@@ -76,7 +76,7 @@ def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> Non
                     "mandatory_scope_violations": 0,
                 },
                 "capabilities": [{"capability_id": "cap-1", "status": "Implemented", "disposition": "approved"}],
-            }
+            },
         ),
         encoding="utf-8",
     )
@@ -104,7 +104,7 @@ def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> Non
                     {"capability_id": "cap-1", "status": "Implemented", "disposition": "approved"},
                     {"capability_id": "cap-2", "status": "Pending", "disposition": "blocked"},
                 ],
-            }
+            },
         ),
         encoding="utf-8",
     )
@@ -122,7 +122,7 @@ def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> Non
             str(current),
             "--output",
             str(output),
-        ]
+        ],
     )
 
     payload = json.loads(output.read_text(encoding="utf-8"))
@@ -133,7 +133,9 @@ def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> Non
 def test_governance_report_strict_mode_fails_on_pending_without_decision(tmp_path, monkeypatch) -> None:
     """Verify governance report strict mode fails on pending without decision."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -150,7 +152,7 @@ def test_governance_report_strict_mode_fails_on_pending_without_decision(tmp_pat
             "--require-fully-governed",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     assert exit_code == 1
@@ -162,7 +164,9 @@ def test_governance_report_strict_mode_fails_on_pending_without_decision(tmp_pat
 def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkeypatch) -> None:
     """Verify governance report applies decision file in strict mode."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -179,8 +183,8 @@ def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkey
                     "evidence_refs": ["tests/messages/test_governance.py"],
                     "reviewed_at": "2026-03-02T00:00:00+00:00",
                     "release_target": "v32.0.1",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -198,7 +202,7 @@ def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkey
             "--require-fully-governed",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     assert exit_code == 0
@@ -213,7 +217,9 @@ def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkey
 def test_governance_report_accepts_partly_applicable_decision_with_required_comment(tmp_path, monkeypatch) -> None:
     """Verify governance report accepts partly applicable decision with required comment."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -230,8 +236,8 @@ def test_governance_report_accepts_partly_applicable_decision_with_required_comm
                     "evidence_refs": ["tests/messages/test_governance.py"],
                     "reviewed_at": "2026-03-02T00:00:00+00:00",
                     "release_target": "v32.0.1",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -249,7 +255,7 @@ def test_governance_report_accepts_partly_applicable_decision_with_required_comm
             "--require-fully-governed",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     assert exit_code == 0
@@ -263,7 +269,9 @@ def test_governance_report_accepts_partly_applicable_decision_with_required_comm
 def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, monkeypatch) -> None:
     """Verify governance report rejects unknown decision capability ids."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -280,8 +288,8 @@ def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, mon
                     "evidence_refs": ["tests/messages/test_governance.py"],
                     "reviewed_at": "2026-03-02T00:00:00+00:00",
                     "release_target": "v32.0.1",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -299,14 +307,16 @@ def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, mon
                 str(decisions_file),
                 "--output",
                 str(output_file),
-            ]
+            ],
         )
 
 
 def test_governance_report_loads_runtime_required_scope_with_unique_ids(tmp_path, monkeypatch) -> None:
     """Verify governance report loads runtime required scope with unique ids."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -330,7 +340,7 @@ def test_governance_report_loads_runtime_required_scope_with_unique_ids(tmp_path
             str(runtime_required_file),
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     payload = json.loads(output_file.read_text(encoding="utf-8"))
@@ -345,7 +355,9 @@ def test_governance_report_loads_runtime_required_scope_with_unique_ids(tmp_path
 def test_governance_report_rejects_unknown_runtime_required_capability_ids(tmp_path, monkeypatch) -> None:
     """Verify governance report rejects unknown runtime required capability ids."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -366,7 +378,7 @@ def test_governance_report_rejects_unknown_runtime_required_capability_ids(tmp_p
                 str(runtime_required_file),
                 "--output",
                 str(output_file),
-            ]
+            ],
         )
 
 
@@ -377,7 +389,9 @@ def test_governance_report_rejects_runtime_required_ids_outside_mandatory_scope(
         fields={
             ("testRunStarted", "id"): FieldMetadata(path="id", type="string", is_required=True),
             ("testRunStarted", "timestamp.seconds"): FieldMetadata(
-                path="timestamp.seconds", type="integer", is_required=True
+                path="timestamp.seconds",
+                type="integer",
+                is_required=True,
             ),
         },
     )
@@ -405,7 +419,7 @@ def test_governance_report_rejects_runtime_required_ids_outside_mandatory_scope(
                 str(runtime_required_file),
                 "--output",
                 str(output_file),
-            ]
+            ],
         )
 
 
@@ -415,7 +429,8 @@ def test_governance_report_runtime_required_gate_requires_scope_file(tmp_path) -
     messages_file.write_text("", encoding="utf-8")
 
     with pytest.raises(
-        ValueError, match="--require-runtime-required-covered requires --runtime-required-capabilities-file"
+        ValueError,
+        match="--require-runtime-required-covered requires --runtime-required-capabilities-file",
     ):
         main(
             [
@@ -425,14 +440,16 @@ def test_governance_report_runtime_required_gate_requires_scope_file(tmp_path) -
                 "--baseline-release",
                 "v32.0.1",
                 "--require-runtime-required-covered",
-            ]
+            ],
         )
 
 
 def test_governance_report_runtime_required_gate_fails_without_runtime_evidence(tmp_path, monkeypatch) -> None:
     """Verify governance report runtime required gate fails without runtime evidence."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -453,7 +470,7 @@ def test_governance_report_runtime_required_gate_fails_without_runtime_evidence(
             "--require-runtime-required-covered",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     payload = json.loads(output_file.read_text(encoding="utf-8"))
@@ -462,11 +479,14 @@ def test_governance_report_runtime_required_gate_fails_without_runtime_evidence(
 
 
 def test_governance_report_rejects_partly_applicable_decision_for_runtime_required_capability(
-    tmp_path, monkeypatch
+    tmp_path,
+    monkeypatch,
 ) -> None:
     """Verify governance report rejects partly applicable decision for runtime required capability."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -486,8 +506,8 @@ def test_governance_report_rejects_partly_applicable_decision_for_runtime_requir
                     "evidence_refs": ["tests/messages/test_governance.py"],
                     "reviewed_at": "2026-03-02T00:00:00+00:00",
                     "release_target": "v32.0.1",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -510,14 +530,16 @@ def test_governance_report_rejects_partly_applicable_decision_for_runtime_requir
                 "--require-runtime-required-covered",
                 "--output",
                 str(output_file),
-            ]
+            ],
         )
 
 
 def test_governance_report_non_runtime_classification_gate_fails_without_decisions(tmp_path, monkeypatch) -> None:
     """Verify governance report non runtime classification gate fails without decisions."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -534,7 +556,7 @@ def test_governance_report_non_runtime_classification_gate_fails_without_decisio
             "--require-non-runtime-classified",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     assert exit_code == 1
@@ -543,7 +565,9 @@ def test_governance_report_non_runtime_classification_gate_fails_without_decisio
 def test_governance_report_rejects_non_implementable_without_required_hard_issue_fields(tmp_path, monkeypatch) -> None:
     """Verify governance report rejects non implementable without required hard issue fields."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -560,8 +584,8 @@ def test_governance_report_rejects_non_implementable_without_required_hard_issue
                     "evidence_refs": ["tests/messages/test_governance.py"],
                     "reviewed_at": "2026-03-02T00:00:00+00:00",
                     "release_target": "v32.0.1",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -579,14 +603,16 @@ def test_governance_report_rejects_non_implementable_without_required_hard_issue
                 str(decisions_file),
                 "--output",
                 str(output_file),
-            ]
+            ],
         )
 
 
 def test_governance_report_rejects_non_implementable_when_runtime_evidence_exists(tmp_path, monkeypatch) -> None:
     """Verify governance report rejects non implementable when runtime evidence exists."""
     monkeypatch.setattr(
-        message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
+        message_capability_governance,
+        "generate_inventory",
+        lambda _schema_dir: _single_field_inventory(),
     )
 
     messages_file = tmp_path / "messages.ndjson"
@@ -608,8 +634,8 @@ def test_governance_report_rejects_non_implementable_when_runtime_evidence_exist
                     "reviewed_at": "2026-03-03T00:00:00+00:00",
                     "release_target": "v32.0.1",
                     "recheck_trigger": "runtime-hook-surface-change",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -627,5 +653,5 @@ def test_governance_report_rejects_non_implementable_when_runtime_evidence_exist
                 str(decisions_file),
                 "--output",
                 str(output_file),
-            ]
+            ],
         )

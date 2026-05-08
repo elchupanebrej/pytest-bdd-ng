@@ -98,7 +98,7 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
             "GITHUB_SHA": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
             "GITHUB_SERVER_URL": "https://github.com",
             "GITHUB_REPOSITORY": "pytest-dev/pytest-bdd-ng",
-        }
+        },
     )
 
     for target, expect_failure, env_overrides in PROBE_CASES:
@@ -130,7 +130,7 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
             "--require-fully-governed",
             "--output",
             str(report_file),
-        ]
+        ],
     )
 
     payload = json.loads(report_file.read_text(encoding="utf-8"))

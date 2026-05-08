@@ -125,11 +125,11 @@ def resolve_pytester_run_mode(options_dict: dict[str, list[object]]) -> str:
         requested_modes.add(
             "subprocess"
             if _coerce_bool_option(options_dict["subprocess"][0], option_name="subprocess")
-            else "inprocess"
+            else "inprocess",
         )
     if options_dict.get("inprocess"):
         requested_modes.add(
-            "inprocess" if _coerce_bool_option(options_dict["inprocess"][0], option_name="inprocess") else "subprocess"
+            "inprocess" if _coerce_bool_option(options_dict["inprocess"][0], option_name="inprocess") else "subprocess",
         )
 
     if len(requested_modes) > 1:

@@ -230,7 +230,7 @@ def resolve_step_runtime_enrichment(
     if model_step is None:
         if scenario_run is not None:
             scenario_run.reference_resolver.add_missing_reference(
-                f"Missing pickle step mapping: {getattr(step, 'id', 'unknown')}"
+                f"Missing pickle step mapping: {getattr(step, 'id', 'unknown')}",
             )
         return {
             "keyword": None,

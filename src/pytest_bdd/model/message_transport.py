@@ -237,7 +237,11 @@ class ReportingTransportSession:
             )
 
     def wait_for_batches(
-        self, worker_id: str, *, minimum_count: int = 1, timeout: float = 2.0
+        self,
+        worker_id: str,
+        *,
+        minimum_count: int = 1,
+        timeout: float = 2.0,
     ) -> tuple[WorkerChunkBatch, ...]:
         """Handle wait for batches."""
         deadline = monotonic() + timeout

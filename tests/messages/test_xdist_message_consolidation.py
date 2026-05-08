@@ -51,7 +51,9 @@ def _source_reference() -> SourceReference:
         location=Location(line=1, column=1),
         java_method=JavaMethod(class_name="steps", method_name="step_impl", method_parameter_types=[]),
         java_stack_trace_element=JavaStackTraceElement(
-            class_name="steps", file_name="steps.py", method_name="step_impl"
+            class_name="steps",
+            file_name="steps.py",
+            method_name="step_impl",
         ),
     )
 
@@ -78,7 +80,7 @@ def _controller_fragment() -> MessageFragment:
                     runtime=Product(name="python", version="3.14"),
                     os=Product(name="linux", version="1"),
                     cpu=Product(name="x86_64", version="1"),
-                )
+                ),
             ),
             Message(
                 hook=Hook(
@@ -86,7 +88,7 @@ def _controller_fragment() -> MessageFragment:
                     name="before-test-run",
                     type=HookType.before_test_run,
                     source_reference=_source_reference(),
-                )
+                ),
             ),
             Message(test_run_started=CucumberTestRunStarted(id="run-started", timestamp=_timestamp(1))),
             Message(
@@ -96,7 +98,7 @@ def _controller_fragment() -> MessageFragment:
                     test_run_started_id="run-started",
                     timestamp=_timestamp(2),
                     worker_id="master",
-                )
+                ),
             ),
             Message(
                 test_run_hook_finished=CucumberTestRunHookFinished(
@@ -106,14 +108,14 @@ def _controller_fragment() -> MessageFragment:
                         duration=Duration(seconds=0, nanos=1),
                         status=CucumberTestStepResultStatus.passed,
                     ),
-                )
+                ),
             ),
             Message(
                 test_run_finished=CucumberTestRunFinished(
                     timestamp=_timestamp(99),
                     success=True,
                     test_run_started_id="run-started",
-                )
+                ),
             ),
         ),
     )
@@ -132,7 +134,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                     name="before-test-run",
                     type=HookType.before_test_run,
                     source_reference=_source_reference(),
-                )
+                ),
             ),
             Message(
                 step_definition=StepDefinition(
@@ -142,7 +144,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                         type=StepDefinitionPatternType.pytest_bdd_string_expression,
                     ),
                     source_reference=_source_reference(),
-                )
+                ),
             ),
             Message(
                 pickle=Pickle(
@@ -153,7 +155,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                     steps=[PickleStep(id="pickle-step", text="a passing step", ast_node_ids=["ast-step"])],
                     tags=[],
                     ast_node_ids=["ast-scenario"],
-                )
+                ),
             ),
             Message(test_run_started=CucumberTestRunStarted(id="run-started", timestamp=_timestamp(1))),
             Message(
@@ -163,7 +165,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                     test_run_started_id="run-started",
                     timestamp=_timestamp(4),
                     worker_id=worker_id,
-                )
+                ),
             ),
             Message(
                 test_run_hook_finished=CucumberTestRunHookFinished(
@@ -173,7 +175,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                         duration=Duration(seconds=0, nanos=1),
                         status=CucumberTestStepResultStatus.passed,
                     ),
-                )
+                ),
             ),
             Message(
                 test_case=CucumberTestCase(
@@ -185,9 +187,9 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                             id="test-step",
                             pickle_step_id="pickle-step",
                             step_definition_ids=["step-definition"],
-                        )
+                        ),
                     ],
-                )
+                ),
             ),
             Message(
                 test_case_started=CucumberTestCaseStarted(
@@ -196,14 +198,14 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                     attempt=0,
                     worker_id=worker_id,
                     timestamp=_timestamp(6),
-                )
+                ),
             ),
             Message(
                 test_step_started=CucumberTestStepStarted(
                     test_case_started_id="test-case-started",
                     test_step_id="test-step",
                     timestamp=_timestamp(7),
-                )
+                ),
             ),
             Message(
                 test_step_finished=CucumberTestStepFinished(
@@ -214,21 +216,21 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
                         duration=Duration(seconds=0, nanos=1),
                         status=CucumberTestStepResultStatus.passed,
                     ),
-                )
+                ),
             ),
             Message(
                 test_case_finished=CucumberTestCaseFinished(
                     test_case_started_id="test-case-started",
                     timestamp=_timestamp(9),
                     will_be_retried=False,
-                )
+                ),
             ),
             Message(
                 test_run_finished=CucumberTestRunFinished(
                     timestamp=_timestamp(10),
                     success=True,
                     test_run_started_id="run-started",
-                )
+                ),
             ),
         ),
     )
@@ -241,7 +243,7 @@ def test_consolidate_message_fragments_deduplicates_structure_and_preserves_work
             _controller_fragment(),
             _worker_fragment("gw0", "shared scenario"),
             _worker_fragment("gw1", "shared scenario"),
-        ]
+        ],
     )
 
     validation_result = validate_message_stream(list(consolidated.envelopes), track_coverage=False)
@@ -278,7 +280,7 @@ def test_consolidate_message_fragments_reports_incomplete_worker_fragments() -> 
             _controller_fragment(),
             _worker_fragment("gw0", "shared scenario"),
             _worker_fragment("gw1", "shared scenario", complete=False),
-        ]
+        ],
     )
 
     assert any(
@@ -292,7 +294,7 @@ def test_consolidate_message_fragments_places_after_test_run_hook_before_final_r
         [
             _controller_fragment(),
             _worker_fragment("gw0", "scenario one"),
-        ]
+        ],
     )
 
     payload_kinds = [

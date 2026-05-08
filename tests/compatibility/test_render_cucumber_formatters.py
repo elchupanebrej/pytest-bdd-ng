@@ -34,7 +34,7 @@ def test_render_cucumber_formatters_renders_from_existing_ndjson(
             """\
             {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
             {"testRunFinished":{"success":false,"timestamp":{"seconds":0,"nanos":1},"testRunStartedId":"run-1","message":"done"}}
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -48,7 +48,7 @@ def test_render_cucumber_formatters_renders_from_existing_ndjson(
             str(output_path),
             "--cucumber-usage-json",
             str(tmp_path / "usage.json"),
-        ]
+        ],
     )
     out = capsys.readouterr().out
 
@@ -79,7 +79,7 @@ def test_render_cucumber_formatters_rejects_multiple_terminal_outputs(
             """\
             {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
             {"testRunFinished":{"success":false,"timestamp":{"seconds":0,"nanos":1},"testRunStartedId":"run-1","message":"done"}}
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -91,7 +91,7 @@ def test_render_cucumber_formatters_rejects_multiple_terminal_outputs(
                 str(messages_path),
                 "--cucumber-summary",
                 "--cucumber-progress",
-            ]
+            ],
         )
 
     captured = capsys.readouterr()
@@ -113,7 +113,7 @@ def test_render_cucumber_formatters_rejects_missing_output_directory(
             """\
             {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
             {"testRunFinished":{"success":false,"timestamp":{"seconds":0,"nanos":1},"testRunStartedId":"run-1","message":"done"}}
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -125,7 +125,7 @@ def test_render_cucumber_formatters_rejects_missing_output_directory(
                 str(messages_path),
                 "--cucumber-json",
                 str(tmp_path / "missing" / "report.json"),
-            ]
+            ],
         )
 
     captured = capsys.readouterr()
@@ -147,7 +147,7 @@ def test_render_cucumber_formatters_auto_installs_missing_packages(
             """\
             {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
             {"testRunFinished":{"success":false,"timestamp":{"seconds":0,"nanos":1},"testRunStartedId":"run-1","message":"done"}}
-            """
+            """,
         ),
         encoding="utf-8",
     )
@@ -157,7 +157,7 @@ def test_render_cucumber_formatters_auto_installs_missing_packages(
             "--messages-ndjson",
             str(messages_path),
             "--cucumber-progress",
-        ]
+        ],
     )
     captured = capsys.readouterr()
 

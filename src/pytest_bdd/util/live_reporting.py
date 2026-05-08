@@ -28,10 +28,10 @@ def resolve_reporting_worker_identity(
         return "master", None
     workerinput = cast(Mapping[str, object], getattr(config, "workerinput", {}))
     worker_id = str(
-        workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput.get("workerid") or "worker"
+        workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput.get("workerid") or "worker",
     )
     gateway_mode = str(workerinput.get("pytest_bdd_messages_gateway_mode") or "").strip() or gateway_mode_resolver(
-        config
+        config,
     )
     return worker_id, gateway_mode or None
 
@@ -73,7 +73,7 @@ def build_reporting_worker_environment(workerinput: Mapping[str, object]) -> dic
         "PYTEST_XDIST_WORKER_COUNT": str(workerinput["workercount"]),
         "PYTEST_BDD_XDIST_IS_WORKER": "1",
         "PYTEST_BDD_REPORTING_WORKER_ID": str(
-            workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput["workerid"]
+            workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput["workerid"],
         ),
     }
     gateway_mode = str(workerinput.get("pytest_bdd_messages_gateway_mode") or "").strip()

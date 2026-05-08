@@ -65,7 +65,7 @@ def test_scenario_run_active_lookup_respects_inactive_refs() -> None:
             run=context.run_ref,
             feature=context.feature_ref,
             captured_at_stage=RunStage.scenario_setup,
-        )
+        ),
     )
 
     assert context.get_active_object("run") is not None

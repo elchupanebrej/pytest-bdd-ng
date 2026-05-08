@@ -169,7 +169,7 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
                     id="row-1",
                     location=Location(line=13, column=7),
                     cells=[TableCell(location=Location(line=13, column=9), value="cell-value")],
-                )
+                ),
             ],
         ),
     )
@@ -178,7 +178,9 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
     scenario_run.feature_uri = binding.uri
     scenario_run.gherkin_document = binding.gherkin_document
     pickle_step = PickleStep(
-        ast_node_ids=["rule-background-step-id"], id="pickle-step-id", text="a rule background step"
+        ast_node_ids=["rule-background-step-id"],
+        id="pickle-step-id",
+        text="a rule background step",
     )
 
     payload = resolve_step_runtime_enrichment(
@@ -215,5 +217,5 @@ def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> N
     assert payload["doc_string"] is None
     assert payload["data_table"] is None
     assert scenario_run.reference_resolver.missing_reference_diagnostics == [
-        "Missing pickle step mapping: pickle-step-id"
+        "Missing pickle step mapping: pickle-step-id",
     ]

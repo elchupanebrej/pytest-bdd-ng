@@ -14,7 +14,7 @@ def _test_case(test_case_id: str, *test_steps: dict[str, object]) -> dict[str, o
             "id": test_case_id,
             "pickleId": f"pickle-{test_case_id}",
             "testSteps": list(test_steps),
-        }
+        },
     }
 
 
@@ -44,7 +44,7 @@ def _test_step_finished(started_id: str, test_step_id: str, status: str = "PASSE
                 "duration": {"seconds": 0, "nanos": 1},
                 "status": status,
             },
-        }
+        },
     }
 
 
@@ -54,7 +54,7 @@ def _test_case_finished(started_id: str) -> dict[str, object]:
             "testCaseStartedId": started_id,
             "timestamp": {"seconds": 13, "nanos": 5},
             "willBeRetried": False,
-        }
+        },
     }
 
 
@@ -63,7 +63,7 @@ def _test_run_finished() -> dict[str, object]:
         "testRunFinished": {
             "timestamp": {"seconds": 17, "nanos": 3},
             "success": False,
-        }
+        },
     }
 
 
@@ -74,7 +74,7 @@ def test_backfills_missing_pickle_step_result_before_test_case_finished() -> Non
             _test_case("tc-1", _hook_step("hook-1"), _pickle_step("pickle-step-1", "pickle-1")),
             _test_case_started("attempt-1", "tc-1"),
             _test_case_finished("attempt-1"),
-        ]
+        ],
     )
 
     assert normalized[-2] == {
@@ -86,7 +86,7 @@ def test_backfills_missing_pickle_step_result_before_test_case_finished() -> Non
                 "duration": {"seconds": 0, "nanos": 0},
                 "status": "UNKNOWN",
             },
-        }
+        },
     }
     assert normalized[-1] == _test_case_finished("attempt-1")
 
@@ -99,11 +99,11 @@ def test_does_not_duplicate_existing_pickle_step_result() -> None:
             _test_case_started("attempt-1", "tc-1"),
             _test_step_finished("attempt-1", "pickle-step-1", "FAILED"),
             _test_case_finished("attempt-1"),
-        ]
+        ],
     )
 
     assert [envelope for envelope in normalized if "testStepFinished" in envelope] == [
-        _test_step_finished("attempt-1", "pickle-step-1", "FAILED")
+        _test_step_finished("attempt-1", "pickle-step-1", "FAILED"),
     ]
 
 
@@ -128,6 +128,6 @@ def test_flush_backfills_open_attempts_before_test_run_finished() -> None:
                 "duration": {"seconds": 0, "nanos": 0},
                 "status": "UNKNOWN",
             },
-        }
+        },
     }
     assert normalized[-1] == _test_run_finished()

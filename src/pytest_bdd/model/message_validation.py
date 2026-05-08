@@ -339,7 +339,7 @@ def validate_execnet_serializable_payload(
                         code="INVALID_PAYLOAD_SHAPE",
                         message=f"Execnet payload keys must be strings at {'.'.join(path) or '<root>'}.",
                         json_path=path,
-                    )
+                    ),
                 )
                 continue
             violations.extend(validate_execnet_serializable_payload(value, path=(*path, key)))
@@ -390,7 +390,7 @@ def validate_envelope_against_schema(
     from .execution_message_adapter import ExecutionMessageAdapter
 
     return validate_envelope_dict_against_schema(
-        ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile)
+        ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile),
     )
 
 
@@ -432,7 +432,7 @@ def validate_message_stream(  # noqa: C901
                 MessageValidationViolation(
                     code="INVALID_PAYLOAD_SHAPE",
                     message=str(exc),
-                )
+                ),
             )
             continue
 
@@ -463,7 +463,7 @@ def validate_message_stream(  # noqa: C901
                     MessageValidationViolation(
                         code="DUPLICATE_LIFECYCLE_ID",
                         message=f"Duplicate payload id '{payload_id}' detected for '{payload_kind}'.",
-                    )
+                    ),
                 )
             else:
                 payload_ids.add(payload_id)
@@ -483,7 +483,7 @@ def validate_message_stream(  # noqa: C901
                             f"Protocol version '{protocol_version}' is not supported. "
                             f"Expected '{latest_protocol_version}'."
                         ),
-                    )
+                    ),
                 )
 
         if payload_kind == "test_case_started":
@@ -516,7 +516,7 @@ def validate_message_stream(  # noqa: C901
                     MessageValidationViolation(
                         code="ORPHAN_REFERENCE",
                         message=f"test_case_finished references unknown test_case_started_id '{test_case_started_id}'.",
-                    )
+                    ),
                 )
             elif position < test_case_started_positions[test_case_started_id]:
                 violations.append(
@@ -526,7 +526,7 @@ def validate_message_stream(  # noqa: C901
                             "test_case_finished was emitted before its matching "
                             f"test_case_started for id '{test_case_started_id}'."
                         ),
-                    )
+                    ),
                 )
 
         if payload_kind == "test_step_finished":
@@ -537,7 +537,7 @@ def validate_message_stream(  # noqa: C901
                     MessageValidationViolation(
                         code="ORPHAN_REFERENCE",
                         message=f"test_step_finished references unknown test_step_id '{test_step_id}'.",
-                    )
+                    ),
                 )
             elif position < test_step_started_positions[test_step_id]:
                 violations.append(
@@ -547,7 +547,7 @@ def validate_message_stream(  # noqa: C901
                             "test_step_finished was emitted before its matching "
                             f"test_step_started for step_id '{test_step_id}'."
                         ),
-                    )
+                    ),
                 )
 
         if payload_kind == "test_run_hook_finished":
@@ -561,7 +561,7 @@ def validate_message_stream(  # noqa: C901
                             "test_run_hook_finished references unknown "
                             f"test_run_hook_started_id '{test_run_hook_started_id}'."
                         ),
-                    )
+                    ),
                 )
             elif position < test_run_hook_started_positions[test_run_hook_started_id]:
                 violations.append(
@@ -571,7 +571,7 @@ def validate_message_stream(  # noqa: C901
                             "test_run_hook_finished was emitted before its matching "
                             f"test_run_hook_started for id '{test_run_hook_started_id}'."
                         ),
-                    )
+                    ),
                 )
 
         implementation_status = getattr(payload, "implementation_status", None)
@@ -591,14 +591,14 @@ def validate_message_stream(  # noqa: C901
                         message=(
                             f"Unsupported implementation_status '{implementation_status}' found on '{payload_kind}'."
                         ),
-                    )
+                    ),
                 )
             if payload_kind not in STATUS_CAPABLE_PAYLOAD_KINDS:
                 violations.append(
                     MessageValidationViolation(
                         code="STATUS_ON_NOT_APPLICABLE_MESSAGE",
                         message=f"'{payload_kind}' must not include implementation_status.",
-                    )
+                    ),
                 )
             if normalized_implementation_status in {
                 "Partly-Applicable",
@@ -613,7 +613,7 @@ def validate_message_stream(  # noqa: C901
                         message=(
                             f"implementation_comment is required for implementation_status='{implementation_status}'."
                         ),
-                    )
+                    ),
                 )
             if normalized_implementation_status == "Not-Acceptable":
                 blocked_for_release = True
@@ -623,7 +623,7 @@ def validate_message_stream(  # noqa: C901
                 MessageValidationViolation(
                     code="MISSING_REQUIRED_IMPLEMENTATION_COMMENT",
                     message=f"'{payload_kind}' requires implementation_status and comment governance fields.",
-                )
+                ),
             )
 
         if payload_kind == "test_case_finished":
@@ -641,7 +641,7 @@ def validate_message_stream(  # noqa: C901
                                 "Conflicting terminal statuses were emitted for "
                                 f"test_case_started_id='{test_case_started_id}'."
                             ),
-                        )
+                        ),
                     )
                 terminal_status_by_attempt[test_case_started_id] = current_status
 
@@ -652,7 +652,7 @@ def validate_message_stream(  # noqa: C901
                 MessageValidationViolation(
                     code="ORPHAN_REFERENCE",
                     message=f"test_run_hook_started references unknown hook_id '{hook_id}'.",
-                )
+                ),
             )
 
     if enforce_mapping_diagnostics:

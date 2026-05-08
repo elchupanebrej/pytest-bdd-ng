@@ -404,7 +404,8 @@ class _CucumberExpression(StepParser):
         return str(self.pattern)
 
     def rebuild_expression_in_test_context(
-        self, request: FixtureRequest
+        self,
+        request: FixtureRequest,
     ) -> CucumberExpression | CucumberRegularExpression:
         return self.expression_type(self.pattern, self._get_parameter_type_registry(request))
 
@@ -607,7 +608,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
             map(
                 methodcaller("is_matching", request, name),
                 filter(bool, self.parser_by_priorities),
-            )
+            ),
         )
 
     def parse_arguments(

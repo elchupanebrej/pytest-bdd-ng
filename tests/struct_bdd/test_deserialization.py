@@ -527,7 +527,7 @@ def test_tags_steps_examples_load():
         map(
             partial(contains, route.tags),
             ["TopTag", "ExampleTag", "StepTag", "StepExampleTag"],
-        )
+        ),
     )
     assert all(
         map(
@@ -656,13 +656,13 @@ def test_tags_steps_examples_load_complex():
         map(
             partial(contains, routes[1].tags),
             ["ExampleTagC", "StepExampleTagA", "StepTagA", "TopTag"],
-        )
+        ),
     )
     assert all(
         map(
             partial(contains, routes[1].example_table.parameters),
             routes[1].example_table.parameters,
-        )
+        ),
     )
 
     assert all(

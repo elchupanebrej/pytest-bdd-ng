@@ -80,7 +80,7 @@ def test_collects_legal_formatter_selection(tmp_path: Path) -> None:
             cucumber_summary=True,
             cucumber_js_json_path=str(reports_dir / "report.json"),
             cucumber_usage_json_path=str(reports_dir / "usage.json"),
-        )
+        ),
     )
 
     assert [request.formatter for request in reporter.requested_cucumber_formatters] == [
@@ -106,7 +106,7 @@ def test_rejects_multiple_terminal_output_formatters(tmp_path: Path) -> None:
                 tmp_path,
                 cucumber_summary=True,
                 cucumber_progress=True,
-            )
+            ),
         )
 
 
@@ -122,7 +122,7 @@ def test_rejects_missing_output_directory(tmp_path: Path) -> None:
             config=_build_config(
                 tmp_path,
                 cucumber_js_json_path=str(missing_path),
-            )
+            ),
         )
 
 
@@ -141,7 +141,7 @@ def test_rejects_duplicate_file_output_paths(tmp_path: Path) -> None:
                 tmp_path,
                 cucumber_js_json_path=str(duplicate_path),
                 cucumber_junit_path=str(duplicate_path),
-            )
+            ),
         )
 
 
@@ -162,7 +162,7 @@ def test_formatter_registry_maps_requests_to_dedicated_plugin_modules(tmp_path: 
             tmp_path,
             cucumber_summary=True,
             cucumber_junit_path=str(reports_dir / "report.xml"),
-        )
+        ),
     )
 
     registry_modules = {plugin.formatter: plugin.module_name for plugin in _catalog().plugins}

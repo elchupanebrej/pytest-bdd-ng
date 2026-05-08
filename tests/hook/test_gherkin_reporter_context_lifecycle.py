@@ -54,7 +54,7 @@ def _build_reporter() -> GherkinMessageReporter:
     return GherkinMessageReporter(
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=None, cucumber_html_path=None),
-        )
+        ),
     )
 
 
@@ -183,7 +183,7 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
     reporter = GherkinMessageReporter(config=config)
     reporter.process_messages_io_queue = Queue()
     envelope = Message(
-        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0))
+        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0)),
     )
 
     reporter.lifecycle_service.pytest_bdd_message(config=config, message=envelope)
@@ -219,7 +219,7 @@ def test_reporter_emits_schema_compatible_step_definition_json(tmp_path) -> None
                     method_name="step",
                 ),
             ),
-        )
+        ),
     )
 
     reporter.lifecycle_service.pytest_bdd_message(config=config, message=envelope)
@@ -265,7 +265,7 @@ def test_reporter_reports_each_step_definition_only_once() -> None:
     request = SimpleNamespace(
         getfixturevalue=lambda name: (
             _FakeStepDefinitionRegistry(items=[_FakeDefinition()]) if name == "step_registry" else None
-        )
+        ),
     )
     config = SimpleNamespace()
 
@@ -359,7 +359,7 @@ def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, t
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
             rootpath=tmp_path,
-        )
+        ),
     )
     emitted_messages: list[Message] = []
     config = reporter.config
@@ -392,7 +392,7 @@ def test_reporter_uses_code_line_fallback_when_hook_source_lines_are_unavailable
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
             rootpath=tmp_path,
-        )
+        ),
     )
     emitted_messages: list[Message] = []
     config = reporter.config
@@ -443,7 +443,7 @@ def test_reporter_ignores_inherited_xdist_worker_environment_without_workerinput
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
             rootpath=tmp_path,
-        )
+        ),
     )
 
     assert reporter.is_xdist_worker is False
@@ -460,7 +460,7 @@ def test_reporter_truncates_existing_explicit_messages_file_on_startup(tmp_path)
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(messages_path), cucumber_html_path=None),
             rootpath=tmp_path,
-        )
+        ),
     )
 
     assert not messages_path.read_text(encoding="utf-8")
@@ -473,7 +473,7 @@ def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
             rootpath=tmp_path,
             workerinput={"workerid": "gw0"},
-        )
+        ),
     )
 
     assert reporter.is_xdist_worker is True
@@ -577,7 +577,7 @@ def test_entrypoint_detects_cucumber_formatter_flags_as_reporting_request() -> N
             cucumber_usage_json_path=None,
             cucumber_snippets=False,
             cucumber_pretty=False,
-        )
+        ),
     )
 
     assert entrypoint._reporting_requested(config) is True
@@ -833,7 +833,7 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
                         type=StepDefinitionPatternType.pytest_bdd_parse_expression,
                     ),
                     source_reference=source_reference,
-                )
+                ),
             ),
             Message(
                 hook=CucumberHook(
@@ -842,7 +842,7 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
                     type=HookType.before_test_case,
                     source_reference=source_reference,
                     tag_expression="@tag",
-                )
+                ),
             ),
             Message(
                 parameter_type=CucumberParameterType(
@@ -852,9 +852,9 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
                     prefer_for_regular_expression_match=True,
                     use_for_snippets=True,
                     source_reference=source_reference,
-                )
+                ),
             ),
-        ]
+        ],
     )
 
     assert payload["stepDefinitions"] == [
@@ -865,7 +865,7 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
             "pattern": "I have {count:d} cucumbers",
             "expressionConstructorName": "CucumberExpression",
             "code": "steps.step_impl",
-        }
+        },
     ]
     assert payload["hooks"] == [
         {
@@ -875,7 +875,7 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
             "line": 7,
             "type": "before_test_case",
             "tagExpression": "@tag",
-        }
+        },
     ]
     assert payload["parameterTypes"] == [
         {
@@ -883,7 +883,7 @@ def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
             "regularExpressions": ["\\d+"],
             "preferForRegularExpressionMatch": True,
             "useForSnippets": True,
-        }
+        },
     ]
 
 
@@ -896,7 +896,8 @@ def test_reporter_warns_when_node_is_missing_for_requested_cucumber_formatter(
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
 
     monkeypatch.setattr(
-        "pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime.shutil.which", lambda _name: None
+        "pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime.shutil.which",
+        lambda _name: None,
     )
 
     with caplog.at_level("WARNING"):
@@ -951,8 +952,8 @@ def test_controller_forwards_worker_batches_into_live_formatter_session(tmp_path
                     "id": "run-1",
                     "workerId": "gw0",
                     "timestamp": {"seconds": 0, "nanos": 0},
-                }
-            }
+                },
+            },
         ],
     }
 

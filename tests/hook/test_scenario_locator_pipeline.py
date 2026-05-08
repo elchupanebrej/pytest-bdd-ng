@@ -127,7 +127,7 @@ def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
         locator.resolve(
             config,
             observer=_Observer(),
-        )
+        ),
     )
 
     assert observed_callbacks[:3] == [

@@ -73,7 +73,9 @@ def _build_pickle_param(
     marks = []
     for tag in sorted(tag.name.lstrip("@") for tag in pickle.tags):
         tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(
-            gherkin_document=gherkin_document, pickle=pickle, tag=tag
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            tag=tag,
         )
         if tag_marks is not None:
             marks.extend(tag_marks)
@@ -153,7 +155,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         """Handle plugin registered."""
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
             StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(
-                cast(StepDefinitionManager.NamespaceStepRegistryProtocol, plugin)
+                cast(StepDefinitionManager.NamespaceStepRegistryProtocol, plugin),
             )
 
     @pytest.hookimpl
@@ -258,7 +260,7 @@ class ScenarioTestCollector(_ModernTestCollector):
                         gherkin_suffixes.union(link_suffixes),
                     ),
                     path.suffixes,
-                )
+                ),
             )
             or None
         )

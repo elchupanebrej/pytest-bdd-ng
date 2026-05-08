@@ -21,7 +21,7 @@ def test_execution_message_adapter_roundtrip_preserves_test_case_links() -> None
                 CucumberTestStep(id="test-step-1", pickle_step_id="pickle-step-1"),
                 CucumberTestStep(id="test-step-2", pickle_step_id="pickle-step-2"),
             ],
-        )
+        ),
     )
     registry = EnvelopeRegistry()
     registry.add_envelope(envelope)

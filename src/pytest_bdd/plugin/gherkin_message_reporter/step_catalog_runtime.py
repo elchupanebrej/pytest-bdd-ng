@@ -97,7 +97,8 @@ class StepCatalogService(ReporterServiceBase):
         scenario_run = run.active_scenario_run
         if scenario_run is None:
             logger.warning(
-                "Execution context unavailable during pytest_runtest_setup; skipping context-backed correlation writes."
+                "Execution context unavailable during pytest_runtest_setup; "
+                "skipping context-backed correlation writes.",
             )
             return
         gherkin_document, pickle = self.lifecycle_service._resolve_gherkin_document_and_pickle(run=run)
@@ -123,7 +124,7 @@ class StepCatalogService(ReporterServiceBase):
                     request=request,
                     pickle=runtime_pickle,
                 )
-            ]
+            ],
         )
 
         for step in runtime_pickle.steps:
@@ -228,7 +229,7 @@ class StepCatalogService(ReporterServiceBase):
                         StepMatchArgument(
                             group=build_group(match.group),
                             **({"parameter_type_name": str(parameter_name)} if parameter_name is not None else {}),
-                        )
+                        ),
                     )
                 return [StepMatchArgumentsList(step_match_arguments=step_match_arguments)]
 
@@ -255,7 +256,7 @@ class StepCatalogService(ReporterServiceBase):
                 StepMatchArgument(
                     group=group,
                     **({"parameter_type_name": str(parameter_name)} if parameter_name is not None else {}),
-                )
+                ),
             )
         return [StepMatchArgumentsList(step_match_arguments=parsed_step_match_arguments)]
 
@@ -337,7 +338,7 @@ class StepCatalogService(ReporterServiceBase):
                                         if parameter_type_source_reference is not None
                                         else {}
                                     ),
-                                )
+                                ),
                             ),
                         )
                     self.reporter.parameter_type_registry |= not_yet_registered_parameter_types.keys()

@@ -474,7 +474,9 @@ class PickleRunner:
             injectable_fixtures: Iterable[tuple[str, object]] = [(step_definition.target_fixtures[0], step_result)]
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
             injectable_fixtures = zip(
-                step_definition.target_fixtures, cast(Iterable[object], step_result), strict=False
+                step_definition.target_fixtures,
+                cast(Iterable[object], step_result),
+                strict=False,
             )
         else:
             injectable_fixtures = zip_longest(step_definition.target_fixtures, [])
@@ -497,7 +499,9 @@ class PickleRunner:
             scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_match_step_definition_to_step")
             step_to_report = scenario_run.step_run if scenario_run.step_run is not None else step
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(
-                self._require_gherkin_document(), self._require_pickle(), step_to_report
+                self._require_gherkin_document(),
+                self._require_pickle(),
+                step_to_report,
             )
             with suppress(Exception):
                 step_registry = request.getfixturevalue("step_registry")

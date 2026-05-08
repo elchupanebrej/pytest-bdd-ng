@@ -58,7 +58,7 @@ def test_each_scenario_gets_isolated_scenario_run(testdir):
         @given('shared step')
         def given_shared_step():
             return None
-        """
+        """,
     )
 
     result = testdir.runpytest("-q")

@@ -40,7 +40,7 @@ def _build_parameter_type_registry() -> ParameterTypeRegistry:
             lambda x, y, z: Coordinate(int(x), int(y), int(z)),
             use_for_snippets=True,
             prefer_for_regexp_match=False,
-        )
+        ),
     )
     return registry
 

@@ -231,7 +231,7 @@ def _fake_node_python_executable() -> str:
     if sys.implementation.name == "pypy":
         python_executable = shutil.which("python")
         if python_executable and os.path.normcase(str(Path(python_executable).resolve())) != os.path.normcase(
-            str(Path(sys.executable).resolve())
+            str(Path(sys.executable).resolve()),
         ):
             return python_executable
     return sys.executable
@@ -245,7 +245,7 @@ def _write_windows_command_shim(command_path: Path, target_script_path: Path) ->
                 "@echo off",
                 f'"{python_executable}" "{target_script_path}" %*',
                 "",
-            )
+            ),
         ),
         encoding="utf-8",
     )
@@ -359,7 +359,7 @@ def materialize_live_formatter_runtime(
                     "modulePath": formatter_request.runtime_module_path,
                     "exportName": formatter_request.runtime_export_name,
                 },
-            }
+            },
         )
 
     runtime_assets = FormatterPluginCatalog.discover().render_runtime_assets(formatter_requests)
@@ -430,7 +430,7 @@ def build_sample_suite(testdir) -> None:
         """\
         [pytest]
         disable_feature_autoload = true
-        """
+        """,
     )
     testdir.makefile(
         ".feature",

@@ -36,7 +36,7 @@ def test_mark_hooks_can_read_optional_run_without_breaking_existing_usage(testdi
         @when('do work')
         def do_work():
             return None
-        """
+        """,
     )
     testdir.makepyfile(
         """
@@ -45,7 +45,7 @@ def test_mark_hooks_can_read_optional_run_without_breaking_existing_usage(testdi
         @scenario('test.feature', 'Scenario')
         def test_scenario():
             pass
-        """
+        """,
     )
 
     result = testdir.runpytest("-q")

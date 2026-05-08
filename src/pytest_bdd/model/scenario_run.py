@@ -339,7 +339,7 @@ class FeatureRuntimeBinding:
 
         gherkin_document_payload = cast(JSONObject, message_converter.to_dict(self.gherkin_document))
         pickles_data = PicklesCompiler(id_generator=id_generator).compile(
-            cast("GherkinDocumentWithURI", gherkin_document_payload)
+            cast("GherkinDocumentWithURI", gherkin_document_payload),
         )
         self.pickles = self.load_pickles(pickles_data)
         self.run.index_identifiable_tree(self.pickles)
@@ -1065,7 +1065,7 @@ class ScenarioRun:
                 step=self.step_ref,
                 previous_step=self.previous_step_ref,
                 captured_at_stage=RunStage.finished,
-            )
+            ),
         )
 
     @property

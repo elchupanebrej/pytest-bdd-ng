@@ -220,7 +220,7 @@ def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
             Path.cwd() / SCHEMA_RELATIVE_DIR,
             package_schema_dir,
             Path(__file__).resolve().parents[3] / SCHEMA_RELATIVE_DIR,
-        )
+        ),
     )
 
     git_candidate = _schema_dir_from_git_root()
@@ -268,7 +268,7 @@ def sync_capability_inventory(
                 affects=entry.affects,
                 source_reference=entry.source_reference,
                 explicit_relevance=entry.explicit_relevance,
-            )
+            ),
         )
 
     total_relevant = sum(1 for capability in synchronized if capability_is_relevant(capability))

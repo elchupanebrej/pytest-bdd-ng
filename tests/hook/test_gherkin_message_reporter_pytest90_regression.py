@@ -27,7 +27,7 @@ def test_messages_reporter_avoids_old_style_teardown_warning_in_runtest_setup(te
         @given("a passing step")
         def passing_step():
             return None
-        """
+        """,
     )
     testdir.makepyfile(
         """
@@ -36,7 +36,7 @@ def test_messages_reporter_avoids_old_style_teardown_warning_in_runtest_setup(te
         @scenario("test.feature", "Simple scenario")
         def test_simple_scenario():
             pass
-        """
+        """,
     )
 
     result = testdir.runpytest_subprocess(

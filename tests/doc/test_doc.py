@@ -71,7 +71,7 @@ LATEST_PY313_LINUX_ONLY = pytest.mark.skipif(
                 sys.version_info.major == 3,
                 sys.version_info.minor == 13,
                 sys.platform.startswith("linux"),
-            ]
+            ],
         )
     ),
     reason="Verify only on the latest python version and linux environment",
@@ -347,7 +347,8 @@ def test_doc_generation_rejects_duplicate_ordering_prefix(testdir: "Testdir") ->
 
 @LATEST_PY313_LINUX_ONLY
 def test_doc_generation_cli_fails_when_generated_docs_are_stale(
-    testdir: "Testdir", monkeypatch: pytest.MonkeyPatch
+    testdir: "Testdir",
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify doc generation cli fails when generated docs are stale."""
     from pytest_bdd.script.bdd_tree_to_rst import main

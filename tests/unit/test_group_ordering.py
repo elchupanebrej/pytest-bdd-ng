@@ -356,7 +356,7 @@ def _write_runtime_order_project(pytester: pytest.Pytester, test_module: str) ->
           "test_second.py = second",
           "test_third.py = third",
         ]
-        """
+        """,
     )
     pytester.makeconftest(
         f"""
@@ -382,7 +382,7 @@ def _write_runtime_order_project(pytester: pytest.Pytester, test_module: str) ->
 
         def pytest_runtest_logreport(report):
             record_group_barrier_report(report)
-        """
+        """,
     )
     pytester.makepyfile(
         test_first=test_module.format(group="first", event_file=event_file.as_posix()),
@@ -435,7 +435,7 @@ def test_fixture_skip_preserves_later_group_execution(pytester: pytest.Pytester)
           "test_first.py = first",
           "test_second.py = second",
         ]
-        """
+        """,
     )
     pytester.makeconftest(
         f"""
@@ -458,7 +458,7 @@ def test_fixture_skip_preserves_later_group_execution(pytester: pytest.Pytester)
             with Path("{event_file.as_posix()}").open("a", encoding="utf-8") as event_stream:
                 event_stream.write("first-fixture\\n")
             pytest.skip("fixture skip")
-        """
+        """,
     )
     pytester.makepyfile(
         test_first="""
@@ -532,7 +532,7 @@ def test_marker_filter_selects_one_group_and_empty_selection_exits_cleanly(pytes
           "test_alpha.py = alpha",
           "test_beta.py = beta",
         ]
-        """
+        """,
     )
     pytester.makeconftest(
         f"""
@@ -547,7 +547,7 @@ def test_marker_filter_selects_one_group_and_empty_selection_exits_cleanly(pytes
 
         def pytest_collection_modifyitems(config, items):
             apply_group_ordering(config, items)
-        """
+        """,
     )
     pytester.makepyfile(
         test_alpha="def test_alpha(): pass",

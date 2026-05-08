@@ -78,7 +78,7 @@ def test_progress_bar_formatter_tracks_total_pickles_in_live_stream(tmp_path: Pa
             [
                 {"pickle": {"id": f"pickle-{index}", "uri": "demo.feature", "name": f"scenario-{index}", "steps": []}},
                 {"testCase": {"id": f"test-case-{index}", "pickleId": f"pickle-{index}", "testSteps": []}},
-            ]
+            ],
         )
     envelopes.append({"testRunStarted": {"timestamp": {"seconds": 0, "nanos": 0}, "id": "run-1"}})
     for index in range(1, 6):
@@ -89,25 +89,25 @@ def test_progress_bar_formatter_tracks_total_pickles_in_live_stream(tmp_path: Pa
                         "id": f"attempt-{index}",
                         "testCaseId": f"test-case-{index}",
                         "timestamp": {"seconds": index, "nanos": 0},
-                    }
+                    },
                 },
                 {
                     "testStepFinished": {
                         "testCaseStartedId": f"attempt-{index}",
                         "testStepId": f"step-{index}",
                         "testStepResult": {"status": "PASSED", "duration": {"seconds": 0, "nanos": 0}},
-                    }
+                    },
                 },
                 {
                     "testCaseFinished": {
                         "testCaseStartedId": f"attempt-{index}",
                         "timestamp": {"seconds": index, "nanos": 1},
-                    }
+                    },
                 },
-            ]
+            ],
         )
     envelopes.append(
-        {"testRunFinished": {"success": True, "timestamp": {"seconds": 9, "nanos": 0}, "testRunStartedId": "run-1"}}
+        {"testRunFinished": {"success": True, "timestamp": {"seconds": 9, "nanos": 0}, "testRunStartedId": "run-1"}},
     )
     messages_path.write_text("".join(json.dumps(envelope) + "\n" for envelope in envelopes), encoding="utf-8")
 

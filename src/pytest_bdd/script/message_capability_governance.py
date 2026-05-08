@@ -50,7 +50,7 @@ ALLOWED_IMPACTS: Final[set[str]] = {
 ALLOWED_RELEVANCE: Final[set[str]] = {"relevant", "out_of_scope"}
 DEFAULT_GOVERNANCE_SCHEMA_GLOB: Final[str] = "specs/*/contracts/governance-report.schema.json"
 DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH: Final[Path] = Path(
-    "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json"
+    "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json",
 )
 
 
@@ -160,7 +160,7 @@ def _load_capabilities(path: Path) -> list[MessageCapability]:
                 affects=validated_affects,
                 source_reference=str(item.get("source_reference", "")),
                 explicit_relevance=explicit_relevance,
-            )
+            ),
         )
     return result
 
@@ -193,7 +193,7 @@ def _load_capabilities_from_governance_report(path: Path) -> list[MessageCapabil
                 affects=frozenset({"emitted_envelope_payload"}),
                 source_reference="generated-governance-report",
                 explicit_relevance="relevant",
-            )
+            ),
         )
     return capabilities
 
@@ -229,7 +229,7 @@ def _load_decisions(path: Path) -> list[CapabilityDecision]:
                 reviewed_at=reviewed_at,
                 release_target=str(item.get("release_target", "next-release")),
                 recheck_trigger=item.get("recheck_trigger"),
-            )
+            ),
         )
     return result
 
@@ -269,7 +269,7 @@ def _validate_decisions(
                 parts.append("; ".join(validation.violations))
             if validation.missing_required_evidence_fields:
                 parts.append(
-                    "missing required evidence fields: " + ", ".join(validation.missing_required_evidence_fields)
+                    "missing required evidence fields: " + ", ".join(validation.missing_required_evidence_fields),
                 )
             details = "; ".join(parts) if parts else "invalid decision"
             msg = f"Invalid decision for '{decision.capability_id}': {details}"
@@ -777,14 +777,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                         "Reviewed At | Hook / Formation Point |"
                     ),
                     "|----------------------|--------|-----------|----------------|---------------|-------------|------------------------|",
-                ]
+                ],
             )
 
             for payload_kind in ["test_step_finished", "test_case_finished", "test_run_finished", "attachment"]:
                 status = "Implemented" if payload_kind in observed_kinds else "Pending"
                 lines.append(
                     f"| `{payload_kind}` outcome mapping | {status} | Automatically tracked | Automation | "
-                    f"`tests/messages/` | {datetime.now(timezone.utc).date()} | Runtime |"
+                    f"`tests/messages/` | {datetime.now(timezone.utc).date()} | Runtime |",
                 )
 
             lines.extend(
@@ -805,7 +805,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                         f"- [{'X' if runtime_required_missing_count == 0 else ' '}] "
                         "Runtime-required capabilities are covered by runtime evidence."
                     ),
-                ]
+                ],
             )
 
             _emit_text("\n".join(lines) + "\n", output_path=args.output)

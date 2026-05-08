@@ -108,7 +108,7 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
         reporter._xdist_worker_temp_messages_path = Path(messages_file_path_raw)
         reporter.messages_file_path = reporter._xdist_worker_temp_messages_path
         reporter._xdist_force_publish_failure = bool(
-            getattr(reporter.config, "workerinput", {}).get("pytest_bdd_messages_force_publish_failure")
+            getattr(reporter.config, "workerinput", {}).get("pytest_bdd_messages_force_publish_failure"),
         )
 
 

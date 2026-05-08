@@ -39,7 +39,7 @@ def resolve_standalone_formatter_requests(
             plugin.iter_requests_from_options(
                 formatter_option_values,
                 resolve_output_path=resolve_output_path,
-            )
+            ),
         )
     ordered_requests = sorted(
         requests,

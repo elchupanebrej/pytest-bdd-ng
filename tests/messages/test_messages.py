@@ -814,7 +814,7 @@ def test_message_converter_rejects_multi_payload_envelope_shape():
             {
                 "test_run_started": {"timestamp": {"seconds": 1, "nanos": 1}},
                 "test_run_finished": {"timestamp": {"seconds": 2, "nanos": 2}, "success": True},
-            }
+            },
         )
 
 

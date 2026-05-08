@@ -95,6 +95,7 @@ def ensure_xdist_controller_batch_patch() -> bool:
     patched_process_from_remote_with_attr = cast(_PatchedProcessFromRemote, patched_process_from_remote)
     patched_process_from_remote_with_attr.__pytest_bdd_reporting_patch__ = True
     workermanage.WorkerController.process_from_remote = cast(
-        Callable[[object, object], None], patched_process_from_remote_with_attr
+        Callable[[object, object], None],
+        patched_process_from_remote_with_attr,
     )
     return True

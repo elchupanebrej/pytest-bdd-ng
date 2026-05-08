@@ -52,8 +52,8 @@ def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
                 runtime=Product(name="python", version="3.x"),
                 os=Product(name="os", version="1"),
                 cpu=Product(name="cpu", version="1"),
-            )
-        )
+            ),
+        ),
     ]
 
     result = validate_message_stream(envelopes, latest_protocol_version="999.0.0")
@@ -69,8 +69,8 @@ def test_validate_message_stream_reports_fixed_matrix_diagnostics_when_enabled()
             test_run_finished=CucumberTestRunFinished(
                 timestamp=Timestamp(seconds=1, nanos=0),
                 success=True,
-            )
-        )
+            ),
+        ),
     ]
 
     result = validate_message_stream(envelopes, enforce_mapping_diagnostics=True)
@@ -91,8 +91,8 @@ def test_validate_message_stream_tracks_external_attachment_fields() -> None:
                 test_step_id="step-id",
                 test_run_hook_started_id="run-hook-id",
                 timestamp=Timestamp(seconds=1, nanos=1),
-            )
-        )
+            ),
+        ),
     ]
 
     result = validate_message_stream(envelopes, track_coverage=True)
@@ -120,8 +120,8 @@ def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
                 test_step_id="step-id",
                 test_run_hook_started_id="run-hook-id",
                 timestamp=Timestamp(seconds=1, nanos=1),
-            )
-        )
+            ),
+        ),
     ]
 
     observed_ids = collect_observed_capability_ids(envelopes)
@@ -134,7 +134,7 @@ def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
 def test_validate_message_stream_uses_execution_message_adapter(monkeypatch) -> None:
     """Verify validate message stream uses execution message adapter."""
     envelope = Message(
-        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=1, nanos=0))
+        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=1, nanos=0)),
     )
     calls: list[Message] = []
     original = ExecutionMessageAdapter.deserialize.__func__
@@ -170,7 +170,7 @@ def test_validate_envelope_against_schema_uses_schema_compatible_projection() ->
                     method_name="step",
                 ),
             ),
-        )
+        ),
     )
 
     violations = validate_envelope_against_schema(envelope)
@@ -186,7 +186,7 @@ def test_validate_message_stream_tracks_test_step_started_by_test_step_id() -> N
                 test_case_started_id="case-started-1",
                 test_step_id="step-1",
                 timestamp=Timestamp(seconds=1, nanos=0),
-            )
+            ),
         ),
         Message(
             test_step_finished=CucumberTestStepFinished(
@@ -197,7 +197,7 @@ def test_validate_message_stream_tracks_test_step_started_by_test_step_id() -> N
                     duration=Duration(seconds=0, nanos=1),
                     status=CucumberTestStepResultStatus.passed,
                 ),
-            )
+            ),
         ),
     ]
 
@@ -215,7 +215,7 @@ def test_validate_message_stream_requires_declared_run_hook_definition() -> None
                 id="run-hook-started-1",
                 test_run_started_id="run-started-1",
                 timestamp=Timestamp(seconds=1, nanos=0),
-            )
+            ),
         ),
         Message(
             test_run_hook_finished=CucumberTestRunHookFinished(
@@ -225,7 +225,7 @@ def test_validate_message_stream_requires_declared_run_hook_definition() -> None
                     duration=Duration(seconds=0, nanos=1),
                     status=CucumberTestStepResultStatus.passed,
                 ),
-            )
+            ),
         ),
     ]
 
@@ -260,7 +260,7 @@ def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
                         method_name="pytest_sessionstart",
                     ),
                 ),
-            )
+            ),
         ),
         Message(
             test_run_hook_started=CucumberTestRunHookStarted(
@@ -268,7 +268,7 @@ def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
                 id="run-hook-started-1",
                 test_run_started_id="run-started-1",
                 timestamp=Timestamp(seconds=1, nanos=0),
-            )
+            ),
         ),
         Message(
             test_run_hook_finished=CucumberTestRunHookFinished(
@@ -278,7 +278,7 @@ def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
                     duration=Duration(seconds=0, nanos=1),
                     status=CucumberTestStepResultStatus.passed,
                 ),
-            )
+            ),
         ),
     ]
 
@@ -294,7 +294,7 @@ def test_validate_message_stream_accepts_consolidated_xdist_output() -> None:
             _controller_fragment(),
             _worker_fragment("gw0", "shared scenario"),
             _worker_fragment("gw1", "shared scenario"),
-        ]
+        ],
     )
 
     result = validate_message_stream(list(consolidated.envelopes), track_coverage=False)

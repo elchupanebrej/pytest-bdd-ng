@@ -99,11 +99,17 @@ class ScenarioLocatorBuilder:
         filter_ = self.build_scenario_filter(feature_locator_args.get("filter_"))
 
         if file_locator := self._create_file_locator(
-            feature_locator_args, filter_, features_base_dir, features_path_type
+            feature_locator_args,
+            filter_,
+            features_base_dir,
+            features_path_type,
         ):
             yield file_locator
         if url_locator := self._create_url_locator(
-            feature_locator_args, filter_, features_base_url, features_path_type
+            feature_locator_args,
+            filter_,
+            features_base_url,
+            features_path_type,
         ):
             yield url_locator
 

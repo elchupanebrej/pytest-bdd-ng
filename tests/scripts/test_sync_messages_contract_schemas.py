@@ -54,7 +54,8 @@ def test_check_mode_exits_when_generated_schemas_are_stale(tmp_path: Path, monke
 
 
 def test_check_mode_succeeds_when_generated_schemas_are_current(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify check mode succeeds when generated schemas are current."""
     expected = tmp_path / "expected"

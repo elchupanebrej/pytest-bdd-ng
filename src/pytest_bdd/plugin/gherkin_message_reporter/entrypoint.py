@@ -64,7 +64,7 @@ def _reporting_requested(config: Config) -> bool:
             getattr(config.option, "messages_ndjson_path", None) is not None,
             getattr(config.option, "cucumber_html_path", None) is not None,
             any_cucumber_formatter_requested(config.option),
-        ]
+        ],
     )
 
 

@@ -249,7 +249,7 @@ def validate_requested_cucumber_formatters(
                 output_dir=output_path.parent,
             )
         requests_by_output_key.setdefault(normalize_cucumber_formatter_output_key(output_path), []).append(
-            formatter_request
+            formatter_request,
         )
 
     duplicate_requests = next(

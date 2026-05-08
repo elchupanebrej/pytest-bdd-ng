@@ -59,7 +59,7 @@ def test_hook_callbacks_share_same_scenario_run_reference(testdir):
             assert scenario_run.active_set.scenario.is_active is False
             request.config.scenario_run_ids.append(id(scenario_run))
             assert len(set(request.config.scenario_run_ids)) == 1
-        """
+        """,
     )
 
     testdir.makepyfile(
@@ -77,7 +77,7 @@ def test_hook_callbacks_share_same_scenario_run_reference(testdir):
         @when('second step')
         def when_second_step():
             return None
-        """
+        """,
     )
 
     result = testdir.runpytest("-q")

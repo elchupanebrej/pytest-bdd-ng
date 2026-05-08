@@ -57,7 +57,7 @@ class ScenarioReporter:
             build_reporting_context_snapshot(
                 request=request,
                 fallback_reason=fallback_reason,
-            )
+            ),
         )
 
     def _require_current_report(self) -> ScenarioReport:

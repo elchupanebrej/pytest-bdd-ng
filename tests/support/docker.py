@@ -46,7 +46,7 @@ def _resolve_tool_path(name: str) -> str | None:
                 / "DockerDesktop"
                 / "version-bin"
                 / "docker.exe",
-            ]
+            ],
         )
 
     for candidate in candidates:

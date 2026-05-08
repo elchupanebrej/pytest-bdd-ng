@@ -234,7 +234,7 @@ def test_register_envelope_indexes_identifiable_objects_by_protocol() -> None:
             id="test-case-1",
             pickle_id="pickle-1",
             test_steps=[CucumberTestStep(id="test-step-1", pickle_step_id="pickle-step-1")],
-        )
+        ),
     )
 
     registry = EnvelopeRegistry.register_envelope_in_pytest_stash(config.stash, envelope)

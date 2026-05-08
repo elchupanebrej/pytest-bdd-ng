@@ -114,7 +114,7 @@ def test_multiple_cucumber_formatters_run_in_one_session(
             "--cucumber-summary",
             f"--cucumber-json={json_path}",
             f"--cucumber-usage-json={usage_json_path}",
-        )
+        ),
     )
 
     assert result.ret == pytest.ExitCode.TESTS_FAILED
@@ -122,7 +122,7 @@ def test_multiple_cucumber_formatters_run_in_one_session(
     result.stdout.fnmatch_lines(
         [
             f"*{escape(expected_formatter_visible_line('summary'))}*",
-        ]
+        ],
     )
     assert expected_formatter_visible_line("json") in json_path.read_text(encoding="utf-8")
     assert expected_formatter_visible_line("usage-json") in usage_json_path.read_text(encoding="utf-8")
@@ -246,8 +246,8 @@ def test_missing_cucumber_package_is_auto_installed_for_console_formatter(
             (
                 "*Installing missing global npm package(s) for cucumber formatter rendering "
                 "(--cucumber-progress): @cucumber/cucumber*"
-            )
-        ]
+            ),
+        ],
     )
     result.stdout.fnmatch_lines([f"*{escape(expected_formatter_visible_line('progress'))}*"])
 

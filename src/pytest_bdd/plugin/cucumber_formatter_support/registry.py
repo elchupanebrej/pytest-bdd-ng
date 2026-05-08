@@ -34,7 +34,7 @@ def _sorted_formatter_plugins(
         sorted(
             formatter_plugins,
             key=lambda plugin: (plugin.discovery_order, plugin.formatter, plugin.module_name),
-        )
+        ),
     )
 
 

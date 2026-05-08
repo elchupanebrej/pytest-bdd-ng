@@ -250,7 +250,10 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
     execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
 
     result = _run_remote_xdist_compose(
-        tmp_path, remote_mode=execnet_mode, verify_mode="success", fail_transport_workers=""
+        tmp_path,
+        remote_mode=execnet_mode,
+        verify_mode="success",
+        fail_transport_workers="",
     )
 
     attach_command_result_outputs(
@@ -328,7 +331,7 @@ def check_pytest_stdout_lines(pytest_result, step):
         map(
             compose(attrgetter("value"), itemgetter(0)),
             map(attrgetter("cells"), data_table.rows),
-        )
+        ),
     )
 
     stdout_text = _coerce_pytest_stream_text(getattr(pytest_result, "stdout", ""))
@@ -377,7 +380,7 @@ def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> N
             [
                 _coerce_pytest_stream_text(getattr(pytest_result, "stdout", "")),
                 _coerce_pytest_stream_text(getattr(pytest_result, "stderr", "")),
-            ]
+            ],
         )
 
     combined_output = "\n".join(fragment for fragment in output_fragments if fragment)

@@ -34,7 +34,7 @@ def test_mypy_rejects_invalid_envelope_assignment(tmp_path) -> None:
             from pytest_bdd.model.message_extension import EventEnvelope as Message
 
             invalid: Message = Message(test_run_started="invalid-payload-type")
-            """
+            """,
         ),
         encoding="utf-8",
     )

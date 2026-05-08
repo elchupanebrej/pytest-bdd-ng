@@ -118,7 +118,7 @@ class AttachmentService(ReporterServiceBase):
                     timestamp=attachment_timestamp,
                     content_encoding=content_encoding,
                     body=body,
-                )
+                ),
             ),
         )
 
@@ -138,6 +138,6 @@ class AttachmentService(ReporterServiceBase):
                             else {}
                         ),
                         timestamp=attachment_timestamp,
-                    )
+                    ),
                 ),
             )

@@ -172,7 +172,9 @@ def render_generated_index(
     preserved_intro, preserved_suffix = extract_existing_intro(existing_index_file, top_level_headings)
     sections_content = "\n\n".join(map(render_toctree_section, sections)).rstrip("\n")
     return render_index_document(
-        preserved_intro.rstrip("\n"), sections_content, preserved_suffix.lstrip("\n").rstrip("\n")
+        preserved_intro.rstrip("\n"),
+        sections_content,
+        preserved_suffix.lstrip("\n").rstrip("\n"),
     )
 
 
@@ -265,7 +267,8 @@ def sort_ordered_sources(sources: Sequence[OrderedSource], scope_rel_path: Path)
 
 
 def collect_ordered_sources(
-    processable_path: Path, features_path: Path
+    processable_path: Path,
+    features_path: Path,
 ) -> tuple[list[OrderedSource], list[OrderedSource]]:
     """Collect ordered sources."""
     processable_rel_path = processable_path.relative_to(features_path)

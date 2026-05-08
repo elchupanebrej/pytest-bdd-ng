@@ -389,7 +389,7 @@ class TransportService(ReporterServiceBase):
                         else (batches[-1].batch_sequence if batches else None)
                     ),
                     interruption_reason=manifest.interruption_reason if manifest is not None else None,
-                )
+                ),
             )
         consolidated_stream = consolidate_message_fragments(fragment_specs)
         for diagnostic in consolidated_stream.diagnostics:

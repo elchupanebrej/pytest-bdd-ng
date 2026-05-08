@@ -38,7 +38,7 @@ def setup_test_suite(testdir, tmp_path):
         """\
         [pytest]
         disable_feature_autoload = true
-        """
+        """,
     )
     testdir.makefile(
         ".feature",
@@ -53,7 +53,7 @@ def setup_test_suite(testdir, tmp_path):
                 Given a passing step
               Scenario: fail four
                 Given a failing step
-            """
+            """,
         ),
     )
     testdir.makeconftest(
@@ -68,8 +68,8 @@ def setup_test_suite(testdir, tmp_path):
             @given("a failing step")
             def _fail():
                 raise RuntimeError("boom")
-            """
-        )
+            """,
+        ),
     )
     testdir.makepyfile(
         test_suite="""\

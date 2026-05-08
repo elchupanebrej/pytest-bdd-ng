@@ -83,7 +83,9 @@ def is_path_populated(payloads: list[object], path_segments: tuple[str, ...]) ->
 
 
 def build_observed_coverage_tree(
-    oracle_node: object, payloads: list[object], path_prefix: tuple[str, ...] = ()
+    oracle_node: object,
+    payloads: list[object],
+    path_prefix: tuple[str, ...] = (),
 ) -> object:
     """Build observed coverage tree."""
     if isinstance(oracle_node, Mapping):

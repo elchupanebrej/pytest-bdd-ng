@@ -139,6 +139,6 @@ def make_governance_report_payload() -> dict[str, object]:
                 "decision_owner": "Automation",
                 "reviewed_at": now,
                 "evidence_refs": ["tests/messages/test_governance.py"],
-            }
+            },
         ],
     }

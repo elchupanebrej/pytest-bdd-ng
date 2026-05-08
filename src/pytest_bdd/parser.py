@@ -70,7 +70,7 @@ class BaseParser(ParserProtocol):
                         file_name=Path(source_file).name,
                         method_name="emit_parse_error",
                     ),
-                }
+                },
             )
         return SourceReference(**source_kwargs)
 
@@ -88,7 +88,7 @@ class BaseParser(ParserProtocol):
                     parse_error=ParseError(
                         message=message,
                         source=BaseParser._build_parse_error_source(uri=uri, line=line, column=column),
-                    )
+                    ),
                 ),
             )
         except (AttributeError, TypeError, ValueError, RuntimeError):  # pragma: no cover

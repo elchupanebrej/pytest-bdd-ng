@@ -24,7 +24,7 @@ def _assert_import_does_not_load(module: str, blocked_modules: tuple[str, ...]) 
         ]
         if loaded:
             raise SystemExit("loaded blocked modules: " + ", ".join(loaded))
-        """
+        """,
     )
     env = os.environ.copy()
     src_path = str((Path(__file__).resolve().parents[2] / "src").resolve())

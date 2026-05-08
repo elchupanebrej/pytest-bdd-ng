@@ -89,8 +89,8 @@ def test_runtime_required_capability_without_runtime_evidence_fails_gate(tmp_pat
                     "capability_id": "testRunStarted.id",
                     "status": "Implemented",
                     "release_target": "v32.current",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -113,7 +113,7 @@ def test_runtime_required_capability_without_runtime_evidence_fails_gate(tmp_pat
             "--require-runtime-required-covered",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     payload = json.loads(output_file.read_text(encoding="utf-8"))
@@ -145,8 +145,8 @@ def test_non_runtime_capability_can_be_classified_partly_applicable(tmp_path, mo
                     "decision_owner": "pytest-bdd-ng-maintainers",
                     "evidence_refs": ["tests/messages_coverage/test_run_governance_regression.py"],
                     "reviewed_at": "2026-03-03T00:00:00+00:00",
-                }
-            ]
+                },
+            ],
         ),
         encoding="utf-8",
     )
@@ -165,7 +165,7 @@ def test_non_runtime_capability_can_be_classified_partly_applicable(tmp_path, mo
             "--require-fully-governed",
             "--output",
             str(output_file),
-        ]
+        ],
     )
 
     payload = json.loads(output_file.read_text(encoding="utf-8"))

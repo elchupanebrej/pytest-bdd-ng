@@ -202,7 +202,7 @@ def collect_features_and_seen_uris(
     locators = cast(
         Sequence[ScenarioLocatorResolver],
         locator_builder.build_for_feature_locator_args(
-            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features)))),
         ),
     )
     feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [
@@ -227,7 +227,7 @@ def find_non_seen_features_and_pickles(
 ) -> tuple[list[FeatureRuntimeBinding], list[tuple[FeatureRuntimeBinding, Pickle]]]:
     """Identify features and pickles that were not seen."""
     non_seen_features: list[FeatureRuntimeBinding] = list(
-        filterfalse(lambda feature: feature.uri in seen_features_uris, features)
+        filterfalse(lambda feature: feature.uri in seen_features_uris, features),
     )
 
     non_seen_feature_pickles: list[tuple[FeatureRuntimeBinding, Pickle]] = list(
@@ -281,7 +281,7 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
     locators = cast(
         Sequence[ScenarioLocatorResolver],
         locator_builder.build_for_feature_locator_args(
-            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features))))
+            cast(FeatureLocatorArgs, defaultdict(feature_paths=list(map(Path, config.option.features)))),
         ),
     )
     feature_pickles_feature_source: list[tuple[GherkinDocument, Pickle, Source]] = [

@@ -213,7 +213,9 @@ class Join(BaseModel):
                         ) -> Iterator[object]:
                             for parameter in parameters:
                                 for table_parameter, value in zip(
-                                    filled_tables_parameters, filled_tables_values, strict=False
+                                    filled_tables_parameters,
+                                    filled_tables_values,
+                                    strict=False,
                                 ):
                                     if parameter == table_parameter:
                                         yield value
@@ -344,7 +346,7 @@ class StepPrototype(Node):
                         tables=[
                             *map(attrgetter("example_table"), routes),
                             example_candidate,
-                        ]
+                        ],
                     )
                     tags = list(
                         {
@@ -366,7 +368,7 @@ class StepPrototype(Node):
                         *chain.from_iterable(route.tags or [] for route in routes),
                         *example_table.tags,
                         *(self.tags or []),
-                    }
+                    },
                 )
 
                 yield self.Route(

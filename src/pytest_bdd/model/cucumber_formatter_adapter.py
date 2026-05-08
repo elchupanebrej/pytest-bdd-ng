@@ -65,7 +65,7 @@ class CucumberFormatterEnvelopeAdapter:
                             self._synthesize_missing_pickle_step_results(
                                 test_case_started_id=str(test_case_finished.get("testCaseStartedId") or ""),
                                 timestamp_payload=test_case_finished.get("timestamp"),
-                            )
+                            ),
                         )
                     else:
                         test_run_finished = envelope_dict.get("testRunFinished")
@@ -82,7 +82,7 @@ class CucumberFormatterEnvelopeAdapter:
                 self._synthesize_missing_pickle_step_results(
                     test_case_started_id=test_case_started_id,
                     timestamp_payload=timestamp_payload,
-                )
+                ),
             )
         return tuple(synthetic_envelopes)
 
@@ -137,8 +137,8 @@ class CucumberFormatterEnvelopeAdapter:
                             "duration": dict(_ZERO_DURATION),
                             "status": "UNKNOWN",
                         },
-                    }
-                }
+                    },
+                },
             )
             attempt_state.recorded_test_step_ids.add(test_step_id)
         return synthetic_envelopes

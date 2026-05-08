@@ -189,7 +189,7 @@ def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObj
             step=_inactive_ref("step", reason="finished", fail_fast_code="object_inactive"),
             previous_step=_inactive_ref("step", reason="finished"),
             captured_at_stage=RunStage.finished,
-        )
+        ),
     )
 
 
@@ -248,7 +248,7 @@ def apply_transition(
             step=step_ref,
             previous_step=previous_step_ref,
             captured_at_stage=stage,
-        )
+        ),
     )
     scenario_run.advance_transition()
     if run is not None:

@@ -17,7 +17,7 @@ from pytest_bdd.model.message_serialization import MessageSerializationProfile
 def test_execution_message_adapter_serializes_envelope_canonically() -> None:
     """Verify execution message adapter serializes envelope canonically."""
     envelope = Message(
-        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0))
+        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0)),
     )
 
     serialized = ExecutionMessageAdapter.serialize(envelope)
@@ -28,7 +28,7 @@ def test_execution_message_adapter_serializes_envelope_canonically() -> None:
 def test_execution_message_adapter_deserializes_with_registry_projection() -> None:
     """Verify execution message adapter deserializes with registry projection."""
     envelope = Message(
-        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0))
+        test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0)),
     )
     registry = EnvelopeRegistry()
     registry.add_envelope(envelope)
@@ -59,7 +59,7 @@ def test_execution_message_adapter_serializes_schema_compatible_step_definition_
                     method_name="step",
                 ),
             ),
-        )
+        ),
     )
 
     serialized = ExecutionMessageAdapter.serialize_to_dict(

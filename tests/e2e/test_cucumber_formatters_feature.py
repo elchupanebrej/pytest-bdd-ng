@@ -90,7 +90,11 @@ def run_pytest_with_console_formatter(testdir, flag: str, attach):
     target_fixture="pytest_result",
 )
 def run_pytest_with_file_formatter(
-    testdir, formatter_artifacts: dict[str, object], flag: str, report_name: str, attach
+    testdir,
+    formatter_artifacts: dict[str, object],
+    flag: str,
+    report_name: str,
+    attach,
 ):
     """Run pytest with file formatter."""
     output_root = formatter_artifacts["root"]
@@ -188,7 +192,7 @@ def run_standalone_formatter_renderer(formatter_artifacts: dict[str, object], at
                 str(_repo_root() / "src"),
                 env.get("PYTHONPATH", ""),
             ],
-        )
+        ),
     )
     result = subprocess.run(  # noqa: S603
         [

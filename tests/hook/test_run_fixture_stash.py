@@ -38,7 +38,7 @@ def test_run_context_is_available_via_fixture_and_stash(testdir):
             assert run_context is stash_run
             assert run is stash_run
             assert id(run_context) == request.config._run_id
-        """
+        """,
     )
 
     testdir.makepyfile(
@@ -52,7 +52,7 @@ def test_run_context_is_available_via_fixture_and_stash(testdir):
         @given('any step')
         def any_step():
             return None
-        """
+        """,
     )
 
     result = testdir.runpytest("-q")

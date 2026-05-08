@@ -78,7 +78,7 @@ def _build_reporting_worker_environment(workerinput: Mapping[str, object]) -> di
         "PYTEST_XDIST_WORKER_COUNT": str(workerinput["workercount"]),
         "PYTEST_BDD_XDIST_IS_WORKER": "1",
         "PYTEST_BDD_REPORTING_WORKER_ID": str(
-            workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput["workerid"]
+            workerinput.get("pytest_bdd_messages_fragment_worker_id") or workerinput["workerid"],
         ),
     }
     gateway_mode = str(workerinput.get("pytest_bdd_messages_gateway_mode") or "").strip()

@@ -60,7 +60,9 @@ class _AroundHookCallable(Protocol):
 
 
 def _get_conjunction_and_kind(
-    *, conjunction: str | HookConjunction, kind: str | HookKind
+    *,
+    conjunction: str | HookConjunction,
+    kind: str | HookKind,
 ) -> tuple[HookConjunction, HookKind]:
     conjunction_ = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     kind_ = HookKind(kind) if isinstance(kind, str) else kind

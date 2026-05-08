@@ -21,7 +21,7 @@ RELEVANT_IMPACTS: Final[frozenset[CapabilityImpact]] = frozenset(
         "lifecycle_linkage",
         "status_mapping",
         "governance_checklist_output",
-    }
+    },
 )
 
 

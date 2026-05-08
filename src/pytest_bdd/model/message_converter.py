@@ -19,7 +19,7 @@ from . import message_extension
 from .message_validation import validate_envelope_shape
 
 message_converter: json_converter.JsonDataclassConverter = json_converter.JsonDataclassConverter(
-    module_scope=message_extension
+    module_scope=message_extension,
 )
 
 

@@ -183,7 +183,8 @@ class TestWaitForDocker:
         with (
             patch("tests.support.docker.shutil.which", return_value="/usr/bin/docker"),
             patch(
-                "tests.support.docker.subprocess.run", side_effect=[fail_result, fail_result, success_result]
+                "tests.support.docker.subprocess.run",
+                side_effect=[fail_result, fail_result, success_result],
             ) as mock_run,
             patch("tests.support.docker.time.sleep"),
         ):
@@ -207,7 +208,8 @@ class TestWaitForDocker:
         with (
             patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
             patch(
-                "tests.support.docker.subprocess.run", side_effect=[fail_result, fail_result, success_result]
+                "tests.support.docker.subprocess.run",
+                side_effect=[fail_result, fail_result, success_result],
             ) as mock_run,
             patch("tests.support.docker.time.sleep"),
         ):
@@ -894,7 +896,8 @@ class TestFakeNodeRuntimeScripts:
     def test_node_and_npm_scripts_use_lf_newlines(self, tmp_path: Path):
         """Verify node and npm scripts use lf newlines."""
         runtime = materialize_fake_node_runtime(
-            tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
+            tmp_path / "fake-node-runtime",
+            preinstalled_packages=("@cucumber/cucumber",),
         )
 
         node_bytes = (runtime["bin_dir"] / "node").read_bytes()

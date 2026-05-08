@@ -202,7 +202,7 @@ latex_documents = [
         "Pytest-BDD-NG Documentation",
         "Konstantin Goloveshko",
         "manual",
-    )
+    ),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

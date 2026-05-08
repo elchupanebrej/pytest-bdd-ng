@@ -251,7 +251,7 @@ class LifecycleService(ReporterServiceBase):
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
                     worker_id=self.transport_service._current_reporting_worker_id(cast(Config, config)),
-                )
+                ),
             ),
         )
         yield
@@ -266,7 +266,7 @@ class LifecycleService(ReporterServiceBase):
                         status=TestStepResultStatus.passed,
                         message="before-test-run hook completed",
                     ),
-                )
+                ),
             ),
         )
 
@@ -327,7 +327,7 @@ class LifecycleService(ReporterServiceBase):
                     os=Product(name=system(), version=version()),
                     cpu=Product(name=machine(), version=processor()),
                     ci=ci,
-                )
+                ),
             ),
         )
         self._emit_run_hook_definition(
@@ -445,7 +445,7 @@ class LifecycleService(ReporterServiceBase):
                             method_name=hook_method.__name__,
                         ),
                     ),
-                )
+                ),
             ),
         )
 
@@ -488,7 +488,7 @@ class LifecycleService(ReporterServiceBase):
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
                     worker_id=self.transport_service._current_reporting_worker_id(cast(Config, config)),
-                )
+                ),
             ),
         )
         self._emit_envelope(
@@ -503,7 +503,7 @@ class LifecycleService(ReporterServiceBase):
                         message="after-test-run hook completed",
                         **({"exception": run_exception} if run_exception is not None else {}),
                     ),
-                )
+                ),
             ),
         )
         self._emit_envelope(
@@ -515,7 +515,7 @@ class LifecycleService(ReporterServiceBase):
                     test_run_started_id=run_started_id,
                     message=f"pytest session exit status: {exitstatus}",
                     **({"exception": run_exception} if run_exception is not None else {}),
-                )
+                ),
             ),
         )
 
@@ -525,7 +525,7 @@ class LifecycleService(ReporterServiceBase):
             worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
             if self.reporter.xdist_transport_client is not None:
                 workeroutput["pytest_bdd_messages_manifest"] = self.reporter.xdist_transport_client.build_manifest(
-                    complete=True
+                    complete=True,
                 ).as_dict()
             else:
                 workeroutput["pytest_bdd_messages_manifest"] = WorkerCompletionManifest(
@@ -581,7 +581,7 @@ class LifecycleService(ReporterServiceBase):
         ):
             self.live_formatter_service._record_live_formatter_failure(
                 "Requested cucumber formatters were not attached to a live session; "
-                "post-run replay is disabled for live formatter runs."
+                "post-run replay is disabled for live formatter runs.",
             )
         if self.reporter.config.option.cucumber_html_path is not None:
             self.live_formatter_service.generate_html_report()

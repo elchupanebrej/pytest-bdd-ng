@@ -78,7 +78,7 @@ class LiveFormatterService(ReporterServiceBase):
         self._wait_for_live_formatter_process(process)
         if process.returncode not in {None, 0}:
             self._record_live_formatter_failure(
-                f"Live cucumber formatter session exited with code {process.returncode}."
+                f"Live cucumber formatter session exited with code {process.returncode}.",
             )
 
     def _wait_for_live_formatter_process(self, process: LiveFormatterProcess) -> None:
@@ -92,7 +92,7 @@ class LiveFormatterService(ReporterServiceBase):
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._record_live_formatter_failure(
-                    "Live cucumber formatter session did not terminate after forced shutdown."
+                    "Live cucumber formatter session did not terminate after forced shutdown.",
                 )
         finally:
             if process.poll() is None:
@@ -133,12 +133,12 @@ class LiveFormatterService(ReporterServiceBase):
         if stdin is None:
             self._record_live_formatter_failure(
                 f"Live cucumber formatter delivery from {source} failed because "
-                "the formatter stdin pipe is unavailable."
+                "the formatter stdin pipe is unavailable.",
             )
             return
         if process.poll() is not None:
             self._record_live_formatter_failure(
-                f"Live cucumber formatter session exited early with code {process.returncode} while handling {source}."
+                f"Live cucumber formatter session exited early with code {process.returncode} while handling {source}.",
             )
             return
         with self.reporter._live_formatter_lock:
@@ -149,7 +149,7 @@ class LiveFormatterService(ReporterServiceBase):
                 stdin.flush()
             except OSError as exc:
                 self._record_live_formatter_failure(
-                    f"Live cucumber formatter delivery from {source} failed before session completion: {exc}"
+                    f"Live cucumber formatter delivery from {source} failed before session completion: {exc}",
                 )
 
     def emit_live_formatter_json_lines(self, message_json_lines: list[str], *, source: str) -> None:
@@ -163,7 +163,7 @@ class LiveFormatterService(ReporterServiceBase):
             normalized_lines.extend(
                 json.dumps(adapted_envelope_dict)
                 for adapted_envelope_dict in self.reporter._live_formatter_envelope_adapter.adapt_envelope_dict(
-                    envelope_dict
+                    envelope_dict,
                 )
             )
         return normalized_lines
@@ -264,12 +264,14 @@ class LiveFormatterService(ReporterServiceBase):
                     None,
                     (
                         self._resolve_node_package_root(
-                            node_executable, package_name, env=self._build_node_execution_env()
+                            node_executable,
+                            package_name,
+                            env=self._build_node_execution_env(),
                         )
                         for package_name in package_names
                     ),
-                )
-            )
+                ),
+            ),
         )
         base_env = self._build_node_execution_env(*discovered_node_modules_roots)
         missing_from_env = tuple(
@@ -277,7 +279,7 @@ class LiveFormatterService(ReporterServiceBase):
                 package_name
                 for package_name in package_names
                 if not self._node_package_installed(node_executable, package_name, env=base_env)
-            )
+            ),
         )
         if not missing_from_env:
             return NodePackageProvisionResult(env=base_env, node_modules_roots=discovered_node_modules_roots)
@@ -306,7 +308,7 @@ class LiveFormatterService(ReporterServiceBase):
                 package_name
                 for package_name in missing_from_env
                 if not self._node_package_installed(node_executable, package_name, env=global_env)
-            )
+            ),
         )
         if not missing_from_global:
             return NodePackageProvisionResult(
@@ -326,11 +328,11 @@ class LiveFormatterService(ReporterServiceBase):
                     package_name
                     for package_name in missing_from_global
                     if not self._node_package_installed(node_executable, package_name, env=global_env)
-                )
+                ),
             )
             if packages_to_install:
                 sys.stderr.write(
-                    f"Installing missing global npm package(s) for {purpose}: {', '.join(packages_to_install)}\n"
+                    f"Installing missing global npm package(s) for {purpose}: {', '.join(packages_to_install)}\n",
                 )
                 sys.stderr.flush()
                 completed = subprocess.run(  # noqa: S603
@@ -366,7 +368,7 @@ class LiveFormatterService(ReporterServiceBase):
                 package_name
                 for package_name in missing_from_env
                 if not self._node_package_installed(node_executable, package_name, env=global_env)
-            )
+            ),
         )
         installed_packages = tuple(sorted(set(missing_from_env) - set(final_missing_packages)))
         return NodePackageProvisionResult(
@@ -393,8 +395,8 @@ class LiveFormatterService(ReporterServiceBase):
                     {
                         "@cucumber/cucumber",
                         *(request.package_name for request in self.reporter.requested_cucumber_formatters),
-                    }
-                )
+                    },
+                ),
             ),
             purpose=f"cucumber formatter rendering ({formatter_labels})",
         )
@@ -495,10 +497,10 @@ class LiveFormatterService(ReporterServiceBase):
                         "line": self._resolve_source_reference_line(source_reference),
                         "pattern": "" if pattern is None else str(getattr(pattern, "source", "")),
                         "expressionConstructorName": self._resolve_formatter_expression_constructor_name(
-                            getattr(pattern, "type", None)
+                            getattr(pattern, "type", None),
                         ),
                         "code": code_reference,
-                    }
+                    },
                 )
 
             hook = getattr(envelope, "hook", None)
@@ -517,7 +519,7 @@ class LiveFormatterService(ReporterServiceBase):
                         "tagExpression": None
                         if getattr(hook, "tag_expression", None) is None
                         else str(hook.tag_expression),
-                    }
+                    },
                 )
 
             parameter_type = getattr(envelope, "parameter_type", None)
@@ -531,10 +533,10 @@ class LiveFormatterService(ReporterServiceBase):
                             for regular_expression in getattr(parameter_type, "regular_expressions", ())
                         ],
                         "preferForRegularExpressionMatch": bool(
-                            getattr(parameter_type, "prefer_for_regular_expression_match", False)
+                            getattr(parameter_type, "prefer_for_regular_expression_match", False),
                         ),
                         "useForSnippets": bool(getattr(parameter_type, "use_for_snippets", True)),
-                    }
+                    },
                 )
 
         return {
@@ -610,7 +612,7 @@ class LiveFormatterService(ReporterServiceBase):
         if node_executable is None:
             self._record_live_formatter_failure(
                 f"Unable to start the live cucumber formatter session for {formatter_labels} "
-                "because Node.js was not found in PATH."
+                "because Node.js was not found in PATH.",
             )
             return
 
@@ -619,7 +621,7 @@ class LiveFormatterService(ReporterServiceBase):
         if not runnable_requests:
             self._record_live_formatter_failure(
                 f"Unable to start the live cucumber formatter session for {formatter_labels} "
-                "because required formatter packages are unavailable."
+                "because required formatter packages are unavailable.",
             )
             return
 
@@ -638,7 +640,7 @@ class LiveFormatterService(ReporterServiceBase):
                     envelopes=[],
                     formatter_requests=runnable_requests,
                     messages_path=None,
-                )
+                ),
             ),
             encoding="utf-8",
         )
@@ -669,16 +671,17 @@ class LiveFormatterService(ReporterServiceBase):
             if self.reporter._live_formatter_process.poll() is not None:
                 self._record_live_formatter_failure(
                     "Live cucumber formatter session exited early with code "
-                    f"{self.reporter._live_formatter_process.returncode} during startup."
+                    f"{self.reporter._live_formatter_process.returncode} during startup.",
                 )
                 return
             self.reporter._live_formatter_session_started = True
         except OSError:
             logger.exception(
-                "Unable to execute Node.js while streaming to cucumber formatters for %s.", formatter_labels
+                "Unable to execute Node.js while streaming to cucumber formatters for %s.",
+                formatter_labels,
             )
             self._record_live_formatter_failure(
-                f"Unable to execute Node.js while starting the live cucumber formatter session for {formatter_labels}."
+                f"Unable to execute Node.js while starting the live cucumber formatter session for {formatter_labels}.",
             )
 
     def _run_requested_cucumber_formatters(
@@ -740,7 +743,7 @@ class LiveFormatterService(ReporterServiceBase):
                                     profile=MessageSerializationProfile.schema_compatible,
                                 )
                                 for envelope in envelopes
-                            ]
+                            ],
                         )
                     ),
                     encoding="utf-8",
@@ -751,7 +754,7 @@ class LiveFormatterService(ReporterServiceBase):
                             envelopes=envelopes,
                             formatter_requests=runnable_requests,
                             messages_path=normalized_messages_path,
-                        )
+                        ),
                     ),
                     encoding="utf-8",
                 )
@@ -765,7 +768,8 @@ class LiveFormatterService(ReporterServiceBase):
                 )
         except OSError:
             logger.exception(
-                "Unable to execute Node.js while rendering cucumber formatter output for %s.", formatter_labels
+                "Unable to execute Node.js while rendering cucumber formatter output for %s.",
+                formatter_labels,
             )
             return CucumberFormatterRenderResult(
                 success=False,
@@ -809,8 +813,8 @@ class LiveFormatterService(ReporterServiceBase):
                     self.reporter.npm_formatter_package,
                     str(Path("dist") / "main.js"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
-                )
-            )
+                ),
+            ),
         )
         css_path = Path(
             next(
@@ -818,8 +822,8 @@ class LiveFormatterService(ReporterServiceBase):
                     self.reporter.npm_formatter_package,
                     str(Path("dist") / "main.css"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
-                )
-            )
+                ),
+            ),
         )
         template_path = Path(
             next(
@@ -827,8 +831,8 @@ class LiveFormatterService(ReporterServiceBase):
                     self.reporter.npm_formatter_package,
                     str(Path("src") / "index.mustache.html"),
                     additional_roots=self.reporter._auto_provisioned_node_modules_roots,
-                )
-            )
+                ),
+            ),
         )
         template = template_path.read_text(encoding="utf-8")
         icon = ""
@@ -874,12 +878,12 @@ class LiveFormatterService(ReporterServiceBase):
         if provision_result.missing_npm and provision_result.missing_packages:
             pytest.exit(
                 "Npm wasn't found in the environment and the HTML formatter package could not be auto-provisioned, "
-                "so unable generate html report"
+                "so unable generate html report",
             )
         if provision_result.missing_packages:
             pytest.exit(
                 f"Npm package '{self.reporter.npm_formatter_package}' could not be provisioned automatically so unable "
                 "generate html report. Install it manually with "
-                f"`npm install --save-dev {self.reporter.npm_formatter_package}`"
+                f"`npm install --save-dev {self.reporter.npm_formatter_package}`",
             )
         self.reporter._auto_provisioned_node_modules_roots = provision_result.node_modules_roots

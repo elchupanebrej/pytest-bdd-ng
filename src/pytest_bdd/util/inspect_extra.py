@@ -36,7 +36,7 @@ def get_first_source_line(obj: object) -> int:
     """Return first source line."""
     try:
         return getsourcelines(
-            cast(ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType, obj)
+            cast(ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType, obj),
         )[1]
     except (OSError, TypeError):
         code = getattr(obj, "__code__", None)
