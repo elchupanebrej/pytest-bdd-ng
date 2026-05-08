@@ -473,6 +473,7 @@ def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
             rootpath=tmp_path,
             workerinput={"workerid": "gw0"},
+            stash={},
         ),
     )
 

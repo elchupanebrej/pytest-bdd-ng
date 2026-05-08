@@ -195,7 +195,11 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_load_initial_conftests(_early_config: Config, _parser: Parser, args: list[str]) -> None:
+def pytest_load_initial_conftests(
+    early_config: Config,  # noqa: ARG001
+    parser: Parser,  # noqa: ARG001
+    args: list[str],
+) -> None:
     """Handle load initial conftests."""
     if (
         _running_on_windows()

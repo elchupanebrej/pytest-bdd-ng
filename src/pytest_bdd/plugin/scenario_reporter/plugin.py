@@ -112,10 +112,10 @@ class ScenarioReporter:
     def pytest_bdd_step_error(
         self,
         request: FixtureRequest,
-        _run: Run,
-        _step_func: object,
-        _step_func_args: dict[str, object],
-        _exception: Exception,
+        run: Run,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
+        step_func_args: dict[str, object],  # noqa: ARG002
+        exception: Exception,  # noqa: ARG002
     ) -> None:
         """Finalize the step report as failed."""
         self._store_context_snapshot(request=request, fallback_reason="step_error_hierarchy_not_available")
@@ -126,7 +126,7 @@ class ScenarioReporter:
         self,
         request: FixtureRequest,
         run: Run,
-        _step_func: object,
+        step_func: object,  # noqa: ARG002
     ) -> None:
         """Store step start time."""
         step = require_step_object(run, hook_name="pytest_bdd_before_step")
@@ -137,9 +137,9 @@ class ScenarioReporter:
     def pytest_bdd_after_step(
         self,
         request: FixtureRequest,
-        _run: Run,
-        _step_func: object,
-        _step_func_args: dict[str, object],
+        run: Run,  # noqa: ARG002
+        step_func: object,  # noqa: ARG002
+        step_func_args: dict[str, object],  # noqa: ARG002
     ) -> None:
         """Finalize the step report as successful."""
         self._store_context_snapshot(request=request, fallback_reason="after_step_hierarchy_not_available")
@@ -149,7 +149,7 @@ class ScenarioReporter:
     def pytest_bdd_after_scenario(
         self,
         request: FixtureRequest,
-        _run: Run,
+        run: Run,  # noqa: ARG002
     ) -> None:
         """Handle the pytest bdd after scenario pytest hook."""
         self._store_context_snapshot(request=request, fallback_reason="after_scenario_hierarchy_not_available")

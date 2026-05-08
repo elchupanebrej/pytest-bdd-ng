@@ -9,8 +9,6 @@ if TYPE_CHECKING:
 
     from pytest_bdd.compatibility.pytest import Parser
 
-from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 
 FormatterDefinition = tuple[str, str, str, str, str]
 
@@ -52,6 +50,9 @@ def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
 
 def register_cucumber_formatter_options(parser: Parser) -> None:
     """Register cucumber formatter options with pytest."""
+    from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases  # noqa: PLC0415
+    from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog  # noqa: PLC0415
+
     catalog = FormatterPluginCatalog.discover()
     group = parser.getgroup("bdd", "Cucumber Formatters")
     for plugin in catalog.plugins:

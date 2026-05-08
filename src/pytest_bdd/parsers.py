@@ -173,7 +173,7 @@ class re(StepParser):  # noqa:N801 intentional API
         self.regex = cast("_RegexCompiler", re_compile)(self.pattern, *args, **kwargs)
 
     @__init__.register
-    def _(self, pattern: _RePattern[str]) -> None:
+    def _(self, pattern: _RePattern) -> None:
         """Compile regex."""
         self.pattern = pattern.pattern
         self.regex = pattern

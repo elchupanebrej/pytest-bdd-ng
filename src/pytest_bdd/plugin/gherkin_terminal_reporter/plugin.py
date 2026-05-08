@@ -14,7 +14,7 @@ def canonical_terminal_step_status(step: StepReportData) -> str:
         Normalized step status string.
 
     """
-    return normalize_runtime_step_status(step["status"], failed_fallback=step["failed"])
+    return normalize_runtime_step_status(step.get("status", ""), failed_fallback=step["failed"])
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
