@@ -1,3 +1,5 @@
+"""Provide test run scenario runtime unit helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -43,6 +45,7 @@ def _build_run_root(suffix: str) -> Run:
 
 
 def test_config_stash_lookup_supports_stash_without_get_method() -> None:
+    """Verify config stash lookup supports stash without get method."""
     config = SimpleNamespace(stash=_Stash())
     run_root = _build_run_root("stash")
 
@@ -52,6 +55,7 @@ def test_config_stash_lookup_supports_stash_without_get_method() -> None:
 
 
 def test_from_stash_looks_up_run_from_config_stash() -> None:
+    """Verify from stash looks up run from config stash."""
     config = SimpleNamespace(stash={})
     run_root = _build_run_root("owner")
     run_root.set_in_stash(config.stash)
@@ -60,6 +64,7 @@ def test_from_stash_looks_up_run_from_config_stash() -> None:
 
 
 def test_initialize_run_raises_when_run_is_already_initialized() -> None:
+    """Verify initialize run raises when run is already initialized."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     existing = _build_run_root("existing")
@@ -71,6 +76,7 @@ def test_initialize_run_raises_when_run_is_already_initialized() -> None:
 
 
 def test_initialize_run_creates_and_stores_value_when_missing() -> None:
+    """Verify initialize run creates and stores value when missing."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="run-session")
 
@@ -83,6 +89,7 @@ def test_initialize_run_creates_and_stores_value_when_missing() -> None:
 
 
 def test_id_generator_lookup_raises_when_missing() -> None:
+    """Verify id generator lookup raises when missing."""
     config = SimpleNamespace(stash={})
 
     with pytest.raises(exceptions.PytestBDDStashLookupError, match=r"unavailable in config\.stash"):
@@ -90,6 +97,7 @@ def test_id_generator_lookup_raises_when_missing() -> None:
 
 
 def test_pop_clears_active_scenario_and_step_context_ids() -> None:
+    """Verify pop clears active scenario and step context ids."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
@@ -118,6 +126,7 @@ def test_pop_clears_active_scenario_and_step_context_ids() -> None:
 
 
 def test_create_scenario_run_reuses_run_root_reporting_state() -> None:
+    """Verify create scenario run reuses run root reporting state."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
@@ -132,6 +141,7 @@ def test_create_scenario_run_reuses_run_root_reporting_state() -> None:
 
 
 def test_create_scenario_run_uses_explicit_inactive_slots_for_empty_values() -> None:
+    """Verify create scenario run uses explicit inactive slots for empty values."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
@@ -147,6 +157,7 @@ def test_create_scenario_run_uses_explicit_inactive_slots_for_empty_values() -> 
 
 
 def test_require_active_scenario_run_raises_when_run_has_no_active_context() -> None:
+    """Verify require active scenario run raises when run has no active context."""
     run = _build_run_root("missing")
 
     with pytest.raises(RuntimeError, match="Active scenario run is unavailable"):
@@ -154,6 +165,7 @@ def test_require_active_scenario_run_raises_when_run_has_no_active_context() -> 
 
 
 def test_scenario_run_not_stored_in_config_stash() -> None:
+    """Verify scenario run not stored in config stash."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
@@ -167,6 +179,7 @@ def test_scenario_run_not_stored_in_config_stash() -> None:
 
 
 def test_create_scenario_run_binds_feature_object_when_feature_provided() -> None:
+    """Verify create scenario run binds feature object when feature provided."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))
@@ -179,6 +192,7 @@ def test_create_scenario_run_binds_feature_object_when_feature_provided() -> Non
 
 
 def test_initialize_run_initializes_envelope_registry_in_config_stash() -> None:
+    """Verify initialize run initializes envelope registry in config stash."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
 
@@ -189,6 +203,7 @@ def test_initialize_run_initializes_envelope_registry_in_config_stash() -> None:
 
 
 def test_initialize_id_generator_initializes_in_config_stash_once() -> None:
+    """Verify initialize id generator initializes in config stash once."""
     config = SimpleNamespace(stash={})
 
     id_generator = IdGenerator().initialize_in_stash(config.stash)
@@ -199,6 +214,7 @@ def test_initialize_id_generator_initializes_in_config_stash_once() -> None:
 
 
 def test_initialize_id_generator_raises_on_repeated_initialization() -> None:
+    """Verify initialize id generator raises on repeated initialization."""
     config = SimpleNamespace(stash={})
 
     first = IdGenerator().initialize_in_stash(config.stash)
@@ -210,6 +226,7 @@ def test_initialize_id_generator_raises_on_repeated_initialization() -> None:
 
 
 def test_register_envelope_indexes_identifiable_objects_by_protocol() -> None:
+    """Verify register envelope indexes identifiable objects by protocol."""
     config = SimpleNamespace(stash={})
     run = Run.initialize_for_config(stash=config.stash, config=config)
     envelope = Message(
@@ -229,6 +246,7 @@ def test_register_envelope_indexes_identifiable_objects_by_protocol() -> None:
 
 
 def test_pop_resets_reporting_and_reference_states() -> None:
+    """Verify pop resets reporting and reference states."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="session")
     request = SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::scenario"))

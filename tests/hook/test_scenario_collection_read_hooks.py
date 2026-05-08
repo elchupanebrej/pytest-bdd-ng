@@ -1,3 +1,5 @@
+"""Provide test scenario collection read hooks helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -89,6 +91,7 @@ def _build_gherkin_document() -> GherkinDocument:
 
 
 def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
+    """Verify collection iter calls read hooks in expected order."""
     gherkin_document = _build_gherkin_document()
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])

@@ -1,9 +1,13 @@
+"""Provide const helpers."""
+
 from pytest_bdd.compatibility.enum import StrEnum
 
 PYTEST_BDD_MARK = "pytest_bdd_scenario"
 
 
 class FeatureAutoLoad:
+    """Represent feature auto load state."""
+
     class Ini(StrEnum):
         """INI option names for feature auto-load."""
 
@@ -16,6 +20,8 @@ class FeatureAutoLoad:
 
 
 class FeatureBaseLoad:
+    """Represent feature base load state."""
+
     class Ini(StrEnum):
         """INI option names for feature base loading."""
 

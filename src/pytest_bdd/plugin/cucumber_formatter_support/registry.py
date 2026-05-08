@@ -1,3 +1,5 @@
+"""Provide registry helpers."""
+
 from __future__ import annotations
 
 from functools import cache
@@ -15,7 +17,10 @@ FORMATTER_PLUGIN_ENTRYPOINT_PREFIX = "pytest-bdd-cucumber-formatter-"
 
 
 class UnknownFormatterPluginError(LookupError):
+    """Represent unknown formatter plugin error failures."""
+
     def __init__(self, formatter_name: str, *, known_formatters: tuple[str, ...]) -> None:
+        """Initialize the unknown formatter plugin error."""
         message = (
             f"Unknown cucumber formatter plugin {formatter_name!r}. Known formatters: {', '.join(known_formatters)}"
         )
@@ -46,19 +51,37 @@ def _discover_formatter_plugins_from_entrypoints() -> list[FormatterReporterPlug
 
 @frozen
 class FormatterPluginCatalog:
+    """
+    Represent formatter plugin catalog state.
+
+    Raises:
+        UnknownFormatterPluginError: If the operation cannot be completed.
+
+    """
+
     plugins: tuple[FormatterReporterPlugin, ...]
 
     @classmethod
     def discover(cls) -> FormatterPluginCatalog:
+        """Handle discover."""
         return _discover_formatter_plugin_catalog()
 
     def by_option_attr(self) -> dict[str, FormatterReporterPlugin]:
+        """Handle by option attr."""
         return {plugin.option_attr: plugin for plugin in self.plugins}
 
     def by_name(self) -> dict[str, FormatterReporterPlugin]:
+        """Handle by name."""
         return {plugin.formatter: plugin for plugin in self.plugins}
 
     def require_plugin(self, formatter_name: str) -> FormatterReporterPlugin:
+        """
+        Handle require plugin.
+
+        Raises:
+            UnknownFormatterPluginError: If the operation cannot be completed.
+
+        """
         plugins_by_name = self.by_name()
         try:
             return plugins_by_name[formatter_name]
@@ -69,6 +92,7 @@ class FormatterPluginCatalog:
             ) from exc
 
     def render_runtime_assets(self, formatter_requests: tuple[CucumberFormatterRequest, ...]) -> dict[str, str]:
+        """Render runtime assets."""
         from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
 
         assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}

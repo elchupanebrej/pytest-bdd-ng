@@ -1,3 +1,5 @@
+"""Provide message outcome mapping helpers."""
+
 from __future__ import annotations
 
 from typing import Final, Literal
@@ -38,6 +40,8 @@ OUTCOME_SCOPE_ALIASES: Final[dict[str, OutcomeScope]] = {
 
 @frozen
 class OutcomeMappingRule:
+    """Represent outcome mapping rule state."""
+
     mapping_id: str
     outcome_scope: OutcomeScope
     outcome_status: OutcomeStatus
@@ -48,6 +52,8 @@ class OutcomeMappingRule:
 
 @frozen
 class ObservedOutcome:
+    """Represent observed outcome state."""
+
     outcome_scope: OutcomeScope
     outcome_status: OutcomeStatus
     is_retry: bool = False
@@ -56,6 +62,8 @@ class ObservedOutcome:
 
 @frozen
 class MappingValidationResult:
+    """Represent mapping validation result state."""
+
     status: Literal["pass", "fail"]
     matrix_profile: MatrixProfile
     ambiguous_outcomes: tuple[str, ...]
@@ -64,10 +72,12 @@ class MappingValidationResult:
 
     @property
     def is_valid(self) -> bool:
+        """Return valid."""
         return self.status == "pass"
 
 
 def normalize_outcome_status(value: object) -> OutcomeStatus | None:
+    """Normalize outcome status."""
     if value is None:
         return None
     normalized = str(value).strip().split(".")[-1].lower()
@@ -77,6 +87,7 @@ def normalize_outcome_status(value: object) -> OutcomeStatus | None:
 
 
 def normalize_outcome_scope(value: object) -> OutcomeScope | None:
+    """Normalize outcome scope."""
     if value is None:
         return None
     normalized = str(value).strip().lower()
@@ -86,6 +97,7 @@ def normalize_outcome_scope(value: object) -> OutcomeScope | None:
 
 
 def outcome_key(scope: OutcomeScope, status: OutcomeStatus) -> str:
+    """Handle outcome key."""
     return f"{scope}:{status}"
 
 
@@ -95,6 +107,7 @@ def find_matching_rules(
     outcome_scope: OutcomeScope,
     outcome_status: OutcomeStatus,
 ) -> list[OutcomeMappingRule]:
+    """Find matching rules."""
     return [rule for rule in rules if rule.outcome_scope == outcome_scope and rule.outcome_status == outcome_status]
 
 
@@ -104,6 +117,7 @@ def resolve_outcome_mapping(
     outcome_scope: OutcomeScope,
     outcome_status: OutcomeStatus,
 ) -> tuple[OutcomeMappingRule | None, bool]:
+    """Resolve outcome mapping."""
     matches = sorted(
         find_matching_rules(rules, outcome_scope=outcome_scope, outcome_status=outcome_status),
         key=lambda rule: rule.priority,
@@ -137,6 +151,7 @@ def validate_outcome_mappings(
     *,
     matrix_profile: MatrixProfile = MATRIX_PROFILE_FIXED_RELEASE_READINESS_V1,
 ) -> MappingValidationResult:
+    """Validate outcome mappings."""
     ambiguous: list[str] = []
     unmapped: list[str] = []
 

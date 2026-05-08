@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 import mimetypes
 from collections.abc import Collection, Iterator, Sequence
 from contextlib import suppress
@@ -140,12 +142,15 @@ class _ModernTestCollector:
 
 
 class ScenarioTestCollector(_ModernTestCollector):
+    """Collect scenario-backed pytest items from feature files."""
+
     @pytest.hookimpl(tryfirst=True)
     def pytest_plugin_registered(
         self,
         plugin: object,
         manager: object,  # noqa: ARG002 hookimpl
     ) -> None:
+        """Handle plugin registered."""
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
             StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(
                 cast(StepDefinitionManager.NamespaceStepRegistryProtocol, plugin)
@@ -153,6 +158,7 @@ class ScenarioTestCollector(_ModernTestCollector):
 
     @pytest.hookimpl
     def pytest_generate_tests(self, metafunc: Metafunc) -> None:
+        """Handle generate tests."""
         config = metafunc.config
 
         # build marker locators
@@ -182,6 +188,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         pickle: Pickle,
         tag: str,
     ) -> Collection[Mark | MarkDecorator] | None:
+        """Handle bdd convert tag to marks."""
         _ = gherkin_document
         _ = pickle
         return [getattr(pytest.mark, tag)]
@@ -192,6 +199,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         request: FixtureRequest,
         run: Run,
     ) -> StepDefinitionManager.Definition:
+        """Handle bdd match step definition to step."""
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         pickle = require_pickle_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
@@ -207,6 +215,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> Mimetype | None:
+        """Handle bdd get mimetype."""
         mimetype_string, _encoding = mimetypes.guess_type(path)
         if mimetype_string is None:
             return None
@@ -226,6 +235,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         mimetype: str,
     ) -> type[ParserProtocol] | None:
+        """Handle bdd get parser."""
         with suppress(KeyError, ValueError):
             return {
                 Mimetype.gherkin_plain: GherkinParser,
@@ -239,6 +249,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> bool | None:
+        """Handle bdd is collectible."""
         return (
             any(
                 map(
@@ -254,6 +265,7 @@ class ScenarioTestCollector(_ModernTestCollector):
 
     @staticmethod
     def is_enabled(config: Config) -> bool:
+        """Return enabled."""
         is_enabled = config.getoption(str(FeatureAutoLoad.Cli.DISABLE_OPTION))
         if is_enabled is None:
             is_enabled = not config.getini(str(FeatureAutoLoad.Ini.DISABLE_OPTION))

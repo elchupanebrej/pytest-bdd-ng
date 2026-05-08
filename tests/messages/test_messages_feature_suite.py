@@ -1,3 +1,5 @@
+"""Provide test messages feature suite helpers."""
+
 from __future__ import annotations
 
 import os
@@ -267,6 +269,7 @@ def _build_feature_suite(testdir: Testdir, tmp_path: Path) -> dict[str, list[obj
 
 
 def test_feature_driven_message_suite_matches_yaml_oracle(testdir: Testdir, tmp_path: Path) -> None:
+    """Verify feature driven message suite matches yaml oracle."""
     payloads_by_kind = _build_feature_suite(testdir, tmp_path)
     oracle_payload_tree = load_oracle_payload_tree(ORACLE_PATH)
 
@@ -299,6 +302,7 @@ def test_feature_driven_message_suite_covers_optional_field_depth_and_outcomes(
     testdir: Testdir,
     tmp_path: Path,
 ) -> None:
+    """Verify feature driven message suite covers optional field depth and outcomes."""
     payloads_by_kind = _build_feature_suite(testdir, tmp_path)
 
     hook_payloads = [payload for payload in payloads_by_kind["hook"] if isinstance(payload, Hook)]
@@ -346,6 +350,7 @@ def test_feature_driven_message_suite_consolidates_xdist_output_into_one_stream(
     testdir: Testdir,
     tmp_path: Path,
 ) -> None:
+    """Verify feature driven message suite consolidates xdist output into one stream."""
     pytest.importorskip("xdist")
 
     messages = _generate_feature_suite_messages(testdir, tmp_path, xdist_workers=2)
@@ -368,6 +373,7 @@ def test_feature_driven_message_suite_html_report_renders_in_browser(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify feature driven message suite html report renders in browser."""
     playwright_sync_api = pytest.importorskip("playwright.sync_api")
     browsers_path = _resolve_playwright_browsers_path()
     if browsers_path is None:

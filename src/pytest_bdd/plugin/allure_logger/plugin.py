@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 import json
 import os
 from collections.abc import Iterator, Mapping
@@ -69,11 +71,19 @@ class _AllureListenerProtocol(Protocol):
 
 
 class ValueSerializer(Protocol):
-    def __call__(self, instance: object, field: object, value: object) -> object: ...
+    """Represent value serializer state."""
+
+    def __call__(self, instance: object, field: object, value: object) -> object:
+        """Handle call."""
+        ...
 
 
 class AttrsAsDict(Protocol):
-    def __call__(self, instance: object, **kwargs: object) -> dict[str, object]: ...
+    """Represent attrs as dict state."""
+
+    def __call__(self, instance: object, **kwargs: object) -> dict[str, object]:
+        """Handle call."""
+        ...
 
 
 def _node_callspec(node: object) -> _CallSpecProtocol | None:
@@ -118,7 +128,16 @@ def _patched_asdict(
 
 
 class PatchedAllureListener:
+    """
+    Represent patched allure listener state.
+
+    Yields:
+        Generated values.
+
+    """
+
     def __init__(self, allure_listener: _AllureListenerProtocol) -> None:
+        """Initialize the patched allure listener."""
         self.allure_listener = allure_listener
         self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
@@ -127,14 +146,24 @@ class PatchedAllureListener:
         self,
         result: object,  # noqa: ARG002 hookspec
     ) -> Iterator[None]:
+        """
+        Handle report result.
+
+        Yields:
+            Generated values.
+
+        """
         with patch("allure_commons.logger.asdict", new=_patched_asdict):
             yield
 
 
 class AllureLogger:
+    """Represent allure logger state."""
+
     plugin_name = "pytest-bdd-internal-allure-logger"
 
     def __init__(self, allure_listener: _AllureListenerProtocol) -> None:
+        """Initialize the allure logger."""
         self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
 
     @pytest.hookimpl
@@ -152,6 +181,7 @@ class AllureLogger:
 
     @pytest.hookimpl
     def pytest_bdd_before_scenario(self, request: FixtureRequest, run: Run) -> None:
+        """Handle the pytest bdd before scenario pytest hook."""
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_before_scenario")
         pickle = require_pickle_object(run, hook_name="pytest_bdd_before_scenario")
         scenario_result_uuid = self._cache.get(pickle)
@@ -184,6 +214,7 @@ class AllureLogger:
         request: FixtureRequest,  # noqa: ARG002 hookspec
         run: Run,
     ) -> None:
+        """Handle the pytest bdd after scenario pytest hook."""
         pickle = require_pickle_object(run, hook_name="pytest_bdd_after_scenario")
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
@@ -197,6 +228,7 @@ class AllureLogger:
         run: Run,
         exception: Exception,
     ) -> None:
+        """Handle the pytest bdd step func lookup error pytest hook."""
         pickle = require_pickle_object(run, hook_name="pytest_bdd_step_func_lookup_error")
         scenario_result_uuid = self._cache.get(pickle)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
@@ -206,6 +238,7 @@ class AllureLogger:
 
     @staticmethod
     def get_params(node: object) -> list[object] | None:
+        """Return params."""
         callspec = _node_callspec(node)
         if callspec is not None:
             params = callspec.params
@@ -214,6 +247,7 @@ class AllureLogger:
 
     @staticmethod
     def get_name(node: Item, pickle: Pickle) -> str:
+        """Return name."""
         if _node_callspec(node) is not None:
             parts = node.nodeid.rsplit("[")
             return f"{pickle.name} [{parts[-1]}"
@@ -221,6 +255,7 @@ class AllureLogger:
 
     @staticmethod
     def get_full_name(gherkin_document: GherkinDocument, pickle: Pickle) -> str:
+        """Return full name."""
         uri = str(gherkin_document.uri)
         feature_path = uri.removeprefix("file:") if uri.startswith("file:") else uri
         return f"{os.path.normpath(feature_path)}:{pickle.name}"

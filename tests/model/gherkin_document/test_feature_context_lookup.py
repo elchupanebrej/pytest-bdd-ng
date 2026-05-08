@@ -1,3 +1,5 @@
+"""Provide test feature context lookup helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -53,12 +55,14 @@ def _build_gherkin_document() -> GherkinDocument:
 
 
 def test_gherkin_document_does_not_expose_registry_attribute() -> None:
+    """Verify gherkin document does not expose registry attribute."""
     gherkin_document = _build_gherkin_document()
 
     assert hasattr(gherkin_document, "registry") is False
 
 
 def test_run_feature_binding_indexes_gherkin_document_objects_in_run_registry() -> None:
+    """Verify run feature binding indexes gherkin document objects in run registry."""
     gherkin_document = _build_gherkin_document()
     config = SimpleNamespace(stash={})
     run = Run.initialize_for_config(stash=config.stash, config=config)
@@ -78,6 +82,7 @@ def test_run_feature_binding_indexes_gherkin_document_objects_in_run_registry() 
 
 
 def test_run_feature_binding_is_reused_for_same_gherkin_document() -> None:
+    """Verify run feature binding is reused for same gherkin document."""
     gherkin_document = _build_gherkin_document()
     config = SimpleNamespace(stash={})
     run = Run.initialize_for_config(stash=config.stash, config=config)

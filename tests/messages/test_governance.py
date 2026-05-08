@@ -1,3 +1,5 @@
+"""Provide test governance helpers."""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +19,7 @@ def _single_field_inventory() -> CapabilityInventory:
 
 
 def test_governance_report_generation_conforms_to_contract_shape(tmp_path) -> None:
+    """Verify governance report generation conforms to contract shape."""
     messages_file = tmp_path / "messages.ndjson"
     messages_file.write_text(
         '{"testRunStarted":{"id":"123","timestamp":{"seconds":0,"nanos":0}}}\n',
@@ -47,6 +50,7 @@ def test_governance_report_generation_conforms_to_contract_shape(tmp_path) -> No
 
 
 def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> None:
+    """Verify governance diff supports governance report input flags."""
     previous = tmp_path / "previous-governance.json"
     current = tmp_path / "current-governance.json"
     output = tmp_path / "baseline-diff.json"
@@ -127,6 +131,7 @@ def test_governance_diff_supports_governance_report_input_flags(tmp_path) -> Non
 
 
 def test_governance_report_strict_mode_fails_on_pending_without_decision(tmp_path, monkeypatch) -> None:
+    """Verify governance report strict mode fails on pending without decision."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -155,6 +160,7 @@ def test_governance_report_strict_mode_fails_on_pending_without_decision(tmp_pat
 
 
 def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkeypatch) -> None:
+    """Verify governance report applies decision file in strict mode."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -205,6 +211,7 @@ def test_governance_report_applies_decision_file_in_strict_mode(tmp_path, monkey
 
 
 def test_governance_report_accepts_partly_applicable_decision_with_required_comment(tmp_path, monkeypatch) -> None:
+    """Verify governance report accepts partly applicable decision with required comment."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -254,6 +261,7 @@ def test_governance_report_accepts_partly_applicable_decision_with_required_comm
 
 
 def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, monkeypatch) -> None:
+    """Verify governance report rejects unknown decision capability ids."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -296,6 +304,7 @@ def test_governance_report_rejects_unknown_decision_capability_ids(tmp_path, mon
 
 
 def test_governance_report_loads_runtime_required_scope_with_unique_ids(tmp_path, monkeypatch) -> None:
+    """Verify governance report loads runtime required scope with unique ids."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -334,6 +343,7 @@ def test_governance_report_loads_runtime_required_scope_with_unique_ids(tmp_path
 
 
 def test_governance_report_rejects_unknown_runtime_required_capability_ids(tmp_path, monkeypatch) -> None:
+    """Verify governance report rejects unknown runtime required capability ids."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -361,6 +371,7 @@ def test_governance_report_rejects_unknown_runtime_required_capability_ids(tmp_p
 
 
 def test_governance_report_rejects_runtime_required_ids_outside_mandatory_scope(tmp_path, monkeypatch) -> None:
+    """Verify governance report rejects runtime required ids outside mandatory scope."""
     inventory = CapabilityInventory(
         payload_kinds=["testRunStarted"],
         fields={
@@ -399,6 +410,7 @@ def test_governance_report_rejects_runtime_required_ids_outside_mandatory_scope(
 
 
 def test_governance_report_runtime_required_gate_requires_scope_file(tmp_path) -> None:
+    """Verify governance report runtime required gate requires scope file."""
     messages_file = tmp_path / "messages.ndjson"
     messages_file.write_text("", encoding="utf-8")
 
@@ -418,6 +430,7 @@ def test_governance_report_runtime_required_gate_requires_scope_file(tmp_path) -
 
 
 def test_governance_report_runtime_required_gate_fails_without_runtime_evidence(tmp_path, monkeypatch) -> None:
+    """Verify governance report runtime required gate fails without runtime evidence."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -451,6 +464,7 @@ def test_governance_report_runtime_required_gate_fails_without_runtime_evidence(
 def test_governance_report_rejects_partly_applicable_decision_for_runtime_required_capability(
     tmp_path, monkeypatch
 ) -> None:
+    """Verify governance report rejects partly applicable decision for runtime required capability."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -501,6 +515,7 @@ def test_governance_report_rejects_partly_applicable_decision_for_runtime_requir
 
 
 def test_governance_report_non_runtime_classification_gate_fails_without_decisions(tmp_path, monkeypatch) -> None:
+    """Verify governance report non runtime classification gate fails without decisions."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -526,6 +541,7 @@ def test_governance_report_non_runtime_classification_gate_fails_without_decisio
 
 
 def test_governance_report_rejects_non_implementable_without_required_hard_issue_fields(tmp_path, monkeypatch) -> None:
+    """Verify governance report rejects non implementable without required hard issue fields."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )
@@ -568,6 +584,7 @@ def test_governance_report_rejects_non_implementable_without_required_hard_issue
 
 
 def test_governance_report_rejects_non_implementable_when_runtime_evidence_exists(tmp_path, monkeypatch) -> None:
+    """Verify governance report rejects non implementable when runtime evidence exists."""
     monkeypatch.setattr(
         message_capability_governance, "generate_inventory", lambda _schema_dir: _single_field_inventory()
     )

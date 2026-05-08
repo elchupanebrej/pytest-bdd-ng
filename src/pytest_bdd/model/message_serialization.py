@@ -1,3 +1,5 @@
+"""Provide message serialization helpers."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -9,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class MessageSerializationProfile(str, Enum):
+    """Represent message serialization profile state."""
+
     extended = "extended"
     schema_compatible = "schema_compatible"
 
@@ -28,6 +32,7 @@ def normalize_envelope_dict_for_profile(
     *,
     profile: MessageSerializationProfile,
 ) -> JSONObject:
+    """Normalize envelope dict for profile."""
     if profile is MessageSerializationProfile.extended:
         return envelope_dict
 

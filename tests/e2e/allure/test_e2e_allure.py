@@ -1,3 +1,5 @@
+"""Provide test e2e allure helpers."""
+
 from pytest_bdd import scenarios
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 

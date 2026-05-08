@@ -1,3 +1,5 @@
+"""Provide test steps helpers."""
+
 import textwrap
 
 import pytest
@@ -8,6 +10,7 @@ pytestmark = [pytest.mark.technical_nonconvertible]
 
 
 def test_steps(testdir):
+    """Verify steps."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -111,6 +114,7 @@ def test_all_steps_can_provide_fixtures(testdir):
 
 
 def test_when_first(testdir):
+    """Verify when first."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -143,6 +147,7 @@ def test_when_first(testdir):
 
 
 def test_then_after_given(testdir):
+    """Verify then after given."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -184,6 +189,7 @@ def test_then_after_given(testdir):
     ],
 )
 def test_unknown_first(testdir, keyword):
+    """Verify unknown first."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -217,6 +223,7 @@ def test_unknown_first(testdir, keyword):
 
 
 def test_conftest(testdir):
+    """Verify conftest."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -475,6 +482,7 @@ def test_step_trace(testdir):
 
 
 def test_steps_parameter_mapping(testdir):
+    """Verify steps parameter mapping."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -509,6 +517,7 @@ def test_steps_parameter_mapping(testdir):
 
 
 def test_steps_parameter_mapping_could_redirect_to_fixture(testdir):
+    """Verify steps parameter mapping could redirect to fixture."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -545,6 +554,7 @@ def test_steps_parameter_mapping_could_redirect_to_fixture(testdir):
 
 @pytest.mark.parametrize("mapping_string", ["{...: None}", "False", "()"])
 def test_steps_parameter_mapping_rejection_for_all_parameters(testdir, mapping_string):
+    """Verify steps parameter mapping rejection for all parameters."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -592,6 +602,7 @@ def test_steps_parameter_mapping_rejection_for_all_parameters(testdir, mapping_s
 
 @pytest.mark.parametrize("mapping_string", ["{...: ...}", "True", "(...)"])
 def test_steps_parameter_mapping_acceptance_for_all_parameters(testdir, mapping_string):
+    """Verify steps parameter mapping acceptance for all parameters."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -634,6 +645,7 @@ def test_steps_parameter_mapping_acceptance_for_all_parameters(testdir, mapping_
 def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcard(
     testdir,
 ):
+    """Verify steps parameter mapping acceptance for non listed parameters by wildcard."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -722,6 +734,7 @@ def test_steps_with_yield(testdir):
 
 
 def test_liberal_step_decorator(testdir, tmp_path):
+    """Verify liberal step decorator."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -777,6 +790,7 @@ def test_liberal_step_decorator(testdir, tmp_path):
 
 
 def test_liberal_keyworded_step_decorator(testdir, tmp_path):
+    """Verify liberal keyworded step decorator."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -832,6 +846,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
 
 
 def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
+    """Verify liberal keyworded step decorator cli option."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -887,6 +902,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
 
 
 def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
+    """Verify liberal keyworded step decorator ini option."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -944,6 +960,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
 
 
 def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_path):
+    """Verify strict step has precedence over liberal step decorator."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -1015,6 +1032,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
 
 
 def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
+    """Verify found alternate step decorators produce warning."""
     testdir.makeini(
         f"""\
         [pytest]
@@ -1078,6 +1096,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
 
 
 def test_extend_steps_from_step(testdir):
+    """Verify extend steps from step."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -1120,6 +1139,7 @@ def test_extend_steps_from_step(testdir):
 
 
 def test_default_params(testdir):
+    """Verify default params."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -1345,6 +1365,7 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
 def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(
     testdir,
 ):
+    """Verify steps parameters injected as fixtures are not shared between scenarios."""
     testdir.makefile(
         ".feature",
         # language=gherkin

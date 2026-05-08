@@ -1,3 +1,5 @@
+"""Provide test scenario reference resolution helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -75,6 +77,7 @@ def _build_feature_binding(run: Run, entries: dict[str, object]) -> FeatureRunti
 
 
 def test_step_run_resolves_scenario_description_from_context_registry() -> None:
+    """Verify step run resolves scenario description from context registry."""
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(
@@ -95,6 +98,7 @@ def test_step_run_resolves_scenario_description_from_context_registry() -> None:
 
 
 def test_step_run_prefers_first_ast_node_id_for_nested_links() -> None:
+    """Verify step run prefers first ast node id for nested links."""
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(
@@ -118,6 +122,7 @@ def test_step_run_prefers_first_ast_node_id_for_nested_links() -> None:
 
 
 def test_step_run_records_missing_scenario_reference_in_context_diagnostics() -> None:
+    """Verify step run records missing scenario reference in context diagnostics."""
     scenario_run = _build_scenario_run()
     scenario_run.run.active_scenario_run = scenario_run
     binding = _build_feature_binding(scenario_run.run, {})
@@ -137,6 +142,7 @@ def test_step_run_records_missing_scenario_reference_in_context_diagnostics() ->
 
 
 def test_previous_step_defaults_to_explicit_empty_object() -> None:
+    """Verify previous step defaults to explicit empty object."""
     scenario_run = _build_scenario_run()
 
     assert scenario_run.previous_step_object is not None
@@ -144,6 +150,7 @@ def test_previous_step_defaults_to_explicit_empty_object() -> None:
 
 
 def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> None:
+    """Verify resolve step runtime enrichment for nested rule background link."""
     model_step = Step(
         id="rule-background-step-id",
         keyword="Given ",
@@ -188,6 +195,7 @@ def test_resolve_step_runtime_enrichment_for_nested_rule_background_link() -> No
 
 
 def test_resolve_step_runtime_enrichment_records_missing_link_diagnostics() -> None:
+    """Verify resolve step runtime enrichment records missing link diagnostics."""
     scenario_run = _build_scenario_run()
     binding = _build_feature_binding(scenario_run.run, {})
     scenario_run.feature_uri = binding.uri

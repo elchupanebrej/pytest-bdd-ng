@@ -1,3 +1,5 @@
+"""Provide test render cucumber formatters helpers."""
+
 import textwrap
 from pathlib import Path
 
@@ -22,6 +24,7 @@ def test_render_cucumber_formatters_renders_from_existing_ndjson(
     monkeypatch,
     capsys,
 ) -> None:
+    """Verify render cucumber formatters renders from existing ndjson."""
     install_fake_node(monkeypatch, tmp_path)
     monkeypatch.chdir(tmp_path)
     messages_path = tmp_path / "messages.ndjson"
@@ -67,6 +70,7 @@ def test_render_cucumber_formatters_rejects_multiple_terminal_outputs(
     monkeypatch,
     capsys,
 ) -> None:
+    """Verify render cucumber formatters rejects multiple terminal outputs."""
     install_fake_node(monkeypatch, tmp_path)
     monkeypatch.chdir(tmp_path)
     messages_path = tmp_path / "messages.ndjson"
@@ -100,6 +104,7 @@ def test_render_cucumber_formatters_rejects_missing_output_directory(
     monkeypatch,
     capsys,
 ) -> None:
+    """Verify render cucumber formatters rejects missing output directory."""
     install_fake_node(monkeypatch, tmp_path)
     monkeypatch.chdir(tmp_path)
     messages_path = tmp_path / "messages.ndjson"
@@ -133,6 +138,7 @@ def test_render_cucumber_formatters_auto_installs_missing_packages(
     monkeypatch,
     capsys,
 ) -> None:
+    """Verify render cucumber formatters auto installs missing packages."""
     install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
     monkeypatch.chdir(tmp_path)
     messages_path = tmp_path / "messages.ndjson"
@@ -172,6 +178,7 @@ def test_render_cucumber_formatters_auto_installs_missing_packages(
 
 
 def test_live_formatter_bridge_loads_from_packaged_template_asset() -> None:
+    """Verify live formatter bridge loads from packaged template asset."""
     template_source = load_live_formatter_bridge_template()
     support_source = load_formatter_adapter_support_template()
     progress_source = load_formatter_adapter_template("progress.cjs.j2")
@@ -185,6 +192,7 @@ def test_live_formatter_bridge_loads_from_packaged_template_asset() -> None:
 
 
 def test_runtime_materialization_only_writes_requested_formatter_assets(tmp_path: Path) -> None:
+    """Verify runtime materialization only writes requested formatter assets."""
     script_path, formatter_specs = materialize_live_formatter_runtime(tmp_path, "progress", "usage")
 
     assert script_path.exists()
@@ -196,6 +204,7 @@ def test_runtime_materialization_only_writes_requested_formatter_assets(tmp_path
 
 
 def test_pyproject_lists_live_formatter_bridge_template_as_package_data() -> None:
+    """Verify pyproject lists live formatter bridge template as package data."""
     pyproject = loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8"))
     package_data = pyproject["tool"]["setuptools"]["package-data"]
 

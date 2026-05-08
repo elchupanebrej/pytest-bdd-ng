@@ -1,3 +1,5 @@
+"""Provide report helpers."""
+
 import time
 from typing import Literal, TypedDict
 
@@ -10,6 +12,8 @@ RuntimeStepStatus = Literal["passed", "failed"]
 
 
 class StepReportData(TypedDict):
+    """Represent step report data state."""
+
     name: str
     type: str | None
     keyword: str | None
@@ -20,6 +24,8 @@ class StepReportData(TypedDict):
 
 
 class FeatureReportData(TypedDict):
+    """Represent feature report data state."""
+
     name: str | None
     filename: str
     rel_filename: str | None
@@ -29,6 +35,8 @@ class FeatureReportData(TypedDict):
 
 
 class ScenarioReportData(TypedDict):
+    """Represent scenario report data state."""
+
     steps: list[StepReportData]
     name: str
     line_number: int
@@ -37,6 +45,7 @@ class ScenarioReportData(TypedDict):
 
 
 def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) -> RuntimeStepStatus:
+    """Normalize runtime step status."""
     normalized = (status or "").strip().lower()
     if normalized == "passed":
         return "passed"
@@ -130,6 +139,7 @@ class ScenarioReport:
         self.step_reports.append(step_report)
 
     def set_context_snapshot(self, context_snapshot: ReportingContextSnapshot | None) -> None:
+        """Handle set context snapshot."""
         self.context_snapshot = context_snapshot
 
     def serialize(self) -> ScenarioReportData:

@@ -11,6 +11,7 @@ import pytest
     ],
 )
 def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_string):
+    """Verify every steps takes param with the same name."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -65,6 +66,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
     ],
 )
 def test_argument_in_when_step_1(testdir, parser_import_string):
+    """Verify argument in when step 1."""
     testdir.makefile(
         ".feature",
         # language=gherkin

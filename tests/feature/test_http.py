@@ -1,3 +1,5 @@
+"""Provide test http helpers."""
+
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
@@ -41,6 +43,7 @@ MINIMAL_CONFTEST = dedent(
 
 
 def test_feature_load_by_http_from_url_file(testdir, httpserver: HTTPServer):
+    """Verify feature load by http from url file."""
     httpserver.expect_request("/feature").respond_with_data(
         MINIMAL_FEATURE,
         content_type=Mimetype.gherkin_plain.value,
@@ -60,6 +63,7 @@ def test_feature_load_by_http_from_url_file(testdir, httpserver: HTTPServer):
 
 
 def test_feature_load_by_http_from_desktop_file(testdir, httpserver: HTTPServer):
+    """Verify feature load by http from desktop file."""
     httpserver.expect_request("/feature").respond_with_data(
         MINIMAL_FEATURE,
         content_type=Mimetype.gherkin_plain.value,
@@ -79,6 +83,7 @@ def test_feature_load_by_http_from_desktop_file(testdir, httpserver: HTTPServer)
 
 
 def test_feature_load_by_http_from_webloc_file(testdir: "Testdir", httpserver: HTTPServer):
+    """Verify feature load by http from webloc file."""
     httpserver.expect_request("/feature").respond_with_data(
         MINIMAL_FEATURE,
         content_type=Mimetype.gherkin_plain.value,
@@ -104,6 +109,7 @@ def test_feature_load_by_http_from_webloc_file(testdir: "Testdir", httpserver: H
 
 @pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")
 def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
+    """Verify struct bdd feature load by http."""
     httpserver.expect_request("/feature").respond_with_data(
         dedent(
             # language=yaml
@@ -144,6 +150,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
 
 
 def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
+    """Verify feature load by http with base url."""
     httpserver.expect_request("/feature").respond_with_data(
         MINIMAL_FEATURE,
         content_type=Mimetype.gherkin_plain.value,

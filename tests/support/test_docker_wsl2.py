@@ -1,3 +1,5 @@
+"""Provide test docker wsl2 helpers."""
+
 from __future__ import annotations
 
 import subprocess  # noqa: S404
@@ -20,11 +22,15 @@ from tests.support.docker_cluster import DockerClusterManager, DockerTimeouts
 
 
 class TestResolveToolPath:
+    """Represent test resolve tool path state."""
+
     def test_prefers_path_lookup(self):
+        """Verify prefers path lookup."""
         with patch("tests.support.docker.shutil.which", return_value=r"C:\tools\docker.exe"):
             assert _resolve_tool_path("docker") == r"C:\tools\docker.exe"
 
     def test_uses_windows_wsl_fallback_when_path_missing(self):
+        """Verify uses windows wsl fallback when path missing."""
         with (
             patch("tests.support.docker.shutil.which", return_value=None),
             patch("tests.support.docker.os.name", "nt"),
@@ -34,6 +40,7 @@ class TestResolveToolPath:
             assert _resolve_tool_path("wsl").lower().endswith(r"system32\wsl.exe")
 
     def test_uses_windows_docker_fallback_when_path_missing(self):
+        """Verify uses windows docker fallback when path missing."""
         with (
             patch("tests.support.docker.shutil.which", return_value=None),
             patch("tests.support.docker.os.name", "nt"),
@@ -44,7 +51,10 @@ class TestResolveToolPath:
 
 
 class TestAlpineWsl2Available:
+    """Represent test alpine wsl2 available state."""
+
     def test_returns_true_when_alpine_wsl2_found(self):
+        """Verify returns true when alpine wsl2 found."""
         wsl_output = subprocess.CompletedProcess(
             args=["wsl", "-l", "-v"],
             returncode=0,
@@ -58,6 +68,7 @@ class TestAlpineWsl2Available:
             assert _alpine_wsl2_available() is True
 
     def test_returns_false_when_alpine_not_present(self):
+        """Verify returns false when alpine not present."""
         wsl_output = subprocess.CompletedProcess(
             args=["wsl", "-l", "-v"],
             returncode=0,
@@ -71,10 +82,12 @@ class TestAlpineWsl2Available:
             assert _alpine_wsl2_available() is False
 
     def test_returns_false_when_wsl_not_found(self):
+        """Verify returns false when wsl not found."""
         with patch("tests.support.docker.shutil.which", return_value=None):
             assert _alpine_wsl2_available() is False
 
     def test_returns_false_when_wsl_command_fails(self):
+        """Verify returns false when wsl command fails."""
         wsl_output = subprocess.CompletedProcess(
             args=["wsl", "-l", "-v"],
             returncode=1,
@@ -88,6 +101,7 @@ class TestAlpineWsl2Available:
             assert _alpine_wsl2_available() is False
 
     def test_returns_false_when_alpine_version_1(self):
+        """Verify returns false when alpine version 1."""
         wsl_output = subprocess.CompletedProcess(
             args=["wsl", "-l", "-v"],
             returncode=0,
@@ -102,7 +116,10 @@ class TestAlpineWsl2Available:
 
 
 class TestStartDockerDesktop:
+    """Represent test start docker desktop state."""
+
     def test_starts_docker_desktop_successfully(self):
+        """Verify starts docker desktop successfully."""
         result = subprocess.CompletedProcess(
             args=["powershell", "-Command", "Start-Process", "docker-desktop", "-WindowStyle", "Hidden"],
             returncode=0,
@@ -117,7 +134,10 @@ class TestStartDockerDesktop:
 
 
 class TestWaitForDocker:
+    """Represent test wait for docker state."""
+
     def test_returns_true_when_docker_ready_immediately_native(self):
+        """Verify returns true when docker ready immediately native."""
         result = subprocess.CompletedProcess(
             args=["docker", "info"],
             returncode=0,
@@ -132,6 +152,7 @@ class TestWaitForDocker:
             mock_run.assert_called_once()
 
     def test_returns_true_when_docker_ready_immediately_wsl2(self):
+        """Verify returns true when docker ready immediately wsl2."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "docker", "info"],
             returncode=0,
@@ -146,6 +167,7 @@ class TestWaitForDocker:
             mock_run.assert_called_once()
 
     def test_polls_until_ready_native(self):
+        """Verify polls until ready native."""
         fail_result = subprocess.CompletedProcess(
             args=["docker", "info"],
             returncode=1,
@@ -169,6 +191,7 @@ class TestWaitForDocker:
             assert mock_run.call_count == 3
 
     def test_polls_until_ready_wsl2(self):
+        """Verify polls until ready wsl2."""
         fail_result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "docker", "info"],
             returncode=1,
@@ -192,6 +215,7 @@ class TestWaitForDocker:
             assert mock_run.call_count == 3
 
     def test_returns_false_on_timeout(self):
+        """Verify returns false on timeout."""
         fail_result = subprocess.CompletedProcess(
             args=["docker", "info"],
             returncode=1,
@@ -207,7 +231,10 @@ class TestWaitForDocker:
 
 
 class TestEnsureDockerCliInAlpine:
+    """Represent test ensure docker cli in alpine state."""
+
     def test_does_nothing_when_docker_cli_exists(self):
+        """Verify does nothing when docker cli exists."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "which", "docker"],
             returncode=0,
@@ -222,6 +249,7 @@ class TestEnsureDockerCliInAlpine:
             mock_run.assert_called_once()
 
     def test_installs_docker_cli_when_missing(self):
+        """Verify installs docker cli when missing."""
         which_result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "which", "docker"],
             returncode=1,
@@ -242,6 +270,7 @@ class TestEnsureDockerCliInAlpine:
             assert mock_run.call_count == 2
 
     def test_fails_when_installation_fails(self):
+        """Verify fails when installation fails."""
         which_result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "which", "docker"],
             returncode=1,
@@ -263,7 +292,10 @@ class TestEnsureDockerCliInAlpine:
 
 
 class TestDockerDaemonAvailable:
+    """Represent test docker daemon available state."""
+
     def test_returns_native_when_native_docker_works(self):
+        """Verify returns native when native docker works."""
         docker_bin = "/usr/bin/docker"
         info_result = subprocess.CompletedProcess(
             args=[docker_bin, "info"],
@@ -281,6 +313,7 @@ class TestDockerDaemonAvailable:
             assert backend == "native"
 
     def test_returns_wsl2_when_native_fails_but_wsl2_works(self):
+        """Verify returns wsl2 when native fails but wsl2 works."""
         docker_bin = "/usr/bin/docker"
         info_result = subprocess.CompletedProcess(
             args=[docker_bin, "info"],
@@ -305,6 +338,7 @@ class TestDockerDaemonAvailable:
             assert backend == "wsl2"
 
     def test_returns_false_when_both_fail_and_desktop_not_available(self):
+        """Verify returns false when both fail and desktop not available."""
         docker_bin = "/usr/bin/docker"
         info_result = subprocess.CompletedProcess(
             args=[docker_bin, "info"],
@@ -330,12 +364,16 @@ class TestDockerDaemonAvailable:
 
 
 class TestRequireDockerDaemon:
+    """Represent test require docker daemon state."""
+
     def test_returns_backend_when_available(self):
+        """Verify returns backend when available."""
         with patch("tests.support.docker.docker_daemon_available", return_value=(True, "native")):
             result = require_docker_daemon()
             assert result == "native"
 
     def test_refreshes_cached_probe_before_checking_environment(self):
+        """Verify refreshes cached probe before checking environment."""
         availability_probe = Mock(return_value=(True, "native"))
         availability_probe.cache_clear = Mock()
         with patch("tests.support.docker.docker_daemon_available", availability_probe):
@@ -344,6 +382,7 @@ class TestRequireDockerDaemon:
             availability_probe.cache_clear.assert_called_once_with()
 
     def test_fails_when_docker_desktop_not_installed(self):
+        """Verify fails when docker desktop not installed."""
         with (
             patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
             patch("tests.support.docker._resolve_tool_path", return_value=None),
@@ -352,6 +391,7 @@ class TestRequireDockerDaemon:
             require_docker_daemon()
 
     def test_fails_when_wsl2_alpine_not_found(self):
+        """Verify fails when wsl2 alpine not found."""
         with (
             patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
             patch("tests.support.docker._resolve_tool_path", return_value="/usr/bin/docker"),
@@ -362,7 +402,10 @@ class TestRequireDockerDaemon:
 
 
 class TestDockerTimeouts:
+    """Represent test docker timeouts state."""
+
     def test_default_values(self):
+        """Verify default values."""
         timeouts = DockerTimeouts()
         assert timeouts.startup_poll == 60
         assert timeouts.compose_up == 300
@@ -373,6 +416,7 @@ class TestDockerTimeouts:
         assert timeouts.overall_session == 900
 
     def test_overall_session_gte_sum_of_per_step(self):
+        """Verify overall session gte sum of per step."""
         timeouts = DockerTimeouts()
         per_step_sum = (
             timeouts.startup_poll
@@ -385,6 +429,7 @@ class TestDockerTimeouts:
         assert timeouts.overall_session >= per_step_sum
 
     def test_custom_values(self):
+        """Verify custom values."""
         timeouts = DockerTimeouts(compose_up=60, compose_exec=120)
         assert timeouts.compose_up == 60
         assert timeouts.compose_exec == 120
@@ -392,7 +437,10 @@ class TestDockerTimeouts:
 
 
 class TestRunWslCmd:
+    """Represent test run wsl cmd state."""
+
     def test_constructs_wsl_command_correctly(self):
+        """Verify constructs wsl command correctly."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "docker", "compose", "up", "-d"],
             returncode=0,
@@ -413,6 +461,7 @@ class TestRunWslCmd:
             assert call_args.kwargs["timeout"] == 120
 
     def test_passes_env_and_capture_settings(self):
+        """Verify passes env and capture settings."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "docker", "info"],
             returncode=0,
@@ -431,6 +480,7 @@ class TestRunWslCmd:
             assert call_kwargs["text"] is True
 
     def test_inlines_env_overrides_into_wsl_command(self):
+        """Verify inlines env overrides into wsl command."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "env", "PYTEST_REMOTE_MODE=ssh", "docker", "compose", "up", "-d"],
             returncode=0,
@@ -456,6 +506,7 @@ class TestRunWslCmd:
             assert call_args[-4:] == ["docker", "compose", "up", "-d"]
 
     def test_returns_completed_process(self):
+        """Verify returns completed process."""
         result = subprocess.CompletedProcess(
             args=["wsl", "-d", "Alpine", "--", "echo", "hello"],
             returncode=0,
@@ -474,6 +525,8 @@ class TestRunWslCmd:
 
 
 class TestDockerClusterManagerBackend:
+    """Represent test docker cluster manager backend state."""
+
     def test_wsl2_backend_routes_get_cluster_through_wsl(self):
         """DockerClusterManager with backend='wsl2' uses _run_wsl_cmd in get_cluster."""
         up_result = subprocess.CompletedProcess(
@@ -539,6 +592,7 @@ class TestDockerClusterManagerBackend:
             assert "exec" in exec_args
 
     def test_native_backend_uses_stable_compose_project_name_for_up_and_exec(self):
+        """Verify native backend uses stable compose project name for up and exec."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -566,6 +620,7 @@ class TestDockerClusterManagerBackend:
             assert exec_env["COMPOSE_PROJECT_NAME"] == up_env["COMPOSE_PROJECT_NAME"]
 
     def test_compose_up_sets_remote_mode_for_cluster_services(self):
+        """Verify compose up sets remote mode for cluster services."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -585,6 +640,7 @@ class TestDockerClusterManagerBackend:
             assert up_env["PYTEST_REMOTE_MODE"] == "ssh"
 
     def test_run_in_controller_uses_compose_mounted_artifacts_directory(self):
+        """Verify run in controller uses compose mounted artifacts directory."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -608,6 +664,7 @@ class TestDockerClusterManagerBackend:
             assert artifact_dir == Path("/fixtures") / "artifacts"
 
     def test_run_in_controller_disables_tty_for_compose_exec(self):
+        """Verify run in controller disables tty for compose exec."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -634,6 +691,7 @@ class TestDockerClusterManagerBackend:
             assert "-T" in exec_args
 
     def test_run_in_controller_uses_explicit_exec_env_values(self):
+        """Verify run in controller uses explicit exec env values."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -695,6 +753,7 @@ class TestDockerClusterManagerBackend:
         assert mgr.backend == "native"
 
     def test_session_timer_starts_on_first_cluster_use(self):
+        """Verify session timer starts on first cluster use."""
         up_result = subprocess.CompletedProcess(
             args=["docker", "compose", "up", "-d", "--build"],
             returncode=0,
@@ -716,6 +775,8 @@ class TestDockerClusterManagerBackend:
 
 
 class TestDockerComposeRelativeMounts:
+    """Represent test docker compose relative mounts state."""
+
     def test_local_images_have_build_config(self):
         """docker-compose.yml local-tagged services should be buildable without registry pulls."""
         import yaml
@@ -783,6 +844,8 @@ class TestDockerComposeRelativeMounts:
 
 
 class TestEntrypointsSelfContained:
+    """Represent test entrypoints self contained state."""
+
     def test_controller_entrypoint_has_no_external_imports(self):
         """controller_entrypoint.py should only import stdlib + pytest + pytest-xdist."""
         import ast
@@ -813,6 +876,7 @@ class TestEntrypointsSelfContained:
                 assert top in allowed, f"worker_entrypoint.py imports from external module: {node.module}"
 
     def test_controller_entrypoint_waits_for_ssh_command_readiness(self):
+        """Verify controller entrypoint waits for ssh command readiness."""
         entrypoint_path = (
             Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"
         )
@@ -825,7 +889,10 @@ class TestEntrypointsSelfContained:
 
 
 class TestFakeNodeRuntimeScripts:
+    """Represent test fake node runtime scripts state."""
+
     def test_node_and_npm_scripts_use_lf_newlines(self, tmp_path: Path):
+        """Verify node and npm scripts use lf newlines."""
         runtime = materialize_fake_node_runtime(
             tmp_path / "fake-node-runtime", preinstalled_packages=("@cucumber/cucumber",)
         )
@@ -840,7 +907,10 @@ class TestFakeNodeRuntimeScripts:
 
 
 class TestDockerfilesRelativeContext:
+    """Represent test dockerfiles relative context state."""
+
     def test_controller_dockerfile_installs_git_for_gitpython_imports(self):
+        """Verify controller dockerfile installs git for gitpython imports."""
         dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller.Dockerfile"
         content = Path(dockerfile_path).read_text(encoding="utf-8")
 
@@ -848,6 +918,7 @@ class TestDockerfilesRelativeContext:
         assert " git" in content or " git \\" in content
 
     def test_worker_dockerfile_installs_git_for_gitpython_imports(self):
+        """Verify worker dockerfile installs git for gitpython imports."""
         dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "worker.Dockerfile"
         content = Path(dockerfile_path).read_text(encoding="utf-8")
 

@@ -1,3 +1,5 @@
+"""Provide test message emission points helpers."""
+
 from __future__ import annotations
 
 import ast
@@ -140,6 +142,7 @@ def _collect_message_payload_emissions_by_method() -> dict[str, set[str]]:
 
 
 def test_message_emission_points_cover_expected_methods_and_payloads() -> None:
+    """Verify message emission points cover expected methods and payloads."""
     emissions_by_method = _collect_message_payload_emissions_by_method()
 
     missing_methods = sorted(set(EXPECTED_EMISSIONS_BY_METHOD).difference(set(emissions_by_method)))
@@ -156,6 +159,7 @@ def test_message_emission_points_cover_expected_methods_and_payloads() -> None:
 
 
 def test_message_emission_points_cover_all_supported_payload_kinds() -> None:
+    """Verify message emission points cover all supported payload kinds."""
     emissions_by_method = _collect_message_payload_emissions_by_method()
     emitted_payloads = set().union(*emissions_by_method.values(), EMITTED_OUTSIDE_REPORTER_PLUGIN)
     missing_payloads = sorted(set(PAYLOAD_KINDS).difference(emitted_payloads))
@@ -163,5 +167,6 @@ def test_message_emission_points_cover_all_supported_payload_kinds() -> None:
 
 
 def test_payload_hints_do_not_reference_current_prefixed_reporter_state() -> None:
+    """Verify payload hints do not reference current prefixed reporter state."""
     current_prefixed = sorted(hint for hint in PAYLOAD_HINTS if hint.startswith("current_"))
     assert current_prefixed == []

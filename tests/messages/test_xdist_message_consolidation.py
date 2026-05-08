@@ -1,3 +1,5 @@
+"""Provide test xdist message consolidation helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -233,6 +235,7 @@ def _worker_fragment(worker_id: str, scenario_name: str, *, complete: bool = Tru
 
 
 def test_consolidate_message_fragments_deduplicates_structure_and_preserves_worker_execution() -> None:
+    """Verify consolidate message fragments deduplicates structure and preserves worker execution."""
     consolidated = consolidate_message_fragments(
         [
             _controller_fragment(),
@@ -269,6 +272,7 @@ def test_consolidate_message_fragments_deduplicates_structure_and_preserves_work
 
 
 def test_consolidate_message_fragments_reports_incomplete_worker_fragments() -> None:
+    """Verify consolidate message fragments reports incomplete worker fragments."""
     consolidated = consolidate_message_fragments(
         [
             _controller_fragment(),
@@ -283,6 +287,7 @@ def test_consolidate_message_fragments_reports_incomplete_worker_fragments() -> 
 
 
 def test_consolidate_message_fragments_places_after_test_run_hook_before_final_run_finished() -> None:
+    """Verify consolidate message fragments places after test run hook before final run finished."""
     consolidated = consolidate_message_fragments(
         [
             _controller_fragment(),

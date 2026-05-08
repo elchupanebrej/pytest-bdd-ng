@@ -1,3 +1,5 @@
+"""Provide live reporting helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
@@ -12,6 +14,7 @@ def is_xdist_worker_process(config: Config) -> bool:
     # Nested standalone pytest subprocesses can inherit PYTEST_XDIST_* environment
     # variables from an outer xdist worker. Treat only configs with workerinput as
     # real xdist workers so regular child runs keep local reporting behavior.
+    """Return xdist worker process."""
     return hasattr(config, "workerinput")
 
 
@@ -20,6 +23,7 @@ def resolve_reporting_worker_identity(
     *,
     gateway_mode_resolver: GatewayModeResolver,
 ) -> tuple[str, str | None]:
+    """Resolve reporting worker identity."""
     if not is_xdist_worker_process(config):
         return "master", None
     workerinput = cast(Mapping[str, object], getattr(config, "workerinput", {}))
@@ -33,18 +37,21 @@ def resolve_reporting_worker_identity(
 
 
 def format_reporting_worker_id(worker_id: str, gateway_mode: str | None) -> str:
+    """Format reporting worker id."""
     if gateway_mode is None or gateway_mode == "popen" or worker_id == "master":
         return worker_id
     return f"{gateway_mode}:{worker_id}"
 
 
 def node_worker_id(node: object) -> str:
+    """Handle node worker id."""
     gateway = getattr(node, "gateway", None)
     gateway_id = getattr(gateway, "id", None)
     return str(gateway_id or "worker")
 
 
 def node_gateway_mode(node: object) -> str:
+    """Handle node gateway mode."""
     gateway = getattr(node, "gateway", None)
     spec = getattr(gateway, "spec", None)
     if spec is None:
@@ -59,6 +66,7 @@ def node_gateway_mode(node: object) -> str:
 
 
 def build_reporting_worker_environment(workerinput: Mapping[str, object]) -> dict[str, str]:
+    """Build reporting worker environment."""
     env = {
         "PYTEST_XDIST_TESTRUNUID": str(workerinput["testrunuid"]),
         "PYTEST_XDIST_WORKER": str(workerinput["workerid"]),

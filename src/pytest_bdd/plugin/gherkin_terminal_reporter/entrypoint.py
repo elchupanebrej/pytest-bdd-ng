@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 import pytest
 
 from pytest_bdd.compatibility.pytest import Config, Parser, TerminalReporter
@@ -7,6 +9,7 @@ from .plugin import GherkinTerminalReporter
 
 
 def pytest_addoption(parser: Parser) -> None:
+    """Handle addoption."""
     group = parser.getgroup("terminal reporting", "reporting", after="general")
     group._addoption(
         "--gherkin-terminal-reporter",
@@ -19,6 +22,14 @@ def pytest_addoption(parser: Parser) -> None:
 
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
+    """
+    Handle configure.
+
+    Raises:
+        IncompatiblePluginError: If the operation cannot be completed.
+        IncompatiblePluginConfigurationError: If the operation cannot be completed.
+
+    """
     if config.option.gherkin_terminal_reporter:
         # Get the standard terminal reporter plugin and replace it with our
         current_reporter = config.pluginmanager.getplugin("terminalreporter")

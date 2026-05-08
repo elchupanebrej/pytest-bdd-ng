@@ -1,3 +1,5 @@
+"""Provide hook helpers."""
+
 from collections import deque
 from collections.abc import Callable
 
@@ -9,6 +11,8 @@ from pytest_bdd.steps import Step, StepDefinitionManager, StepFunc
 
 
 class PickleRunnerHookSpec:
+    """Represent pickle runner hook spec state."""
+
     def pytest_bdd_before_scenario(self, request: FixtureRequest, run: Run) -> None:
         """Call before scenario is executed."""
 

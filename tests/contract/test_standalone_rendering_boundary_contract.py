@@ -1,3 +1,5 @@
+"""Provide test standalone rendering boundary contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,10 +29,12 @@ def _standalone_renderer_source() -> str:
 
 
 def test_standalone_rendering_boundary_contract_exists() -> None:
+    """Verify standalone rendering boundary contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_standalone_rendering_boundary_contract_forbids_synthetic_pytest_runtime() -> None:
+    """Verify standalone rendering boundary contract forbids synthetic pytest runtime."""
     contract_text = _contract_text()
 
     assert "must not require a synthetic pytest `Config` object" in contract_text
@@ -39,6 +43,7 @@ def test_standalone_rendering_boundary_contract_forbids_synthetic_pytest_runtime
 
 
 def test_standalone_renderer_uses_explicit_application_service_boundary() -> None:
+    """Verify standalone renderer uses explicit application service boundary."""
     renderer = StandaloneCucumberFormatterRenderer.discover(catalog=FormatterPluginCatalog.discover())
 
     assert isinstance(renderer, StandaloneCucumberFormatterRenderer)
@@ -47,6 +52,7 @@ def test_standalone_renderer_uses_explicit_application_service_boundary() -> Non
 
 
 def test_standalone_renderer_source_does_not_construct_synthetic_pytest_runtime() -> None:
+    """Verify standalone renderer source does not construct synthetic pytest runtime."""
     standalone_renderer_source = _standalone_renderer_source()
 
     assert "SimpleNamespace" not in standalone_renderer_source

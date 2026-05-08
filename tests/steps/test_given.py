@@ -2,6 +2,7 @@
 
 
 def test_given_injection(testdir):
+    """Verify given injection."""
     testdir.makefile(
         ".feature",
         # language=gherkin

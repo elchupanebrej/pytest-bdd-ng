@@ -1,3 +1,5 @@
+"""Provide test run transitions helpers."""
+
 from __future__ import annotations
 
 import pytest
@@ -69,6 +71,7 @@ def _build_transition_inputs() -> _TransitionInputs:
 
 
 def test_transition_updates_stage_for_step_flow() -> None:
+    """Verify transition updates stage for step flow."""
     context = _build_context()
     inputs = _build_transition_inputs()
 
@@ -87,6 +90,7 @@ def test_transition_updates_stage_for_step_flow() -> None:
 
 
 def test_transition_marks_failed_status_on_step_error() -> None:
+    """Verify transition marks failed status on step error."""
     context = _build_context()
     inputs = _build_transition_inputs()
     apply_transition(
@@ -103,6 +107,7 @@ def test_transition_marks_failed_status_on_step_error() -> None:
 
 
 def test_transition_clears_scenario_objects_after_after_scenario() -> None:
+    """Verify transition clears scenario objects after after scenario."""
     context = _build_context()
     inputs = _build_transition_inputs()
     context.run.reporting_state.active_test_case_started_id = "case-started-1"
@@ -132,6 +137,7 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
 
 
 def test_pickle_runner_raises_when_lifecycle_hook_has_no_active_scenario_run() -> None:
+    """Verify pickle runner raises when lifecycle hook has no active scenario run."""
     runner = PickleRunner()
     run_ref = LifecycleObjectRef(kind="run", object_id="run", is_active=True)
     run = Run(id="run-1", run_ref=run_ref, status=RunStatus.ok)

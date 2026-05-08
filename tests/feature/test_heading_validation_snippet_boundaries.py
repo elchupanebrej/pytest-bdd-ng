@@ -1,3 +1,5 @@
+"""Provide test heading validation snippet boundaries helpers."""
+
 from __future__ import annotations
 
 from textwrap import dedent
@@ -15,6 +17,7 @@ def _write_markdown_feature(path: Path, content: str) -> None:
 
 
 def test_validation_ignores_indented_literal_keyword_lines(tmp_path: Path) -> None:
+    """Verify validation ignores indented literal keyword lines."""
     _write_markdown_feature(
         tmp_path / "indented.feature.md",
         """
@@ -35,6 +38,7 @@ def test_validation_ignores_indented_literal_keyword_lines(tmp_path: Path) -> No
 
 
 def test_validation_ignores_fenced_gherkin_snippets(tmp_path: Path) -> None:
+    """Verify validation ignores fenced gherkin snippets."""
     _write_markdown_feature(
         tmp_path / "fenced.feature.md",
         """

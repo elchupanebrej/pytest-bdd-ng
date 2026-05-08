@@ -1,3 +1,5 @@
+"""Provide test report doc cucumber formatters helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path

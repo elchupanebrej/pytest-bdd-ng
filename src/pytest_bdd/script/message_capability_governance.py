@@ -1,3 +1,5 @@
+"""Provide message capability governance helpers."""
+
 from __future__ import annotations
 
 import argparse
@@ -70,6 +72,7 @@ def _candidate_repo_roots() -> tuple[Path, ...]:
 
 
 def discover_governance_schema_path() -> Path | None:
+    """Handle discover governance schema path."""
     canonical_path = (_repo_root().resolve() / DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH).resolve()
     if canonical_path.exists():
         return canonical_path
@@ -83,6 +86,13 @@ def discover_governance_schema_path() -> Path | None:
 
 
 def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject:
+    """
+    Load governance report schema.
+
+    Raises:
+        FileNotFoundError: If the operation cannot be completed.
+
+    """
     effective_path = schema_path or discover_governance_schema_path()
     if effective_path is None:
         msg = "Unable to locate governance report schema."
@@ -91,6 +101,13 @@ def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject
 
 
 def validate_governance_report_payload(payload: JSONObject, schema_path: Path | None = None) -> None:
+    """
+    Validate governance report payload.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     schema = load_governance_report_schema(schema_path)
     validator = build_validator(schema)
     errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
@@ -372,6 +389,7 @@ def _emit_text(text: str, *, output_path: Path | None = None) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse args."""
     parser = argparse.ArgumentParser(description="Manage message capability governance artifacts")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -453,6 +471,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
+    """
+    Run main.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     args = parse_args(argv)
 
     if args.command == "sync":

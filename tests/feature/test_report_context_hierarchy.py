@@ -1,3 +1,5 @@
+"""Provide test report context hierarchy helpers."""
+
 from __future__ import annotations
 
 
@@ -11,6 +13,7 @@ def _find_bdd_call_report(result):
 
 
 def test_reporting_snapshot_uses_context_hierarchy(testdir):
+    """Verify reporting snapshot uses context hierarchy."""
     testdir.makefile(
         ".ini",
         pytest="""

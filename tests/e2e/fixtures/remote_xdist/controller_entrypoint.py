@@ -1,3 +1,5 @@
+"""Provide controller entrypoint helpers."""
+
 import os
 import shlex
 import shutil
@@ -9,6 +11,7 @@ from pathlib import Path
 
 
 def endpoint_is_ready(host: str, port: int) -> tuple[bool, OSError | None]:
+    """Handle endpoint is ready."""
     try:
         with socket.create_connection((host, port), timeout=1.0):
             return True, None
@@ -17,6 +20,7 @@ def endpoint_is_ready(host: str, port: int) -> tuple[bool, OSError | None]:
 
 
 def wait_for_endpoint(host: str, port: int):
+    """Handle wait for endpoint."""
     deadline = time.monotonic() + 30.0
     last_error = None
     while time.monotonic() < deadline:
@@ -28,6 +32,7 @@ def wait_for_endpoint(host: str, port: int):
 
 
 def ssh_ready(host: str) -> tuple[bool, str]:
+    """Handle ssh ready."""
     command = ["ssh", host, "python3.14 -c 'print(1)'"]
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=5, check=False)  # noqa: S603
@@ -41,6 +46,7 @@ def ssh_ready(host: str) -> tuple[bool, str]:
 
 
 def wait_for_ssh_ready(host: str):
+    """Handle wait for ssh ready."""
     deadline = time.monotonic() + 30.0
     last_error = ""
     while time.monotonic() < deadline:
@@ -52,6 +58,7 @@ def wait_for_ssh_ready(host: str):
 
 
 def main():
+    """Run main."""
     report_path = os.environ.get("REPORT_PATH", "")
     local_report_dir = Path("/app/.pytest-bdd-remote")
     report_filename = Path(report_path).name

@@ -1,3 +1,5 @@
+"""Provide test report doc gathering html helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,4 +16,4 @@ pytestmark = [pytest.mark.slow]
     "HTML report could be produced on the feature run",
 )
 def test_html_report_generation_from_markdown_doc():
-    pass
+    """Verify html report generation from markdown doc."""

@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 import pytest
 from pluggy import HookimplMarker
 
@@ -15,6 +17,7 @@ else:
 
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
+    """Handle configure."""
     allure_accessible = config.pluginmanager.hasplugin("allure_pytest") and config.option.allure_report_dir
     if not allure_accessible:
         return

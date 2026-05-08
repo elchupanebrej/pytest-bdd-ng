@@ -1,3 +1,5 @@
+"""Provide test utils helpers."""
+
 import re
 
 import pytest
@@ -9,6 +11,8 @@ from pytest_bdd.util.toolz_extra import deepattrgetter, flip, setdefaultattr
 
 
 def test_get_attribute():
+    """Verify single attribute extraction."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -19,6 +23,8 @@ def test_get_attribute():
 
 
 def test_get_multi_attribute():
+    """Verify multi attribute extraction preserves requested order."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -30,6 +36,8 @@ def test_get_multi_attribute():
 
 
 def test_get_default_for_attribute():
+    """Verify get default for attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -38,6 +46,8 @@ def test_get_default_for_attribute():
 
 
 def test_get_default_for_multi_attribute():
+    """Verify get default for multi attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -46,6 +56,8 @@ def test_get_default_for_multi_attribute():
 
 
 def test_raise_on_missing_attribute():
+    """Verify raise on missing attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -55,6 +67,8 @@ def test_raise_on_missing_attribute():
 
 
 def test_raise_on_missing_multi_attribute():
+    """Verify raise on missing multi attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -64,6 +78,8 @@ def test_raise_on_missing_multi_attribute():
 
 
 def test_raise_on_missing_nested_attribute():
+    """Verify raise on missing nested attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -73,6 +89,8 @@ def test_raise_on_missing_nested_attribute():
 
 
 def test_raise_on_missing_multi_nested_attribute():
+    """Verify raise on missing multi nested attribute."""
+
     class Foo: ...
 
     item = Foo()
@@ -82,6 +100,8 @@ def test_raise_on_missing_multi_nested_attribute():
 
 
 def test_get_nested_attribute():
+    """Verify nested attribute extraction."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -96,6 +116,8 @@ def test_get_nested_attribute():
 
 
 def test_get_nested_multi_attribute():
+    """Verify nested multi attribute extraction preserves requested order."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -115,6 +137,8 @@ def test_get_nested_multi_attribute():
 
 
 def test_skip_missing_attributes():
+    """Verify missing attributes can be skipped."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -129,6 +153,8 @@ def test_skip_missing_attributes():
 
 
 def test_skip_missing_attributes_nested():
+    """Verify missing nested attributes can be skipped."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -148,6 +174,8 @@ def test_skip_missing_attributes_nested():
 
 
 def test_skip_missing_and_default_attributes():
+    """Verify skip_missing and default cannot be combined."""
+
     @attrs
     class Foo:
         foo = attrib()
@@ -160,6 +188,8 @@ def test_skip_missing_and_default_attributes():
 
 
 def test_setdefaultattr_set_nonexisting_attr_value():
+    """Verify setdefaultattr set nonexisting attr value."""
+
     class Dumb: ...
 
     dumb = Dumb()
@@ -170,6 +200,8 @@ def test_setdefaultattr_set_nonexisting_attr_value():
 
 
 def test_setdefaultattr_set_nonexisting_attr_value_factory():
+    """Verify setdefaultattr set nonexisting attr value factory."""
+
     class Dumb: ...
 
     dumb = Dumb()
@@ -180,6 +212,8 @@ def test_setdefaultattr_set_nonexisting_attr_value_factory():
 
 
 def test_setdefaultattr_not_set_existing_attr_value():
+    """Verify setdefaultattr not set existing attr value."""
+
     class Dumb: ...
 
     dumb = Dumb()
@@ -190,6 +224,8 @@ def test_setdefaultattr_not_set_existing_attr_value():
 
 
 def test_setdefaultattr_not_set_existing_attr_value_factory():
+    """Verify setdefaultattr not set existing attr value factory."""
+
     class Dumb: ...
 
     dumb = Dumb()
@@ -200,6 +236,8 @@ def test_setdefaultattr_not_set_existing_attr_value_factory():
 
 
 def test_setdefaultattr_for_both_factory_and_value():
+    """Verify setdefaultattr for both factory and value."""
+
     class Dumb: ...
 
     with pytest.raises(ValueError, match="Both 'value' and 'value_factory' were specified"):
@@ -207,11 +245,26 @@ def test_setdefaultattr_for_both_factory_and_value():
 
 
 def test_doesnt_raise_fails_test():
+    """
+    Verify doesnt raise fails test.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+
+    """
     with pytest.raises(Failed), doesnt_raise(RuntimeError):
         raise RuntimeError
 
 
 def test_doesnt_raise_suppress_if_not_match():
+    """
+    Verify doesnt raise suppress if not match.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+        AssertionError: If the operation cannot be completed.
+
+    """
     try:
         with doesnt_raise(RuntimeError, match="cool"):
             raise RuntimeError("nice")  # noqa:TRY301 test must fail on suppressed exception
@@ -220,6 +273,13 @@ def test_doesnt_raise_suppress_if_not_match():
 
 
 def test_doesnt_raise_not_suppress_if_not_match_explicitly():
+    """
+    Verify doesnt raise not suppress if not match explicitly.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+
+    """
     with (
         pytest.raises(RuntimeError, match="nice"),
         doesnt_raise(RuntimeError, match="cool", suppress_not_matched=False),
@@ -228,11 +288,20 @@ def test_doesnt_raise_not_suppress_if_not_match_explicitly():
 
 
 def test_doesnt_raise_passes_original_exception_if_not_suppressed():
+    """
+    Verify doesnt raise passes original exception if not suppressed.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     with pytest.raises(ValueError, match="nice"), doesnt_raise(RuntimeError, suppress_not_matched=False):
         raise ValueError("nice")
 
 
 def test_flip_no_args():
+    """Verify flip no args."""
+
     def func():
         return "item"
 
@@ -240,6 +309,8 @@ def test_flip_no_args():
 
 
 def test_flip_one_arg():
+    """Verify flip one arg."""
+
     def func(arg):
         return arg
 
@@ -247,6 +318,8 @@ def test_flip_one_arg():
 
 
 def test_flip_two_args():
+    """Verify flip two args."""
+
     def func(arg1, arg2):
         return arg1, arg2
 
@@ -254,6 +327,8 @@ def test_flip_two_args():
 
 
 def test_flip_many_args():
+    """Verify flip many args."""
+
     def func(*args):
         return args
 
@@ -261,6 +336,8 @@ def test_flip_many_args():
 
 
 def test_flip_no_args_but_kwargs():
+    """Verify flip no args but kwargs."""
+
     def func(**kwargs):
         return ("item",), kwargs
 
@@ -268,6 +345,8 @@ def test_flip_no_args_but_kwargs():
 
 
 def test_flip_one_arg_kwargs():
+    """Verify flip one arg kwargs."""
+
     def func(arg, **kwargs):
         return (arg,), kwargs
 
@@ -275,6 +354,8 @@ def test_flip_one_arg_kwargs():
 
 
 def test_flip_two_args_kwargs():
+    """Verify flip two args kwargs."""
+
     def func(arg1, arg2, **kwargs):
         return (arg1, arg2), kwargs
 
@@ -282,6 +363,8 @@ def test_flip_two_args_kwargs():
 
 
 def test_flip_many_args_kwargs():
+    """Verify flip many args kwargs."""
+
     def func(*args, **kwargs):
         return args, kwargs
 
@@ -289,6 +372,8 @@ def test_flip_many_args_kwargs():
 
 
 def test_flip_two_args_as_named():
+    """Verify flip two args as named."""
+
     def func(arg1, arg2):
         return arg1, arg2
 
@@ -296,6 +381,8 @@ def test_flip_two_args_as_named():
 
 
 def test_flip_two_args_as_named_by_pos_only():
+    """Verify flip two args as named by pos only."""
+
     def func(arg1, arg2, /):  # pragma: nocover
         return arg1, arg2
 
@@ -307,6 +394,8 @@ def test_flip_two_args_as_named_by_pos_only():
 
 
 def test_flip_two_args_using_others():
+    """Verify flip two args using others."""
+
     def func(arg, *other):
         return arg, *other
 

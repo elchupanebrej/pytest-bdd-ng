@@ -1,3 +1,5 @@
+"""Provide scenario locator helpers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -42,45 +44,64 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class ScenarioLocatorFeatureResolver(Protocol):
+    """Register locator feature resolver."""
+
     def resolve_features(
         self,
         config: Config | HasPytestStash,
     ) -> Iterable[tuple[GherkinDocument, Source]]:  # pragma: no cover
+        """Resolve features."""
         ...
 
 
 @runtime_checkable
 class ScenarioLocatorReadObserver(Protocol):
+    """Register locator read observer."""
+
     def on_source_loaded(self, gherkin_document: GherkinDocument, source: Source) -> None:  # pragma: no cover
+        """Handle on source loaded."""
         ...
 
     def on_feature_loaded(self, gherkin_document: GherkinDocument) -> None:  # pragma: no cover
+        """Handle on feature loaded."""
         ...
 
     def on_pickle_loaded(self, gherkin_document: GherkinDocument, pickle: Pickle) -> None:  # pragma: no cover
+        """Handle on pickle loaded."""
         ...
 
 
 @runtime_checkable
 class ScenarioLocatorResolver(Protocol):
+    """Register locator resolver."""
+
+    """Represent scenario locator resolver state."""
+
     def resolve(
         self,
         config: Config | HasPytestStash,
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ) -> Iterable[tuple[GherkinDocument, Pickle, Source]]:  # pragma: no cover
+        """Resolve resolve."""
         ...
 
 
 class ScenarioLocatorHookProtocol(Protocol):
-    def pytest_bdd_get_mimetype(self, *, config: Config, path: Path) -> Mimetype | str | Enum | None: ...
+    """Register locator hook protocol."""
+
+    def pytest_bdd_get_mimetype(self, *, config: Config, path: Path) -> Mimetype | str | Enum | None:
+        """Handle bdd get mimetype."""
+        ...
 
     def pytest_bdd_get_parser(
         self,
         *,
         config: Config | HasPytestStash,
         mimetype: Mimetype,
-    ) -> type[ParserProtocol] | None: ...
+    ) -> type[ParserProtocol] | None:
+        """Handle bdd get parser."""
+        ...
 
 
 ScenarioLocatorFilterT: TypeAlias = Callable[[Config | HasPytestStash, GherkinDocument, Pickle], bool]
@@ -88,6 +109,14 @@ ScenarioLocatorFilterT: TypeAlias = Callable[[Config | HasPytestStash, GherkinDo
 
 @define
 class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
+    """
+    Register locator filter mixin.
+
+    Yields:
+        Generated values.
+
+    """
+
     filter_: ScenarioLocatorFilterT | None = field(default=None, kw_only=True)
 
     def filter_scenarios(
@@ -96,6 +125,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         pickles: Iterable[Pickle],
         config: Config | HasPytestStash,
     ) -> Iterable[tuple[GherkinDocument, Pickle]]:
+        """Handle filter scenarios."""
         return (
             (gherkin_document, pickle)
             for pickle in pickles
@@ -108,6 +138,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         source: Source,
         config: Config | HasPytestStash,
     ) -> FeatureRuntimeBinding:
+        """Handle bind feature."""
         run = Run.from_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
         binding.ensure_pickles(id_generator=IdGenerator.from_stash(config.stash))
@@ -119,6 +150,13 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         *,
         observer: ScenarioLocatorReadObserver | None = None,
     ) -> Iterator[tuple[GherkinDocument, Pickle, Source]]:
+        """
+        Resolve resolve.
+
+        Yields:
+            Generated values.
+
+        """
         for gherkin_document, feature_source in self.resolve_features(config):
             binding = self._bind_feature(gherkin_document, feature_source, config)
             if observer is not None:
@@ -132,6 +170,14 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
 
 @define
 class UrlScenarioLocator(ScenarioLocatorFilterMixin):
+    """
+    Represent url scenario locator state.
+
+    Yields:
+        Generated values.
+
+    """
+
     url_paths: list[str | Path] = field()
     encoding: str | None = field(default=None)
     features_base_url: str | Callable[[Config | HasPytestStash], str | None] | None = field(default=None)
@@ -140,6 +186,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     parse_args: Args | None = field(default=None)
 
     async def fetch(self, session: aiohttp.ClientSession, url: str) -> tuple[str, str]:
+        """Fetch fetch."""
         import certifi
 
         sslcontext = ssl.create_default_context(cafile=certifi.where())
@@ -147,12 +194,20 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             return response.content_type, await response.text(encoding=self.encoding or "utf-8")
 
     async def fetch_all(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
+        """Fetch all."""
         import aiohttp
 
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
     def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
+        """
+        Resolve features.
+
+        Yields:
+            Generated values.
+
+        """
         urls = self._build_urls()
         if not urls:
             return
@@ -241,17 +296,30 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
 
 class FileScenarioLocatorDefaults:
+    """Provide default values for file scenario locators."""
+
     @staticmethod
     def encoding() -> str:
+        """Represent encoding state."""
+        """Handle encoding."""
         return "utf-8"
 
     @staticmethod
     def parse_args() -> Args:
+        """Represent parse args state."""
         return Args((), {})
 
 
 @define
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
+    """
+    Represent file scenario locator state.
+
+    Yields:
+        Generated values.
+
+    """
+
     Defaults = FileScenarioLocatorDefaults
     feature_paths: list[str | Path] = field(factory=list)
     encoding: str | None = field(default=None)
@@ -313,6 +381,16 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         return "file:" + str(rel_feature_path.as_posix())
 
     def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
+        """
+        Resolve features.
+
+        Yields:
+            Generated values.
+
+        Raises:
+            FeatureParseError: If a configured feature cannot be parsed.
+
+        """
         features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths: set[str] = set()
 

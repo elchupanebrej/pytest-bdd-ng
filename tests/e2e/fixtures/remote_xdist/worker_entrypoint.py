@@ -1,3 +1,5 @@
+"""Provide worker entrypoint helpers."""
+
 import os
 import shutil
 import subprocess  # noqa: S404
@@ -6,6 +8,7 @@ from pathlib import Path
 
 
 def main():
+    """Run main."""
     remote_mode = os.environ.get("PYTEST_REMOTE_MODE", "socket")
 
     if remote_mode in {"socket", "via", "proxy"}:

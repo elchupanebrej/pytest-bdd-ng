@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 from typing import cast
 
 from pytest_bdd.compatibility.pytest import Config, TerminalReporter, TestReport
@@ -5,14 +7,19 @@ from pytest_bdd.plugin.scenario_reporter.report import ScenarioReportData, StepR
 
 
 def canonical_terminal_step_status(step: StepReportData) -> str:
+    """Handle canonical terminal step status."""
     return normalize_runtime_step_status(step["status"], failed_fallback=step["failed"])
 
 
 class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
+    """Represent gherkin terminal reporter state."""
+
     def __init__(self, config: Config) -> None:
+        """Initialize the gherkin terminal reporter."""
         super().__init__(config)
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
+        """Handle the pytest runtest logreport pytest hook."""
         cat, letter, word = self.config.hook.pytest_report_teststatus(report=report, config=self.config)
 
         if not letter and not word:

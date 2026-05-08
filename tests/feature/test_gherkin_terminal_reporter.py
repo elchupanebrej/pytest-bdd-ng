@@ -1,3 +1,5 @@
+"""Provide test gherkin terminal reporter helpers."""
+
 from collections.abc import Sequence
 
 import pytest
@@ -32,6 +34,7 @@ TEST = """\
 
 
 def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir):
+    """Verify default output should be the same as regular terminal reporter."""
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
     regular = testdir.runpytest()
@@ -48,6 +51,7 @@ def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir)
 
 
 def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir):
+    """Verify verbose mode should preserve displaying regular tests as usual."""
     testdir.makepyfile(
         # language=python
         """\
@@ -69,6 +73,7 @@ def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir)
 def test_double_verbose_mode_should_display_full_scenario_description(
     testdir,
 ):
+    """Verify double verbose mode should display full scenario description."""
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
     result = testdir.runpytest("--gherkin-terminal-reporter", "-vv")
@@ -83,6 +88,7 @@ def test_double_verbose_mode_should_display_full_scenario_description(
 
 @pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_for_missing_steps(testdir, verbosity):
+    """Verify error message for missing steps."""
     testdir.makefile(".feature", test=FEATURE)
     result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
 
@@ -95,6 +101,7 @@ def test_error_message_for_missing_steps(testdir, verbosity):
 
 @pytest.mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_should_be_displayed(testdir, verbosity):
+    """Verify error message should be displayed."""
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(
         # language=python
@@ -121,6 +128,7 @@ def test_error_message_should_be_displayed(testdir, verbosity):
 
 
 def test_local_variables_should_be_displayed_when_showlocals_option_is_used(testdir):
+    """Verify local variables should be displayed when showlocals option is used."""
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(
         # language=python
@@ -148,6 +156,7 @@ def test_local_variables_should_be_displayed_when_showlocals_option_is_used(test
 
 
 def test_step_parameters_should_be_replaced_by_their_values(testdir):
+    """Verify step parameters should be replaced by their values."""
     example = {"start": 10, "eat": 3, "left": 7}
     testdir.makefile(
         ".feature",
@@ -195,6 +204,7 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
 
 
 def test_double_verbose_mode_renders_failed_step_from_scenario_status(testdir):
+    """Verify double verbose mode renders failed step from scenario status."""
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(
         # language=python

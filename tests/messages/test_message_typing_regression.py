@@ -1,3 +1,5 @@
+"""Provide test message typing regression helpers."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -12,6 +14,7 @@ from cucumber_messages import TestRunStarted as _TestRunStarted  # type:ignore[a
 
 
 def build_valid_envelope() -> Message:
+    """Build valid envelope."""
     return Message(test_run_started=_TestRunStarted())
 
 
@@ -23,6 +26,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.skipif(importlib.util.find_spec("mypy") is None, reason="mypy is not installed in this environment")
 def test_mypy_rejects_invalid_envelope_assignment(tmp_path) -> None:
+    """Verify mypy rejects invalid envelope assignment."""
     source = tmp_path / "invalid_message_assignment.py"
     source.write_text(
         textwrap.dedent(

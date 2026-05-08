@@ -1,3 +1,5 @@
+"""Provide test startup imports helpers."""
+
 from __future__ import annotations
 
 import os
@@ -39,6 +41,7 @@ def _assert_import_does_not_load(module: str, blocked_modules: tuple[str, ...]) 
 
 
 def test_message_validation_import_does_not_build_schema_validator_dependencies() -> None:
+    """Verify message validation import does not build schema validator dependencies."""
     _assert_import_does_not_load(
         "pytest_bdd.model.message_validation",
         ("jsonschema", "referencing"),
@@ -46,6 +49,7 @@ def test_message_validation_import_does_not_build_schema_validator_dependencies(
 
 
 def test_scenario_locator_import_does_not_load_url_fetch_dependencies() -> None:
+    """Verify scenario locator import does not load url fetch dependencies."""
     _assert_import_does_not_load(
         "pytest_bdd.scenario_locator",
         ("aiohttp", "certifi"),

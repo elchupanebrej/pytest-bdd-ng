@@ -128,6 +128,7 @@ def _build_reporting_sender(
 
 
 def channel_main(reporting_channel: _ReportingChannel) -> None:
+    """Handle channel main."""
     workerinput, args, option_dict, change_sys_path = reporting_channel.receive()
 
     _apply_worker_python_path(change_sys_path)

@@ -1,3 +1,5 @@
+"""Provide docker cluster helpers."""
+
 import atexit
 import contextlib
 import os
@@ -13,6 +15,8 @@ from tests.support.docker import _resolve_tool_path
 
 @define
 class DockerTimeouts:
+    """Represent docker timeouts state."""
+
     startup_poll: int = 60
     compose_up: int = 300
     compose_exec: int = 300
@@ -48,7 +52,17 @@ def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = Non
 
 
 class DockerClusterManager:
+    """
+    Represent docker cluster manager state.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+        FileNotFoundError: If the operation cannot be completed.
+
+    """
+
     def __init__(self, backend: str = "native", timeouts: DockerTimeouts | None = None):
+        """Initialize the docker cluster manager."""
         self.backend = backend
         self.timeouts = timeouts or DockerTimeouts()
         self.active_clusters = {}
@@ -86,6 +100,7 @@ class DockerClusterManager:
             raise RuntimeError(msg) from err
 
     def set_backend(self, backend: str) -> None:
+        """Handle set backend."""
         if self.backend == backend:
             return
         if self.active_clusters:
@@ -140,6 +155,13 @@ class DockerClusterManager:
             raise RuntimeError(msg)
 
     def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path):  # noqa: ARG002
+        """
+        Return cluster.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         if remote_mode in self.active_clusters:
             return self.active_clusters[remote_mode], self.artifact_dirs[remote_mode]
 
@@ -180,6 +202,7 @@ class DockerClusterManager:
         verify_mode: str,
         fail_transport_workers: str,
     ) -> tuple[subprocess.CompletedProcess, Path]:
+        """Run in controller."""
         compose_cmd, docker_artifact_dir = self.get_cluster(remote_mode, fixture_dir, repo_root)
         self._reset_artifacts(docker_artifact_dir)
 
@@ -240,6 +263,7 @@ class DockerClusterManager:
         return result, Path(docker_artifact_dir)
 
     def cleanup(self):
+        """Handle cleanup."""
         for remote_mode, compose_cmd in self.active_clusters.items():
             with contextlib.suppress(FileNotFoundError, OSError):
                 self._run_docker_cmd(

@@ -1,3 +1,5 @@
+"""Provide test cucumber formatters helpers."""
+
 from __future__ import annotations
 
 from glob import escape
@@ -21,6 +23,7 @@ from tests.support.pytest_results import combined_result_output
 
 
 def test_fake_runtime_support_uses_template_assets_from_shared_support_module() -> None:
+    """Verify fake runtime support uses template assets from shared support module."""
     repo_root = Path(__file__).resolve().parents[2]
     support_source = (repo_root / "tests" / "support" / "cucumber_formatters.py").read_text(encoding="utf-8")
 
@@ -30,6 +33,7 @@ def test_fake_runtime_support_uses_template_assets_from_shared_support_module() 
 
 
 def test_fake_runtime_support_materializes_windows_command_shims(tmp_path: Path) -> None:
+    """Verify fake runtime support materializes windows command shims."""
     runtime = materialize_fake_node_runtime(tmp_path)
 
     assert (runtime["bin_dir"] / "node.cmd").exists()
@@ -54,6 +58,7 @@ def test_console_formatter_flags_emit_stdout(
     cli_args,
     formatter_name: str,
 ) -> None:
+    """Verify console formatter flags emit stdout."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 
@@ -81,6 +86,7 @@ def test_file_formatter_flags_write_output(
     file_name: str,
     formatter_name: str,
 ) -> None:
+    """Verify file formatter flags write output."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
     output_path = tmp_path / file_name
@@ -97,6 +103,7 @@ def test_multiple_cucumber_formatters_run_in_one_session(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify multiple cucumber formatters run in one session."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
     json_path = tmp_path / "combined.json"
@@ -132,6 +139,7 @@ def test_console_formatter_consumes_live_stdin_stream(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify console formatter consumes live stdin stream."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 
@@ -152,6 +160,7 @@ def test_file_formatter_consumes_live_stdin_stream(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify file formatter consumes live stdin stream."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
     output_path = tmp_path / "report.json"
@@ -173,6 +182,7 @@ def test_multiple_terminal_formatters_fail_before_test_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify multiple terminal formatters fail before test execution."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 
@@ -187,6 +197,7 @@ def test_missing_output_directory_fails_before_test_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify missing output directory fails before test execution."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
     output_path = tmp_path / "missing-dir" / "report.json"
@@ -203,6 +214,7 @@ def test_duplicate_file_output_paths_fail_before_test_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify duplicate file output paths fail before test execution."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
     output_path = tmp_path / "report.out"
@@ -221,6 +233,7 @@ def test_missing_cucumber_package_is_auto_installed_for_console_formatter(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify missing cucumber package is auto installed for console formatter."""
     install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
     build_sample_suite(testdir)
 
@@ -244,6 +257,7 @@ def test_live_formatter_startup_failure_preserves_default_pytest_terminal_output
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify live formatter startup failure preserves default pytest terminal output."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 
@@ -264,6 +278,7 @@ def test_console_formatter_emits_output_via_real_entrypoint(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verify console formatter emits output via real entrypoint."""
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 

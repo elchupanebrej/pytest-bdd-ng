@@ -1,3 +1,5 @@
+"""Provide step catalog runtime helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -52,6 +54,14 @@ logger = logging.getLogger(__name__)
 
 
 class StepCatalogService(ReporterServiceBase):
+    """
+    Represent step catalog service state.
+
+    Yields:
+        Generated values.
+
+    """
+
     plugin_suffix = "steps"
 
     def __init__(
@@ -61,12 +71,20 @@ class StepCatalogService(ReporterServiceBase):
         lifecycle_service: LifecycleService,
         hook_catalog_service: HookCatalogService,
     ) -> None:
+        """Initialize the step catalog service."""
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.hook_catalog_service = hook_catalog_service
 
     @pytest.hookimpl(wrapper=True)
     def pytest_runtest_setup(self, item: Item) -> Iterator[None]:
+        """
+        Handle the pytest runtest setup pytest hook.
+
+        Yields:
+            Generated values.
+
+        """
         yield
         if self.reporter.is_disabled:
             return
@@ -174,6 +192,7 @@ class StepCatalogService(ReporterServiceBase):
             step_registry = step_registry.parent
 
     def report_step_definitions(self, config: Config, request: FixtureRequest) -> None:
+        """Handle report step definitions."""
         self._report_step_definitions(config, request)
 
     def _build_step_match_arguments_lists(

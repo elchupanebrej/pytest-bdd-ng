@@ -1,7 +1,10 @@
+"""Provide test run lifecycle helpers."""
+
 from __future__ import annotations
 
 
 def test_each_scenario_gets_isolated_scenario_run(testdir):
+    """Verify each scenario gets isolated scenario run."""
     testdir.makefile(
         ".ini",
         pytest="""

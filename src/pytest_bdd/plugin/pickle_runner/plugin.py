@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Iterable, Iterator, Mapping
@@ -53,9 +55,22 @@ class _FixtureCaller(Protocol):
 
 
 class PickleRunner:
+    """
+    Represent pickle runner state.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+        step_lookup_exception: If the operation cannot be completed.
+
+    """
+
     plugin_name = "pytest-bdd-scenario-runner-runtime"
 
     def __init__(self) -> None:
+        """Initialize the pickle runner."""
         self.request: FixtureRequest | None = None
         self.gherkin_document: GherkinDocument | None = None
         self.pickle: Pickle | None = None
@@ -93,12 +108,14 @@ class PickleRunner:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_sessionstart(self, session: Session) -> None:
+        """Handle the pytest sessionstart pytest hook."""
         run = Run.from_stash(session.config.stash)
         if run.reporting_state.run_started_id is None:
             run.reporting_state.run_started_id = next(IdGenerator.from_stash(session.config.stash))
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_setup(self, item: Item) -> None:
+        """Handle the pytest runtest setup pytest hook."""
         __tracebackhide__ = True
         mark_names = [mark.name for mark in item.iter_markers()]
         if PYTEST_BDD_MARK not in mark_names:
@@ -119,6 +136,7 @@ class PickleRunner:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item) -> None:
+        """Handle the pytest runtest call pytest hook."""
         __tracebackhide__ = True
         mark_names = [mark.name for mark in item.iter_markers()]
         if PYTEST_BDD_MARK not in mark_names:
@@ -157,6 +175,13 @@ class PickleRunner:
 
     @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: Item, nextitem: Item | None) -> Iterator[None]:  # noqa: ARG002
+        """
+        Handle the pytest runtest teardown pytest hook.
+
+        Yields:
+            Generated values.
+
+        """
         __tracebackhide__ = True
         yield
         Run.pop_scenario_run(item._request)
@@ -249,6 +274,13 @@ class PickleRunner:
         request: FixtureRequest,
         run: Run,
     ) -> None:
+        """
+        Handle the pytest bdd run step pytest hook.
+
+        Raises:
+            StepDefinitionNotFoundError: If no step definition matches the step.
+
+        """
         __tracebackhide__ = True
         scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_run_step")
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
@@ -397,6 +429,7 @@ class PickleRunner:
         step_definition: StepDefinitionManager.Definition,
     ) -> Callable[[], object]:
         # Execute the step as if it was a fixture to support generator fixtures.
+        """Handle the pytest bdd get step caller pytest hook."""
         return partial(
             cast(_FixtureCaller, call_fixture_func),
             fixturefunc=step_definition.func,

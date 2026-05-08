@@ -1,3 +1,5 @@
+"""Provide message stream assertions helpers."""
+
 from __future__ import annotations
 
 import json
@@ -41,6 +43,7 @@ UNFOLDABLE_ATTRS: tuple[str, ...] = (
 
 
 def parse_ndjson_messages(path: Path) -> list[Message]:
+    """Parse ndjson messages."""
     return [
         message_converter.from_dict(json.loads(line), Message)
         for line in path.read_text(encoding="utf-8").splitlines()
@@ -49,6 +52,13 @@ def parse_ndjson_messages(path: Path) -> list[Message]:
 
 
 def unfold_message(message: Message):
+    """
+    Handle unfold message.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     for attr in UNFOLDABLE_ATTRS:
         payload = getattr(message, attr)
         if payload is not None:
@@ -58,14 +68,17 @@ def unfold_message(message: Message):
 
 
 def unfold_messages(messages: Iterable[Message]) -> list[object]:
+    """Handle unfold messages."""
     return [unfold_message(message) for message in messages]
 
 
 def filter_payloads(payloads: Iterable[object], payload_type: type[_MessagePayload]) -> list[_MessagePayload]:
+    """Handle filter payloads."""
     return [payload for payload in payloads if isinstance(payload, payload_type)]
 
 
 def payload_ids(payloads: Iterable[object]) -> list[str]:
+    """Handle payload ids."""
     result: list[str] = []
     for payload in payloads:
         payload_id = getattr(payload, "id", None)
@@ -75,6 +88,7 @@ def payload_ids(payloads: Iterable[object]) -> list[str]:
 
 
 def assert_unique_payload_ids(payloads: Iterable[object]) -> None:
+    """Assert unique payload ids."""
     ids = payload_ids(payloads)
     assert len(ids) == len(set(ids))
 
@@ -83,6 +97,7 @@ def assert_fixed_matrix_mapping_is_valid(
     messages: Iterable[Message],
     mapping_rules: list[OutcomeMappingRule],
 ) -> None:
+    """Assert fixed matrix mapping is valid."""
     observed_outcomes = collect_observed_outcomes(list(messages))
     result = validate_outcome_mappings(mapping_rules, observed_outcomes)
     assert result.status == "pass"
@@ -92,6 +107,7 @@ def assert_fixed_matrix_mapping_is_valid(
 
 
 def payload_kinds(messages: Iterable[Message]) -> list[str]:
+    """Handle payload kinds."""
     result: list[str] = []
     for message in messages:
         for attr in UNFOLDABLE_ATTRS:
@@ -102,6 +118,7 @@ def payload_kinds(messages: Iterable[Message]) -> list[str]:
 
 
 def count_payload_kinds(messages: Iterable[Message]) -> dict[str, int]:
+    """Handle count payload kinds."""
     counts: dict[str, int] = {}
     for payload_kind in payload_kinds(messages):
         counts[payload_kind] = counts.get(payload_kind, 0) + 1
@@ -113,6 +130,7 @@ def payload_attr_values(
     payload_type: type[_MessagePayload],
     attr_name: str,
 ) -> set[str]:
+    """Handle payload attr values."""
     values: set[str] = set()
     for payload in filter_payloads(unfold_messages(messages), payload_type):
         value = getattr(payload, attr_name, None)
@@ -129,6 +147,7 @@ def _split_worker_gateway(worker_id: str) -> tuple[str | None, str]:
 
 
 def worker_ids_for_payloads(messages: Iterable[Message], payload_type: type[_MessagePayload]) -> set[str]:
+    """Handle worker ids for payloads."""
     worker_ids: set[str] = set()
     for worker_id in payload_attr_values(messages, payload_type, "worker_id"):
         _gateway_mode, normalized_worker_id = _split_worker_gateway(worker_id)
@@ -137,6 +156,7 @@ def worker_ids_for_payloads(messages: Iterable[Message], payload_type: type[_Mes
 
 
 def gateway_modes_for_payloads(messages: Iterable[Message], payload_type: type[_MessagePayload]) -> set[str]:
+    """Handle gateway modes for payloads."""
     gateway_modes = payload_attr_values(messages, payload_type, "gateway_mode")
     if gateway_modes:
         return gateway_modes
@@ -149,20 +169,24 @@ def gateway_modes_for_payloads(messages: Iterable[Message], payload_type: type[_
 
 
 def worker_ids_with_prefix(messages: Iterable[Message], payload_type: type[_MessagePayload], prefix: str) -> set[str]:
+    """Handle worker ids with prefix."""
     return {worker_id for worker_id in worker_ids_for_payloads(messages, payload_type) if worker_id.startswith(prefix)}
 
 
 def assert_single_output_file(paths: Iterable[Path]) -> Path:
+    """Assert single output file."""
     concrete_paths = [path for path in paths if path.exists()]
     assert len(concrete_paths) == 1
     return concrete_paths[0]
 
 
 def message_json_lines(path: Path) -> list[dict[str, object]]:
+    """Handle message json lines."""
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def diagnostic_messages(lines: Iterable[dict[str, object]]) -> list[str]:
+    """Handle diagnostic messages."""
     messages: list[str] = []
     for line in lines:
         diagnostic_message = line.get("diagnosticMessage")

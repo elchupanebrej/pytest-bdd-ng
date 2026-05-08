@@ -1,3 +1,5 @@
+"""Provide conf helpers."""
+
 #
 # Pytest-BDD documentation build configuration file, created by
 # sphinx-quickstart on Sun Apr  7 21:07:56 2013.

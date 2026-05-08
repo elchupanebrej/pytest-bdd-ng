@@ -1,3 +1,5 @@
+"""Provide cucumber junit helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,11 +11,14 @@ if TYPE_CHECKING:
 
 
 class JunitFormatterPlugin(FormatterReporterPlugin):
+    """Represent junit formatter plugin state."""
+
     output_mode = FormatterOutputMode.path
     runtime_kind = FormatterRuntimeKind.module
     runtime_template_name = "junit.cjs.j2"
 
     def __init__(self) -> None:
+        """Initialize the junit formatter plugin."""
         super().__init__(
             option_attr="cucumber_junit_path",
             cli_flag="--cucumber-junit",
@@ -25,6 +30,7 @@ class JunitFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
+        """Build addoption kwargs."""
         return self.build_required_path_addoption_kwargs()
 
     def build_request_from_value(
@@ -33,6 +39,7 @@ class JunitFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build request from value."""
         return self.build_module_required_path_request(
             raw_value,
             resolve_output_path=resolve_output_path,
@@ -44,6 +51,7 @@ class JunitFormatterPlugin(FormatterReporterPlugin):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Render runtime assets."""
         return self.build_module_runtime_assets(
             formatter_request=formatter_request,
             formatter_requests=formatter_requests,

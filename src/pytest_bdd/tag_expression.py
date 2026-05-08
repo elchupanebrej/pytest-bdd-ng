@@ -1,3 +1,5 @@
+"""Provide tag expression helpers."""
+
 from operator import attrgetter
 from typing import Protocol, runtime_checkable
 
@@ -10,11 +12,27 @@ from pytest_bdd.compatibility.pytest import PYTEST83, Expression, Mark, MarkMatc
 
 @runtime_checkable
 class TagExpression(Protocol):
+    """Evaluate cucumber tag expressions against pytest marks."""
+
     @classmethod
     def parse(cls, expression: str) -> Self:
+        """
+        Parse parse.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
     def evaluate(self, marks: list[Mark]) -> bool:
+        """
+        Handle evaluate.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
 
@@ -57,10 +75,25 @@ MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpre
 
 @define
 class GherkinTagExpression(TagExpression):
+    """
+    Represent gherkin tag expression state.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
+
     expression: TagExpressionParser = field()
 
     @classmethod
     def parse(cls, expression: str) -> Self:
+        """
+        Parse parse.
+
+        Raises:
+            ValueError: If the operation cannot be completed.
+
+        """
         try:
             return cls(expression=TagExpressionParser.parse(expression))
         except TagExpressionError as e:
@@ -68,6 +101,7 @@ class GherkinTagExpression(TagExpression):
             raise ValueError(msg) from e
 
     def evaluate(self, marks: list[Mark]) -> bool:
+        """Handle evaluate."""
         return bool(self.expression.evaluate(map(attrgetter("name"), marks)))
 
 

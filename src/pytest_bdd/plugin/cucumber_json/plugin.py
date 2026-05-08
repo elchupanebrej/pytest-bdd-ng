@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 import json
 import math
 import os
@@ -16,6 +18,7 @@ class LogBDDCucumberJSON:
     """Logging plugin for cucumber like json output."""
 
     def __init__(self, logfile: str) -> None:
+        """Initialize the log bddcucumber json."""
         self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
         self.features: dict[str, JSONObject] = {}
 
@@ -62,6 +65,7 @@ class LogBDDCucumberJSON:
         return cast(JSONArray, [{"name": str(tag), "line": line - 1} for tag in tags])
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
+        """Handle the pytest runtest logreport pytest hook."""
         try:
             scenario = cast(JSONObject, report.scenario)
         except AttributeError:
@@ -119,12 +123,15 @@ class LogBDDCucumberJSON:
         )
 
     def pytest_sessionstart(self) -> None:
+        """Handle the pytest sessionstart pytest hook."""
         self.suite_start_time = time.time()
 
     def pytest_sessionfinish(self) -> None:
+        """Handle the pytest sessionfinish pytest hook."""
         for feature in self.features.values():
             Feature.model_validate(feature)
         Path(self.logfile).write_text(json.dumps(list(self.features.values())), encoding="utf-8")
 
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
+        """Handle the pytest terminal summary pytest hook."""
         terminalreporter.write_sep("-", f"generated json file: {self.logfile}")

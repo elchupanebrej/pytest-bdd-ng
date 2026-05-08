@@ -1,3 +1,5 @@
+"""Provide verify report helpers."""
+
 from __future__ import annotations
 
 import argparse
@@ -32,6 +34,13 @@ def _load_fake_node_captures() -> list[dict[str, object]]:
 
 
 def main() -> int:
+    """
+    Run main.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     options = _build_parser().parse_args()
     report_path = Path(options.report_path).resolve()
     verification_mode = options.verification_mode

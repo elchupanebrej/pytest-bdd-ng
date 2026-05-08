@@ -1,3 +1,5 @@
+"""Provide execution message adapter helpers."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -28,6 +30,8 @@ def _resolve_registry_index(
 
 @frozen
 class ExecutionProjection:
+    """Represent execution projection state."""
+
     envelope: EventEnvelope
     payload_kind: PayloadKind
     payload: object
@@ -35,18 +39,22 @@ class ExecutionProjection:
 
     @property
     def payload_id(self) -> str | None:
+        """Handle payload id."""
         raw_id = getattr(self.payload, "id", None)
         if raw_id is None:
             return None
         return str(raw_id)
 
     def resolve(self, object_id: str) -> object | None:
+        """Resolve resolve."""
         if self.registry is None:
             return None
         return self.registry.resolve(str(object_id))
 
 
 class ExecutionMessageAdapter:
+    """Convert execution values into message payloads."""
+
     @staticmethod
     def _is_reference_key(key: str) -> bool:
         if key == "workerId":
@@ -84,6 +92,7 @@ class ExecutionMessageAdapter:
 
     @classmethod
     def namespace_dict_ids(cls, envelope_dict: JSONObject, *, namespace: str) -> JSONObject:
+        """Handle namespace dict ids."""
         prefix = f"{namespace}:"
 
         def _namespace(value: str) -> str:
@@ -93,6 +102,7 @@ class ExecutionMessageAdapter:
 
     @classmethod
     def rewrite_dict_ids(cls, envelope_dict: JSONObject, remap: dict[str, str]) -> JSONObject:
+        """Handle rewrite dict ids."""
         if not remap:
             return cast(JSONObject, deepcopy(envelope_dict))
         return cast(
@@ -106,6 +116,7 @@ class ExecutionMessageAdapter:
         *,
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> EventEnvelope:
+        """Handle serialize."""
         ExecutionMessageAdapter.serialize_to_dict(envelope, profile=profile)
         return envelope
 
@@ -115,6 +126,7 @@ class ExecutionMessageAdapter:
         *,
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> JSONObject:
+        """Handle serialize to dict."""
         envelope_dict = envelope_to_dict(envelope)
         return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
 
@@ -125,6 +137,13 @@ class ExecutionMessageAdapter:
         *,
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
+        """
+        Handle deserialize.
+
+        Raises:
+            TypeError: If the operation cannot be completed.
+
+        """
         normalized_envelope = cls.serialize(envelope)
         payload_kind = get_payload_kind(normalized_envelope)
         if payload_kind is None:
@@ -145,4 +164,5 @@ class ExecutionMessageAdapter:
         *,
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
+        """Handle deserialize dict."""
         return cls.deserialize(envelope_from_dict(payload), registry=registry)

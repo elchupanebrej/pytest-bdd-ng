@@ -1,7 +1,10 @@
+"""Provide test hook run regression helpers."""
+
 from __future__ import annotations
 
 
 def test_mark_hooks_can_read_optional_run_without_breaking_existing_usage(testdir):
+    """Verify mark hooks can read optional run without breaking existing usage."""
     testdir.makefile(
         ".feature",
         test="""

@@ -1,9 +1,12 @@
+"""Provide test pair validation helpers."""
+
 import json
 
 from pytest_bdd.script.compatibility_matrix import main
 
 
 def test_pair_validation_returns_nonzero_for_incompatible_pair(capsys):
+    """Verify pair validation returns nonzero for incompatible pair."""
     code = main(["--python", "314", "--pytest", "83", "--json"])
     out = capsys.readouterr().out
     payload = json.loads(out)
@@ -15,6 +18,7 @@ def test_pair_validation_returns_nonzero_for_incompatible_pair(capsys):
 
 
 def test_pair_validation_returns_zero_for_compatible_pair(capsys):
+    """Verify pair validation returns zero for compatible pair."""
     code = main(["--python", "314", "--pytest", "90", "--json"])
     out = capsys.readouterr().out
     payload = json.loads(out)
@@ -26,6 +30,7 @@ def test_pair_validation_returns_zero_for_compatible_pair(capsys):
 
 
 def test_pair_validation_returns_nonzero_for_eol_pair(capsys):
+    """Verify pair validation returns nonzero for eol pair."""
     code = main(["--python", "39", "--pytest", "90", "--json"])
     out = capsys.readouterr().out
     payload = json.loads(out)

@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 from collections import deque
 from io import BufferedIOBase, TextIOBase
 from typing import TYPE_CHECKING, Protocol
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
 
 
 class AttachmentCallable(Protocol):
+    """Represent attachment callable state."""
+
     def __call__(
         self,
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
@@ -38,7 +42,9 @@ class AttachmentCallable(Protocol):
         as_external: bool = False,
         test_run_hook_started_id: str | None = None,
         test_run_started_id: str | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Handle call."""
+        ...
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
@@ -49,6 +55,7 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 
 def pytest_addoption(parser: Parser) -> None:
+    """Handle addoption."""
     group = parser.getgroup("bdd", "Steps")
     help_ = "Allow use different keywords with same step definition"
     group.addoption(

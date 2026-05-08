@@ -1,3 +1,5 @@
+"""Provide hook helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Iterable
@@ -25,11 +27,15 @@ expression_count_gen = count()
 
 
 class HookKind(Enum):
+    """Represent hook kind state."""
+
     mark = "mark"
     tag = "tag"
 
 
 class HookConjunction(Enum):
+    """Represent hook conjunction state."""
+
     before = "before"
     after = "after"
     around = "around"
@@ -106,6 +112,7 @@ def _get_args_kwargs(
 
 
 def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) -> _Decorator:
+    """Build a hook decorator for the requested conjunction and kind."""
     conjunction_, kind_ = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator

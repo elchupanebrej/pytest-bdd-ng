@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 from __future__ import annotations
 
 import io
@@ -195,6 +197,7 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_load_initial_conftests(_early_config: Config, _parser: Parser, args: list[str]) -> None:
+    """Handle load initial conftests."""
     if (
         _running_on_windows()
         and _reporting_requested_from_args(list(args))
@@ -242,6 +245,13 @@ def pytest_addoption(parser: Parser) -> None:
 
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
+    """
+    Handle configure.
+
+    Raises:
+        UsageError: If the operation cannot be completed.
+
+    """
     reporter = None
     try:
         reporter = GherkinMessageReporter(config=config)
@@ -259,6 +269,7 @@ def pytest_configure(config: Config) -> None:
 
 @pytest.hookimpl(optionalhook=True, tryfirst=True)
 def pytest_xdist_getremotemodule() -> ModuleType:
+    """Handle xdist getremotemodule."""
     from pytest_bdd_worker_bootstrap import xdist_remote
 
     return xdist_remote
@@ -266,6 +277,7 @@ def pytest_xdist_getremotemodule() -> ModuleType:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config: Config) -> None:
+    """Handle unconfigure."""
     reporter = _resolve_reporter_state(config)
     if reporter is not None:
         _unconfigure_reporter_instance(reporter, config.pluginmanager)

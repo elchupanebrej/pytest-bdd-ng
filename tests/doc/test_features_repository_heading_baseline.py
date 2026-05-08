@@ -1,3 +1,5 @@
+"""Provide test features repository heading baseline helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +8,7 @@ from pytest_bdd.script.validate_feature_headings import build_baseline_audit
 
 
 def test_repository_feature_documents_have_no_empty_parsed_headings() -> None:
+    """Verify repository feature documents have no empty parsed headings."""
     repository_root = Path(__file__).resolve().parents[2]
     features_root = repository_root / "features"
 

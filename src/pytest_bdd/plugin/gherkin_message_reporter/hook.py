@@ -1,3 +1,5 @@
+"""Provide hook helpers."""
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class GherkinMessageReporterHookSpec:
+    """Declare hooks used by the gherkin message reporter."""
+
     @pytest.hookspec
     def pytest_bdd_message(self, config: Config, message: EventEnvelope) -> None:
         """Implement cucumber message protocol https://github.com/cucumber/messages."""

@@ -29,7 +29,19 @@ class _ScenarioReportTestReport(Protocol):
 
 
 class ScenarioReporter:
+    """
+    Represent scenario reporter state.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     def __init__(self) -> None:
+        """Initialize the scenario reporter."""
         self.current_report: ScenarioReport | None = None
 
     @staticmethod
@@ -57,6 +69,16 @@ class ScenarioReporter:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: Item, call: CallInfo) -> Generator[None, Result[TestReport], None]:
+        """
+        Handle the pytest runtest makereport pytest hook.
+
+        Yields:
+            Generated values.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         outcome = yield
         if call.when != "setup":
             rep = cast(_ScenarioReportTestReport, outcome.get_result())
@@ -129,4 +151,5 @@ class ScenarioReporter:
         request: FixtureRequest,
         _run: Run,
     ) -> None:
+        """Handle the pytest bdd after scenario pytest hook."""
         self._store_context_snapshot(request=request, fallback_reason="after_scenario_hierarchy_not_available")

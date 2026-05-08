@@ -1,3 +1,5 @@
+"""Provide library steps helpers."""
+
 import re
 from collections.abc import Iterator
 from typing import Literal
@@ -14,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover - repository-local tutorial layo
 
 def get_books_from_data_table(data_table: DataTable) -> list[Book]:
     # Gherkin data-tables have no title row by default, but we could define them if we want.
+    """Return books from data table."""
     title_row, *book_rows = data_table.rows
 
     step_data_table_titles = [cell.value for cell in title_row.cells]
@@ -34,6 +37,13 @@ def these_books_in_the_catalog(
     # So it could be used without extra effort
     step: TestStep,
 ) -> Iterator[Catalog]:
+    """
+    Handle these books in the catalog.
+
+    Yields:
+        Generated values.
+
+    """
     books = get_books_from_data_table(step.argument.data_table)
 
     catalog = Catalog()
@@ -58,6 +68,16 @@ def a_search_type_is_performed_for_search_term(
     # `catalog` is a fixture injected by another step
     catalog: Catalog,
 ) -> Iterator[list[Book]]:
+    """
+    Handle a search type is performed for search term.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        AssertionError: If the operation cannot be completed.
+
+    """
     if search_type == "title":
         search = catalog.search_by_title
     elif search_type == "name":
@@ -78,6 +98,7 @@ def only_these_books_will_be_returned(
     search_results: list[Book],
     step: TestStep,
 ) -> None:
+    """Handle only these books will be returned."""
     expected_books = get_books_from_data_table(step.argument.data_table)
     non_expected_books = [book for book in search_results if book not in expected_books]
     assert not non_expected_books, f"Books {non_expected_books} are not expected"

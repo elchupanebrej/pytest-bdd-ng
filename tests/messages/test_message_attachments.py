@@ -1,3 +1,5 @@
+"""Provide test message attachments helpers."""
+
 from __future__ import annotations
 
 from cucumber_messages import (
@@ -12,6 +14,7 @@ from .test_messages import list_filter_by_type, parse_and_unfold_messages, runpy
 
 
 def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
+    """Verify attachment messages are correlated to active step."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -60,6 +63,7 @@ def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
 
 
 def test_attachment_messages_populate_mandatory_metadata_fields(testdir, tmp_path):
+    """Verify attachment messages populate mandatory metadata fields."""
     testdir.makefile(
         ".feature",
         # language=gherkin

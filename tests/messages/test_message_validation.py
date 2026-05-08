@@ -1,3 +1,5 @@
+"""Provide test message validation helpers."""
+
 from __future__ import annotations
 
 from cucumber_messages import (  # type:ignore[attr-defined]
@@ -41,6 +43,7 @@ from tests.messages.test_xdist_message_consolidation import _controller_fragment
 
 
 def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
+    """Verify validate message stream rejects unsupported protocol version."""
     envelopes = [
         Message(
             meta=Meta(
@@ -60,6 +63,7 @@ def test_validate_message_stream_rejects_unsupported_protocol_version() -> None:
 
 
 def test_validate_message_stream_reports_fixed_matrix_diagnostics_when_enabled() -> None:
+    """Verify validate message stream reports fixed matrix diagnostics when enabled."""
     envelopes = [
         Message(
             test_run_finished=CucumberTestRunFinished(
@@ -77,6 +81,7 @@ def test_validate_message_stream_reports_fixed_matrix_diagnostics_when_enabled()
 
 
 def test_validate_message_stream_tracks_external_attachment_fields() -> None:
+    """Verify validate message stream tracks external attachment fields."""
     envelopes = [
         Message(
             external_attachment=ExternalAttachment(
@@ -105,6 +110,7 @@ def test_validate_message_stream_tracks_external_attachment_fields() -> None:
 
 
 def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
+    """Verify collect observed capability ids returns canonical ids."""
     envelopes = [
         Message(
             external_attachment=ExternalAttachment(
@@ -126,6 +132,7 @@ def test_collect_observed_capability_ids_returns_canonical_ids() -> None:
 
 
 def test_validate_message_stream_uses_execution_message_adapter(monkeypatch) -> None:
+    """Verify validate message stream uses execution message adapter."""
     envelope = Message(
         test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=1, nanos=0))
     )
@@ -145,6 +152,7 @@ def test_validate_message_stream_uses_execution_message_adapter(monkeypatch) -> 
 
 
 def test_validate_envelope_against_schema_uses_schema_compatible_projection() -> None:
+    """Verify validate envelope against schema uses schema compatible projection."""
     envelope = Message(
         step_definition=StepDefinition(
             id="step-definition-1",
@@ -171,6 +179,7 @@ def test_validate_envelope_against_schema_uses_schema_compatible_projection() ->
 
 
 def test_validate_message_stream_tracks_test_step_started_by_test_step_id() -> None:
+    """Verify validate message stream tracks test step started by test step id."""
     envelopes = [
         Message(
             test_step_started=CucumberTestStepStarted(
@@ -198,6 +207,7 @@ def test_validate_message_stream_tracks_test_step_started_by_test_step_id() -> N
 
 
 def test_validate_message_stream_requires_declared_run_hook_definition() -> None:
+    """Verify validate message stream requires declared run hook definition."""
     envelopes = [
         Message(
             test_run_hook_started=CucumberTestRunHookStarted(
@@ -229,6 +239,7 @@ def test_validate_message_stream_requires_declared_run_hook_definition() -> None
 
 
 def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
+    """Verify validate message stream accepts declared run hook definition."""
     envelopes = [
         Message(
             hook=Hook(
@@ -277,6 +288,7 @@ def test_validate_message_stream_accepts_declared_run_hook_definition() -> None:
 
 
 def test_validate_message_stream_accepts_consolidated_xdist_output() -> None:
+    """Verify validate message stream accepts consolidated xdist output."""
     consolidated = consolidate_message_fragments(
         [
             _controller_fragment(),

@@ -1,3 +1,5 @@
+"""Provide test sync messages contract schemas helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -16,6 +18,7 @@ def _write_schema(schema_dir: Path, name: str, content: str) -> None:
 
 
 def test_collect_schema_drift_reports_missing_changed_and_extra_files(tmp_path: Path) -> None:
+    """Verify collect schema drift reports missing changed and extra files."""
     expected = tmp_path / "expected"
     actual = tmp_path / "actual"
     _write_schema(expected, "Envelope.schema.json", '{"expected": true}\n')
@@ -33,6 +36,7 @@ def test_collect_schema_drift_reports_missing_changed_and_extra_files(tmp_path: 
 
 
 def test_check_mode_exits_when_generated_schemas_are_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify check mode exits when generated schemas are stale."""
     expected = tmp_path / "expected"
     actual = tmp_path / "actual"
     _write_schema(expected, "Envelope.schema.json", '{"expected": true}\n')
@@ -52,6 +56,7 @@ def test_check_mode_exits_when_generated_schemas_are_stale(tmp_path: Path, monke
 def test_check_mode_succeeds_when_generated_schemas_are_current(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Verify check mode succeeds when generated schemas are current."""
     expected = tmp_path / "expected"
     actual = tmp_path / "actual"
     _write_schema(expected, "Envelope.schema.json", '{"expected": true}\n')

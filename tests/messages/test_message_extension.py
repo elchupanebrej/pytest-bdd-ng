@@ -1,3 +1,5 @@
+"""Provide test message extension helpers."""
+
 from __future__ import annotations
 
 from typing import get_args, get_type_hints
@@ -25,11 +27,13 @@ def _is_optional(value: object) -> bool:
 
 
 def test_payload_kinds_are_derived_from_protocol_envelope() -> None:
+    """Verify payload kinds are derived from protocol envelope."""
     envelope_hints = get_type_hints(Envelope, globalns=vars(cucumber_messages_module))
     assert tuple(envelope_hints.keys()) == PAYLOAD_KINDS
 
 
 def test_status_capable_payload_kinds_are_protocol_derived() -> None:
+    """Verify status capable payload kinds are protocol derived."""
     envelope_hints = get_type_hints(Envelope, globalns=vars(cucumber_messages_module))
     governance_fields = {"implementation_status", "implementation_comment", "hook_origin"}
 

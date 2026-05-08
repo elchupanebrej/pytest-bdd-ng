@@ -4,6 +4,7 @@
 def test_heuristic_parser(
     testdir,
 ):
+    """Verify heuristic parser."""
     testdir.makefile(
         ".feature",
         # language=gherkin

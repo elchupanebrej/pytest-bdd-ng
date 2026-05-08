@@ -1,3 +1,5 @@
+"""Provide message status governance helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final, Literal, cast
@@ -86,6 +88,8 @@ LEGACY_STATUS_ALIASES: Final[dict[str, CapabilityStatus]] = {
 
 @frozen
 class CapabilityDecision:
+    """Represent capability decision state."""
+
     capability_id: str
     status: CapabilityStatus
     release_target: str
@@ -99,6 +103,8 @@ class CapabilityDecision:
 
 @frozen
 class DecisionValidationResult:
+    """Represent decision validation result state."""
+
     accepted: bool
     missing_required_evidence_fields: tuple[str, ...]
     violations: tuple[str, ...]
@@ -106,18 +112,23 @@ class DecisionValidationResult:
 
 @frozen
 class StatusUniquenessResult:
+    """Represent status uniqueness result state."""
+
     is_unique: bool
     duplicates: tuple[str, ...]
 
 
 @frozen
 class BlockerEvaluationResult:
+    """Represent blocker evaluation result state."""
+
     unresolved_blocker_capability_ids: tuple[str, ...]
     deferred_capability_ids: tuple[str, ...]
     missing_decision_capability_ids: tuple[str, ...]
 
     @property
     def blocker_count(self) -> int:
+        """Handle blocker count."""
         return len(self.unresolved_blocker_capability_ids)
 
 
@@ -126,12 +137,14 @@ def _is_non_empty_text(value: object) -> bool:
 
 
 def normalize_capability_status(status: CapabilityStatusLike) -> CapabilityStatus | None:
+    """Normalize capability status."""
     if status in CAPABILITY_STATUSES:
         return cast(CapabilityStatus, status)
     return LEGACY_STATUS_ALIASES.get(str(status).strip().lower())
 
 
 def missing_required_evidence_fields(decision: CapabilityDecision) -> tuple[str, ...]:
+    """Handle missing required evidence fields."""
     status = normalize_capability_status(decision.status)
     if status is None or status not in NON_IMPLEMENTED_STATUSES:
         return ()
@@ -154,6 +167,7 @@ def missing_required_evidence_fields(decision: CapabilityDecision) -> tuple[str,
 
 
 def validate_non_implementable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
+    """Validate non implementable policy."""
     status = normalize_capability_status(decision.status)
     if status != "Non-Implementable":
         return ()
@@ -170,6 +184,7 @@ def validate_non_implementable_policy(decision: CapabilityDecision) -> tuple[str
 
 
 def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
+    """Validate partly applicable policy."""
     status = normalize_capability_status(decision.status)
     if status != "Partly-Applicable":
         return ()
@@ -186,6 +201,7 @@ def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str
 
 
 def validate_capability_decision(decision: CapabilityDecision) -> DecisionValidationResult:
+    """Validate capability decision."""
     violations: list[str] = []
     status = normalize_capability_status(decision.status)
     if status is None:
@@ -206,6 +222,7 @@ def validate_mandatory_scope_decision(
     *,
     mandatory_capability_ids: set[str],
 ) -> tuple[str, ...]:
+    """Validate mandatory scope decision."""
     if decision.capability_id not in mandatory_capability_ids:
         return ()
     status = normalize_capability_status(decision.status)
@@ -219,6 +236,7 @@ def validate_mandatory_scope_decision(
 
 
 def ensure_single_status_per_capability(decisions: list[CapabilityDecision]) -> StatusUniquenessResult:
+    """Ensure single status per capability."""
     seen: set[tuple[str, str]] = set()
     duplicates: list[str] = []
     for decision in decisions:
@@ -231,6 +249,7 @@ def ensure_single_status_per_capability(decisions: list[CapabilityDecision]) -> 
 
 
 def is_release_blocker_status(status: CapabilityStatus) -> bool:
+    """Return release blocker status."""
     return status in RELEASE_BLOCKER_STATUSES
 
 
@@ -239,6 +258,7 @@ def evaluate_release_blockers(
     *,
     relevant_capability_ids: tuple[str, ...] = (),
 ) -> BlockerEvaluationResult:
+    """Handle evaluate release blockers."""
     index = {decision.capability_id: decision for decision in decisions}
     blocker_ids: set[str] = set()
     deferred_ids: set[str] = set()

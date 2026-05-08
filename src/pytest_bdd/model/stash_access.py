@@ -1,3 +1,5 @@
+"""Provide stash access helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, cast
@@ -25,6 +27,8 @@ class _StringKeyStash(Protocol):
 
 
 class StashAccess:
+    """Access pytest stash values across pytest versions."""
+
     @staticmethod
     def _stash_get(stash: Stash, key: str) -> object | None:
         string_stash = cast(_StringKeyStash, stash)
@@ -34,6 +38,13 @@ class StashAccess:
 
     @classmethod
     def get_optional(cls, stash: Stash, stash_type: type[T]) -> T | None:
+        """
+        Return optional.
+
+        Raises:
+            PytestBDDStashTypeMismatchError: If the operation cannot be completed.
+
+        """
         candidate = cls._stash_get(stash, stash_type.STASH_KEY)
         if candidate is None:
             return None
@@ -47,6 +58,13 @@ class StashAccess:
 
     @classmethod
     def require(cls, stash: Stash, stash_type: type[T], *, missing_message: str) -> T:
+        """
+        Handle require.
+
+        Raises:
+            PytestBDDStashLookupError: If the operation cannot be completed.
+
+        """
         candidate = cls.get_optional(stash, stash_type)
         if candidate is not None:
             return candidate
@@ -54,6 +72,7 @@ class StashAccess:
 
     @classmethod
     def set(cls, stash: Stash, value: T) -> T:
+        """Handle set."""
         cast(_StringKeyStash, stash)[value.STASH_KEY] = value
         return value
 
@@ -66,6 +85,13 @@ class StashAccess:
         value_factory: Callable[[], T],
         duplicate_message: str,
     ) -> T:
+        """
+        Represent create once state.
+
+        Raises:
+            PytestBDDStashAlreadyInitializedError: If the operation cannot be completed.
+
+        """
         existing = cls.get_optional(stash, stash_type)
         if existing is not None:
             raise exceptions.PytestBDDStashAlreadyInitializedError(duplicate_message)
@@ -73,28 +99,36 @@ class StashAccess:
 
 
 class StashBound:
+    """Represent stash bound state."""
+
     STASH_KEY: ClassVar[str]
 
     @classmethod
     def stash_missing_message(cls) -> str:
+        """Handle stash missing message."""
         return f"`{cls.__name__}` is unavailable in config.stash."
 
     @classmethod
     def stash_duplicate_message(cls) -> str:
+        """Handle stash duplicate message."""
         return f"`{cls.__name__}` is already initialized in config.stash."
 
     @classmethod
     def find_in_stash(cls, stash: Stash) -> Self | None:
+        """Find in stash."""
         return StashAccess.get_optional(stash, cls)
 
     @classmethod
     def from_stash(cls, stash: Stash) -> Self:
+        """Create stash."""
         return StashAccess.require(stash, cls, missing_message=cls.stash_missing_message())
 
     def set_in_stash(self, stash: Stash) -> Self:
+        """Handle set in stash."""
         return StashAccess.set(stash, self)
 
     def initialize_in_stash(self, stash: Stash) -> Self:
+        """Handle initialize in stash."""
         return StashAccess.create_once(
             stash,
             type(self),

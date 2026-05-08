@@ -1,3 +1,5 @@
+"""Provide test message baseline diff helpers."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -15,6 +17,7 @@ from .message_capability_fixtures import make_capability
 
 
 def test_next_weekly_run_at_adds_seven_days() -> None:
+    """Verify next weekly run at adds seven days."""
     last_run = datetime(2026, 2, 1, 10, 0, tzinfo=UTC)
 
     next_run = next_weekly_run_at(last_run)
@@ -23,6 +26,7 @@ def test_next_weekly_run_at_adds_seven_days() -> None:
 
 
 def test_is_weekly_run_due_true_when_now_reaches_next_run() -> None:
+    """Verify is weekly run due true when now reaches next run."""
     schedule = BaselineComparisonSchedule(
         schedule_id="weekly-mainline",
         cadence=WEEKLY_CADENCE,
@@ -35,6 +39,7 @@ def test_is_weekly_run_due_true_when_now_reaches_next_run() -> None:
 
 
 def test_build_baseline_diff_detects_added_changed_removed_capabilities() -> None:
+    """Verify build baseline diff detects added changed removed capabilities."""
     previous = [
         make_capability("cap-1", description="stable"),
         make_capability("cap-2", description="old-description"),
@@ -60,6 +65,7 @@ def test_build_baseline_diff_detects_added_changed_removed_capabilities() -> Non
 
 
 def test_execute_weekly_baseline_diff_runs_only_when_due() -> None:
+    """Verify execute weekly baseline diff runs only when due."""
     schedule = BaselineComparisonSchedule(
         schedule_id="weekly-mainline",
         cadence=WEEKLY_CADENCE,

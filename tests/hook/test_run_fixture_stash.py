@@ -1,7 +1,10 @@
+"""Provide test run fixture stash helpers."""
+
 from __future__ import annotations
 
 
 def test_run_context_is_available_via_fixture_and_stash(testdir):
+    """Verify run context is available via fixture and stash."""
     testdir.makefile(
         ".ini",
         pytest="""

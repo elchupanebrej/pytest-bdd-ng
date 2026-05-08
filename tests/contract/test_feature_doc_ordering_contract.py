@@ -1,3 +1,5 @@
+"""Provide test feature doc ordering contract helpers."""
+
 from pathlib import Path
 
 import yaml
@@ -12,10 +14,12 @@ CONTRACT_PATH = (
 
 
 def test_feature_doc_ordering_contract_exists() -> None:
+    """Verify feature doc ordering contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_feature_doc_ordering_contract_has_required_paths() -> None:
+    """Verify feature doc ordering contract has required paths."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     paths = data["paths"]
 
@@ -27,6 +31,7 @@ def test_feature_doc_ordering_contract_has_required_paths() -> None:
 
 
 def test_feature_doc_ordering_contract_has_required_schemas() -> None:
+    """Verify feature doc ordering contract has required schemas."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     schemas = data["components"]["schemas"]
 
@@ -40,6 +45,7 @@ def test_feature_doc_ordering_contract_has_required_schemas() -> None:
 
 
 def test_feature_doc_ordering_contract_declares_navigation_scope_and_generated_page_path_fields() -> None:
+    """Verify feature doc ordering contract declares navigation scope and generated page path fields."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     schemas = data["components"]["schemas"]
 
@@ -54,6 +60,7 @@ def test_feature_doc_ordering_contract_declares_navigation_scope_and_generated_p
 
 
 def test_feature_doc_ordering_contract_declares_deterministic_error_codes() -> None:
+    """Verify feature doc ordering contract declares deterministic error codes."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     error_enum = data["components"]["schemas"]["OrderingValidationError"]["properties"]["errorCode"]["enum"]
 
@@ -61,6 +68,7 @@ def test_feature_doc_ordering_contract_declares_deterministic_error_codes() -> N
 
 
 def test_feature_doc_ordering_contract_declares_template_responsibilities() -> None:
+    """Verify feature doc ordering contract declares template responsibilities."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     responsibility_enum = data["components"]["schemas"]["DocumentationTemplate"]["properties"]["responsibility"]["enum"]
 
@@ -68,6 +76,7 @@ def test_feature_doc_ordering_contract_declares_template_responsibilities() -> N
 
 
 def test_feature_doc_ordering_contract_declares_markdown_heading_normalization_converters() -> None:
+    """Verify feature doc ordering contract declares markdown heading normalization converters."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     converter_enum = data["components"]["schemas"]["MarkdownHeadingNormalizationRequest"]["properties"][
         "preferredConverter"

@@ -1,3 +1,5 @@
+"""Provide toolz extra helpers."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -16,6 +18,14 @@ _MISSING = object()
 
 
 class DefaultMapping(defaultdict[object, object]):
+    """
+    Represent default mapping state.
+
+    Raises:
+        KeyError: If the operation cannot be completed.
+
+    """
+
     Skip = object()
 
     def __init__(
@@ -25,6 +35,7 @@ class DefaultMapping(defaultdict[object, object]):
         warm_up_keys: Collection[object] = (),
         **kwargs: object,
     ) -> None:
+        """Initialize the default mapping."""
         super().__init__(default_factory, *args, **kwargs)
         self.warm_up(*warm_up_keys)
 
@@ -51,6 +62,7 @@ class DefaultMapping(defaultdict[object, object]):
         return super().__missing__(key)
 
     def warm_up(self, *items: object) -> None:
+        """Handle warm up."""
         for item in items:
             with suppress(KeyError):
                 getitem(self, item)
@@ -62,6 +74,7 @@ class DefaultMapping(defaultdict[object, object]):
         *,
         warm_up_keys: Collection[object] = (),
     ) -> DefaultMapping:
+        """Handle instantiate from collection or bool."""
         if bool_or_items is _MISSING:
             bool_or_items = True
         if isinstance(bool_or_items, Collection):
@@ -74,6 +87,7 @@ class DefaultMapping(defaultdict[object, object]):
 
 
 def itemgetter_(*items: object) -> Callable[[object], object]:
+    """Handle itemgetter."""
     getter = cast(Callable[[object], object], itemgetter(*items))
 
     def func(obj: object) -> object:
@@ -88,6 +102,8 @@ def itemgetter_(*items: object) -> Callable[[object], object]:
 
 
 class Empty(Enum):
+    """Represent empty state."""
+
     empty = None
 
 
@@ -98,6 +114,14 @@ def getitemdefault(
     default_factory: Callable[[], object] | None = None,
     treat_as_empty: object = Empty.empty,
 ) -> object:
+    """
+    Handle getitemdefault.
+
+    Raises:
+        KeyError: If the operation cannot be completed.
+        ValueError: If the operation cannot be completed.
+
+    """
     if default is not Empty.empty:
         if default_factory is not None:
             msg = "Both 'default' and 'default_factory' were specified"
@@ -121,6 +145,13 @@ def getitemdefault(
 
 
 def deepattrgetter(*attrs: str, **kwargs: object) -> Callable[[object], tuple[object, ...]]:
+    """
+    Handle deepattrgetter.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     empty = object()
     default = kwargs.pop("default", empty)
     skip_missing = bool(kwargs.pop("skip_missing", False))
@@ -152,6 +183,13 @@ def setdefaultattr(
     value: Literal[Empty.empty] | object = Empty.empty,
     value_factory: Callable[[], object] | None = None,
 ) -> object:
+    """
+    Handle setdefaultattr.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     if value is not Empty.empty and value_factory is not None:
         msg = "Both 'value' and 'value_factory' were specified"
         raise ValueError(msg)
@@ -164,14 +202,21 @@ def setdefaultattr(
 
 
 class ObjectCallable(Protocol):
-    def __call__(self, *args: object, **kwargs: object) -> object: ...
+    """Represent object callable state."""
+
+    def __call__(self, *args: object, **kwargs: object) -> object:
+        """Handle call."""
+        ...
 
 
 def compose(*funcs: ObjectCallable) -> ObjectCallable:
+    """Handle compose."""
     return cast(ObjectCallable, reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs))
 
 
 def flip(func: ObjectCallable) -> ObjectCallable:
+    """Handle flip."""
+
     def wrapped(*args: object, **kwargs: object) -> object:
         if len(args) > 1:
             first, *other, last = args

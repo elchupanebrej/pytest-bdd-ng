@@ -1,3 +1,5 @@
+"""Provide message converter helpers."""
+
 from __future__ import annotations
 
 from dataclasses import asdict as dataclass_asdict
@@ -22,17 +24,20 @@ message_converter: json_converter.JsonDataclassConverter = json_converter.JsonDa
 
 
 def envelope_to_dict(message: Message) -> JSONObject:
+    """Handle envelope to dict."""
     validate_envelope_shape(message)
     return cast(JSONObject, message_converter.to_dict(message))
 
 
 def envelope_from_dict(payload: JSONObject) -> Message:
+    """Handle envelope from dict."""
     message = message_converter.from_dict(payload, Message)
     validate_envelope_shape(message)
     return message
 
 
 def governance_value_to_dict(value: object) -> JSONValue:
+    """Handle governance value to dict."""
     if attrs_has(type(value)) and not isinstance(value, type):
         return governance_value_to_dict(attrs_asdict(cast(AttrsInstance, value)))
     if is_dataclass(value) and not isinstance(value, type):

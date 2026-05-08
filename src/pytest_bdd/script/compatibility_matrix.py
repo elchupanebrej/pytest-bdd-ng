@@ -21,6 +21,7 @@ from pytest_bdd.compatibility.matrix import (
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse args."""
     parser = argparse.ArgumentParser(description="Inspect Python/pytest compatibility matrix")
     parser.add_argument("--tox-ini", type=Path, default=Path("tox.ini"), help="Path to tox.ini")
     parser.add_argument("--python", dest="python_factor", help="Python factor without prefix, e.g. 314")
@@ -56,6 +57,7 @@ def _emit(payload: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run main."""
     args = parse_args(argv)
 
     if args.report_e2e_migration_threshold:

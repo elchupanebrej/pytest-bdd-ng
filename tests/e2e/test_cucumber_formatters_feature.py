@@ -1,3 +1,5 @@
+"""Provide test cucumber formatters feature helpers."""
+
 from __future__ import annotations
 
 import os
@@ -24,6 +26,7 @@ test = scenarios("../tests/e2e/_cucumber_formatters.feature")
 
 @pytest.fixture
 def formatter_artifacts(tmp_path: Path) -> dict[str, object]:
+    """Handle formatter artifacts."""
     return {"root": tmp_path, "outputs": {}}
 
 
@@ -32,6 +35,7 @@ def _repo_root() -> Path:
 
 
 def test_e2e_formatter_support_module_is_only_a_thin_reexport() -> None:
+    """Verify e2e formatter support module is only a thin reexport."""
     shim_source = (_repo_root() / "tests" / "e2e" / "cucumber_formatter_support.py").read_text(encoding="utf-8")
 
     assert "from tests.support.cucumber_formatters import (" in shim_source
@@ -56,16 +60,19 @@ def _run_pytest_subprocess_with_attachments(testdir, attach, *cli_args: str):
 
 @given("a fake node executable is available")
 def fake_node_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Handle fake node available."""
     install_fake_node(monkeypatch, tmp_path)
 
 
 @given("a fake node executable without preinstalled formatter packages is available")
 def fake_node_without_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Handle fake node without packages."""
     install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
 
 
 @given("a BDD suite with one passing and one failing scenario")
 def formatter_sample_suite(testdir) -> None:
+    """Handle formatter sample suite."""
     build_sample_suite(testdir)
 
 
@@ -74,6 +81,7 @@ def formatter_sample_suite(testdir) -> None:
     target_fixture="pytest_result",
 )
 def run_pytest_with_console_formatter(testdir, flag: str, attach):
+    """Run pytest with console formatter."""
     return _run_pytest_subprocess_with_attachments(testdir, attach, flag)
 
 
@@ -84,6 +92,7 @@ def run_pytest_with_console_formatter(testdir, flag: str, attach):
 def run_pytest_with_file_formatter(
     testdir, formatter_artifacts: dict[str, object], flag: str, report_name: str, attach
 ):
+    """Run pytest with file formatter."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     output_path = output_root / report_name
@@ -95,6 +104,7 @@ def run_pytest_with_file_formatter(
 
 @when("I run pytest with multiple cucumber formatter flags", target_fixture="pytest_result")
 def run_pytest_with_multiple_formatters(testdir, formatter_artifacts: dict[str, object], attach):
+    """Run pytest with multiple formatters."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     outputs = formatter_artifacts["outputs"]
@@ -114,11 +124,13 @@ def run_pytest_with_multiple_formatters(testdir, formatter_artifacts: dict[str, 
 
 @when("I run pytest with conflicting terminal formatter flags", target_fixture="pytest_result")
 def run_pytest_with_conflicting_terminal_formatters(testdir, attach):
+    """Run pytest with conflicting terminal formatters."""
     return _run_pytest_subprocess_with_attachments(testdir, attach, "--cucumber-summary", "--cucumber-progress")
 
 
 @when("I run pytest with a file formatter pointing to a missing directory", target_fixture="pytest_result")
 def run_pytest_with_missing_output_directory(testdir, formatter_artifacts: dict[str, object], attach):
+    """Run pytest with missing output directory."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     output_path = output_root / "missing-dir" / "report.json"
@@ -127,6 +139,7 @@ def run_pytest_with_missing_output_directory(testdir, formatter_artifacts: dict[
 
 @when("I run pytest with conflicting file formatter output paths", target_fixture="pytest_result")
 def run_pytest_with_conflicting_file_paths(testdir, formatter_artifacts: dict[str, object], attach):
+    """Run pytest with conflicting file paths."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     output_path = output_root / "report.out"
@@ -142,6 +155,7 @@ def run_pytest_with_conflicting_file_paths(testdir, formatter_artifacts: dict[st
     parsers.parse('a canonical messages NDJSON report generated at "{report_name}"'),
 )
 def canonical_messages_report(testdir, formatter_artifacts: dict[str, object], report_name: str, attach) -> None:
+    """Handle canonical messages report."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     outputs = formatter_artifacts["outputs"]
@@ -155,6 +169,7 @@ def canonical_messages_report(testdir, formatter_artifacts: dict[str, object], r
 
 @when("I run the standalone cucumber formatter renderer from that NDJSON", target_fixture="renderer_result")
 def run_standalone_formatter_renderer(formatter_artifacts: dict[str, object], attach):
+    """Run standalone formatter renderer."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     outputs = formatter_artifacts["outputs"]
@@ -207,12 +222,14 @@ def run_standalone_formatter_renderer(formatter_artifacts: dict[str, object], at
     parsers.parse('stdout contains the user-visible line "{visible_output}"'),
 )
 def stdout_contains_user_visible_line(pytest_result, visible_output: str) -> None:
+    """Handle stdout contains user visible line."""
     stdout = pytest_result.stdout if isinstance(pytest_result.stdout, str) else pytest_result.stdout.str()
     assert fnmatch(stdout, f"*{visible_output}*")
 
 
 @then("stdout omits the default pytest terminal reporter output")
 def stdout_omits_default_pytest_terminal_reporter_output(pytest_result) -> None:
+    """Handle stdout omits default pytest terminal reporter output."""
     stdout = pytest_result.stdout if isinstance(pytest_result.stdout, str) else pytest_result.stdout.str()
     assert_pytest_terminal_reporter_suppressed(stdout)
 
@@ -221,17 +238,20 @@ def stdout_omits_default_pytest_terminal_reporter_output(pytest_result) -> None:
     parsers.parse('stderr contains the user-visible line "{visible_output}"'),
 )
 def stderr_contains_user_visible_line(pytest_result, visible_output: str) -> None:
+    """Handle stderr contains user visible line."""
     stderr = pytest_result.stderr if isinstance(pytest_result.stderr, str) else pytest_result.stderr.str()
     assert fnmatch(stderr, f"*{visible_output}*")
 
 
 @then("the standalone renderer succeeds")
 def standalone_renderer_succeeds(renderer_result: subprocess.CompletedProcess[str]) -> None:
+    """Handle standalone renderer succeeds."""
     assert renderer_result.returncode == 0, renderer_result.stdout + renderer_result.stderr
 
 
 @then("pytest exits with usage error")
 def pytest_exits_with_usage_error(pytest_result) -> None:
+    """Handle exits with usage error."""
     exit_code = getattr(pytest_result, "ret", None)
     if exit_code is None:
         exit_code = pytest_result.returncode
@@ -245,6 +265,7 @@ def standalone_stdout_contains_user_visible_line(
     renderer_result: subprocess.CompletedProcess[str],
     visible_output: str,
 ) -> None:
+    """Handle standalone stdout contains user visible line."""
     assert visible_output in renderer_result.stdout
 
 
@@ -255,6 +276,7 @@ def fake_formatter_stream_source_is(
     formatter_artifacts: dict[str, object],
     source_mode: str,
 ) -> None:
+    """Handle fake formatter stream source is."""
     output_root = formatter_artifacts["root"]
     assert isinstance(output_root, Path)
     telemetry = read_fake_formatter_telemetry(output_root)
@@ -271,6 +293,7 @@ def file_contains_rendered_line(
     report_name: str,
     visible_output: str,
 ) -> None:
+    """Handle file contains rendered line."""
     outputs = formatter_artifacts["outputs"]
     assert isinstance(outputs, dict)
     output_path = outputs[report_name]

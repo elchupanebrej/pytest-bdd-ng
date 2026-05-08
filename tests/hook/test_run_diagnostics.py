@@ -1,3 +1,5 @@
+"""Provide test run diagnostics helpers."""
+
 from __future__ import annotations
 
 import pytest
@@ -28,6 +30,7 @@ def _build_context() -> ScenarioRun:
 
 
 def test_require_feature_binding_raises_with_binding_missing_error() -> None:
+    """Verify require feature binding raises with binding missing error."""
     context = _build_context()
 
     with pytest.raises(RuntimeError, match=r"Feature runtime binding is unavailable.*pytest_bdd_before_scenario"):

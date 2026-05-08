@@ -1,3 +1,5 @@
+"""Provide standalone renderer helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -67,6 +69,8 @@ class _StandaloneLiveFormatterService(LiveFormatterService):
 
 @frozen
 class StandaloneCucumberFormatterRenderer:
+    """Represent standalone cucumber formatter renderer state."""
+
     catalog: FormatterPluginCatalog
 
     @classmethod
@@ -75,6 +79,7 @@ class StandaloneCucumberFormatterRenderer:
         *,
         catalog: FormatterPluginCatalog | None = None,
     ) -> StandaloneCucumberFormatterRenderer:
+        """Handle discover."""
         return cls(catalog=resolve_standalone_formatter_catalog(catalog))
 
     def resolve_requests(
@@ -83,6 +88,7 @@ class StandaloneCucumberFormatterRenderer:
         rootpath: Path,
         formatter_option_values: dict[str, object],
     ) -> tuple[CucumberFormatterRequest, ...]:
+        """Resolve requests."""
         return cast(
             tuple[CucumberFormatterRequest, ...],
             resolve_standalone_formatter_requests(
@@ -99,6 +105,7 @@ class StandaloneCucumberFormatterRenderer:
         rootpath: Path,
         formatter_option_values: dict[str, object],
     ) -> CucumberFormatterRenderResult:
+        """Render from messages path."""
         formatter_requests = self.resolve_requests(
             rootpath=rootpath,
             formatter_option_values=formatter_option_values,

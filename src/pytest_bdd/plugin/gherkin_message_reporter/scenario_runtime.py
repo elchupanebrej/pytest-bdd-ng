@@ -1,3 +1,5 @@
+"""Provide scenario runtime helpers."""
+
 from __future__ import annotations
 
 import re
@@ -36,6 +38,8 @@ if TYPE_CHECKING:
 
 
 class ScenarioService(ReporterServiceBase):
+    """Represent scenario service state."""
+
     plugin_suffix = "scenario"
 
     def __init__(
@@ -45,6 +49,7 @@ class ScenarioService(ReporterServiceBase):
         lifecycle_service: LifecycleService,
         transport_service: TransportService,
     ) -> None:
+        """Initialize the scenario service."""
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.transport_service = transport_service
@@ -95,6 +100,7 @@ class ScenarioService(ReporterServiceBase):
         run: Run,
         exception: Exception,
     ) -> None:
+        """Handle the pytest bdd step func lookup error pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_step_func_lookup_error")
@@ -132,6 +138,7 @@ class ScenarioService(ReporterServiceBase):
         request: FixtureRequest,
         run: Run,
     ) -> None:
+        """Handle the pytest bdd before scenario pytest hook."""
         if self.reporter.is_disabled:
             return
         config = request.config
@@ -164,6 +171,7 @@ class ScenarioService(ReporterServiceBase):
         request: FixtureRequest,
         run: Run,
     ) -> None:
+        """Handle the pytest bdd after scenario pytest hook."""
         if self.reporter.is_disabled:
             return
         reporting_state = run.reporting_state
@@ -201,6 +209,7 @@ class ScenarioService(ReporterServiceBase):
         run: Run,
         step_func: object,  # noqa: ARG002
     ) -> None:
+        """Handle the pytest bdd before step pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_before_step")
@@ -234,6 +243,7 @@ class ScenarioService(ReporterServiceBase):
         run: Run,
         step_func: object,  # noqa: ARG002
     ) -> None:
+        """Handle the pytest bdd after step pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_after_step")
@@ -275,6 +285,7 @@ class ScenarioService(ReporterServiceBase):
         exception: Exception,
         step_definition: StepDefinitionManager.Definition,  # noqa: ARG002
     ) -> None:
+        """Handle the pytest bdd step error pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_step_error")

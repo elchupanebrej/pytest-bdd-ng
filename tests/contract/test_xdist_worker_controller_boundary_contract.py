@@ -1,3 +1,5 @@
+"""Provide test xdist worker controller boundary contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,18 +28,22 @@ def _plugin_boundary_contract_text() -> str:
 
 
 def test_xdist_worker_controller_boundary_contract_exists() -> None:
+    """Verify xdist worker controller boundary contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_live_formatter_worker_controller_boundary_contract_exists() -> None:
+    """Verify live formatter worker controller boundary contract exists."""
     assert LIVE_CONTRACT_PATH.exists()
 
 
 def test_live_reporting_plugin_boundary_contract_exists() -> None:
+    """Verify live reporting plugin boundary contract exists."""
     assert PLUGIN_BOUNDARY_CONTRACT_PATH.exists()
 
 
 def test_xdist_worker_controller_boundary_contract_assigns_transport_ownership() -> None:
+    """Verify xdist worker controller boundary contract assigns transport ownership."""
     contract_text = _contract_text()
     assert "pytest_xdist_getremotemodule" in contract_text
     assert "emit reporting payloads into execnet-serializable chunk batches" in contract_text
@@ -48,6 +54,7 @@ def test_xdist_worker_controller_boundary_contract_assigns_transport_ownership()
 
 
 def test_xdist_worker_controller_boundary_contract_covers_partial_run_behavior() -> None:
+    """Verify xdist worker controller boundary contract covers partial run behavior."""
     contract_text = _contract_text()
     assert "popen" in contract_text
     assert "ssh" in contract_text
@@ -60,6 +67,7 @@ def test_xdist_worker_controller_boundary_contract_covers_partial_run_behavior()
 
 
 def test_live_formatter_boundary_contract_assigns_controller_only_rendering() -> None:
+    """Verify live formatter boundary contract assigns controller only rendering."""
     contract_text = _live_contract_text()
 
     assert "controller/main authority renders live formatter output" in contract_text
@@ -70,6 +78,7 @@ def test_live_formatter_boundary_contract_assigns_controller_only_rendering() ->
 
 
 def test_live_formatter_boundary_contract_requires_manifest_and_interruption_diagnostics() -> None:
+    """Verify live formatter boundary contract requires manifest and interruption diagnostics."""
     contract_text = _live_contract_text()
 
     assert "source-complete" in contract_text
@@ -78,6 +87,7 @@ def test_live_formatter_boundary_contract_requires_manifest_and_interruption_dia
 
 
 def test_live_reporting_plugin_boundary_contract_covers_split_architecture_and_template_assets() -> None:
+    """Verify live reporting plugin boundary contract covers split architecture and template assets."""
     contract_text = _plugin_boundary_contract_text()
 
     assert "Message-stream plugin" in contract_text

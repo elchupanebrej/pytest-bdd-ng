@@ -1,9 +1,12 @@
+"""Provide test e2e migration threshold helpers."""
+
 from pathlib import Path
 
 from pytest_bdd.compatibility.matrix import build_migration_coverage_summary
 
 
 def test_migration_threshold_met_when_features_cover_user_facing_ids(tmp_path: Path):
+    """Verify migration threshold met when features cover user facing ids."""
     tests_feature_dir = tmp_path / "tests" / "feature"
     tests_feature_dir.mkdir(parents=True)
     (tests_feature_dir / "test_feature_base_dir.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
@@ -18,6 +21,7 @@ def test_migration_threshold_met_when_features_cover_user_facing_ids(tmp_path: P
 
 
 def test_migration_threshold_fails_when_coverage_too_low(tmp_path: Path):
+    """Verify migration threshold fails when coverage too low."""
     tests_feature_dir = tmp_path / "tests" / "feature"
     tests_feature_dir.mkdir(parents=True)
     (tests_feature_dir / "test_no_scenario.py").write_text("def test_x():\n    pass\n", encoding="utf-8")

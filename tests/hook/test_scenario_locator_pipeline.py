@@ -1,3 +1,5 @@
+"""Provide test scenario locator pipeline helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -68,6 +70,7 @@ def _build_gherkin_document() -> GherkinDocument:
 
 
 def test_resolve_features_phase_does_not_materialize_pickles() -> None:
+    """Verify resolve features phase does not materialize pickles."""
     gherkin_document = _build_gherkin_document()
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])
@@ -81,6 +84,7 @@ def test_resolve_features_phase_does_not_materialize_pickles() -> None:
 
 
 def test_resolve_pipeline_materializes_pickles_without_message_emission() -> None:
+    """Verify resolve pipeline materializes pickles without message emission."""
     gherkin_document = _build_gherkin_document()
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])
@@ -98,6 +102,7 @@ def test_resolve_pipeline_materializes_pickles_without_message_emission() -> Non
 
 
 def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
+    """Verify resolve pipeline invokes collection callbacks in order."""
     gherkin_document = _build_gherkin_document()
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
     locator = _DummyLocator(entries=[(gherkin_document, source)])

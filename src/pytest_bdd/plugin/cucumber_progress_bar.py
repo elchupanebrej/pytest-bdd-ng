@@ -1,3 +1,5 @@
+"""Provide cucumber progress bar helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,12 +11,15 @@ if TYPE_CHECKING:
 
 
 class ProgressBarFormatterPlugin(FormatterReporterPlugin):
+    """Represent progress bar formatter plugin state."""
+
     output_mode = FormatterOutputMode.stdout
     writes_to_terminal = True
     runtime_kind = FormatterRuntimeKind.module
     runtime_template_name = "progress_bar.cjs.j2"
 
     def __init__(self) -> None:
+        """Initialize the progress bar formatter plugin."""
         super().__init__(
             option_attr="cucumber_progress_bar",
             cli_flag="--cucumber-progress-bar",
@@ -26,6 +31,7 @@ class ProgressBarFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
+        """Build addoption kwargs."""
         return self.build_boolean_addoption_kwargs()
 
     def build_request_from_value(
@@ -34,6 +40,7 @@ class ProgressBarFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build request from value."""
         _ = raw_value, resolve_output_path
         return self.build_module_terminal_request(template_name=type(self).runtime_template_name)
 
@@ -42,6 +49,7 @@ class ProgressBarFormatterPlugin(FormatterReporterPlugin):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Render runtime assets."""
         return self.build_module_runtime_assets(
             formatter_request=formatter_request,
             formatter_requests=formatter_requests,

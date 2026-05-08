@@ -1,3 +1,5 @@
+"""Provide runtime contract helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -17,6 +19,8 @@ QuietTerminalReplacer = Callable[[Config], QuietTerminalRestorer]
 
 @runtime_checkable
 class ReporterLifecycleContract(Protocol):
+    """Represent reporter lifecycle contract state."""
+
     plugin_name: str
 
     def configure(
@@ -24,16 +28,26 @@ class ReporterLifecycleContract(Protocol):
         *,
         pluginmanager: PytestPluginManager,
         quiet_terminal_replacer: QuietTerminalReplacer,
-    ) -> None: ...
+    ) -> None:
+        """Configure configure."""
+        ...
 
-    def unconfigure(self, *, pluginmanager: PytestPluginManager) -> None: ...
+    def unconfigure(self, *, pluginmanager: PytestPluginManager) -> None:
+        """Handle unconfigure."""
+        ...
 
 
 @runtime_checkable
 class FormatterRenderingContract(Protocol):
-    def read_envelopes_from_path(self, messages_file_path: Path) -> list[EventEnvelope]: ...
+    """Handle formatter rendering contract."""
+
+    def read_envelopes_from_path(self, messages_file_path: Path) -> list[EventEnvelope]:
+        """Read envelopes from path."""
+        ...
 
     def render_requested_cucumber_formatters_from_path(
         self,
         messages_file_path: Path,
-    ) -> CucumberFormatterRenderResult: ...
+    ) -> CucumberFormatterRenderResult:
+        """Render requested cucumber formatters from path."""
+        ...

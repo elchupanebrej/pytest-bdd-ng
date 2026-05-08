@@ -1,3 +1,5 @@
+"""Provide runtime assembly helpers."""
+
 from __future__ import annotations
 
 import os
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
 
 @frozen
 class ReporterServiceGraph:
+    """Represent reporter service graph state."""
+
     lifecycle_service: LifecycleService
     transport_service: TransportService
     hook_catalog_service: HookCatalogService
@@ -37,6 +41,7 @@ class ReporterServiceGraph:
 
 
 def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
+    """Handle initialize reporter runtime."""
     reporter.parameter_type_registry = set()
     reporter.hook_registry = set()
     reporter.hook_registration_registry = {}
@@ -108,6 +113,7 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
 
 
 def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServiceGraph:
+    """Handle assemble reporter runtime."""
     live_formatter_service = LiveFormatterService(reporter=reporter)
     transport_service = TransportService(reporter=reporter, live_formatter_service=live_formatter_service)
     lifecycle_service = LifecycleService(
@@ -149,6 +155,7 @@ def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServi
 
 
 def finalize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
+    """Handle finalize reporter runtime."""
     if reporter.is_disabled:
         return
 

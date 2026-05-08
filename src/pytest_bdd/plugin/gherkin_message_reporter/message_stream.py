@@ -1,3 +1,5 @@
+"""Provide message stream helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +44,13 @@ class _PatchedProcessFromRemote(Protocol):
 
 
 def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
+    """
+    Handle coerce reporting batch payload.
+
+    Raises:
+        TypeError: If the operation cannot be completed.
+
+    """
     if isinstance(batch_payload, dict):
         return batch_payload
     msg = "xdist reporter batch payload must be a dictionary"
@@ -49,6 +58,7 @@ def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
 
 
 def ensure_xdist_controller_batch_patch() -> bool:
+    """Ensure xdist controller batch patch."""
     try:
         from xdist import workermanage
     except ImportError:

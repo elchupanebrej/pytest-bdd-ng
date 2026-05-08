@@ -1,3 +1,5 @@
+"""Provide cucumber formatter adapter helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -32,10 +34,12 @@ class CucumberFormatterEnvelopeAdapter:
     """
 
     def __init__(self) -> None:
+        """Initialize the cucumber formatter envelope adapter."""
         self._test_cases_by_id: dict[str, JSONObject] = {}
         self._attempts_by_started_id: dict[str, _FormatterAttemptState] = {}
 
     def adapt_envelope_dict(self, envelope_dict: JSONObject) -> tuple[JSONObject, ...]:
+        """Handle adapt envelope dict."""
         synthetic_envelopes: list[JSONObject] = []
 
         test_case = envelope_dict.get("testCase")
@@ -71,6 +75,7 @@ class CucumberFormatterEnvelopeAdapter:
         return (*synthetic_envelopes, envelope_dict)
 
     def flush(self, *, timestamp_payload: object | None = None) -> tuple[JSONObject, ...]:
+        """Handle flush."""
         synthetic_envelopes: list[JSONObject] = []
         for test_case_started_id in list(self._attempts_by_started_id):
             synthetic_envelopes.extend(
@@ -151,6 +156,7 @@ class CucumberFormatterEnvelopeAdapter:
 
 
 def normalize_formatter_envelope_dicts(envelope_dicts: JSONArray) -> JSONArray:
+    """Normalize formatter envelope dicts."""
     adapter = CucumberFormatterEnvelopeAdapter()
     normalized_envelopes: list[JSONValue] = []
     for envelope_dict in envelope_dicts:

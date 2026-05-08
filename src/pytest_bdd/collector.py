@@ -1,3 +1,5 @@
+"""Provide collector helpers."""
+
 from collections.abc import Iterable
 from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
@@ -20,12 +22,17 @@ from pytest_bdd.util.webloc import read as webloc_read
 
 
 class Module(PytestModule):
+    """Represent module state."""
+
     def collect(self) -> Iterable[Item | Collector]:
+        """Collect collect."""
         StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(self.obj)
         return cast(Iterable[Item | Collector], super().collect())
 
 
 class FeatureFileModule(Module):
+    """Represent feature file module state."""
+
     def _getobj(self) -> ModuleType:
         path: Path = self.get_path()
         feature_pathlike: str | Path | None
@@ -65,6 +72,7 @@ class FeatureFileModule(Module):
 
     @staticmethod
     def detect_uri_pathtype(path: str | None) -> tuple[str | None, PathType]:
+        """Handle detect uri pathtype."""
         try:
             parsed_url = urlparse(path)
         except Exception:  # noqa: BLE001 intentional
@@ -81,6 +89,7 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
+        """Return feature pathlike from url file."""
         config_parser = ConfigParser()
         config_parser.read(path)
 
@@ -91,6 +100,7 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, None]:
+        """Return feature pathlike from desktop file."""
         config_parser = ConfigParser()
         config_parser.read(path)
 
@@ -99,4 +109,5 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, None]:
+        """Return feature pathlike from weblock file."""
         return *cls.detect_uri_pathtype(cast(str, webloc_read(str(path)))), None

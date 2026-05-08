@@ -1,3 +1,5 @@
+"""Provide test message status governance helpers."""
+
 from __future__ import annotations
 
 from pytest_bdd.model.message_status_governance import (
@@ -11,6 +13,7 @@ from .message_capability_fixtures import make_decision, utc_now
 
 
 def test_validate_capability_decision_requires_mandatory_evidence_fields() -> None:
+    """Verify validate capability decision requires mandatory evidence fields."""
     decision = make_decision(
         "cap-1",
         status="Non-Implementable",
@@ -35,6 +38,7 @@ def test_validate_capability_decision_requires_mandatory_evidence_fields() -> No
 
 
 def test_validate_capability_decision_accepts_complete_evidence_fields() -> None:
+    """Verify validate capability decision accepts complete evidence fields."""
     decision = make_decision(
         "cap-1",
         status="Non-Implementable",
@@ -54,6 +58,7 @@ def test_validate_capability_decision_accepts_complete_evidence_fields() -> None
 
 
 def test_validate_capability_decision_rejects_soft_non_implementable_rationale() -> None:
+    """Verify validate capability decision rejects soft non implementable rationale."""
     decision = make_decision(
         "cap-1",
         status="Non-Implementable",
@@ -72,6 +77,7 @@ def test_validate_capability_decision_rejects_soft_non_implementable_rationale()
 
 
 def test_validate_capability_decision_requires_language_runtime_mismatch_for_partly_applicable() -> None:
+    """Verify validate capability decision requires language runtime mismatch for partly applicable."""
     decision = make_decision(
         "cap-1",
         status="Partly-Applicable",
@@ -88,6 +94,7 @@ def test_validate_capability_decision_requires_language_runtime_mismatch_for_par
 
 
 def test_validate_capability_decision_accepts_partly_applicable_with_language_runtime_rationale() -> None:
+    """Verify validate capability decision accepts partly applicable with language runtime rationale."""
     decision = make_decision(
         "cap-1",
         status="Partly-Applicable",
@@ -105,6 +112,7 @@ def test_validate_capability_decision_accepts_partly_applicable_with_language_ru
 
 
 def test_status_uniqueness_detects_duplicate_capability_decisions() -> None:
+    """Verify status uniqueness detects duplicate capability decisions."""
     decisions = [
         CapabilityDecision(capability_id="cap-1", status="Implemented", release_target="r1"),
         CapabilityDecision(capability_id="cap-1", status="Pending", release_target="r1"),
@@ -117,6 +125,7 @@ def test_status_uniqueness_detects_duplicate_capability_decisions() -> None:
 
 
 def test_status_uniqueness_allows_same_capability_across_distinct_release_targets() -> None:
+    """Verify status uniqueness allows same capability across distinct release targets."""
     decisions = [
         CapabilityDecision(capability_id="cap-1", status="Implemented", release_target="r1"),
         CapabilityDecision(capability_id="cap-1", status="Pending", release_target="r2"),
@@ -129,6 +138,7 @@ def test_status_uniqueness_allows_same_capability_across_distinct_release_target
 
 
 def test_evaluate_release_blockers_flags_pending_and_missing_decisions() -> None:
+    """Verify evaluate release blockers flags pending and missing decisions."""
     decisions = [
         CapabilityDecision(capability_id="cap-implemented", status="Implemented", release_target="r1"),
         CapabilityDecision(capability_id="cap-pending", status="Pending", release_target="r1"),

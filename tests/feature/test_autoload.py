@@ -1,8 +1,11 @@
+"""Provide test autoload helpers."""
+
 from pathlib import Path
 from textwrap import dedent
 
 
 def test_autoload_disabled_with_conftest_on_same_level(testdir):
+    """Verify autoload disabled with conftest on same level."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -70,6 +73,7 @@ def test_autoload_disabled_with_conftest_on_same_level(testdir):
 
 
 def test_autoload_disabled_with_conftest_on_higher_level(testdir):
+    """Verify autoload disabled with conftest on higher level."""
     testdir.makepyfile(
         # language=python
         """\

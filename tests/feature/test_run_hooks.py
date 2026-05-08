@@ -1,7 +1,10 @@
+"""Provide test run hooks helpers."""
+
 from __future__ import annotations
 
 
 def test_hook_callbacks_share_same_scenario_run_reference(testdir):
+    """Verify hook callbacks share same scenario run reference."""
     testdir.makefile(
         ".ini",
         pytest="""

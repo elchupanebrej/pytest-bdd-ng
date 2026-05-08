@@ -1,3 +1,5 @@
+"""Provide git helpers."""
+
 from __future__ import annotations
 
 from importlib import import_module
@@ -8,27 +10,44 @@ if TYPE_CHECKING:
 
 
 class GitCommands(Protocol):
-    def config(self, *args: str) -> None: ...
+    """Represent git commands state."""
 
-    def checkout(self, ref: str) -> None: ...
+    def config(self, *args: str) -> None:
+        """Handle config."""
+        ...
+
+    def checkout(self, ref: str) -> None:
+        """Handle checkout."""
+        ...
 
 
 class Remote(Protocol):
-    def fetch(self, refspec: str) -> object: ...
+    """Represent remote state."""
+
+    def fetch(self, refspec: str) -> object:
+        """Fetch fetch."""
+        ...
 
 
 class RemoteCollection(Protocol):
+    """Represent remote collection state."""
+
     origin: Remote
 
 
 class Repo(Protocol):
+    """Represent repo state."""
+
     git: GitCommands
     remotes: RemoteCollection
 
-    def create_remote(self, name: str, url: str) -> Remote: ...
+    def create_remote(self, name: str, url: str) -> Remote:
+        """Create remote."""
+        ...
 
 
 def init_repo(path: Path) -> Repo:
+    """Handle init repo."""
     git_module = import_module("git")
     repo_class = git_module.Repo
     return cast(Repo, repo_class.init(path))

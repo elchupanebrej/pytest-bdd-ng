@@ -1,3 +1,5 @@
+"""Provide message capability fixtures helpers."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -8,6 +10,7 @@ from pytest_bdd.model.message_status_governance import CapabilityDecision
 
 
 def utc_now() -> datetime:
+    """Handle utc now."""
     return datetime.now(UTC)
 
 
@@ -21,6 +24,7 @@ def make_capability(
     baseline_release: str = "v32.0.1",
     source_reference: str = "upstream/messages",
 ) -> MessageCapability:
+    """Create capability."""
     return MessageCapability(
         capability_id=capability_id,
         baseline_release=baseline_release,
@@ -44,6 +48,7 @@ def make_decision(
     release_target: str = "next-release",
     recheck_trigger: str | None = None,
 ) -> CapabilityDecision:
+    """Create decision."""
     return CapabilityDecision(
         capability_id=capability_id,
         status=status,
@@ -66,6 +71,7 @@ def make_mapping_rule(
     priority: int = 0,
     mapping_rationale: str = "matrix-mapping",
 ) -> OutcomeMappingRule:
+    """Create mapping rule."""
     return OutcomeMappingRule(
         mapping_id=mapping_id,
         outcome_scope=outcome_scope,
@@ -77,6 +83,7 @@ def make_mapping_rule(
 
 
 def make_capability_sync_payload() -> dict[str, object]:
+    """Create capability sync payload."""
     return {
         "baseline_release": "v32.0.1",
         "source_entries": [
@@ -101,6 +108,7 @@ def make_capability_sync_payload() -> dict[str, object]:
 
 
 def make_governance_report_payload() -> dict[str, object]:
+    """Create governance report payload."""
     now = utc_now().isoformat()
     return {
         "version": "1.1",

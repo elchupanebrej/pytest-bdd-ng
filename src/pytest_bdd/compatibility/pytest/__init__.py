@@ -85,6 +85,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from _pytest.nodes import Item as BaseItem
 
     class Item(BaseItem):
+        """Represent item state."""
+
         _request: FixtureRequest
 
 else:
@@ -92,11 +94,15 @@ else:
 
 
 class Module(pytest.Module):
+    """Represent a pytest module with path helpers."""
+
     @classmethod
     def build(cls, parent: Collector, file_path: str | PathLike[str]) -> Module:
+        """Build build."""
         return cls.from_parent(parent, path=Path(file_path))
 
     def get_path(self) -> Path:
+        """Return path."""
         return getattr(self, "path", Path(self.fspath))
 
 
@@ -121,6 +127,7 @@ def assert_outcomes(
 
 
 def get_config_root_path(config: Config) -> Path:
+    """Return config root path."""
     return Path(cast(Config, config).rootpath)
 
 

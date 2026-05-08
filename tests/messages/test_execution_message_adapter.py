@@ -1,3 +1,5 @@
+"""Provide test execution message adapter helpers."""
+
 from __future__ import annotations
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
@@ -13,6 +15,7 @@ from pytest_bdd.model.message_serialization import MessageSerializationProfile
 
 
 def test_execution_message_adapter_serializes_envelope_canonically() -> None:
+    """Verify execution message adapter serializes envelope canonically."""
     envelope = Message(
         test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0))
     )
@@ -23,6 +26,7 @@ def test_execution_message_adapter_serializes_envelope_canonically() -> None:
 
 
 def test_execution_message_adapter_deserializes_with_registry_projection() -> None:
+    """Verify execution message adapter deserializes with registry projection."""
     envelope = Message(
         test_run_started=CucumberTestRunStarted(id="run-started-1", timestamp=Timestamp(seconds=0, nanos=0))
     )
@@ -37,6 +41,7 @@ def test_execution_message_adapter_deserializes_with_registry_projection() -> No
 
 
 def test_execution_message_adapter_serializes_schema_compatible_step_definition_pattern() -> None:
+    """Verify execution message adapter serializes schema compatible step definition pattern."""
     envelope = Message(
         step_definition=StepDefinition(
             id="step-definition-1",

@@ -237,6 +237,7 @@ def test_step_trace(testdir):
 
 
 def test_cucumber_json_step_status_parity_with_canonical_messages(testdir, tmp_path):
+    """Verify cucumber json step status parity with canonical messages."""
     resultpath = testdir.tmpdir.join("cucumber.json")
     ndjson_path = tmp_path / "cucumber-json-parity.ndjson"
 

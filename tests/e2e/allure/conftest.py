@@ -1,3 +1,5 @@
+"""Provide conftest helpers."""
+
 from contextlib import contextmanager
 from functools import partial
 from unittest import mock
@@ -17,6 +19,7 @@ if ALLURE_INSTALLED:
 
 
 def has_test_case(name, *matchers):
+    """Return test case."""
     return has_property(
         "test_cases",
         has_item(
@@ -32,6 +35,7 @@ def has_test_case(name, *matchers):
 
 
 def has_step(name, *matchers):
+    """Return step."""
     return has_entry(
         "steps",
         has_item(has_entry("steps", has_item(all_of(has_entry("name", equal_to(name)), *matchers)))),
@@ -39,6 +43,7 @@ def has_step(name, *matchers):
 
 
 def match(matcher, *args):
+    """Handle match."""
     for i, arg in enumerate(args):
         if not callable(arg):
             matcher = partial(matcher, arg)
@@ -50,6 +55,13 @@ def match(matcher, *args):
 
 @contextmanager
 def fake_logger(path, logger):
+    """
+    Handle fake logger.
+
+    Yields:
+        Generated values.
+
+    """
     blocked_plugins = []
     for name, plugin in allure_commons.plugin_manager.list_name_plugin():
         allure_commons.plugin_manager.unregister(plugin=plugin, name=name)
@@ -64,12 +76,16 @@ def fake_logger(path, logger):
 
 
 class AlluredTestdir:
+    """Represent allured testdir state."""
+
     def __init__(self, testdir, request):
+        """Initialize the allured testdir."""
         self.testdir = testdir
         self.request = request
         self.allure_report = None
 
     def run_with_allure(self):
+        """Run with allure."""
         logger = AllureFileLogger(self.testdir.tmpdir.strpath)
         with fake_logger("allure_pytest.plugin.AllureFileLogger", logger):
             self.testdir.runpytest("-s", "-v", "--alluredir", self.testdir.tmpdir)
@@ -78,6 +94,7 @@ class AlluredTestdir:
 
 @then(parsers.re('allure report has result for (?:")(?P<scenario_name>[\\w|\\s|,]*)(?:") scenario'))
 def match_scenario(allure_report, context, scenario_name):
+    """Handle match scenario."""
     matcher = partial(match, has_test_case, scenario_name)
     assert_that(allure_report, matcher())
     context["scenario"] = matcher
@@ -85,6 +102,7 @@ def match_scenario(allure_report, context, scenario_name):
 
 @then(parsers.parse("this {item:w} has {status:w} status"))
 def item_status(allure_report, context, item, status):
+    """Handle item status."""
     context_matcher = context[item]
     matcher = partial(context_matcher, with_status, status)
     assert_that(allure_report, matcher())
@@ -92,6 +110,7 @@ def item_status(allure_report, context, item, status):
 
 @then(parsers.parse("this {item:w} has a history id"))
 def item_history_id(allure_report, context, item):
+    """Handle item history id."""
     context_matcher = context[item]
     matcher = partial(context_matcher, has_history_id)
     assert_that(allure_report, matcher())
@@ -99,6 +118,7 @@ def item_history_id(allure_report, context, item):
 
 @then(parsers.re('this (?P<item>\\w+) contains (?:")(?P<step>[\\w|\\s|>|<]+)(?:") step'))
 def step_step(allure_report, context, item, step):
+    """Handle step."""
     context_matcher = context[item]
     matcher = partial(context_matcher, has_step, step)
     context["step"] = matcher
@@ -107,11 +127,13 @@ def step_step(allure_report, context, item, step):
 
 @pytest.fixture
 def allured_testdir(testdir, request):
+    """Handle allured testdir."""
     return AlluredTestdir(testdir, request)
 
 
 @pytest.fixture
 def context():
+    """Handle context."""
     return {}
 
 
@@ -120,14 +142,17 @@ def allure_report(
     allured_testdir,
     context,  # noqa: ARG001 fixture
 ):
+    """Handle allure report."""
     return allured_testdir.allure_report
 
 
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
 def file(name, extension, testdir, _step):
+    """Handle file."""
     testdir.makefile(extension, **{name: deepattrgetter("argument.doc_string.content", default="")})
 
 
 @when("run pytest-bdd with allure")
 def run(allured_testdir):
+    """Run run."""
     allured_testdir.run_with_allure()

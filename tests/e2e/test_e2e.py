@@ -1,3 +1,5 @@
+"""Provide test e2e helpers."""
+
 from types import SimpleNamespace
 
 from pytest_bdd import scenarios
@@ -62,6 +64,7 @@ def _fixed_rules():
 
 
 def test_messages_fixed_release_readiness_matrix_is_valid() -> None:
+    """Verify messages fixed release readiness matrix is valid."""
     observed_outcomes = [
         ObservedOutcome(outcome_scope="scenario", outcome_status="passed", is_parallel_worker=True),
         ObservedOutcome(outcome_scope="scenario", outcome_status="failed", is_retry=True),
@@ -76,6 +79,7 @@ def test_messages_fixed_release_readiness_matrix_is_valid() -> None:
 
 
 def test_messages_fixed_release_readiness_matrix_rejects_missing_parallel_worker_scenario() -> None:
+    """Verify messages fixed release readiness matrix rejects missing parallel worker scenario."""
     observed_outcomes = [
         ObservedOutcome(outcome_scope="scenario", outcome_status="passed"),
         ObservedOutcome(outcome_scope="scenario", outcome_status="failed", is_retry=True),
@@ -91,6 +95,8 @@ def test_messages_fixed_release_readiness_matrix_rejects_missing_parallel_worker
 
 
 def test_default_bdd_filter_excludes_tagged_slow_scenarios() -> None:
+    """Verify default bdd filter excludes tagged slow scenarios."""
+
     def _tag(name: str):
         return SimpleNamespace(name=name)
 

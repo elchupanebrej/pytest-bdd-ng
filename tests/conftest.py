@@ -1,3 +1,5 @@
+"""Provide conftest helpers."""
+
 import pytest
 
 from pytest_bdd.util.tests_group_ordering import (
@@ -9,10 +11,12 @@ from pytest_bdd.util.tests_group_ordering import (
 
 
 def pytest_addoption(parser):
+    """Handle addoption."""
     register_group_config_options(parser)
 
 
 def pytest_generate_tests(metafunc):
+    """Handle generate tests."""
     if "pytest_params" in metafunc.fixturenames:
         metafunc.parametrize(
             "pytest_params",
@@ -27,12 +31,15 @@ def pytest_generate_tests(metafunc):
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
+    """Handle collection modifyitems."""
     apply_group_ordering(config, items)
 
 
 def pytest_runtest_setup(item):
+    """Handle runtest setup."""
     wait_for_group_barrier(item)
 
 
 def pytest_runtest_logreport(report):
+    """Handle runtest logreport."""
     record_group_barrier_report(report)

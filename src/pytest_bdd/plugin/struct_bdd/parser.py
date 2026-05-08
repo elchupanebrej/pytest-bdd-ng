@@ -1,3 +1,5 @@
+"""Provide parser helpers."""
+
 from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
@@ -16,11 +18,17 @@ from .model_builder import GherkinDocumentBuilder
 
 
 class Loader(Protocol):
-    def __call__(self, content: str) -> object: ...
+    """Represent loader state."""
+
+    def __call__(self, content: str) -> object:
+        """Handle call."""
+        ...
 
 
 @define
 class StructBDDParser(ParserProtocol):
+    """Represent struct bddparser state."""
+
     class KIND(StrEnum):
         """Supported struct BDD source formats."""
 
@@ -36,10 +44,12 @@ class StructBDDParser(ParserProtocol):
 
     @kind.default
     def kind_default(self) -> str | None:
+        """Handle kind default."""
         return self.KIND.YAML.value if getattr(self, "loader", None) is None else None
 
     @loader.default
     def loader_default(self) -> Loader | None:
+        """Handle loader default."""
         return self.build_loader()
 
     def parse(
@@ -50,6 +60,7 @@ class StructBDDParser(ParserProtocol):
         *args: object,
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
+        """Parse parse."""
         _ = config
         encoding = cast(str, kwargs.pop("encoding", "utf-8"))
         mode = cast(str, kwargs.pop("mode", "r"))
@@ -67,6 +78,7 @@ class StructBDDParser(ParserProtocol):
 
     # TODO: make loaders part of public API
     def build_loader(self) -> Loader | None:
+        """Build loader."""
         if self.kind is self.KIND.YAML:
             from yaml import FullLoader
             from yaml import load as load_yaml

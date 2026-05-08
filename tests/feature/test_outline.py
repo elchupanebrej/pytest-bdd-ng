@@ -9,6 +9,7 @@ from pytest_bdd.compatibility.pytest import assert_outcomes
 
 @pytest.fixture
 def steps_conftest(testdir):
+    """Handle steps conftest."""
     testdir.makeconftest(
         dedent(
             # language=python

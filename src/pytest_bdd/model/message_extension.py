@@ -1,3 +1,5 @@
+"""Provide message extension helpers."""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -25,9 +27,12 @@ StepDefinitionPatternType = Enum(  # type:ignore[misc]
 
 @define(init=False, repr=False, eq=False)
 class StepDefinitionPattern(_BaseStepDefinitionPattern):
+    """Represent step definition pattern state."""
+
     type: StepDefinitionPatternType
 
     def __init__(self, source: str, pattern_type: StepDefinitionPatternType) -> None:
+        """Initialize the step definition pattern."""
         super().__init__(source=source, type=pattern_type)
 
 
@@ -120,6 +125,8 @@ EXECUTION_PRESERVED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
 
 @define(frozen=True, slots=True)
 class LifecycleCorrelation:
+    """Represent lifecycle correlation state."""
+
     run_id: str
     scenario_attempt_id: str
     worker_id: str
@@ -129,6 +136,8 @@ class LifecycleCorrelation:
 
 @define(frozen=True, slots=True)
 class EnvelopeStatus:
+    """Represent envelope status state."""
+
     implementation_status: str | None
     implementation_comment: str | None
     comment_present: bool
@@ -136,6 +145,7 @@ class EnvelopeStatus:
 
 
 def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
+    """Return payload merge class."""
     if payload_kind is None:
         return None
     if payload_kind in CONTROLLER_SINGULAR_PAYLOAD_KINDS:
@@ -148,6 +158,7 @@ def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
 
 
 def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
+    """Return payload kind."""
     matched_payload_kinds = [
         payload_kind for payload_kind in PAYLOAD_KINDS if getattr(message, payload_kind, None) is not None
     ]
@@ -157,4 +168,5 @@ def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
 
 
 def has_single_payload(message: EventEnvelope) -> bool:
+    """Return single payload."""
     return get_payload_kind(message) is not None

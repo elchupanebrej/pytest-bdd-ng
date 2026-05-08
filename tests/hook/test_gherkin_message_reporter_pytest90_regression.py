@@ -1,7 +1,10 @@
+"""Provide test gherkin message reporter pytest90 regression helpers."""
+
 from __future__ import annotations
 
 
 def test_messages_reporter_avoids_old_style_teardown_warning_in_runtest_setup(testdir):
+    """Verify messages reporter avoids old style teardown warning in runtest setup."""
     testdir.makefile(
         ".feature",
         test="""

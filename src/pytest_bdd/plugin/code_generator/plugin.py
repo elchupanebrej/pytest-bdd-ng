@@ -46,6 +46,7 @@ TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa
 
 @lru_cache(maxsize=1)
 def get_code_generation_template() -> Template:
+    """Return code generation template."""
     template_source = files("pytest_bdd.template").joinpath("test.py.jinja2").read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 

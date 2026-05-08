@@ -1,3 +1,5 @@
+"""Provide live formatter runtime helpers."""
+
 from __future__ import annotations
 
 import json
@@ -43,19 +45,29 @@ logger = logging.getLogger(__name__)
 
 
 class LiveFormatterProcess(Protocol):
+    """Represent live formatter process state."""
+
     stdin: IO[str] | None
     stdout: IO[str] | None
     stderr: IO[str] | None
     returncode: int | None
 
-    def poll(self) -> int | None: ...
+    def poll(self) -> int | None:
+        """Handle poll."""
+        ...
 
-    def wait(self, timeout: float | None = None) -> int: ...
+    def wait(self, timeout: float | None = None) -> int:
+        """Handle wait."""
+        ...
 
-    def kill(self) -> None: ...
+    def kill(self) -> None:
+        """Handle kill."""
+        ...
 
 
 class LiveFormatterService(ReporterServiceBase):
+    """Represent live formatter service state."""
+
     def _finalize_live_formatter_process(self, process: LiveFormatterProcess) -> None:
         flush_lines = self._build_live_formatter_flush_json_lines()
         if flush_lines:
@@ -141,6 +153,7 @@ class LiveFormatterService(ReporterServiceBase):
                 )
 
     def emit_live_formatter_json_lines(self, message_json_lines: list[str], *, source: str) -> None:
+        """Handle emit live formatter json lines."""
         self._emit_live_formatter_json_lines(message_json_lines, source=source)
 
     def _normalize_live_formatter_json_lines(self, message_json_lines: list[str]) -> list[str]:
@@ -531,6 +544,7 @@ class LiveFormatterService(ReporterServiceBase):
         }
 
     def build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> JSONObject:
+        """Build cucumber formatter support code payload."""
         return self._build_cucumber_formatter_support_code_payload(envelopes)
 
     def _build_cucumber_formatter_payload(
@@ -782,9 +796,11 @@ class LiveFormatterService(ReporterServiceBase):
         self,
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
+        """Run requested cucumber formatters."""
         return self._run_requested_cucumber_formatters(envelopes)
 
     def generate_html_report(self) -> None:
+        """Handle generate html report."""
         if self.reporter.is_disabled:
             return
         script_path = Path(
@@ -848,6 +864,7 @@ class LiveFormatterService(ReporterServiceBase):
         )
 
     def check_npm_and_cucumber_packages(self) -> None:
+        """Check npm and cucumber packages."""
         provision_result = self._ensure_node_packages_available(
             (self.reporter.npm_formatter_package,),
             purpose="HTML report generation",

@@ -1,3 +1,5 @@
+"""Provide test hook lifecycle non null contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,10 +14,12 @@ CONTRACT_PATH = (
 
 
 def test_hook_lifecycle_non_null_contract_exists() -> None:
+    """Verify hook lifecycle non null contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_hook_lifecycle_non_null_contract_has_required_paths() -> None:
+    """Verify hook lifecycle non null contract has required paths."""
     contract_text = CONTRACT_PATH.read_text()
     assert "/hooks/{hookName}/run-surface:" in contract_text
     assert "/hooks/{hookName}/boundary-failure:" in contract_text
@@ -25,6 +29,7 @@ def test_hook_lifecycle_non_null_contract_has_required_paths() -> None:
 
 
 def test_hook_lifecycle_non_null_contract_declares_non_null_policies() -> None:
+    """Verify hook lifecycle non null contract declares non null policies."""
     contract_text = CONTRACT_PATH.read_text()
     assert "guaranteed_present" in contract_text
     assert "empty_object_allowed" in contract_text

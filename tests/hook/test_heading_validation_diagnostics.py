@@ -1,3 +1,5 @@
+"""Provide test heading validation diagnostics helpers."""
+
 from __future__ import annotations
 
 from textwrap import dedent
@@ -16,6 +18,7 @@ def _write_markdown_feature(path: Path, content: str) -> None:
 
 
 def test_violation_payload_fields_are_stable(tmp_path: Path) -> None:
+    """Verify violation payload fields are stable."""
     _write_markdown_feature(
         tmp_path / "sample.feature.md",
         """
@@ -39,6 +42,7 @@ def test_violation_payload_fields_are_stable(tmp_path: Path) -> None:
 
 
 def test_violations_are_sorted_by_path_then_line(tmp_path: Path) -> None:
+    """Verify violations are sorted by path then line."""
     _write_markdown_feature(
         tmp_path / "b.feature.md",
         """

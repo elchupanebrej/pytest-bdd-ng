@@ -1,3 +1,5 @@
+"""Provide test run governance regression helpers."""
+
 from __future__ import annotations
 
 import json
@@ -17,6 +19,7 @@ def _single_field_inventory() -> CapabilityInventory:
 
 
 def test_non_implementable_requires_hard_limitation_evidence() -> None:
+    """Verify non implementable requires hard limitation evidence."""
     decision = CapabilityDecision(
         capability_id="testRunFinished.exception.stackTrace",
         status="Non-Implementable",
@@ -34,6 +37,7 @@ def test_non_implementable_requires_hard_limitation_evidence() -> None:
 
 
 def test_non_implementable_rejects_future_work_wording() -> None:
+    """Verify non implementable rejects future work wording."""
     decision = CapabilityDecision(
         capability_id="testRunFinished.exception.stackTrace",
         status="Non-Implementable",
@@ -52,6 +56,7 @@ def test_non_implementable_rejects_future_work_wording() -> None:
 
 
 def test_partly_applicable_requires_language_runtime_mismatch_rationale() -> None:
+    """Verify partly applicable requires language runtime mismatch rationale."""
     decision = CapabilityDecision(
         capability_id="hook.sourceReference.javaMethod.className",
         status="Partly-Applicable",
@@ -67,6 +72,7 @@ def test_partly_applicable_requires_language_runtime_mismatch_rationale() -> Non
 
 
 def test_runtime_required_capability_without_runtime_evidence_fails_gate(tmp_path, monkeypatch) -> None:
+    """Verify runtime required capability without runtime evidence fails gate."""
     monkeypatch.setattr(
         message_capability_governance,
         "generate_inventory",
@@ -118,6 +124,7 @@ def test_runtime_required_capability_without_runtime_evidence_fails_gate(tmp_pat
 
 
 def test_non_runtime_capability_can_be_classified_partly_applicable(tmp_path, monkeypatch) -> None:
+    """Verify non runtime capability can be classified partly applicable."""
     monkeypatch.setattr(
         message_capability_governance,
         "generate_inventory",

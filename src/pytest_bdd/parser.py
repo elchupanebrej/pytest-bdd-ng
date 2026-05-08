@@ -1,3 +1,5 @@
+"""Provide parser helpers."""
+
 import linecache
 from inspect import getfile, getsourcelines
 from pathlib import Path
@@ -39,6 +41,8 @@ def _set_feature_filename(feature: GherkinDocument, path: Path) -> None:
 
 
 class BaseParser(ParserProtocol):
+    """Build feature documents and emit parse diagnostics."""
+
     @staticmethod
     def _build_parse_error_source(*, uri: str, line: int, column: int) -> SourceReference:
         source_kwargs = {
@@ -72,6 +76,7 @@ class BaseParser(ParserProtocol):
 
     @staticmethod
     def emit_parse_error(config: Config | HasPytestStash, *, message: str, line: int, column: int, uri: str) -> None:
+        """Handle emit parse error."""
         hook_handler = getattr(config, "hook", None)
         emitter = getattr(hook_handler, "pytest_bdd_message", None) if hook_handler is not None else None
         if not callable(emitter):
@@ -91,6 +96,7 @@ class BaseParser(ParserProtocol):
 
     @staticmethod
     def normalize_gherkin_document_payload(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
+        """Normalize gherkin document payload."""
         gherkin_document_raw_dict.setdefault("comments", [])
 
         def _normalize(node: object) -> None:
@@ -112,6 +118,7 @@ class BaseParser(ParserProtocol):
 
     @staticmethod
     def build_feature(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
+        """Build feature."""
         gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
         # TODO: here must adapter layer not just direct casting
         return cast(GherkinDocument, gherkin_document)
@@ -119,6 +126,14 @@ class BaseParser(ParserProtocol):
 
 @define
 class GherkinParser(BaseParser):
+    """
+    Handle gherkin parser.
+
+    Raises:
+        FeatureConcreteParseError: If the operation cannot be completed.
+
+    """
+
     def parse(
         self,
         config: Config | HasPytestStash,
@@ -127,6 +142,13 @@ class GherkinParser(BaseParser):
         *args: object,  # noqa: ARG002 overload
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
+        """
+        Parse parse.
+
+        Raises:
+            FeatureConcreteParseError: If the operation cannot be completed.
+
+        """
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         encoding = cast(str, kwargs.pop("encoding", "utf-8"))
         feature_file_data = path.read_text(encoding=encoding)
@@ -159,6 +181,14 @@ class GherkinParser(BaseParser):
 
 @define
 class MarkdownGherkinParser(BaseParser):
+    """
+    Handle markdown gherkin parser.
+
+    Raises:
+        FeatureConcreteParseError: If the operation cannot be completed.
+
+    """
+
     def parse(
         self,
         config: Config | HasPytestStash,
@@ -167,6 +197,13 @@ class MarkdownGherkinParser(BaseParser):
         *args: object,  # noqa: ARG002 overload
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
+        """
+        Parse parse.
+
+        Raises:
+            FeatureConcreteParseError: If the operation cannot be completed.
+
+        """
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         matcher = GherkinInMarkdownTokenMatcher()
         encoding = cast(str, kwargs.pop("encoding", "utf-8"))

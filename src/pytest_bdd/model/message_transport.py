@@ -1,3 +1,5 @@
+"""Provide message transport helpers."""
+
 from __future__ import annotations
 
 import json
@@ -21,11 +23,17 @@ REPORTING_TRANSPORT_BINDING_STASH_KEY = "_pytest_bdd_xdist_transport_binding"
 
 
 class ReportingEventSender(Protocol):
-    def __call__(self, name: str, **kwargs: object) -> None: ...
+    """Represent reporting event sender state."""
+
+    def __call__(self, name: str, **kwargs: object) -> None:
+        """Handle call."""
+        ...
 
 
 @frozen
 class ReportingEventSenderBinding(StashBound):
+    """Represent reporting event sender binding state."""
+
     STASH_KEY: ClassVar[str] = REPORTING_TRANSPORT_BINDING_STASH_KEY
     sender: ReportingEventSender
     gateway_mode: str | None = None
@@ -45,6 +53,7 @@ def install_reporting_event_sender(
     *,
     gateway_mode: str | None = None,
 ) -> None:
+    """Handle install reporting event sender."""
     ReportingEventSenderBinding(
         sender=sender,
         gateway_mode=gateway_mode,
@@ -52,6 +61,7 @@ def install_reporting_event_sender(
 
 
 def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSender | None:
+    """Resolve reporting event sender."""
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -60,6 +70,7 @@ def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSe
 
 
 def resolve_reporting_gateway_mode(config: _ConfigWithStash) -> str | None:
+    """Resolve reporting gateway mode."""
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -79,6 +90,8 @@ def _payload_int(payload: JSONObject, key: str, default: int | None = None) -> i
 
 @frozen
 class WorkerChunkBatch:
+    """Represent worker chunk batch state."""
+
     worker_id: str
     batch_sequence: int
     envelopes: tuple[JSONObject, ...]
@@ -87,6 +100,7 @@ class WorkerChunkBatch:
     gateway_mode: str | None = None
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "worker_id": self.worker_id,
             "batch_sequence": self.batch_sequence,
@@ -98,6 +112,7 @@ class WorkerChunkBatch:
 
     @classmethod
     def from_dict(cls, payload: JSONObject) -> WorkerChunkBatch:
+        """Create dict."""
         raw_envelopes = payload.get("envelopes", [])
         envelope_candidates = raw_envelopes if isinstance(raw_envelopes, list) else []
         envelopes = tuple(candidate for candidate in envelope_candidates if isinstance(candidate, dict))
@@ -114,6 +129,8 @@ class WorkerChunkBatch:
 
 @frozen
 class WorkerCompletionManifest:
+    """Represent worker completion manifest state."""
+
     worker_id: str
     complete: bool
     last_batch_sequence: int | None
@@ -123,6 +140,7 @@ class WorkerCompletionManifest:
     gateway_mode: str | None = None
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "worker_id": self.worker_id,
             "complete": self.complete,
@@ -135,6 +153,7 @@ class WorkerCompletionManifest:
 
     @classmethod
     def from_dict(cls, payload: JSONObject) -> WorkerCompletionManifest:
+        """Create dict."""
         interruption_reason = payload.get("interruption_reason")
         gateway_mode = payload.get("gateway_mode")
         return cls(
@@ -152,6 +171,8 @@ class WorkerCompletionManifest:
 
 @define
 class ReportingTransportSnapshot:
+    """Represent reporting transport snapshot state."""
+
     expected_worker_ids: tuple[str, ...]
     batches_by_worker: dict[str, tuple[WorkerChunkBatch, ...]]
     manifests_by_worker: dict[str, WorkerCompletionManifest]
@@ -159,20 +180,25 @@ class ReportingTransportSnapshot:
 
 @define
 class ReportingTransportSession:
+    """Represent reporting transport session state."""
+
     _lock: Lock = field(init=False, factory=Lock, repr=False)
     _expected_worker_ids: set[str] = field(init=False, factory=set, repr=False)
     _batches_by_worker: dict[str, list[WorkerChunkBatch]] = field(init=False, factory=dict, repr=False)
     _manifests_by_worker: dict[str, WorkerCompletionManifest] = field(init=False, factory=dict, repr=False)
 
     def register_expected_worker(self, worker_id: str) -> None:
+        """Register expected worker."""
         with self._lock:
             self._expected_worker_ids.add(worker_id)
 
     def record_batch(self, batch: WorkerChunkBatch) -> None:
+        """Handle record batch."""
         with self._lock:
             self._batches_by_worker.setdefault(batch.worker_id, []).append(batch)
 
     def receive_remote_event(self, event_name: str, payload: JSONObject) -> None:
+        """Handle receive remote event."""
         if event_name != REPORTING_BATCH_EVENT:
             logger.warning("Ignoring unknown reporting event '%s'.", event_name)
             return
@@ -183,19 +209,23 @@ class ReportingTransportSession:
         self.record_batch(WorkerChunkBatch.from_dict(batch_payload))
 
     def record_manifest(self, manifest: WorkerCompletionManifest) -> None:
+        """Handle record manifest."""
         with self._lock:
             self._manifests_by_worker[manifest.worker_id] = manifest
 
     def batches_for_worker(self, worker_id: str) -> tuple[WorkerChunkBatch, ...]:
+        """Handle batches for worker."""
         with self._lock:
             batches = tuple(self._batches_by_worker.get(worker_id, ()))
         return tuple(sorted(batches, key=lambda batch: batch.batch_sequence))
 
     def manifest_for_worker(self, worker_id: str) -> WorkerCompletionManifest | None:
+        """Handle manifest for worker."""
         with self._lock:
             return self._manifests_by_worker.get(worker_id)
 
     def snapshot(self) -> ReportingTransportSnapshot:
+        """Handle snapshot."""
         with self._lock:
             return ReportingTransportSnapshot(
                 expected_worker_ids=tuple(sorted(self._expected_worker_ids)),
@@ -209,6 +239,7 @@ class ReportingTransportSession:
     def wait_for_batches(
         self, worker_id: str, *, minimum_count: int = 1, timeout: float = 2.0
     ) -> tuple[WorkerChunkBatch, ...]:
+        """Handle wait for batches."""
         deadline = monotonic() + timeout
         while monotonic() < deadline:
             batches = self.batches_for_worker(worker_id)
@@ -220,6 +251,15 @@ class ReportingTransportSession:
 
 @define
 class ReportingTransportClient:
+    """
+    Represent reporting transport client state.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     worker_id: str
     sender: ReportingEventSender
     gateway_mode: str | None = None
@@ -229,6 +269,14 @@ class ReportingTransportClient:
     last_publish_error: str | None = None
 
     def publish_envelopes(self, envelope_dicts: list[JSONObject]) -> WorkerChunkBatch:
+        """
+        Handle publish envelopes.
+
+        Raises:
+            ValueError: If the operation cannot be completed.
+            RuntimeError: If the operation cannot be completed.
+
+        """
         if not envelope_dicts:
             msg = "Cannot publish an empty transport batch."
             raise ValueError(msg)
@@ -251,6 +299,7 @@ class ReportingTransportClient:
         return batch
 
     def build_manifest(self, *, complete: bool, interruption_reason: str | None = None) -> WorkerCompletionManifest:
+        """Build manifest."""
         resolved_reason = interruption_reason or self.last_publish_error
         resolved_complete = complete and resolved_reason is None
         last_batch_sequence = self.batch_sequence - 1 if self.transferred_batch_count else None

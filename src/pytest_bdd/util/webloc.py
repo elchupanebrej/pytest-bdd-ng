@@ -1,3 +1,5 @@
+"""Provide webloc helpers."""
+
 from __future__ import annotations
 
 import plistlib

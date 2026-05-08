@@ -1,3 +1,5 @@
+"""Provide hook helpers."""
+
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from pytest_bdd.parser import ParserProtocol
 
 
 class ScenarioTestCollectorHookSpec:
+    """Declare hooks used by the scenario test collector."""
+
     @pytest.hookspec(firstresult=True)
     def pytest_bdd_is_collectible(self, config: Config, path: Path) -> bool | None:
         """Verify if path could be collected by pytest_bdd."""

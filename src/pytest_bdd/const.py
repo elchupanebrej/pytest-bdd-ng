@@ -1,3 +1,5 @@
+"""Provide const helpers."""
+
 import re
 
 from pytest_bdd.compatibility.enum import StrEnum
@@ -9,4 +11,6 @@ ALPHA_REGEX = re.compile(r"^\d+_*")
 
 
 class PytestConfigParam(StrEnum):
+    """Represent pytest config param state."""
+
     CONTINUE_ON_COLLECTION_ERRORS = "continue_on_collection_errors"

@@ -44,6 +44,8 @@ REASON_EOL_PYTEST = "eol_pytest"
 
 @frozen
 class CompatibilityMatrixEntry:
+    """Represent compatibility matrix entry state."""
+
     python_version: str
     pytest_version: str
     is_compatible: bool
@@ -56,6 +58,8 @@ class CompatibilityMatrixEntry:
 
 @frozen
 class MigrationCoverageSummary:
+    """Represent migration coverage summary state."""
+
     total_user_facing_scenarios: int
     user_facing_in_features: int
     coverage_percent: float
@@ -103,6 +107,7 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
 
 
 def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:
+    """Return pair compatible."""
     py = _parse_python_factor(python_factor)
     if py is None:
         return False, REASON_PYTHON_UNAVAILABLE
@@ -130,6 +135,7 @@ def build_matrix(
     pytest_factors: Iterable[str],
     execution_targets: tuple[str, ...] = ("lin", "mac", "win"),
 ) -> list[CompatibilityMatrixEntry]:
+    """Build matrix."""
     entries: list[CompatibilityMatrixEntry] = []
     for python_factor, pytest_factor in product(sorted(set(python_factors)), sorted(set(pytest_factors))):
         compatible, reason = is_pair_compatible(python_factor, pytest_factor)
@@ -163,6 +169,7 @@ def _extract_brace_factor_values(*, text: str, prefix: str) -> set[str]:
 
 
 def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[str]]:
+    """Handle extract factors from tox ini."""
     text = tox_ini_path.read_text(encoding="utf-8")
     python_factors = sorted(
         set(re.findall(r"py(?:py)?(\d{2,3})", text)) | _extract_brace_factor_values(text=text, prefix="py")
@@ -174,6 +181,7 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
 
 
 def expand_tox_env_names(entries: Iterable[CompatibilityMatrixEntry]) -> list[str]:
+    """Handle expand tox env names."""
     return [entry.tox_env_name for entry in entries if entry.is_compatible and entry.tox_env_name]
 
 
@@ -182,6 +190,7 @@ def _normalize_scenario_id(value: str) -> str:
 
 
 def discover_feature_scenario_ids(features_root: Path) -> set[str]:
+    """Handle discover feature scenario ids."""
     if not features_root.exists():
         return set()
 
@@ -199,6 +208,7 @@ def discover_feature_scenario_ids(features_root: Path) -> set[str]:
 
 
 def discover_user_facing_test_scenario_ids(tests_root: Path) -> set[str]:
+    """Handle discover user facing test scenario ids."""
     if not tests_root.exists():
         return set()
 
@@ -229,6 +239,7 @@ def build_migration_coverage_summary(
     features_root: Path,
     threshold_percent: int = 80,
 ) -> MigrationCoverageSummary:
+    """Build migration coverage summary."""
     feature_ids = discover_feature_scenario_ids(features_root)
     user_facing_test_ids = discover_user_facing_test_scenario_ids(tests_root)
 

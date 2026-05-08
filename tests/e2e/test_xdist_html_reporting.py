@@ -1,3 +1,5 @@
+"""Provide test xdist html reporting helpers."""
+
 from __future__ import annotations
 
 import textwrap
@@ -14,10 +16,11 @@ pytestmark = [pytest.mark.xdist, pytest.mark.slow]
 
 @scenario("../tests/e2e/_xdist_html_reporting.feature", "Generate consolidated HTML report from xdist run")
 def test_generate_html_report_xdist():
-    pass
+    """Verify generate html report xdist."""
 
 
 def test_public_xdist_html_report_doc_stays_in_broad_sweep() -> None:
+    """Verify public xdist html report doc stays in broad sweep."""
     feature = SimpleNamespace(
         uri="file:07 Report/07 xdist HTML reporting.feature.md",
         feature=SimpleNamespace(name="xdist html reporting", tags=[]),
@@ -29,6 +32,7 @@ def test_public_xdist_html_report_doc_stays_in_broad_sweep() -> None:
 
 @given("a test suite with multiple passing and failing scenarios", target_fixture="test_suite")
 def setup_test_suite(testdir, tmp_path):
+    """Handle setup test suite."""
     pytest.importorskip("xdist")
     testdir.makeini(
         """\
@@ -79,6 +83,7 @@ def setup_test_suite(testdir, tmp_path):
 
 @when("I run the test suite with pytest-xdist and request an HTML report", target_fixture="run_xdist_with_html")
 def execute_xdist(testdir, test_suite):
+    """Execute xdist."""
     html_report_path = test_suite
     result = testdir.runpytest_subprocess(
         "-n",
@@ -93,6 +98,7 @@ def execute_xdist(testdir, test_suite):
 
 @then("a single HTML report is generated")
 def verify_html_report_generated(run_xdist_with_html):
+    """Handle verify html report generated."""
     html_report_path = run_xdist_with_html
     assert html_report_path.exists(), "HTML report was not generated"
     assert html_report_path.stat().st_size > 0, "HTML report is empty"
@@ -100,6 +106,7 @@ def verify_html_report_generated(run_xdist_with_html):
 
 @then("the HTML report contains results from all executed scenarios")
 def verify_html_content(run_xdist_with_html):
+    """Handle verify html content."""
     html_report_path = run_xdist_with_html
     content = html_report_path.read_text(encoding="utf-8")
 

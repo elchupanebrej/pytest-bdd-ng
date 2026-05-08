@@ -1,3 +1,5 @@
+"""Provide scenario helpers."""
+
 from collections.abc import Callable, Iterable, Iterator
 from enum import Enum
 from pathlib import Path
@@ -13,12 +15,18 @@ from pytest_bdd.util.toolz_extra import compose
 
 
 class ScenarioFunction(Protocol):
+    """Represent scenario function state."""
+
     __name__: str
 
-    def __call__(self) -> object: ...
+    def __call__(self) -> object:
+        """Handle call."""
+        ...
 
 
 class Args(NamedTuple):
+    """Represent args state."""
+
     args: tuple[object, ...]
     kwargs: dict[str, object]
 
@@ -53,6 +61,8 @@ test_names = get_python_name_generator("")
 
 
 class FeaturePathType(Enum):
+    """Represent feature path type state."""
+
     PATH = "path"
     URL = "url"
     UNDEFINED = "undefined"

@@ -1,3 +1,5 @@
+"""Provide cucumber formatters helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -36,10 +38,12 @@ _OPTIONAL_PATH_TERMINAL_FLAGS = frozenset(
 
 
 def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
+    """Handle cucumber formatter definitions."""
     return _FORMATTER_DEFINITIONS
 
 
 def register_cucumber_formatter_options(parser: Parser) -> None:
+    """Register cucumber formatter options."""
     from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases
     from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 
@@ -52,10 +56,12 @@ def register_cucumber_formatter_options(parser: Parser) -> None:
 
 
 def terminal_formatter_cli_flags() -> frozenset[str]:
+    """Handle terminal formatter cli flags."""
     return frozenset((*_TERMINAL_FORMATTER_CLI_FLAGS, *_OPTIONAL_PATH_TERMINAL_FLAGS))
 
 
 def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
+    """Handle terminal formatter flags requested."""
     requested_stdout_flags = terminal_formatter_cli_flags()
     for arg in args:
         if arg in requested_stdout_flags:
@@ -66,12 +72,14 @@ def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
 
 
 def pytest_capture_already_configured(args: Sequence[str]) -> bool:
+    """Handle capture already configured."""
     return any(
         arg in CAPTURE_OPTION_FLAGS or any(arg.startswith(prefix) for prefix in CAPTURE_OPTION_PREFIXES) for arg in args
     )
 
 
 def any_cucumber_formatter_requested(options: object) -> bool:
+    """Handle any cucumber formatter requested."""
     return any(
         getattr(options, option_attr, None) not in {None, False}
         for option_attr, *_rest in cucumber_formatter_definitions()

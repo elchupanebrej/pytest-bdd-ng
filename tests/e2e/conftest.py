@@ -1,3 +1,5 @@
+"""Provide conftest helpers."""
+
 import json
 import os
 import re
@@ -56,6 +58,7 @@ except ImportError:  # pragma: no cover - platform-specific availability
 
 @pytest.fixture
 def httpserver_port(httpserver):
+    """Handle httpserver port."""
     return httpserver.port
 
 
@@ -65,6 +68,7 @@ def ensure_fake_node_for_cucumber_formatter_report_docs(
     request: pytest.FixtureRequest,
     tmp_path: Path,
 ) -> None:
+    """Ensure fake node for cucumber formatter report docs."""
     nodeid = getattr(request.node, "nodeid", "")
     if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI in nodeid:
         install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
@@ -75,6 +79,7 @@ def ensure_fake_node_for_cucumber_formatter_report_docs(
 
 @given(re.compile(r"File \"(?P<name>(\.|\w)+)(?P<extension>\.\w+)\" with (?P<extra_opts>.*|\s)content:"))
 def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
+    """Write file with extras."""
     doc_string = deepattrgetter("argument.doc_string", default=None)(step)[0]
     content = doc_string.content if doc_string else ""
     is_fixture_templated = "fixture templated" in extra_opts
@@ -90,6 +95,7 @@ def write_file_with_extras(name, extension, testdir, step, request, extra_opts):
     re.compile(r'File "(?P<name>\w+)(?P<extension>\.\w+)" in the temporary path with content:'),
 )
 def write_file(name, extension, tmp_path: Path, step):
+    """Write file."""
     doc_string = deepattrgetter("argument.doc_string", default=None)(step)[0]
     content = doc_string.content if doc_string else ""
     (tmp_path / f"{name}{extension}").write_text(content)
@@ -105,6 +111,13 @@ def _resolve_test_output_path(testdir: "Testdir", file_path: Path) -> Path:
     re.compile(r'Localserver endpoint "(?P<endpoint>.+)" responding content:'),
 )
 def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, step):
+    """
+    Verify feature load by http with base url.
+
+    Yields:
+        Generated values.
+
+    """
     httpserver.expect_request(endpoint).respond_with_data(
         step.argument.doc_string.content,
         content_type=Mimetype.gherkin_plain.value,
@@ -121,6 +134,13 @@ def _(testdir, step):
 
 @step("run pytest", target_fixture="pytest_result")
 def run_pytest(testdir: "Testdir", step, attach):
+    """
+    Run pytest.
+
+    Yields:
+        Generated values.
+
+    """
     data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
     options_dict = data_table_to_dicts(data_table)
     cli_args = list(options_dict.get("cli_args", []))
@@ -279,6 +299,7 @@ def _assert_remote_run_succeeds(remote_xdist_result):
 
 @step("pytest outcome must contain tests with statuses:")
 def check_pytest_test_statuses(pytest_result, step):
+    """Check pytest test statuses."""
     data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
     outcomes_kwargs = map(attrgetter("value"), data_table.rows[0].cells)
     outcomes_kwargs_values = map(compose(int, attrgetter("value")), data_table.rows[1].cells)
@@ -295,11 +316,13 @@ def check_pytest_test_statuses(pytest_result, step):
 
 @step("pytest exits with test failures")
 def check_pytest_test_failures(pytest_result):
+    """Check pytest test failures."""
     assert _coerce_pytest_return_code(pytest_result) == pytest.ExitCode.TESTS_FAILED
 
 
 @step("pytest outcome must match lines:")
 def check_pytest_stdout_lines(pytest_result, step):
+    """Check pytest stdout lines."""
     data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
     lines = list(
         map(
@@ -319,6 +342,7 @@ def check_pytest_stdout_lines(pytest_result, step):
 
 @when(parsers.parse("run `{command}`"), target_fixture="renderer_result")
 def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[str]:
+    """Run command."""
     command_args = shlex.split(command)
     if command_args and command_args[0] == "python":
         command_args[0] = sys.executable
@@ -339,6 +363,7 @@ def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[st
 
 @then("the renderer terminal output includes:")
 def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> None:
+    """Handle renderer terminal output includes."""
     data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
     lines = [row.cells[0].value for row in data_table.rows]
     output_fragments: list[str] = []
@@ -362,6 +387,7 @@ def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> N
 
 @given(re.compile(r'Copy path from "(?P<initial_path>[^"]+)" to test path "(?P<final_path>[^"]+)"'))
 def copy_path(request, testdir: "Testdir", initial_path, final_path):
+    """Handle copy path."""
     full_initial_path = (Path(request.config.rootdir) / Path(initial_path).as_posix()).resolve(strict=True)
     full_final_path = Path(testdir.tmpdir) / Path(final_path).as_posix()
     if full_initial_path.is_file():
@@ -403,6 +429,7 @@ def _(file_path: Path, testdir):
 
 @then(parsers.parse('File "{file_path}" contains the line "{line}"'))
 def file_contains_line(testdir, file_path: str, line: str) -> None:
+    """Handle file contains line."""
     output_path = _resolve_test_output_path(testdir, Path(file_path))
     assert line in output_path.read_text(encoding="utf-8")
 

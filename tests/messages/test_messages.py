@@ -1,3 +1,5 @@
+"""Provide test messages helpers."""
+
 import json
 import re
 from collections.abc import Iterable
@@ -52,6 +54,7 @@ MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
 
 @pytest.fixture
 def compatibility_kit_repo(tmpdir):
+    """Handle compatibility kit repo."""
     repo_path = Path(tmpdir) / "compatibility-kit"
 
     repo_url = "https://github.com/cucumber/compatibility-kit.git"
@@ -83,10 +86,18 @@ def compatibility_kit_repo(tmpdir):
 
 
 def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
+    """Handle runpytest with message reporter."""
     return testdir.runpytest_subprocess(*args)
 
 
 def unfold_message(message: Message):
+    """
+    Handle unfold message.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     unfoldable_attrs = [
         "attachment",
         "external_attachment",
@@ -118,15 +129,26 @@ def unfold_message(message: Message):
 
 
 def list_filter_by_type(t: type | Iterable[type], items):
+    """Handle list filter by type."""
     return list(filter(partial(flip(isinstance), tuple(t) if isinstance(t, Iterable) else t), items))
 
 
 class ParseError(RuntimeError):
+    """Represent parse error failures."""
+
     def __init__(self, errors):
+        """Initialize the parse error."""
         super().__init__(f"Could not parse messages: {errors}")
 
 
 def parse_and_unfold_messages(lines):
+    """
+    Parse and unfold messages.
+
+    Raises:
+        ParseError: If the operation cannot be completed.
+
+    """
     errors = []
     parsed_messages = []
     for line in lines:
@@ -141,6 +163,7 @@ def parse_and_unfold_messages(lines):
 
 
 def test_minimal_scenario_messages(testdir: "Testdir", tmp_path, compatibility_kit_repo):
+    """Verify minimal scenario messages."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -255,6 +278,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path, compatibility_k
 
 
 def test_parameter_type_messages(testdir: "Testdir", tmp_path):
+    """Verify parameter type messages."""
     testdir.makeconftest(
         # language=python
         """\
@@ -339,6 +363,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
 
 
 def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
+    """Verify attachment type message as raw string."""
     testdir.makeconftest(
         # language=python
         """\
@@ -381,6 +406,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
 
 
 def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Testdir", tmp_path):
+    """Verify attachment type messages as raw string with content type."""
     testdir.makeconftest(
         # language=python
         """\
@@ -423,6 +449,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
 
 
 def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
+    """Verify attachment type messages as bytes."""
     testdir.makeconftest(
         # language=python
         """\
@@ -464,6 +491,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
 
 
 def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
+    """Verify attachment type messages from text file."""
     file_path = tmp_path / "file.txt"
     (tmp_path / "file.txt").write_text("Hello world!")
 
@@ -510,6 +538,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
 
 
 def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path):
+    """Verify attachment type messages from binary file."""
     file_path = tmp_path / "file.txt"
     (tmp_path / "file.txt").write_text("Hello world!")
 
@@ -558,6 +587,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
 
 
 def test_hook_type_messages(testdir, tmp_path):
+    """Verify hook type messages."""
     testdir.makefile(
         ".ini",
         # language=ini
@@ -660,6 +690,7 @@ def test_hook_type_messages(testdir, tmp_path):
 
 
 def test_lookup_error_emits_suggestion_and_undefined_parameter_type(testdir: "Testdir", tmp_path):
+    """Verify lookup error emits suggestion and undefined parameter type."""
     testdir.makeconftest(
         # language=python
         """\
@@ -702,6 +733,7 @@ def test_lookup_error_emits_suggestion_and_undefined_parameter_type(testdir: "Te
 
 
 def test_feature_parse_error_emits_parse_error_message(testdir: "Testdir", tmp_path):
+    """Verify feature parse error emits parse error message."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -727,6 +759,7 @@ def test_feature_parse_error_emits_parse_error_message(testdir: "Testdir", tmp_p
 
 
 def test_lifecycle_count_and_order_for_pass_and_fail(testdir: "Testdir", tmp_path):
+    """Verify lifecycle count and order for pass and fail."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -775,6 +808,7 @@ def test_lifecycle_count_and_order_for_pass_and_fail(testdir: "Testdir", tmp_pat
 
 
 def test_message_converter_rejects_multi_payload_envelope_shape():
+    """Verify message converter rejects multi payload envelope shape."""
     with pytest.raises(TypeError, match="exactly one payload"):
         envelope_from_dict(
             {
@@ -785,6 +819,7 @@ def test_message_converter_rejects_multi_payload_envelope_shape():
 
 
 def test_gherkin_document_emits_rule_background_comment_examples_docstring_and_tables(testdir: "Testdir", tmp_path):
+    """Verify gherkin document emits rule background comment examples docstring and tables."""
     testdir.makefile(
         ".ini",
         # language=ini

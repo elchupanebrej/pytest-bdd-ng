@@ -1,3 +1,5 @@
+"""Provide test scenario run model helpers."""
+
 from __future__ import annotations
 
 from pytest_bdd.model.scenario_run import (
@@ -41,11 +43,13 @@ def _build_context() -> ScenarioRun:
 
 
 def test_scenario_run_starts_with_transition_zero() -> None:
+    """Verify scenario run starts with transition zero."""
     context = _build_context()
     assert context.transition_index == 0
 
 
 def test_scenario_run_advances_transition_index() -> None:
+    """Verify scenario run advances transition index."""
     context = _build_context()
     context.advance_transition()
     context.advance_transition()
@@ -53,6 +57,7 @@ def test_scenario_run_advances_transition_index() -> None:
 
 
 def test_scenario_run_active_lookup_respects_inactive_refs() -> None:
+    """Verify scenario run active lookup respects inactive refs."""
     context = _build_context()
     context.feature_ref = LifecycleObjectRef.inactive("feature", reason="idle")
     context.set_active_set(
@@ -68,6 +73,7 @@ def test_scenario_run_active_lookup_respects_inactive_refs() -> None:
 
 
 def test_active_object_set_uses_explicit_inactive_slots_by_default() -> None:
+    """Verify active object set uses explicit inactive slots by default."""
     run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
     active_set = ActiveObjectSet(run=run_ref, captured_at_stage=RunStage.idle)
 

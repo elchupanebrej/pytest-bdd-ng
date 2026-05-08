@@ -14,6 +14,7 @@ pytestmark = [pytest.mark.technical_nonconvertible]
 
 
 def test_status_terminology_normalization_is_shared_between_reporters() -> None:
+    """Verify status terminology normalization is shared between reporters."""
     assert normalize_runtime_step_status("passed", failed_fallback=False) == "passed"
     assert normalize_runtime_step_status("FAILED", failed_fallback=False) == "failed"
     assert canonical_terminal_step_status({"status": "passed", "failed": False}) == "passed"
@@ -385,6 +386,7 @@ def test_complex_types(testdir):
 
 
 def test_missing_step_and_failed_step_have_completion_reports(testdir):
+    """Verify missing step and failed step have completion reports."""
     testdir.makefile(
         ".feature",
         # language=gherkin

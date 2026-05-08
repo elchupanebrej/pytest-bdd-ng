@@ -1,3 +1,5 @@
+"""Provide src.pytest_bdd.model package helpers."""
+
 from .execution_message_adapter import ExecutionMessageAdapter, ExecutionProjection
 from .message_baseline_diff import (
     WEEKLY_CADENCE,

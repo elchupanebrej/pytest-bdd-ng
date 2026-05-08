@@ -29,6 +29,7 @@ def test_cucumber_expression(
     testdir,
     parser_import_string,
 ):
+    """Verify cucumber expression."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -167,6 +168,7 @@ def test_cucumber_regular_expression(
     testdir,
     parser_import_string,
 ):
+    """Verify cucumber regular expression."""
     testdir.makefile(
         ".feature",
         # language=gherkin

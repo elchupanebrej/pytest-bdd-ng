@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -62,6 +64,8 @@ CucumberFormatterConfigurationError = _CucumberFormatterConfigurationError
 
 @define(eq=False, auto_attribs=False, slots=False)
 class GherkinMessageReporter:
+    """Represent gherkin message reporter state."""
+
     BEFORE_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.before-test-run"
     AFTER_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.after-test-run"
     config: Config = field()
@@ -150,6 +154,7 @@ class GherkinMessageReporter:
         *,
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
+        """Handle activate quiet terminal output."""
         terminal_requests = type(self)._terminal_output_formatter_requests(list(self.requested_cucumber_formatters))
         if not terminal_requests:
             return
@@ -160,6 +165,7 @@ class GherkinMessageReporter:
         self._restore_terminal_reporter = quiet_terminal_replacer(self.config)
 
     def restore_terminal_output(self) -> None:
+        """Handle restore terminal output."""
         if self._restore_terminal_reporter is None:
             return
         self._restore_terminal_reporter()
@@ -167,21 +173,25 @@ class GherkinMessageReporter:
 
     @property
     def services(self) -> tuple[object, ...]:
+        """Handle services."""
         return self._services
 
     def read_envelopes_from_path(self, messages_file_path: Path) -> list[Message]:
+        """Read envelopes from path."""
         return self.transport_service.read_envelopes_from_path(messages_file_path)
 
     def render_requested_cucumber_formatters(
         self,
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
+        """Render requested cucumber formatters."""
         return self.live_formatter_service.run_requested_cucumber_formatters(envelopes)
 
     def render_requested_cucumber_formatters_from_path(
         self,
         messages_file_path: Path,
     ) -> CucumberFormatterRenderResult:
+        """Render requested cucumber formatters from path."""
         envelopes = self.read_envelopes_from_path(messages_file_path)
         return self.render_requested_cucumber_formatters(envelopes)
 
@@ -189,15 +199,18 @@ class GherkinMessageReporter:
         self,
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Render runtime assets."""
         pluginmanager = getattr(self.config, "pluginmanager", None)
         return render_live_formatter_runtime_assets(formatter_requests, pluginmanager=pluginmanager)
 
     def register_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
+        """Register hook plugins."""
         for hook_service in self._hook_services:
             named_hook_service = cast(_HookNamedService, hook_service)
             pluginmanager.register(named_hook_service, name=named_hook_service.plugin_name)
 
     def unregister_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
+        """Handle unregister hook plugins."""
         for hook_service in reversed(self._hook_services):
             named_hook_service = cast(_HookNamedService, hook_service)
             pluginmanager.unregister(name=named_hook_service.plugin_name)
@@ -208,10 +221,12 @@ class GherkinMessageReporter:
         pluginmanager: PytestPluginManager,
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
+        """Configure configure."""
         self.live_formatter_service._start_live_formatters()
         self.activate_quiet_terminal_output(quiet_terminal_replacer=quiet_terminal_replacer)
         self.register_hook_plugins(pluginmanager)
 
     def unconfigure(self, *, pluginmanager: PytestPluginManager) -> None:
+        """Handle unconfigure."""
         self.restore_terminal_output()
         self.unregister_hook_plugins(pluginmanager)

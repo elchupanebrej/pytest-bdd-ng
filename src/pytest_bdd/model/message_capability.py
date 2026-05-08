@@ -1,3 +1,5 @@
+"""Provide message capability helpers."""
+
 from __future__ import annotations
 
 from typing import Final, Literal
@@ -25,6 +27,8 @@ RELEVANT_IMPACTS: Final[frozenset[CapabilityImpact]] = frozenset(
 
 @frozen
 class MessageCapability:
+    """Represent message capability state."""
+
     capability_id: str
     baseline_release: str
     name: str
@@ -36,10 +40,12 @@ class MessageCapability:
 
     @property
     def relevance(self) -> CapabilityRelevance:
+        """Handle relevance."""
         return classify_capability_relevance(self)
 
 
 def classify_capability_relevance(capability: MessageCapability) -> CapabilityRelevance:
+    """Handle classify capability relevance."""
     if capability.explicit_relevance is not None:
         return capability.explicit_relevance
     if capability.affects.intersection(RELEVANT_IMPACTS):
@@ -48,4 +54,5 @@ def classify_capability_relevance(capability: MessageCapability) -> CapabilityRe
 
 
 def capability_is_relevant(capability: MessageCapability) -> bool:
+    """Handle capability is relevant."""
     return classify_capability_relevance(capability) == "relevant"

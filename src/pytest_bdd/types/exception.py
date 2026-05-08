@@ -36,6 +36,7 @@ class PytestBDDStashTypeMismatchError(PytestBDDStashError, TypeError):
     """Stash key is occupied by a value of unexpected type."""
 
     def __init__(self, *, stash_key: str, actual_type: str, expected_type: str) -> None:
+        """Initialize the pytest bddstash type mismatch error."""
         super().__init__(f"config.stash['{stash_key}'] contains {actual_type}, expected {expected_type}.")
 
 
@@ -43,6 +44,7 @@ class MessageSchemaValidationError(ValueError):
     """Schema-compatible emitted message does not satisfy the canonical schema."""
 
     def __init__(self, details: str) -> None:
+        """Initialize the message schema validation error."""
         super().__init__(f"Schema-compatible message emission failed: {details}")
 
 
@@ -82,6 +84,7 @@ class StepDefinitionNotFoundError(Exception):
         step: _StepLike,
         *args: object,
     ) -> None:
+        """Initialize the step definition not found error."""
         self.undefined_parameter_type = None
         keyword = getattr(step, "keyword", getattr(step, "prefix", "<unknown>"))
         if keyword is None:
@@ -107,6 +110,7 @@ class FeatureParseError(Exception):
     """Feature parse error."""
 
     def __init__(self, path: str | PathLike[str], *args: object) -> None:
+        """Initialize the feature parse error."""
         super().__init__(f"Unable to parse {path}", *args)
 
 
@@ -114,6 +118,7 @@ class FeatureConcreteParseError(FeatureParseError):
     """Feature parse error."""
 
     def __init__(self, message: object, line_no: object, line: object, file: object, *args: object) -> None:
+        """Initialize the feature concrete parse error."""
         Exception.__init__(self, message, line_no, line, file, *args)
 
     message = "{0}.\nLine number: {1}.\nLine: {2}.\nFile: {3}"

@@ -1,3 +1,5 @@
+"""Provide tests group ordering helpers."""
+
 from __future__ import annotations
 
 import fnmatch
@@ -24,12 +26,16 @@ ResolutionSource = Literal["dir_convention", "path_pattern", "conftest_marker", 
 
 @frozen
 class GroupPathMapping:
+    """Represent group path mapping state."""
+
     pattern: str
     group_name: str
 
 
 @frozen
 class GroupConfig:
+    """Represent group config state."""
+
     groups: list[str]
     default: str
     paths: list[GroupPathMapping]
@@ -38,6 +44,8 @@ class GroupConfig:
 
 @frozen
 class GroupAssignment:
+    """Represent group assignment state."""
+
     item_nodeid: str
     group_name: str
     ordinal: int
@@ -46,6 +54,8 @@ class GroupAssignment:
 
 @frozen
 class RuntimeGroupBarrierObservation:
+    """Represent runtime group barrier observation state."""
+
     item_nodeid: str
     group_name: str
     event: Literal["start", "finish"]
@@ -79,6 +89,7 @@ _RUNTIME_BARRIER_ASSIGNMENTS: dict[str, GroupAssignment] = {}
 
 
 def register_group_config_options(parser: pytest.Parser) -> None:
+    """Register group config options."""
     parser.addini(
         "test_group_order",
         "Ordered pytest test group names; first group runs first.",
@@ -99,6 +110,7 @@ def register_group_config_options(parser: pytest.Parser) -> None:
 
 
 def read_group_config(config: pytest.Config) -> GroupConfig:
+    """Read group config."""
     groups = _normalize_groups(_as_list(_get_ini_value(config, "test_group_order")))
     if not groups:
         warnings.warn(
@@ -120,6 +132,7 @@ def read_group_config(config: pytest.Config) -> GroupConfig:
 
 
 def resolve_group_assignment(item: pytest.Item, group_config: GroupConfig) -> GroupAssignment:
+    """Resolve group assignment."""
     group_name, source = _resolve_path_group(item, group_config)
     marker_assignment = _resolve_marker_group(item, group_config)
     if marker_assignment is not None:
@@ -134,6 +147,7 @@ def resolve_group_assignment(item: pytest.Item, group_config: GroupConfig) -> Gr
 
 
 def apply_order_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
+    """Apply order marker."""
     item.add_marker(
         MarkDecorator(
             Mark("order", args=(assignment.ordinal,), kwargs={}, _ispytest=True),
@@ -143,6 +157,7 @@ def apply_order_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
 
 
 def apply_group_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
+    """Apply group marker."""
     item.add_marker(
         MarkDecorator(
             Mark(assignment.group_name, args=(), kwargs={}, _ispytest=True),
@@ -152,6 +167,7 @@ def apply_group_marker(item: pytest.Item, assignment: GroupAssignment) -> None:
 
 
 def apply_group_ordering(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Apply group ordering."""
     group_config = read_group_config(config)
     for index, group_name in enumerate(group_config.groups, start=1):
         config.addinivalue_line("markers", f"{group_name}: test group {index}")
@@ -167,6 +183,13 @@ def apply_group_ordering(config: pytest.Config, items: list[pytest.Item]) -> Non
 
 
 def wait_for_group_barrier(item: pytest.Item) -> None:
+    """
+    Handle wait for group barrier.
+
+    Raises:
+        TimeoutError: If the operation cannot be completed.
+
+    """
     assignment = getattr(item, _ASSIGNMENT_ATTR, None)
     state_path = getattr(item.config, _BARRIER_STATE_ATTR, None)
     if assignment is None or state_path is None:
@@ -188,6 +211,7 @@ def wait_for_group_barrier(item: pytest.Item) -> None:
 
 
 def record_group_barrier_report(report: pytest.TestReport) -> None:
+    """Handle record group barrier report."""
     if not _is_terminal_report(report):
         return
     state_path = _RUNTIME_BARRIER_STATE_PATHS.get(report.nodeid)

@@ -1,3 +1,5 @@
+"""Provide test cucumber formatter adapter helpers."""
+
 from __future__ import annotations
 
 from pytest_bdd.model.cucumber_formatter_adapter import (
@@ -66,6 +68,7 @@ def _test_run_finished() -> dict[str, object]:
 
 
 def test_backfills_missing_pickle_step_result_before_test_case_finished() -> None:
+    """Verify backfills missing pickle step result before test case finished."""
     normalized = normalize_formatter_envelope_dicts(
         [
             _test_case("tc-1", _hook_step("hook-1"), _pickle_step("pickle-step-1", "pickle-1")),
@@ -89,6 +92,7 @@ def test_backfills_missing_pickle_step_result_before_test_case_finished() -> Non
 
 
 def test_does_not_duplicate_existing_pickle_step_result() -> None:
+    """Verify does not duplicate existing pickle step result."""
     normalized = normalize_formatter_envelope_dicts(
         [
             _test_case("tc-1", _pickle_step("pickle-step-1", "pickle-1")),
@@ -104,6 +108,7 @@ def test_does_not_duplicate_existing_pickle_step_result() -> None:
 
 
 def test_flush_backfills_open_attempts_before_test_run_finished() -> None:
+    """Verify flush backfills open attempts before test run finished."""
     adapter = CucumberFormatterEnvelopeAdapter()
     envelopes = [
         _test_case("tc-1", _pickle_step("pickle-step-1", "pickle-1")),

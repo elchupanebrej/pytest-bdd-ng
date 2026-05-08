@@ -2,6 +2,7 @@
 
 
 def test_steps_in_feature_file_have_unicode(testdir):
+    """Verify steps in feature file have unicode."""
     testdir.makefile(
         ".feature",
         # language=gherkin
@@ -39,6 +40,7 @@ def test_steps_in_feature_file_have_unicode(testdir):
 
 
 def test_steps_in_py_file_have_unicode(testdir):
+    """Verify steps in py file have unicode."""
     testdir.makefile(
         ".feature",
         # language=gherkin

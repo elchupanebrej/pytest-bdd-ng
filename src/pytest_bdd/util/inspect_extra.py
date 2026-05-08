@@ -1,3 +1,5 @@
+"""Provide inspect extra helpers."""
+
 from __future__ import annotations
 
 from inspect import getframeinfo, getsourcelines, signature
@@ -10,7 +12,11 @@ if TYPE_CHECKING:
 
 
 class ObjectCallable(Protocol):
-    def __call__(self, *args: object, **kwargs: object) -> object: ...
+    """Represent object callable state."""
+
+    def __call__(self, *args: object, **kwargs: object) -> object:
+        """Handle call."""
+        ...
 
 
 def get_args(func: ObjectCallable) -> Sequence[str]:
@@ -27,6 +33,7 @@ def get_args(func: ObjectCallable) -> Sequence[str]:
 
 
 def get_first_source_line(obj: object) -> int:
+    """Return first source line."""
     try:
         return getsourcelines(
             cast(ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType, obj)

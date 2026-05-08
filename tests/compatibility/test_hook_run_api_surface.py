@@ -1,3 +1,5 @@
+"""Provide test hook run api surface helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,6 +13,7 @@ from pytest_bdd.plugin.pickle_runner.api_compatibility import (
 
 
 def test_external_api_surface_remains_additive_only() -> None:
+    """Verify external api surface remains additive only."""
     baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
     baseline = load_api_baseline(baseline_path)
 
@@ -25,6 +28,7 @@ def test_external_api_surface_remains_additive_only() -> None:
 
 
 def test_external_api_compatibility_record_is_serializable() -> None:
+    """Verify external api compatibility record is serializable."""
     baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
     baseline = load_api_baseline(baseline_path)
 
@@ -40,6 +44,7 @@ def test_external_api_compatibility_record_is_serializable() -> None:
 
 
 def test_current_hook_public_symbols_cover_the_saved_baseline() -> None:
+    """Verify current hook public symbols cover the saved baseline."""
     baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
     baseline = load_api_baseline(baseline_path)
 
@@ -49,6 +54,7 @@ def test_current_hook_public_symbols_cover_the_saved_baseline() -> None:
 
 
 def test_current_hook_public_symbols_are_sorted_and_unique() -> None:
+    """Verify current hook public symbols are sorted and unique."""
     current_symbols = collect_hook_public_symbols()
 
     assert current_symbols == sorted(current_symbols)
@@ -56,6 +62,7 @@ def test_current_hook_public_symbols_are_sorted_and_unique() -> None:
 
 
 def test_scenario_decorator_uses_pickle_fixture_for_runtime_binding() -> None:
+    """Verify scenario decorator uses pickle fixture for runtime binding."""
     decorator = scenario("test.feature", "Scenario", return_test_decorator=True)
 
     @decorator

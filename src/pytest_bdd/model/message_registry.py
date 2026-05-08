@@ -1,3 +1,5 @@
+"""Provide message registry helpers."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
@@ -64,9 +66,12 @@ def _resolve_identifiable_id(candidate: object) -> str | None:
 
 @define(slots=True)
 class IdentifiableObjectRegistry:
+    """Represent identifiable object registry state."""
+
     objects_by_id: dict[str, Identifiable] = field(factory=dict)
 
     def index_tree(self, root: object) -> None:
+        """Handle index tree."""
         for candidate in _iter_object_graph(root):
             identifier = _resolve_identifiable_id(candidate)
             if identifier is None:
@@ -74,25 +79,31 @@ class IdentifiableObjectRegistry:
             self.objects_by_id[identifier] = cast(Identifiable, candidate)
 
     def resolve(self, object_id: str) -> Identifiable:
+        """Resolve resolve."""
         return self.objects_by_id[object_id]
 
 
 @define(slots=True)
 class EnvelopeRegistry(StashBound):
+    """Represent envelope registry state."""
+
     STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
 
     envelopes: list[EventEnvelope] = field(factory=list)
     identifiable: IdentifiableObjectRegistry = field(factory=IdentifiableObjectRegistry)
 
     def add_envelope(self, envelope: EventEnvelope) -> None:
+        """Handle add envelope."""
         self.envelopes.append(envelope)
         self.identifiable.index_tree(envelope)
 
     def resolve(self, object_id: str) -> Identifiable | None:
+        """Resolve resolve."""
         return self.identifiable.resolve(object_id)
 
     @classmethod
     def stash_missing_message(cls) -> str:
+        """Handle stash missing message."""
         return (
             "`EnvelopeRegistry` is unavailable in config.stash. "
             "Execution plugins must initialize envelope tracking before reporter emission."
@@ -104,6 +115,7 @@ class EnvelopeRegistry(StashBound):
         stash: Stash,
         envelope: EventEnvelope,
     ) -> EnvelopeRegistry:
+        """Register envelope in pytest stash."""
         registry = cls.from_stash(stash)
         registry.add_envelope(envelope)
         return registry

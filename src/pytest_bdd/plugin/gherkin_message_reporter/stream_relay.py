@@ -1,3 +1,5 @@
+"""Provide stream relay helpers."""
+
 from __future__ import annotations
 
 import codecs
@@ -9,6 +11,7 @@ if TYPE_CHECKING:
 
 
 def relay_live_formatter_output(stream: TextIOBase, target: TextIOBase) -> None:
+    """Handle relay live formatter output."""
     binary_stream = getattr(stream, "buffer", None)
     decoder_factory = codecs.getincrementaldecoder(stream.encoding or "utf-8")
     decoder = decoder_factory(errors=stream.errors or "strict")

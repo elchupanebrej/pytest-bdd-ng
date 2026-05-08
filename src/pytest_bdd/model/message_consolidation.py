@@ -1,3 +1,5 @@
+"""Provide message consolidation helpers."""
+
 from __future__ import annotations
 
 import json
@@ -28,6 +30,8 @@ if TYPE_CHECKING:
 
 @frozen
 class ConsolidationDiagnostic:
+    """Represent consolidation diagnostic state."""
+
     code: str
     severity: Literal["info", "warning", "error"]
     worker_id: str | None
@@ -37,6 +41,8 @@ class ConsolidationDiagnostic:
 
 @frozen
 class MessageFragment:
+    """Represent message fragment state."""
+
     worker_id: str
     role: ParticipantRole
     path: Path | None = None
@@ -56,6 +62,7 @@ class MessageFragment:
         path: Path | None,
         complete: bool = True,
     ) -> MessageFragment:
+        """Create path."""
         if path is None or not path.exists():
             return cls(worker_id=worker_id, role=role, path=path, complete=False, envelopes=())
 
@@ -77,6 +84,7 @@ class MessageFragment:
         last_batch_sequence: int | None = None,
         interruption_reason: str | None = None,
     ) -> MessageFragment:
+        """Create envelopes."""
         return cls(
             worker_id=worker_id,
             role=role,
@@ -104,6 +112,8 @@ class _EnvelopeRecord:
 
 @frozen
 class ConsolidatedMessageStream:
+    """Represent consolidated message stream state."""
+
     envelopes: tuple[object, ...]
     envelope_dicts: tuple[JSONObject, ...]
     diagnostics: tuple[ConsolidationDiagnostic, ...]
@@ -293,6 +303,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
 def consolidate_message_fragments(  # noqa: C901
     fragments: list[MessageFragment],
 ) -> ConsolidatedMessageStream:
+    """Handle consolidate message fragments."""
     diagnostics = [diagnostic for fragment in fragments for diagnostic in _diagnostics_for_fragment(fragment)]
     sorted_fragments = sorted(fragments, key=_participant_sort_key)
     records: list[_EnvelopeRecord] = []

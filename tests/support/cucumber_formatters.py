@@ -1,3 +1,5 @@
+"""Provide cucumber formatters helpers."""
+
 from __future__ import annotations
 
 import json
@@ -90,18 +92,22 @@ def _suspend_active_coverage():
 
 
 def expected_formatter_output(formatter_name: str) -> str:
+    """Handle expected formatter output."""
     return _FAKE_FORMATTER_OUTPUTS[formatter_name]
 
 
 def expected_formatter_output_lines(formatter_name: str) -> list[str]:
+    """Handle expected formatter output lines."""
     return expected_formatter_output(formatter_name).splitlines()
 
 
 def expected_formatter_visible_line(formatter_name: str) -> str:
+    """Handle expected formatter visible line."""
     return expected_formatter_output_lines(formatter_name)[0]
 
 
 def assert_pytest_terminal_reporter_suppressed(output: str) -> None:
+    """Assert pytest terminal reporter suppressed."""
     unexpected_fragments = [fragment for fragment in _SUPPRESSED_PYTEST_TERMINAL_FRAGMENTS if fragment in output]
     assert unexpected_fragments == [], (
         f"unexpected default pytest terminal reporter output was emitted: {unexpected_fragments!r}\n{output}"
@@ -109,11 +115,13 @@ def assert_pytest_terminal_reporter_suppressed(output: str) -> None:
 
 
 def assert_pytest_terminal_reporter_visible(output: str) -> None:
+    """Assert pytest terminal reporter visible."""
     visible_fragments = [fragment for fragment in _VISIBLE_PYTEST_TERMINAL_FRAGMENTS if fragment in output]
     assert visible_fragments, f"expected default pytest terminal reporter output, got:\n{output}"
 
 
 def assert_formatter_output_is_not_mixed_with_pytest_terminal(output: str, *, formatter_name: str) -> None:
+    """Assert formatter output is not mixed with pytest terminal."""
     assert expected_formatter_visible_line(formatter_name) in output, output
     assert_pytest_terminal_reporter_suppressed(output)
 
@@ -123,6 +131,7 @@ def run_pytest_via_real_entrypoint(
     *cli_args: str,
     extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    """Run pytest via real entrypoint."""
     repo_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
     for key in tuple(env):
@@ -149,10 +158,12 @@ def run_pytest_via_real_entrypoint(
 
 
 def requests_terminal_formatter_output(*cli_args: str) -> bool:
+    """Handle requests terminal formatter output."""
     return terminal_formatter_flags_requested(cli_args)
 
 
 def with_pytester_terminal_capture_disabled(*cli_args: str) -> tuple[str, ...]:
+    """Handle with pytester terminal capture disabled."""
     if pytest_capture_already_configured(cli_args):
         return cli_args
     if not terminal_formatter_flags_requested(cli_args):
@@ -165,6 +176,7 @@ def with_pytester_terminal_capture_disabled(*cli_args: str) -> tuple[str, ...]:
 
 
 def enable_fake_node_capture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Handle enable fake node capture."""
     capture_dir = tmp_path / "fake-node-captures"
     capture_dir.mkdir(exist_ok=True)
     monkeypatch.setenv("PYTEST_BDD_FAKE_NODE_CAPTURE_DIR", str(capture_dir))
@@ -172,10 +184,12 @@ def enable_fake_node_capture(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
 
 
 def read_fake_node_captures(capture_dir: Path) -> list[dict[str, Any]]:
+    """Read fake node captures."""
     return [json.loads(capture_path.read_text(encoding="utf-8")) for capture_path in sorted(capture_dir.glob("*.json"))]
 
 
 def read_fake_formatter_telemetry(tmp_path: Path) -> list[dict[str, Any]]:
+    """Read fake formatter telemetry."""
     telemetry: list[dict[str, Any]] = []
     for capture in read_fake_node_captures(tmp_path / "fake-node-captures"):
         source_mode = "messagesPath" if capture.get("messagesPath") else "stdin"
@@ -256,6 +270,7 @@ def materialize_fake_node_runtime(
     *,
     preinstalled_packages: tuple[str, ...] = ("@cucumber/cucumber", "@cucumber/pretty-formatter"),
 ) -> dict[str, Path]:
+    """Handle materialize fake node runtime."""
     root_path.mkdir(parents=True, exist_ok=True)
     bin_dir = root_path / "fake-node-bin"
     bin_dir.mkdir(exist_ok=True)
@@ -309,6 +324,7 @@ def materialize_live_formatter_runtime(
     *formatter_names: str,
     output_paths: dict[str, str | None] | None = None,
 ) -> tuple[Path, list[dict[str, object]]]:
+    """Handle materialize live formatter runtime."""
     output_paths = {} if output_paths is None else dict(output_paths)
     plugins_by_name = FormatterPluginCatalog.discover().by_name()
     formatter_requests: list[CucumberFormatterRequest] = []
@@ -361,6 +377,7 @@ def install_fake_node(
     *,
     preinstalled_packages: tuple[str, ...] = ("@cucumber/cucumber", "@cucumber/pretty-formatter"),
 ) -> None:
+    """Handle install fake node."""
     runtime = materialize_fake_node_runtime(tmp_path, preinstalled_packages=preinstalled_packages)
     monkeypatch.setenv("PATH", f"{runtime['bin_dir']}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("NODE_PATH", str(runtime["seed_node_modules"]))
@@ -373,6 +390,7 @@ def install_formatter_hook_registry(
     *,
     catalog: FormatterPluginCatalog | None = None,
 ):
+    """Handle install formatter hook registry."""
     resolved_catalog = FormatterPluginCatalog.discover() if catalog is None else catalog
 
     class _HookProxy:
@@ -407,6 +425,7 @@ def install_formatter_hook_registry(
 
 
 def build_sample_suite(testdir) -> None:
+    """Build sample suite."""
     testdir.makeini(
         """\
         [pytest]

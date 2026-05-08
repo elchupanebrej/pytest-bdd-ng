@@ -1,3 +1,5 @@
+"""Provide test empty bdd headings validation helpers."""
+
 from __future__ import annotations
 
 from textwrap import dedent
@@ -16,6 +18,7 @@ def _write_feature(path: Path, content: str) -> None:
 
 
 def test_detects_empty_parsed_feature_heading(tmp_path: Path) -> None:
+    """Verify detects empty parsed feature heading."""
     _write_feature(
         tmp_path / "empty_feature.feature",
         """
@@ -35,6 +38,7 @@ def test_detects_empty_parsed_feature_heading(tmp_path: Path) -> None:
 
 
 def test_detects_empty_parsed_scenario_and_scenario_outline_headings(tmp_path: Path) -> None:
+    """Verify detects empty parsed scenario and scenario outline headings."""
     _write_feature(
         tmp_path / "empty_scenarios.feature",
         """
@@ -59,6 +63,7 @@ def test_detects_empty_parsed_scenario_and_scenario_outline_headings(tmp_path: P
 
 
 def test_validation_passes_for_non_empty_headings(tmp_path: Path) -> None:
+    """Verify validation passes for non empty headings."""
     _write_feature(
         tmp_path / "valid.feature",
         """

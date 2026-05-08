@@ -1,3 +1,5 @@
+"""Provide test messages capability coverage contract helpers."""
+
 from __future__ import annotations
 
 import json
@@ -22,11 +24,13 @@ def _governance_schema() -> dict[str, Any]:
 
 
 def test_feature_contract_files_exist() -> None:
+    """Verify feature contract files exist."""
     assert OPENAPI_CONTRACT_PATH.exists()
     assert GOVERNANCE_SCHEMA_PATH.exists()
 
 
 def test_openapi_contract_has_required_paths() -> None:
+    """Verify openapi contract has required paths."""
     contract_text = _openapi_text()
     assert "/coverage/capabilities/sync:" in contract_text
     assert "/coverage/mappings/validate:" in contract_text
@@ -35,6 +39,7 @@ def test_openapi_contract_has_required_paths() -> None:
 
 
 def test_openapi_contract_sync_schema_bootstrap() -> None:
+    """Verify openapi contract sync schema bootstrap."""
     contract_text = _openapi_text()
     assert "CapabilitySyncRequest:" in contract_text
     assert "CapabilitySyncResponse:" in contract_text
@@ -44,6 +49,7 @@ def test_openapi_contract_sync_schema_bootstrap() -> None:
 
 
 def test_openapi_contract_mapping_validation_semantics() -> None:
+    """Verify openapi contract mapping validation semantics."""
     contract_text = _openapi_text()
     assert "MappingValidationRequest:" in contract_text
     assert "MappingValidationResult:" in contract_text
@@ -53,6 +59,7 @@ def test_openapi_contract_mapping_validation_semantics() -> None:
 
 
 def test_openapi_contract_checklist_render_semantics() -> None:
+    """Verify openapi contract checklist render semantics."""
     contract_text = _openapi_text()
     assert "ChecklistRenderRequest:" in contract_text
     assert "ChecklistRenderResponse:" in contract_text
@@ -62,6 +69,7 @@ def test_openapi_contract_checklist_render_semantics() -> None:
 
 
 def test_openapi_contract_baseline_diff_semantics() -> None:
+    """Verify openapi contract baseline diff semantics."""
     contract_text = _openapi_text()
     assert "BaselineDiffRequest:" in contract_text
     assert "BaselineDiffResponse:" in contract_text
@@ -71,6 +79,7 @@ def test_openapi_contract_baseline_diff_semantics() -> None:
 
 
 def test_governance_report_schema_bootstrap() -> None:
+    """Verify governance report schema bootstrap."""
     schema = _governance_schema()
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["type"] == "object"
@@ -119,6 +128,7 @@ def test_governance_report_schema_bootstrap() -> None:
 
 
 def test_openapi_contract_includes_mandatory_governance_report_flags() -> None:
+    """Verify openapi contract includes mandatory governance report flags."""
     contract_text = _openapi_text()
     assert "/coverage/governance/report:" in contract_text
     assert "mandatory_capabilities_file" in contract_text
@@ -130,6 +140,7 @@ def test_openapi_contract_includes_mandatory_governance_report_flags() -> None:
 
 
 def test_inventory_export_emits_unique_canonical_capability_ids() -> None:
+    """Verify inventory export emits unique canonical capability ids."""
     inventory = generate_inventory(resolve_messages_schema_dir())
     payload = inventory_to_capability_payload(inventory, baseline_release="v32.0.1")
     capability_ids = [entry["capability_id"] for entry in payload]
@@ -139,4 +150,5 @@ def test_inventory_export_emits_unique_canonical_capability_ids() -> None:
 
 
 def test_governance_schema_discovery_matches_contract_fixture() -> None:
+    """Verify governance schema discovery matches contract fixture."""
     assert discover_governance_schema_path() == GOVERNANCE_SCHEMA_PATH.resolve()

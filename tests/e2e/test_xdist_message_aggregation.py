@@ -1,3 +1,5 @@
+"""Provide test xdist message aggregation helpers."""
+
 from __future__ import annotations
 
 from glob import escape
@@ -18,6 +20,7 @@ pytestmark = [pytest.mark.xdist]
 
 
 def test_non_xdist_child_run_ignores_inherited_worker_identity(testdir, tmp_path, monkeypatch) -> None:
+    """Verify non xdist child run ignores inherited worker identity."""
     install_fake_node(monkeypatch, tmp_path)
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw9")
     monkeypatch.setenv("PYTEST_XDIST_WORKER_COUNT", "2")
@@ -60,6 +63,7 @@ def test_non_xdist_child_run_ignores_inherited_worker_identity(testdir, tmp_path
 
 
 def test_xdist_run_aggregates_worker_fragments_into_one_ndjson(testdir, tmp_path) -> None:
+    """Verify xdist run aggregates worker fragments into one ndjson."""
     pytest.importorskip("xdist")
 
     testdir.makefile(
@@ -113,6 +117,7 @@ def test_xdist_run_aggregates_worker_fragments_into_one_ndjson(testdir, tmp_path
 
 
 def test_xdist_live_formatter_stream_is_rendered_once_by_controller(testdir, tmp_path, monkeypatch) -> None:
+    """Verify xdist live formatter stream is rendered once by controller."""
     pytest.importorskip("xdist")
     install_fake_node(monkeypatch, tmp_path)
 

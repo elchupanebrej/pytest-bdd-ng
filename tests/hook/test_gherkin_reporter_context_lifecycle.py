@@ -1,3 +1,5 @@
+"""Provide test gherkin reporter context lifecycle helpers."""
+
 from __future__ import annotations
 
 import json
@@ -116,29 +118,34 @@ class _FakeStepDefinitionRegistry:
 
 
 def test_reporter_has_no_current_prefixed_state_annotations() -> None:
+    """Verify reporter has no current prefixed state annotations."""
     annotated_state_fields = getattr(GherkinMessageReporter, "__annotations__", {})
     current_prefixed = sorted(name for name in annotated_state_fields if name.startswith("current_"))
     assert current_prefixed == []
 
 
 def test_reporter_has_no_context_store_state_annotation() -> None:
+    """Verify reporter has no context store state annotation."""
     annotated_state_fields = getattr(GherkinMessageReporter, "__annotations__", {})
     assert "_context_store" not in annotated_state_fields
     assert "_run_id" not in annotated_state_fields
 
 
 def test_reporter_has_no_mutable_class_level_registries() -> None:
+    """Verify reporter has no mutable class level registries."""
     assert not isinstance(getattr(GherkinMessageReporter, "parameter_type_registry", None), set)
     assert not isinstance(getattr(GherkinMessageReporter, "hook_registry", None), set)
     assert not isinstance(getattr(GherkinMessageReporter, "hook_registration_registry", None), dict)
 
 
 def test_reporting_entrypoint_and_message_stream_do_not_store_runtime_flags_as_module_globals() -> None:
+    """Verify reporting entrypoint and message stream do not store runtime flags as module globals."""
     assert not hasattr(entrypoint, "_REPORTING_REMOTE_MODULE_REQUIRED")
     assert not hasattr(message_stream, "_XDIST_CONTROLLER_PATCHED")
 
 
 def test_reporter_resolves_test_step_id_from_scenario_run_mapping() -> None:
+    """Verify reporter resolves test step id from scenario run mapping."""
     reporter = _build_reporter()
     scenario_run = _build_scenario_run()
     request = _build_request_with_context(scenario_run)
@@ -155,6 +162,7 @@ def test_reporter_resolves_test_step_id_from_scenario_run_mapping() -> None:
 
 
 def test_reporter_resolves_test_step_id_from_context_active_fallback() -> None:
+    """Verify reporter resolves test step id from context active fallback."""
     reporter = _build_reporter()
     scenario_run = _build_scenario_run()
     request = _build_request_with_context(scenario_run)
@@ -166,6 +174,7 @@ def test_reporter_resolves_test_step_id_from_context_active_fallback() -> None:
 
 
 def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
+    """Verify reporter registers envelope in config stash registry."""
     config = SimpleNamespace(
         option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
         stash={},
@@ -185,6 +194,7 @@ def test_reporter_registers_envelope_in_config_stash_registry(tmp_path) -> None:
 
 
 def test_reporter_emits_schema_compatible_step_definition_json(tmp_path) -> None:
+    """Verify reporter emits schema compatible step definition json."""
     config = SimpleNamespace(
         option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
         stash={},
@@ -226,6 +236,7 @@ def test_reporter_emits_schema_compatible_step_definition_json(tmp_path) -> None
 
 
 def test_reporter_reports_each_step_definition_only_once() -> None:
+    """Verify reporter reports each step definition only once."""
     reporter = _build_reporter()
     emitted_messages: list[Message] = []
     step_definition_message = StepDefinition(
@@ -265,6 +276,7 @@ def test_reporter_reports_each_step_definition_only_once() -> None:
 
 
 def test_reporter_renders_html_report_content_with_formatter_safe_message_embedding() -> None:
+    """Verify reporter renders html report content with formatter safe message embedding."""
     template = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -310,6 +322,7 @@ window.CUCUMBER_MESSAGES = [{{messages}}];
 
 
 def test_reporter_renders_html_report_content_for_current_html_formatter_template_shape() -> None:
+    """Verify reporter renders html report content for current html formatter template shape."""
     template = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -341,6 +354,7 @@ def test_reporter_renders_html_report_content_for_current_html_formatter_templat
 
 
 def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, tmp_path) -> None:
+    """Verify reporter emits run hook definitions during session start."""
     reporter = GherkinMessageReporter(
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
@@ -373,6 +387,7 @@ def test_reporter_emits_run_hook_definitions_during_session_start(monkeypatch, t
 
 
 def test_reporter_uses_code_line_fallback_when_hook_source_lines_are_unavailable(monkeypatch, tmp_path) -> None:
+    """Verify reporter uses code line fallback when hook source lines are unavailable."""
     reporter = GherkinMessageReporter(
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
@@ -408,6 +423,8 @@ def test_reporter_uses_code_line_fallback_when_hook_source_lines_are_unavailable
 
 
 def test_get_first_source_line_falls_back_to_code_line(monkeypatch) -> None:
+    """Verify get first source line falls back to code line."""
+
     def function_with_unavailable_source() -> None:
         return None
 
@@ -419,6 +436,7 @@ def test_get_first_source_line_falls_back_to_code_line(monkeypatch) -> None:
 
 
 def test_reporter_ignores_inherited_xdist_worker_environment_without_workerinput(monkeypatch, tmp_path) -> None:
+    """Verify reporter ignores inherited xdist worker environment without workerinput."""
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
 
     reporter = GherkinMessageReporter(
@@ -434,6 +452,7 @@ def test_reporter_ignores_inherited_xdist_worker_environment_without_workerinput
 
 
 def test_reporter_truncates_existing_explicit_messages_file_on_startup(tmp_path) -> None:
+    """Verify reporter truncates existing explicit messages file on startup."""
     messages_path = tmp_path / "messages.ndjson"
     messages_path.write_text('{"old":"envelope"}\n', encoding="utf-8")
 
@@ -448,6 +467,7 @@ def test_reporter_truncates_existing_explicit_messages_file_on_startup(tmp_path)
 
 
 def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
+    """Verify reporter detects xdist worker from workerinput."""
     reporter = GherkinMessageReporter(
         config=SimpleNamespace(
             option=SimpleNamespace(messages_ndjson_path=str(tmp_path / "messages.ndjson"), cucumber_html_path=None),
@@ -462,6 +482,7 @@ def test_reporter_detects_xdist_worker_from_workerinput(tmp_path) -> None:
 
 
 def test_entrypoint_uses_custom_remote_module_when_reporting_disabled() -> None:
+    """Verify entrypoint uses custom remote module when reporting disabled."""
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
@@ -487,6 +508,7 @@ def test_entrypoint_uses_custom_remote_module_when_reporting_disabled() -> None:
 
 
 def test_entrypoint_uses_custom_remote_module_when_reporting_enabled(tmp_path) -> None:
+    """Verify entrypoint uses custom remote module when reporting enabled."""
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
@@ -513,6 +535,7 @@ def test_entrypoint_uses_custom_remote_module_when_reporting_enabled(tmp_path) -
 
 
 def test_entrypoint_remote_module_selection_ignores_inherited_worker_environment(monkeypatch, tmp_path) -> None:
+    """Verify entrypoint remote module selection ignores inherited worker environment."""
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
@@ -540,6 +563,7 @@ def test_entrypoint_remote_module_selection_ignores_inherited_worker_environment
 
 
 def test_entrypoint_detects_cucumber_formatter_flags_as_reporting_request() -> None:
+    """Verify entrypoint detects cucumber formatter flags as reporting request."""
     config = SimpleNamespace(
         option=SimpleNamespace(
             messages_ndjson_path=None,
@@ -560,6 +584,8 @@ def test_entrypoint_detects_cucumber_formatter_flags_as_reporting_request() -> N
 
 
 def test_entrypoint_stores_reporter_state_in_config_stash(tmp_path) -> None:
+    """Verify entrypoint stores reporter state in config stash."""
+
     class _PluginManager:
         def register(self, *_args, **_kwargs) -> None:
             return None
@@ -587,6 +613,7 @@ def test_entrypoint_stores_reporter_state_in_config_stash(tmp_path) -> None:
 
 
 def test_entrypoint_detects_terminal_formatter_flags_in_raw_args() -> None:
+    """Verify entrypoint detects terminal formatter flags in raw args."""
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-summary"]) is True
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-usage"]) is True
     assert entrypoint._terminal_formatter_flags_requested(["--cucumber-usage=-"]) is True
@@ -595,6 +622,7 @@ def test_entrypoint_detects_terminal_formatter_flags_in_raw_args() -> None:
 
 
 def test_cucumber_formatter_util_import_does_not_eagerly_load_formatter_registry() -> None:
+    """Verify cucumber formatter util import does not eagerly load formatter registry."""
     sys.modules.pop("pytest_bdd.util.cucumber_formatters", None)
     sys.modules.pop("pytest_bdd.plugin.cucumber_formatter_support.registry", None)
 
@@ -604,6 +632,7 @@ def test_cucumber_formatter_util_import_does_not_eagerly_load_formatter_registry
 
 
 def test_entrypoint_auto_disables_capture_for_terminal_formatter_args(monkeypatch) -> None:
+    """Verify entrypoint auto disables capture for terminal formatter args."""
     monkeypatch.delenv("PYTEST_BDD_KEEP_PYTEST_CAPTURE", raising=False)
     args = ["tests/e2e/test_report_doc_cucumber_formatters.py", "--cucumber-summary"]
 
@@ -614,6 +643,7 @@ def test_entrypoint_auto_disables_capture_for_terminal_formatter_args(monkeypatc
 
 
 def test_entrypoint_preserves_explicit_capture_configuration(monkeypatch) -> None:
+    """Verify entrypoint preserves explicit capture configuration."""
     monkeypatch.delenv("PYTEST_BDD_KEEP_PYTEST_CAPTURE", raising=False)
     args = ["--capture=fd", "tests/e2e/test_report_doc_cucumber_formatters.py", "--cucumber-summary"]
 
@@ -623,6 +653,7 @@ def test_entrypoint_preserves_explicit_capture_configuration(monkeypatch) -> Non
 
 
 def test_entrypoint_disables_cacheprovider_for_windows_remote_xdist_reporting(monkeypatch) -> None:
+    """Verify entrypoint disables cacheprovider for windows remote xdist reporting."""
     monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
     args = [
         "--tx",
@@ -637,6 +668,7 @@ def test_entrypoint_disables_cacheprovider_for_windows_remote_xdist_reporting(mo
 
 
 def test_entrypoint_preserves_explicit_cache_configuration_for_windows_remote_xdist_reporting(monkeypatch) -> None:
+    """Verify entrypoint preserves explicit cache configuration for windows remote xdist reporting."""
     monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
     args = [
         "-o",
@@ -662,6 +694,7 @@ def test_entrypoint_preserves_explicit_cache_configuration_for_windows_remote_xd
 def test_entrypoint_preserves_split_override_ini_cache_configuration_for_windows_remote_xdist_reporting(
     monkeypatch,
 ) -> None:
+    """Verify entrypoint preserves split override ini cache configuration for windows remote xdist reporting."""
     monkeypatch.setattr(entrypoint, "_running_on_windows", lambda: True)
     args = [
         "--override-ini",
@@ -685,6 +718,7 @@ def test_entrypoint_preserves_split_override_ini_cache_configuration_for_windows
 
 
 def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_startup(monkeypatch) -> None:
+    """Verify entrypoint does not quiet terminal reporter before live formatter startup."""
     quiet_replacement_calls: list[object] = []
     configure_calls: list[tuple[object, object]] = []
     unconfigure_calls: list[object] = []
@@ -752,6 +786,7 @@ def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_start
 
 
 def test_reporter_collects_requested_cucumber_formatters_and_resolves_paths(tmp_path) -> None:
+    """Verify reporter collects requested cucumber formatters and resolves paths."""
     output_path = tmp_path / "reports" / "cucumber.json"
     usage_path = tmp_path / "reports" / "usage.txt"
     output_path.parent.mkdir()
@@ -776,6 +811,7 @@ def test_reporter_collects_requested_cucumber_formatters_and_resolves_paths(tmp_
 
 
 def test_reporter_builds_support_code_payload_for_cucumber_formatters() -> None:
+    """Verify reporter builds support code payload for cucumber formatters."""
     reporter = _build_reporter()
     source_reference = SourceReference(
         uri="steps.py",
@@ -856,6 +892,7 @@ def test_reporter_warns_when_node_is_missing_for_requested_cucumber_formatter(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
+    """Verify reporter warns when node is missing for requested cucumber formatter."""
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
 
     monkeypatch.setattr(
@@ -869,6 +906,8 @@ def test_reporter_warns_when_node_is_missing_for_requested_cucumber_formatter(
 
 
 def test_reporter_records_live_formatter_delivery_failures(capsys, tmp_path) -> None:
+    """Verify reporter records live formatter delivery failures."""
+
     class _BrokenStream:
         def write(self, _value: str) -> int:
             msg = "broken pipe"
@@ -896,6 +935,7 @@ def test_reporter_records_live_formatter_delivery_failures(capsys, tmp_path) -> 
 
 
 def test_controller_forwards_worker_batches_into_live_formatter_session(tmp_path) -> None:
+    """Verify controller forwards worker batches into live formatter session."""
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
     config = reporter.config
     forwarded = StringIO()
@@ -941,6 +981,7 @@ class _RecordingStdin:
 
 
 def test_reporter_forwards_xdist_batches_into_live_formatter_stdin(tmp_path) -> None:
+    """Verify reporter forwards xdist batches into live formatter stdin."""
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
     stdin = _RecordingStdin(writes=[])
     reporter.is_xdist_controller = True
@@ -964,6 +1005,7 @@ def test_reporter_forwards_xdist_batches_into_live_formatter_stdin(tmp_path) -> 
 
 
 def test_reporter_records_live_formatter_failure_when_process_exits_early(tmp_path, capsys) -> None:
+    """Verify reporter records live formatter failure when process exits early."""
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
     reporter._live_formatter_process = SimpleNamespace(
         stdin=_RecordingStdin(writes=[]),

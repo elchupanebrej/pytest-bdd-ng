@@ -1,3 +1,5 @@
+"""Provide toolz test helpers."""
+
 from __future__ import annotations
 
 import base64
@@ -41,6 +43,7 @@ class InstanceOfType:
     """
 
     def __init__(self, type_: type | None = None) -> None:
+        """Initialize the instance of type."""
         self.type = type_
 
     def __eq__(self, other: object) -> bool:

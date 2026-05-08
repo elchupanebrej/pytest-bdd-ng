@@ -1,3 +1,5 @@
+"""Provide lifecycle runtime helpers."""
+
 from __future__ import annotations
 
 import json
@@ -76,6 +78,19 @@ logger = logging.getLogger(__name__)
 
 
 class LifecycleService(ReporterServiceBase):
+    """
+    Represent lifecycle service state.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        TypeError: If the operation cannot be completed.
+        MessageSchemaValidationError: If the operation cannot be completed.
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     plugin_suffix = "lifecycle"
 
     def __init__(
@@ -85,6 +100,7 @@ class LifecycleService(ReporterServiceBase):
         transport_service: TransportService,
         live_formatter_service: LiveFormatterService,
     ) -> None:
+        """Initialize the lifecycle service."""
         super().__init__(reporter)
         self.transport_service = transport_service
         self.live_formatter_service = live_formatter_service
@@ -135,6 +151,7 @@ class LifecycleService(ReporterServiceBase):
 
     @staticmethod
     def get_timestamp() -> Timestamp:
+        """Return timestamp."""
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
@@ -145,6 +162,15 @@ class LifecycleService(ReporterServiceBase):
         config: Config,
         message: Message,
     ) -> None:
+        """
+        Handle the pytest bdd message pytest hook.
+
+        Raises:
+            TypeError: If the operation cannot be completed.
+            MessageSchemaValidationError: If the operation cannot be completed.
+            RuntimeError: If the operation cannot be completed.
+
+        """
         message = ExecutionMessageAdapter.serialize(message)
         if not has_single_payload(message):
             message_text = "Cannot emit envelope with zero or multiple payloads"
@@ -175,18 +201,28 @@ class LifecycleService(ReporterServiceBase):
         self.reporter.process_messages_io_queue.put_nowait(message_json)
 
     def pytest_bdd_source_read(self, config: Config, gherkin_document: GherkinDocument, source: Source) -> None:
+        """Handle the pytest bdd source read pytest hook."""
         _ = gherkin_document
         self._emit_envelope(config, Message(source=source))
 
     def pytest_bdd_feature_read(self, config: Config, gherkin_document: GherkinDocument) -> None:
+        """Handle the pytest bdd feature read pytest hook."""
         self._emit_envelope(config, Message(gherkin_document=gherkin_document))
 
     def pytest_bdd_pickle_read(self, config: Config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
+        """Handle the pytest bdd pickle read pytest hook."""
         _ = gherkin_document
         self._emit_envelope(config, Message(pickle=pickle))
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtestloop(self, session: Session) -> Iterator[None]:
+        """
+        Handle the pytest runtestloop pytest hook.
+
+        Yields:
+            Generated values.
+
+        """
         if self.reporter.is_disabled:
             yield
             return
@@ -235,6 +271,13 @@ class LifecycleService(ReporterServiceBase):
         )
 
     def pytest_sessionstart(self, session: Session) -> None:
+        """
+        Handle the pytest sessionstart pytest hook.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         if self.reporter.is_disabled:
             self._emit_disabled_warning_once()
             return
@@ -414,9 +457,11 @@ class LifecycleService(ReporterServiceBase):
         return test_step_id
 
     def resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
+        """Resolve test step id for runtime step."""
         return self._resolve_test_step_id_for_runtime_step(request=request, step=step)
 
     def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901
+        """Handle the pytest sessionfinish pytest hook."""
         if self.reporter.is_disabled:
             return
         config = session.config

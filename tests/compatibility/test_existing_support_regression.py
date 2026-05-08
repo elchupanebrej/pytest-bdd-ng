@@ -1,9 +1,12 @@
+"""Provide test existing support regression helpers."""
+
 from pathlib import Path
 
 from pytest_bdd.compatibility.matrix import extract_factors_from_tox_ini
 
 
 def test_eol_py39_and_pre70_pytest_factors_are_removed():
+    """Verify eol py39 and pre70 pytest factors are removed."""
     py_factors, pytest_factors = extract_factors_from_tox_ini(Path("tox.ini"))
 
     assert "39" not in py_factors
@@ -15,6 +18,7 @@ def test_eol_py39_and_pre70_pytest_factors_are_removed():
 
 
 def test_extract_factors_from_tox_ini_supports_brace_expansions(tmp_path):
+    """Verify extract factors from tox ini supports brace expansions."""
     tox_ini = tmp_path / "tox.ini"
     tox_ini.write_text(
         "[tox]\nenv_list =\n    py{py311, py310}-pytest{latest,70}-coverage-lin\n",
@@ -28,6 +32,7 @@ def test_extract_factors_from_tox_ini_supports_brace_expansions(tmp_path):
 
 
 def test_makefile_renders_html_reports_from_tox_ndjson_artifacts():
+    """Verify makefile renders html reports from tox ndjson artifacts."""
     makefile = Path("Makefile").read_text(encoding="utf-8")
 
     assert "render-tox-reports" in makefile

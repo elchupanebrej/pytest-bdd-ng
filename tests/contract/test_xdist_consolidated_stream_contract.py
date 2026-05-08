@@ -1,3 +1,5 @@
+"""Provide test xdist consolidated stream contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,14 +19,17 @@ def _live_contract_text() -> str:
 
 
 def test_xdist_consolidated_stream_contract_exists() -> None:
+    """Verify xdist consolidated stream contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_live_formatter_boundary_contract_exists_for_stream_ordering() -> None:
+    """Verify live formatter boundary contract exists for stream ordering."""
     assert LIVE_CONTRACT_PATH.exists()
 
 
 def test_xdist_consolidated_stream_contract_defines_payload_classes() -> None:
+    """Verify xdist consolidated stream contract defines payload classes."""
     contract_text = _contract_text()
     assert "### Controller-Singular Payloads" in contract_text
     assert "### Structural-Deduplicated Payloads" in contract_text
@@ -35,6 +40,7 @@ def test_xdist_consolidated_stream_contract_defines_payload_classes() -> None:
 
 
 def test_xdist_consolidated_stream_contract_requires_deterministic_order_and_reference_rewrite() -> None:
+    """Verify xdist consolidated stream contract requires deterministic order and reference rewrite."""
     contract_text = _contract_text()
     assert "Worker-local structural IDs MUST NOT leak into the final stream" in contract_text
     assert "Runtime payloads MUST NOT reference structural records discarded during deduplication." in contract_text
@@ -42,6 +48,7 @@ def test_xdist_consolidated_stream_contract_requires_deterministic_order_and_ref
 
 
 def test_xdist_consolidated_stream_contract_requires_remote_safe_transport() -> None:
+    """Verify xdist consolidated stream contract requires remote safe transport."""
     contract_text = _contract_text()
     assert "remote worker topologies where participants do not share a filesystem" in contract_text
     assert (
@@ -55,6 +62,7 @@ def test_xdist_consolidated_stream_contract_requires_remote_safe_transport() -> 
 
 
 def test_live_formatter_boundary_contract_requires_per_source_order_and_arrival_interleaving() -> None:
+    """Verify live formatter boundary contract requires per source order and arrival interleaving."""
     contract_text = _live_contract_text()
 
     assert "Message order must be preserved within each `source_id`." in contract_text
@@ -63,6 +71,7 @@ def test_live_formatter_boundary_contract_requires_per_source_order_and_arrival_
 
 
 def test_live_formatter_boundary_contract_keeps_canonical_ndjson_as_final_artifact() -> None:
+    """Verify live formatter boundary contract keeps canonical ndjson as final artifact."""
     contract_text = _live_contract_text()
 
     assert "Canonical NDJSON remains the final validation and replay artifact" in contract_text

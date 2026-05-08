@@ -1,3 +1,5 @@
+"""Provide test coverage helpers."""
+
 from __future__ import annotations
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
@@ -11,6 +13,7 @@ from pytest_bdd.model.message_validation import validate_message_stream
 
 
 def test_generate_inventory_from_schema() -> None:
+    """Verify generate inventory from schema."""
     inventory = generate_inventory(resolve_messages_schema_dir())
     assert "testCaseStarted" in inventory.payload_kinds
     assert ("testCaseStarted", "id") in inventory.fields
@@ -18,6 +21,7 @@ def test_generate_inventory_from_schema() -> None:
 
 
 def test_observed_coverage_records_state_dependent_fields() -> None:
+    """Verify observed coverage records state dependent fields."""
     envelopes = [
         Message(
             test_case_started=CucumberTestCaseStarted(
@@ -39,6 +43,7 @@ def test_observed_coverage_records_state_dependent_fields() -> None:
 
 
 def test_observed_coverage_records_first_evidence_only() -> None:
+    """Verify observed coverage records first evidence only."""
     coverage = ObservedCoverage()
     coverage.record_field("test_case_finished", "implementation_status", evidence_scenario_id="scenario-A")
     coverage.record_field("test_case_finished", "implementation_status", evidence_scenario_id="scenario-B")

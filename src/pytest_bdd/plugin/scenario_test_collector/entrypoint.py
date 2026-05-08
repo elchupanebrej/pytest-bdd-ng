@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
 
 from .const import PYTEST_BDD_MARK, FeatureAutoLoad, FeatureBaseLoad
@@ -5,6 +7,7 @@ from .plugin import ScenarioTestCollector
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
+    """Handle addhooks."""
     from .hook import ScenarioTestCollectorHookSpec
 
     pluginmanager.add_hookspecs(ScenarioTestCollectorHookSpec)
@@ -32,6 +35,7 @@ def pytest_addoption(parser: Parser) -> None:
 
 
 def pytest_configure(config: Config) -> None:
+    """Handle configure."""
     config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
 

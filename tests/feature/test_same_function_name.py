@@ -1,4 +1,8 @@
+"""Provide test same function name helpers."""
+
+
 def test_when_function_name_same_as_step_name(testdir):
+    """Verify when function name same as step name."""
     testdir.makefile(
         ".feature",
         # language=gherkin

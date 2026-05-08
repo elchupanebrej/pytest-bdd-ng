@@ -1,3 +1,5 @@
+"""Provide scenario run helpers."""
+
 from __future__ import annotations
 
 from contextlib import suppress
@@ -39,6 +41,8 @@ NodeKind = Literal["feature", "scenario", "step"]
 
 
 class HookPhase(StrEnum):
+    """Represent hook phase state."""
+
     before_scenario = "pytest_bdd_before_scenario"
     run_scenario = "pytest_bdd_run_scenario"
     after_scenario = "pytest_bdd_after_scenario"
@@ -51,6 +55,8 @@ class HookPhase(StrEnum):
 
 
 class RunStage(StrEnum):
+    """Represent run stage state."""
+
     idle = "idle"
     scenario_setup = "scenario_setup"
     scenario_running = "scenario_running"
@@ -60,6 +66,8 @@ class RunStage(StrEnum):
 
 
 class RunStatus(StrEnum):
+    """Represent run status state."""
+
     ok = "ok"
     failed = "failed"
     interrupted = "interrupted"
@@ -67,6 +75,8 @@ class RunStatus(StrEnum):
 
 @define(slots=True)
 class LifecycleObjectRef:
+    """Represent lifecycle object ref state."""
+
     kind: LifecycleKind
     object_id: str
     name: str | None = None
@@ -85,6 +95,7 @@ class LifecycleObjectRef:
         source: str | None = "lifecycle-slot",
         fail_fast_code: str | None = None,
     ) -> Self:
+        """Handle inactive."""
         return cls(
             kind=kind,
             object_id=f"{kind}:{reason}",
@@ -96,6 +107,7 @@ class LifecycleObjectRef:
         )
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "kind": self.kind,
             "object_id": self.object_id,
@@ -109,6 +121,8 @@ class LifecycleObjectRef:
 
 @define(slots=True)
 class NoPreviousStep:
+    """Represent no previous step state."""
+
     id: str = "step:no_previous_step"
     text: str = ""
     keyword: str = ""
@@ -148,6 +162,8 @@ def _finished_previous_step_ref() -> LifecycleObjectRef:
 
 @define(slots=True)
 class ActiveObjectSet:
+    """Represent active object set state."""
+
     run: LifecycleObjectRef
     captured_at_stage: RunStage
     feature: LifecycleObjectRef = field(factory=_inactive_feature_ref)
@@ -156,6 +172,7 @@ class ActiveObjectSet:
     previous_step: LifecycleObjectRef = field(factory=_no_previous_step_ref)
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "run": self.run.as_dict(),
             "feature": self.feature.as_dict(),
@@ -168,6 +185,8 @@ class ActiveObjectSet:
 
 @define(slots=True)
 class ReportingLifecycleState:
+    """Represent reporting lifecycle state state."""
+
     run_started_id: str | None = None
     test_run_hook_started_id: str | None = None
     active_test_case_id: str | None = None
@@ -179,6 +198,7 @@ class ReportingLifecycleState:
     step_finished_timestamp: JSONValue = None
 
     def reset_scenario_scope(self) -> None:
+        """Handle reset scenario scope."""
         self.active_test_case_id = None
         self.active_test_case_started_id = None
         self.active_test_step_id = None
@@ -188,6 +208,7 @@ class ReportingLifecycleState:
         self.step_finished_timestamp = None
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "run_started_id": self.run_started_id,
             "test_run_hook_started_id": self.test_run_hook_started_id,
@@ -207,15 +228,20 @@ class ReportingLifecycleState:
 
 @define(slots=True)
 class ReferenceResolverState:
+    """Represent reference resolver state state."""
+
     missing_reference_diagnostics: list[str] = field(factory=list)
 
     def add_missing_reference(self, message: str) -> None:
+        """Handle add missing reference."""
         self.missing_reference_diagnostics.append(message)
 
     def clear(self) -> None:
+        """Handle clear."""
         self.missing_reference_diagnostics.clear()
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "missing_reference_diagnostics": list(self.missing_reference_diagnostics),
         }
@@ -223,6 +249,8 @@ class ReferenceResolverState:
 
 @define(slots=True)
 class ContextErrorState:
+    """Represent context error state state."""
+
     code: Literal["object_inactive", "transition_order_violation", "context_not_initialized", "binding_missing"]
     message: str
     hook_name: str
@@ -230,6 +258,7 @@ class ContextErrorState:
     requested_kind: LifecycleKind | None = None
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "code": self.code,
             "message": self.message,
@@ -241,6 +270,14 @@ class ContextErrorState:
 
 @define(slots=True)
 class FeatureRuntimeBinding:
+    """
+    Represent feature runtime binding state.
+
+    Yields:
+        Generated values.
+
+    """
+
     uri: str
     filename: str
     gherkin_document: GherkinDocument
@@ -258,12 +295,14 @@ class FeatureRuntimeBinding:
 
     @staticmethod
     def load_gherkin_document(raw_gherkin_document: object) -> GherkinDocument:
+        """Load gherkin document."""
         if isinstance(raw_gherkin_document, GherkinDocument):
             return raw_gherkin_document
         return message_converter.from_dict(raw_gherkin_document, GherkinDocument)
 
     @staticmethod
     def load_pickles(pickles_data: Iterable[object]) -> tuple[Pickle, ...]:
+        """Load pickles."""
         return tuple(message_converter.from_dict(pickle_data, Pickle) for pickle_data in pickles_data)
 
     @classmethod
@@ -275,6 +314,7 @@ class FeatureRuntimeBinding:
         source: Source | None = None,
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
+        """Build build."""
         filename = getattr(gherkin_document, "_pytest_bdd_filename", None)
         if filename is None and source is not None:
             filename = cls._feature_filename_from_uri(source.uri)
@@ -293,6 +333,7 @@ class FeatureRuntimeBinding:
         return binding
 
     def ensure_pickles(self, *, id_generator: IdGenerator | None) -> tuple[Pickle, ...]:
+        """Ensure pickles."""
         if self.pickles:
             return self.pickles
 
@@ -305,6 +346,7 @@ class FeatureRuntimeBinding:
         return self.pickles
 
     def index_runtime_objects(self) -> None:
+        """Handle index runtime objects."""
         feature_message = getattr(self.gherkin_document, "feature", None)
         if feature_message is not None:
             self.run.index_identifiable_tree(feature_message)
@@ -312,9 +354,17 @@ class FeatureRuntimeBinding:
             self.run.index_identifiable_tree(self.pickles)
 
     def resolve_node(self, object_id: str) -> Identifiable:
+        """Resolve node."""
         return self.run.identifiable_registry.resolve(object_id)
 
     def linked_ast_nodes_for(self, obj: object) -> Generator[Identifiable]:
+        """
+        Handle linked ast nodes for.
+
+        Yields:
+            Generated values.
+
+        """
         ast_node_ids: tuple[str, ...]
         if isinstance(obj, MultiLinkedAST):
             ast_node_ids = tuple(obj.ast_node_ids)
@@ -327,9 +377,11 @@ class FeatureRuntimeBinding:
                 yield self.resolve_node(ast_node_id)
 
     def pickle_ast_table_rows(self, pickle: Pickle) -> list[TableRow]:
+        """Handle pickle ast table rows."""
         return [node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, TableRow)]
 
     def pickle_table_rows_breadcrumb(self, pickle: Pickle) -> str:
+        """Handle pickle table rows breadcrumb."""
         table_rows_lines = ",".join(
             (
                 f"line: {deepattrgetter('location.line', default=-1)(row)[0]}"
@@ -339,12 +391,14 @@ class FeatureRuntimeBinding:
         return f"[table_rows:[{table_rows_lines}]]" if table_rows_lines else ""
 
     def pickle_ast_scenario(self, pickle: Pickle) -> Scenario | None:
+        """Handle pickle ast scenario."""
         return next(
             (node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, Scenario)),
             None,
         )
 
     def pickle_line_number(self, pickle: Pickle) -> int:
+        """Handle pickle line number."""
         scenario = self.pickle_ast_scenario(pickle)
         if scenario is None:
             return -1
@@ -353,12 +407,14 @@ class FeatureRuntimeBinding:
         return int(line) if line is not None else -1
 
     def pickle_step_ast_step(self, pickle_step: PickleStep) -> Step | None:
+        """Handle pickle step ast step."""
         return next(
             (node for node in self.linked_ast_nodes_for(pickle_step) if isinstance(node, Step)),
             None,
         )
 
     def step_keyword(self, step: PickleStep) -> str | None:
+        """Handle keyword."""
         model_step = self.pickle_step_ast_step(step)
         if model_step is not None:
             keyword = getattr(model_step, "keyword", None)
@@ -367,34 +423,41 @@ class FeatureRuntimeBinding:
         return None
 
     def step_prefix(self, step: PickleStep) -> str | None:
+        """Handle prefix."""
         keyword = self.step_keyword(step)
         return keyword.lower() if keyword is not None else None
 
     def step_line_number(self, step: PickleStep) -> int | None:
+        """Handle line number."""
         model_step = self.pickle_step_ast_step(step)
         if model_step is not None:
             return model_step.location.line if model_step.location is not None else -1
         return None
 
     def step_doc_string(self, step: PickleStep) -> object | None:
+        """Handle doc string."""
         return getattr(self.pickle_step_ast_step(step), "doc_string", None)
 
     def step_data_table(self, step: PickleStep) -> object | None:
+        """Handle data table."""
         return getattr(self.pickle_step_ast_step(step), "data_table", None)
 
     @property
     def rel_filename(self) -> str | None:
+        """Handle rel filename."""
         if self.uri.startswith("file:"):
             return self.uri[len("file:") :]
         return None
 
     @property
     def name(self) -> str | None:
+        """Handle name."""
         feature_message = getattr(self.gherkin_document, "feature", None)
         return str(feature_message.name) if feature_message is not None else None
 
     @property
     def line_number(self) -> int | None:
+        """Handle line number."""
         feature_message = getattr(self.gherkin_document, "feature", None)
         location = getattr(feature_message, "location", None)
         line = getattr(location, "line", None)
@@ -402,6 +465,7 @@ class FeatureRuntimeBinding:
 
     @property
     def description(self) -> str | None:
+        """Handle description."""
         feature_message = getattr(self.gherkin_document, "feature", None)
         description = getattr(feature_message, "description", None)
         if description is None:
@@ -410,6 +474,7 @@ class FeatureRuntimeBinding:
 
     @property
     def tag_names(self) -> list[str]:
+        """Handle tag names."""
         feature_message = getattr(self.gherkin_document, "feature", None)
         tags = getattr(feature_message, "tags", None) or ()
         return sorted(str(tag.name).lstrip(TAG_PREFIX) for tag in tags)
@@ -417,6 +482,15 @@ class FeatureRuntimeBinding:
 
 @define(slots=True)
 class Run(StashBound):
+    """
+    Represent run state.
+
+    Raises:
+        AttributeError: If the operation cannot be completed.
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
 
     id: str
@@ -434,12 +508,20 @@ class Run(StashBound):
 
     @property
     def active_feature_binding(self: Self) -> FeatureRuntimeBinding | None:
+        """Handle active feature binding."""
         if self.active_scenario_run is None:
             return None
         return self.active_scenario_run.feature_binding
 
     @property
     def active_scenario_id(self) -> str:
+        """
+        Handle active scenario id.
+
+        Raises:
+            AttributeError: If the operation cannot be completed.
+
+        """
         scenario_run = self.active_scenario_run
         node = scenario_run.scenario_node if scenario_run is not None else None
         if node is not None and node.is_active:
@@ -449,6 +531,13 @@ class Run(StashBound):
 
     @property
     def active_step_id(self) -> str:
+        """
+        Handle active step id.
+
+        Raises:
+            AttributeError: If the operation cannot be completed.
+
+        """
         scenario_run = self.active_scenario_run
         node = scenario_run.step_node if scenario_run is not None else None
         if node is not None and node.is_active:
@@ -457,6 +546,13 @@ class Run(StashBound):
         raise AttributeError(msg)
 
     def require_active_scenario_run(self, *, hook_name: str) -> ScenarioRun:
+        """
+        Handle require active scenario run.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         scenario_run = self.active_scenario_run
         if scenario_run is not None:
             return scenario_run
@@ -464,6 +560,7 @@ class Run(StashBound):
         raise RuntimeError(msg)
 
     def advance_transition(self) -> None:
+        """Handle advance transition."""
         self.transition_index += 1
 
     @classmethod
@@ -479,6 +576,7 @@ class Run(StashBound):
 
     @classmethod
     def initialize_for_session(cls, *, stash: Stash, session: Session) -> Run:
+        """Handle initialize for session."""
         run = cls._build_for_owner(session)
         run.initialize_in_stash(stash)
         EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_stash(stash)
@@ -486,6 +584,7 @@ class Run(StashBound):
 
     @classmethod
     def initialize_for_config(cls, *, stash: Stash, config: Config) -> Run:
+        """Handle initialize for config."""
         run = cls._build_for_owner(config)
         run.initialize_in_stash(stash)
         EnvelopeRegistry(identifiable=run.identifiable_registry).initialize_in_stash(stash)
@@ -501,6 +600,7 @@ class Run(StashBound):
 
     @classmethod
     def get_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
+        """Return scenario run."""
         run = cls.find_in_stash(request.config.stash)
         if run is None:
             return None
@@ -509,6 +609,7 @@ class Run(StashBound):
 
     @classmethod
     def set_scenario_run(cls, request: FixtureRequest, scenario_run: ScenarioRun) -> None:
+        """Handle set scenario run."""
         run = scenario_run.run
         if run is None:
             run = cls.from_stash(request.config.stash)
@@ -519,6 +620,7 @@ class Run(StashBound):
 
     @classmethod
     def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
+        """Handle pop scenario run."""
         config = getattr(request, "config", None)
         stash = getattr(config, "stash", None)
         run = cls.find_in_stash(stash) if stash is not None else None
@@ -549,6 +651,7 @@ class Run(StashBound):
         pickle: Pickle | None = None,
         feature_source: Source | None = None,
     ) -> ScenarioRun:
+        """Create scenario run."""
         from pytest_bdd.plugin.pickle_runner.run_transitions import (
             build_lifecycle_ref,
             initial_scenario_run_id,
@@ -639,9 +742,11 @@ class Run(StashBound):
         return scenario_run
 
     def index_identifiable_tree(self, root: object) -> None:
+        """Handle index identifiable tree."""
         self.identifiable_registry.index_tree(root)
 
     def map_runtime_step_to_test_step_id(self, *, pickle_step: PickleStep, test_step_id: str) -> None:
+        """Handle map runtime step to test step id."""
         self.reporting_state.runtime_step_to_pickle_step_id[id(pickle_step)] = test_step_id
 
     def ensure_feature_binding(
@@ -651,6 +756,7 @@ class Run(StashBound):
         source: Source | None = None,
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
+        """Ensure feature binding."""
         uri = str(gherkin_document.uri)
         binding = self.feature_bindings_by_uri.get(uri)
         if binding is None:
@@ -675,17 +781,20 @@ class Run(StashBound):
         return binding
 
     def feature_binding_for_uri(self, uri: str | None) -> FeatureRuntimeBinding | None:
+        """Handle feature binding for uri."""
         if uri is None:
             return None
         return self.feature_bindings_by_uri.get(str(uri))
 
     def feature_binding_for_document(self, gherkin_document: GherkinDocument | None) -> FeatureRuntimeBinding | None:
+        """Handle feature binding for document."""
         uri = getattr(gherkin_document, "uri", None) if gherkin_document is not None else None
         if uri is None:
             return None
         return self.feature_bindings_by_uri.get(str(uri))
 
     def resolve_test_step_id_for_runtime_step(self, *, pickle_step: PickleStep) -> str | None:
+        """Resolve test step id for runtime step."""
         reporting_state = self.reporting_state
         mapped = reporting_state.runtime_step_to_pickle_step_id.get(id(pickle_step))
         if mapped is not None:
@@ -698,6 +807,7 @@ class Run(StashBound):
         return reporting_state.active_test_step_id
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         try:
             active_scenario_id = self.active_scenario_id
         except AttributeError:
@@ -725,6 +835,8 @@ class Run(StashBound):
 
 @define(slots=True)
 class RunNode:
+    """Represent run node state."""
+
     id: str
     parent_id: str
     kind: NodeKind
@@ -734,10 +846,12 @@ class RunNode:
     closed_at_transition: int | None = None
 
     def close(self, at_transition: int) -> None:
+        """Handle close."""
         self.is_active = False
         self.closed_at_transition = at_transition
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "id": self.id,
             "parent_id": self.parent_id,
@@ -751,6 +865,8 @@ class RunNode:
 
 @define(slots=True)
 class StepRun:
+    """Represent step run state."""
+
     step: PickleStep | None = None
     keyword: str | None = None
     text: str = ""
@@ -765,6 +881,14 @@ class StepRun:
 
 @define(slots=True)
 class ScenarioRun:
+    """
+    Represent scenario run state.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     id: str
     run_ref: LifecycleObjectRef
     active_hook: HookPhase
@@ -801,6 +925,7 @@ class ScenarioRun:
         }
 
     def advance_transition(self) -> None:
+        """Handle advance transition."""
         self.transition_index += 1
 
     def record_context_error(
@@ -811,6 +936,7 @@ class ScenarioRun:
         hook_name: str,
         requested_kind: LifecycleKind | None = None,
     ) -> ContextErrorState:
+        """Handle record context error."""
         error = ContextErrorState(
             code=code,
             message=message,
@@ -823,6 +949,7 @@ class ScenarioRun:
         return error
 
     def set_active_set(self, active_set: ActiveObjectSet) -> None:
+        """Handle set active set."""
         self.active_set = active_set
         self._active_kind_index = {
             "run": self.active_set.run,
@@ -832,12 +959,20 @@ class ScenarioRun:
         }
 
     def get_active_object(self, kind: LifecycleKind) -> LifecycleObjectRef | None:
+        """Return active object."""
         candidate = self._active_kind_index.get(kind)
         if candidate is None or not candidate.is_active:
             return None
         return candidate
 
     def require_feature_binding(self, *, hook_name: str) -> FeatureRuntimeBinding:
+        """
+        Handle require feature binding.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         binding = self.feature_binding
         if binding is not None:
             return binding
@@ -850,6 +985,13 @@ class ScenarioRun:
         raise RuntimeError(error.message)
 
     def require_gherkin_document(self, *, hook_name: str) -> GherkinDocument:
+        """
+        Handle require gherkin document.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         binding = self.feature_binding
         if binding is not None:
             return binding.gherkin_document
@@ -864,6 +1006,13 @@ class ScenarioRun:
         raise RuntimeError(error.message)
 
     def require_pickle(self, *, hook_name: str) -> Pickle:
+        """
+        Handle require pickle.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         if self.pickle is not None:
             return self.pickle
         error = self.record_context_error(
@@ -875,6 +1024,13 @@ class ScenarioRun:
         raise RuntimeError(error.message)
 
     def require_step_object(self, *, hook_name: str) -> PickleStep:
+        """
+        Handle require step object.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         if self.step_object is not None:
             return self.step_object
         error = self.record_context_error(
@@ -886,6 +1042,7 @@ class ScenarioRun:
         raise RuntimeError(error.message)
 
     def ensure_finished_for_cleanup(self, *, at_transition: int) -> None:
+        """Ensure finished for cleanup."""
         if self.step_node is not None and self.step_node.is_active:
             self.step_node.close(at_transition)
         if self.scenario_node is not None and self.scenario_node.is_active:
@@ -913,11 +1070,13 @@ class ScenarioRun:
 
     @property
     def feature_binding(self) -> FeatureRuntimeBinding | None:
+        """Handle feature binding."""
         if self.feature_uri is not None:
             return self.run.feature_binding_for_uri(self.feature_uri)
         return self.run.feature_binding_for_document(self.gherkin_document)
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "id": self.id,
             "run_ref": self.run_ref.as_dict(),
@@ -942,6 +1101,8 @@ class ScenarioRun:
 
 @define(slots=True)
 class ReportingContextSnapshot:
+    """Represent reporting context snapshot state."""
+
     run_id: str
     active_set: ActiveObjectSet
     stage: RunStage
@@ -949,6 +1110,7 @@ class ReportingContextSnapshot:
     fallback_reason: str | None = None
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "run_id": self.run_id,
             "active_set": self.active_set.as_dict(),
@@ -960,6 +1122,8 @@ class ReportingContextSnapshot:
 
 @define(slots=True)
 class ExternalApiCompatibilityRecord:
+    """Represent external api compatibility record state."""
+
     api_surface_id: str
     baseline_reference: str
     changed_symbols: list[str]
@@ -969,6 +1133,7 @@ class ExternalApiCompatibilityRecord:
     consumer_migration_required: bool
 
     def as_dict(self) -> JSONObject:
+        """Handle as dict."""
         return {
             "api_surface_id": self.api_surface_id,
             "baseline_reference": self.baseline_reference,

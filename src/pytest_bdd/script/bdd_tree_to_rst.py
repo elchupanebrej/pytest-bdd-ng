@@ -50,6 +50,8 @@ class _DirCmp(Protocol):
 
 @frozen
 class ToctreeSection:
+    """Represent toctree section state."""
+
     heading: str
     depth: int
     entries: tuple[str, ...]
@@ -57,6 +59,8 @@ class ToctreeSection:
 
 @frozen
 class OrderedSource:
+    """Represent ordered source state."""
+
     path: Path
     kind: str
     ordering_prefix: int
@@ -64,7 +68,10 @@ class OrderedSource:
 
 
 class OrderingValidationError(ValueError):
+    """Represent ordering validation error failures."""
+
     def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str) -> None:
+        """Initialize the ordering validation error."""
         self.error_code = error_code
         self.scope_path = scope_path
         self.source_path = source_path
@@ -81,11 +88,13 @@ class OrderingValidationError(ValueError):
 
 @lru_cache(maxsize=8)
 def load_template(template_name: str) -> Template:
+    """Load template."""
     template_source = files("pytest_bdd.template").joinpath(template_name).read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 
 
 def diff_folders(dcmp: _DirCmp) -> list[object] | None:
+    """Handle diff folders."""
     diff: list[object] = [dcmp.diff_files, dcmp.left_only, dcmp.right_only]
     if any(diff):
         dcmp.report()
@@ -100,6 +109,7 @@ def extract_existing_intro(
     existing_index_file: Path,
     top_level_headings: Sequence[str],
 ) -> tuple[str, str]:
+    """Handle extract existing intro."""
     if not existing_index_file.exists():
         return "", ""
 
@@ -123,6 +133,7 @@ def extract_existing_intro(
 
 
 def render_toctree_section(section: ToctreeSection) -> str:
+    """Render toctree section."""
     underline = SECTION_SYMBOLS[section.depth - 1] * len(section.heading) if section.heading else ""
     template = load_template("features_section.rst.jinja2")
     rendered_section = cast(
@@ -137,6 +148,7 @@ def render_toctree_section(section: ToctreeSection) -> str:
 
 
 def render_index_document(intro_block: str, sections_content: str, suffix_block: str) -> str:
+    """Render index document."""
     template = load_template("features_index.rst.jinja2")
     rendered_index = cast(
         str,
@@ -155,6 +167,7 @@ def render_generated_index(
     sections: Sequence[ToctreeSection],
     existing_index_file: Path,
 ) -> str:
+    """Render generated index."""
     top_level_headings = [section.heading for section in sections if section.depth == 1 and section.heading]
     preserved_intro, preserved_suffix = extract_existing_intro(existing_index_file, top_level_headings)
     sections_content = "\n\n".join(map(render_toctree_section, sections)).rstrip("\n")
@@ -164,6 +177,7 @@ def render_generated_index(
 
 
 def strip_ordering_prefix(name: str) -> str:
+    """Handle strip ordering prefix."""
     match = ORDERING_PREFIX_PATTERN.match(name)
     if match is None:
         return name
@@ -171,6 +185,7 @@ def strip_ordering_prefix(name: str) -> str:
 
 
 def source_display_name(path: Path, kind: str) -> str:
+    """Handle source display name."""
     if kind == "section":
         return strip_ordering_prefix(path.name)
     if kind == "markdown":
@@ -179,6 +194,7 @@ def source_display_name(path: Path, kind: str) -> str:
 
 
 def classify_source_path(path: Path) -> str:
+    """Handle classify source path."""
     if path.is_dir():
         return "section"
     if path.name.endswith((".gherkin.md", ".feature.md")):
@@ -191,12 +207,20 @@ def classify_source_path(path: Path) -> str:
 
 
 def format_scope_path(scope_rel_path: Path) -> Path:
+    """Format scope path."""
     if scope_rel_path.as_posix() == ".":
         return Path(".")
     return scope_rel_path
 
 
 def parse_ordered_source(path: Path, kind: str, scope_rel_path: Path) -> OrderedSource:
+    """
+    Parse ordered source.
+
+    Raises:
+        OrderingValidationError: If the operation cannot be completed.
+
+    """
     match = ORDERING_PREFIX_PATTERN.match(path.name)
     if match is None:
         error_code = "missing_ordering_prefix"
@@ -215,6 +239,13 @@ def parse_ordered_source(path: Path, kind: str, scope_rel_path: Path) -> Ordered
 
 
 def sort_ordered_sources(sources: Sequence[OrderedSource], scope_rel_path: Path) -> list[OrderedSource]:
+    """
+    Handle sort ordered sources.
+
+    Raises:
+        OrderingValidationError: If the operation cannot be completed.
+
+    """
     seen_prefixes: dict[int, OrderedSource] = {}
     for source in sources:
         if source.ordering_prefix in seen_prefixes:
@@ -236,6 +267,7 @@ def sort_ordered_sources(sources: Sequence[OrderedSource], scope_rel_path: Path)
 def collect_ordered_sources(
     processable_path: Path, features_path: Path
 ) -> tuple[list[OrderedSource], list[OrderedSource]]:
+    """Collect ordered sources."""
     processable_rel_path = processable_path.relative_to(features_path)
     ordered_file_sources: list[OrderedSource] = []
     ordered_dir_sources: list[OrderedSource] = []
@@ -257,6 +289,7 @@ def collect_ordered_sources(
 
 
 def render_include_page(title: str, rel_path: Path, include_path: str, code_type: str) -> str:
+    """Render include page."""
     template = load_template("feature_include.rst.jinja2")
     rendered_include = cast(
         str,
@@ -271,6 +304,7 @@ def render_include_page(title: str, rel_path: Path, include_path: str, code_type
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
+    """Convert convert."""
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
     output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)
@@ -341,10 +375,18 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
 
 
 def ensure_pandoc_installed() -> None:
+    """Ensure pandoc installed."""
     pypandoc.ensure_pandoc_installed()
 
 
 def main() -> None:  # pragma: no cover
+    """
+    Run main.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     arguments = docopt(__doc__)
     ensure_pandoc_installed()
     features_dir = Path(arguments["<features_dir>"]).resolve()

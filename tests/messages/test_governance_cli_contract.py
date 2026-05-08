@@ -1,3 +1,5 @@
+"""Provide test governance cli contract helpers."""
+
 from __future__ import annotations
 
 import json
@@ -24,10 +26,12 @@ def _validator():
 
 
 def test_governance_cli_contract_file_exists() -> None:
+    """Verify governance cli contract file exists."""
     assert CLI_SCHEMA_PATH.exists()
 
 
 def test_governance_cli_contract_accepts_valid_report_payload(tmp_path: Path) -> None:
+    """Verify governance cli contract accepts valid report payload."""
     payload = {
         "command": "report",
         "messages_file": str(tmp_path / "messages.ndjson"),
@@ -49,6 +53,7 @@ def test_governance_cli_contract_accepts_valid_report_payload(tmp_path: Path) ->
 
 
 def test_governance_cli_contract_requires_runtime_required_file_when_flag_enabled(tmp_path: Path) -> None:
+    """Verify governance cli contract requires runtime required file when flag enabled."""
     payload = {
         "command": "report",
         "messages_file": str(tmp_path / "messages.ndjson"),
@@ -66,6 +71,7 @@ def test_discover_governance_schema_path_prefers_canonical_repo_contract(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
+    """Verify discover governance schema path prefers canonical repo contract."""
     repo_root = tmp_path / "repo"
     canonical_schema_path = (
         repo_root / "specs" / "008-maximize-messages-coverage" / "contracts" / "governance-report.schema.json"

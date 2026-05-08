@@ -1,3 +1,5 @@
+"""Provide model builder helpers."""
+
 from collections.abc import Iterable, Iterator, Sequence
 from operator import attrgetter
 from typing import Generic, TypeVar, cast
@@ -38,9 +40,12 @@ class _ASTBuilder(Generic[ModelT]):
 
 @define
 class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
+    """Represent gherkin document builder state."""
+
     model: StructStep = field()
 
     def build(self, id_generator: object) -> GherkinDocument:
+        """Build build."""
         comments = [
             Comment(
                 location=Location(column=1, line=index + 1),
@@ -55,6 +60,7 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
         )
 
     def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:
+        """Build feature."""
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
         gherkin_document._pytest_bdd_filename = filename
@@ -63,9 +69,18 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
 
 @define
 class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
+    """
+    Represent step to feature astbuilder state.
+
+    Yields:
+        Generated values.
+
+    """
+
     model: StructStep = field()
 
     def build(self, id_generator: object) -> Feature:
+        """Build build."""
         return Feature(
             children=self._build_children(id_generator=id_generator),
             description=self.model.description or "",
@@ -201,9 +216,12 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
 
 @define
 class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
+    """Represent example astbuilder state."""
+
     model: StructJoin | StructTable = field()
 
     def build(self, id_generator: object) -> Examples:
+        """Build build."""
         return Examples(
             description=self.model.description,
             id=next(cast(Iterator[str], id_generator)),

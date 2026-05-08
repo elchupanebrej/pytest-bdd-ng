@@ -1,3 +1,5 @@
+"""Provide path helpers."""
+
 from __future__ import annotations
 
 import os
@@ -9,6 +11,13 @@ if TYPE_CHECKING:
 
 
 def relpath(path: str | PathLike[str], start: str | PathLike[str] = os.curdir) -> str | PathLike[str]:
+    """
+    Handle relpath.
+
+    Raises:
+        ValueError: If relative path resolution fails on a non-Windows platform.
+
+    """
     try:
         return os.path.relpath(path, start)
     except ValueError:

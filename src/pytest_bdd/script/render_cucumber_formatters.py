@@ -69,6 +69,7 @@ def _register_formatter_argument(parser: argparse.ArgumentParser, plugin: Format
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse args."""
     catalog = FormatterPluginCatalog.discover()
     parser = argparse.ArgumentParser(description="Render cucumber formatter outputs from an NDJSON message stream")
     parser.add_argument(
@@ -101,6 +102,13 @@ def _build_formatter_option_values(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    Run main.
+
+    Raises:
+        SystemExit: If the operation cannot be completed.
+
+    """
     args = parse_args(argv)
     catalog = FormatterPluginCatalog.discover()
     renderer = StandaloneCucumberFormatterRenderer.discover(catalog=catalog)

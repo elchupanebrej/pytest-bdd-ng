@@ -1,3 +1,5 @@
+"""Provide test steps helpers."""
+
 from functools import partial
 from textwrap import dedent
 
@@ -238,6 +240,7 @@ pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is 
     ],
 )
 def test_steps(testdir, kind, file_content, tmp_path):
+    """Verify steps."""
     (tmp_path / f"steps.bdd.{kind}").write_text(dedent(file_content))
 
     testdir.makeini(
@@ -323,6 +326,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
     ],
 )
 def test_default_loader(testdir, kind, file_content):
+    """Verify default loader."""
     testdir.makefile(
         f".bdd.{kind}",
         steps=file_content,
@@ -410,6 +414,7 @@ def test_default_loader(testdir, kind, file_content):
     ],
 )
 def test_autoload_feature_yaml(testdir, kind, file_content):
+    """Verify autoload feature yaml."""
     testdir.makefile(
         f".bdd.{kind}",
         steps=file_content,
@@ -475,6 +480,7 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
     ],
 )
 def test_examples(testdir, file_content):
+    """Verify examples."""
     testdir.makefile(
         ".bdd.yaml",
         steps=file_content,
@@ -503,6 +509,7 @@ def test_examples(testdir, file_content):
 
 
 def test_dsl(testdir):
+    """Verify dsl."""
     testdir.makepyfile(
         # language=python
         """ \
@@ -548,6 +555,7 @@ def test_dsl(testdir):
 
 
 def test_dsl_decorator(testdir):
+    """Verify dsl decorator."""
     testdir.makepyfile(
         # language=python
         """ \
@@ -601,6 +609,7 @@ def test_dsl_decorator(testdir):
 
 
 def test_dsl_as_dict(testdir):
+    """Verify dsl as dict."""
     testdir.makepyfile(
         # language=python
         """ \
@@ -650,6 +659,7 @@ def test_dsl_as_dict(testdir):
 
 
 def test_dsl_keyworded_steps(testdir):
+    """Verify dsl keyworded steps."""
     testdir.makepyfile(
         # language=python
         """ \
@@ -695,6 +705,7 @@ def test_dsl_keyworded_steps(testdir):
 
 
 def test_dsl_alternative_steps(testdir):
+    """Verify dsl alternative steps."""
     testdir.makepyfile(
         # language=python
         """ \
@@ -756,6 +767,7 @@ def test_dsl_alternative_steps(testdir):
 
 
 def test_dsl_joined_tables(testdir):
+    """Verify dsl joined tables."""
     testdir.makepyfile(
         # language=python
         """ \

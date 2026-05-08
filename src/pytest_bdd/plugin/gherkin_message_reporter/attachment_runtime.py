@@ -1,3 +1,5 @@
+"""Provide attachment runtime helpers."""
+
 from __future__ import annotations
 
 from base64 import b64encode
@@ -17,9 +19,12 @@ if TYPE_CHECKING:
 
 
 class AttachmentService(ReporterServiceBase):
+    """Represent attachment service state."""
+
     plugin_suffix = "attachment"
 
     def __init__(self, reporter: GherkinMessageReporter, *, lifecycle_service: LifecycleService) -> None:
+        """Initialize the attachment service."""
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
 
@@ -37,6 +42,7 @@ class AttachmentService(ReporterServiceBase):
         test_run_hook_started_id: str | None,
         test_run_started_id: str | None,
     ) -> None:
+        """Handle the pytest bdd attach pytest hook."""
         if self.reporter.is_disabled:
             return
         config = request.config

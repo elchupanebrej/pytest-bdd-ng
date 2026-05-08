@@ -1,3 +1,5 @@
+"""Provide test live formatter output relay helpers."""
+
 from __future__ import annotations
 
 import io
@@ -35,6 +37,7 @@ def _wait_for_value(target: _RecordingTarget, expected: str, *, timeout_seconds:
 
 
 def test_relay_live_formatter_output_streams_partial_writes_without_newlines() -> None:
+    """Verify relay live formatter output streams partial writes without newlines."""
     read_fd, write_fd = os.pipe()
     target = _RecordingTarget()
     read_stream = os.fdopen(read_fd, "r", encoding="utf-8", newline="")

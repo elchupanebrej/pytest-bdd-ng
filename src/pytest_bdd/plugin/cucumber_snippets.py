@@ -1,3 +1,5 @@
+"""Provide cucumber snippets helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,10 +11,13 @@ if TYPE_CHECKING:
 
 
 class SnippetsFormatterPlugin(FormatterReporterPlugin):
+    """Represent snippets formatter plugin state."""
+
     output_mode = FormatterOutputMode.stdout
     writes_to_terminal = True
 
     def __init__(self) -> None:
+        """Initialize the snippets formatter plugin."""
         super().__init__(
             option_attr="cucumber_snippets",
             cli_flag="--cucumber-snippets",
@@ -24,6 +29,7 @@ class SnippetsFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
+        """Build addoption kwargs."""
         return self.build_boolean_addoption_kwargs()
 
     def build_request_from_value(
@@ -32,6 +38,7 @@ class SnippetsFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build request from value."""
         _ = raw_value, resolve_output_path
         return self.build_builtin_terminal_request()
 

@@ -1,3 +1,5 @@
+"""Provide cucumber formatter support helpers."""
+
 from tests.support.cucumber_formatters import (
     assert_formatter_output_is_not_mixed_with_pytest_terminal,
     assert_pytest_terminal_reporter_suppressed,

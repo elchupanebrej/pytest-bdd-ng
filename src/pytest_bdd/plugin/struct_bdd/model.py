@@ -1,3 +1,5 @@
+"""Provide model helpers."""
+
 import builtins
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -40,6 +42,8 @@ if TYPE_CHECKING:
 
 
 class Keyword(Enum):
+    """Represent keyword state."""
+
     Given = "Given"
     When = "When"
     Then = "Then"
@@ -49,6 +53,8 @@ class Keyword(Enum):
 
 
 class SubKeyword(Enum):
+    """Represent sub keyword state."""
+
     Step = "Step"
     Alternative = "Alternative"
 
@@ -68,6 +74,8 @@ KEYWORD_TO_TYPE: Mapping[Keyword | str | None, StepKeywordType] = defaultdict(
 
 
 class Node(BaseModel):
+    """Represent node state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -80,31 +88,46 @@ class Node(BaseModel):
 
 
 class Table(Node):
+    """Represent table state."""
+
     type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
     parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
     values: Sequence[Sequence[object]] | None = Field(default_factory=cast(Callable, list), alias="Values")
 
     @property
     def columned_values(self) -> Sequence[Sequence[object]]:
+        """Handle columned values."""
         values = self.values or []
         return values if self.type == "Columned" else list(zip(*values, strict=False))
 
     @property
     def rowed_values(self) -> Sequence[Sequence[object]]:
+        """Handle rowed values."""
         values = self.values or []
         return values if self.type == "Rowed" else list(zip(*values, strict=False))
 
 
 class SubTable(Node):
+    """Represent sub table state."""
+
     sub_table: Table = Field(..., alias="Table")
 
 
 @AfterValidator
 def convert_sub_tables_to_tables(value: object) -> object:
+    """Convert sub tables to tables."""
     return value.sub_table if isinstance(value, SubTable) else value
 
 
 class Join(BaseModel):
+    """
+    Represent join state.
+
+    Yields:
+        Generated values.
+
+    """
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -119,31 +142,39 @@ class Join(BaseModel):
 
     @property
     def tags(self) -> list[str]:
+        """Handle tags."""
         return list(dict.fromkeys(chain.from_iterable(table.tags or [] for table in self._tables())))
 
     @property
     def name(self) -> str:
+        """Handle name."""
         return "\n".join(table.name for table in self._tables() if table.name is not None)
 
     @property
     def description(self) -> str:
+        """Handle description."""
         descriptions = chain.from_iterable(map(deepattrgetter("description", skip_missing=True), self.tables))
         return "\n".join(str(description) for description in descriptions if description is not None)
 
     @property
     def comments(self) -> list[str]:
+        """Handle comments."""
         return list(chain.from_iterable(table.comments or [] for table in self._tables()))
 
     @property
     def parameters(self) -> list[str]:
+        """Handle parameters."""
         return list(dict.fromkeys(chain.from_iterable(table.parameters or [] for table in self._tables())))
 
     @property
     def type(self) -> Literal["Rowed"]:
+        """Handle type."""
         return "Rowed"
 
     @property
     def values(self) -> list[list[object]]:
+        """Return rows with parameterized table values expanded."""
+
         def _() -> Iterator[list[object]]:
             filled_tables = list(filter(attrgetter("parameters"), self.tables))
             if filled_tables:
@@ -206,10 +237,12 @@ class Join(BaseModel):
 
     @property
     def columned_values(self) -> list[tuple[object, ...]]:
+        """Handle columned values."""
         return list(zip(*self.values, strict=False))
 
     @property
     def rowed_values(self) -> list[list[object]]:
+        """Handle rowed values."""
         return cast(list[list[object]], self.values)
 
 
@@ -219,6 +252,7 @@ StepPrototypeT = TypeVar("StepPrototypeT", bound="StepPrototype")
 
 @BeforeValidator
 def before_convert_to_step(value: object) -> object:
+    """Handle before convert to step."""
     if isinstance(value, str):
         return Step(action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
@@ -231,6 +265,7 @@ def before_convert_to_step(value: object) -> object:
 
 @AfterValidator
 def select_step_keyword_type(value: str) -> Keyword | str:
+    """Handle select step keyword type."""
     try:
         return Keyword(value)
     except ValueError:
@@ -239,6 +274,7 @@ def select_step_keyword_type(value: str) -> Keyword | str:
 
 @AfterValidator
 def after_convert_sub_steps_to_steps(value: object) -> object:
+    """Handle after convert sub steps to steps."""
     return value.sub_step if isinstance(value, SubStep) else value
 
 
@@ -246,6 +282,14 @@ StepStepKeywordType = Keyword | Annotated[str, select_step_keyword_type]
 
 
 class StepPrototype(Node):
+    """
+    Represent step prototype state.
+
+    Yields:
+        Generated values.
+
+    """
+
     steps: Sequence[
         Annotated[
             Annotated[Union["SubStep", "Alternative", "StepPrototype"], before_convert_to_step],
@@ -273,11 +317,19 @@ class StepPrototype(Node):
 
     @model_validator(mode="after")  # type: ignore[misc] # migration to pydantic 2
     def set_keyword_type(self) -> Self:
+        """Handle set keyword type."""
         self.keyword_type = KEYWORD_TO_TYPE[self.type]
         return self  # type: ignore[return-value] # migration to pydantic 2
 
     @property
     def routes(self) -> Iterator[Route]:
+        """
+        Handle routes.
+
+        Yields:
+            Generated values.
+
+        """
         for route_items in (
             product(*map(attrgetter("routes"), self.steps))
             if self.steps
@@ -330,6 +382,7 @@ class StepPrototype(Node):
         *args: object,
         **kwargs: object,
     ) -> StepPrototypeT:
+        """Build by action."""
         return cast(StepPrototypeT, cls(*args, **kwargs, action=action))  # type: ignore[call-arg]
 
     @define
@@ -345,6 +398,13 @@ class StepPrototype(Node):
             self,
             config: "Config | HasPytestStash",
         ) -> Iterator[tuple[GherkinDocument, Source]]:
+            """
+            Resolve features.
+
+            Yields:
+                Generated values.
+
+            """
             from pytest_bdd.plugin.struct_bdd.model_builder import (
                 GherkinDocumentBuilder,
             )
@@ -377,6 +437,7 @@ class StepPrototype(Node):
             yield gherkin_document, feature_source
 
     def as_test(self, filename: str | Path) -> "ScenarioTest":
+        """Handle as test."""
         from pytest_bdd.scenario import scenarios
 
         return scenarios(
@@ -392,6 +453,7 @@ class StepPrototype(Node):
         )
 
     def as_test_decorator(self, filename: str | Path) -> "ScenarioDecorator":
+        """Handle as test decorator."""
         from pytest_bdd.scenario import scenarios
 
         return scenarios(
@@ -407,10 +469,19 @@ class StepPrototype(Node):
         )
 
     def __call__(self, func: Callable[..., object]) -> Callable[..., object]:
+        """Handle call."""
         return self.as_test_decorator(getfile(func))(func)
 
 
 class Alternative(Node):
+    """
+    Represent alternative state.
+
+    Yields:
+        Generated values.
+
+    """
+
     steps: Sequence[
         Annotated[
             Annotated[Union["SubStep", "Alternative", "StepPrototype"], before_convert_to_step],
@@ -420,44 +491,67 @@ class Alternative(Node):
 
     @property
     def routes(self) -> Iterator[StepPrototype.Route]:
+        """
+        Handle routes.
+
+        Yields:
+            Generated values.
+
+        """
         yield from chain.from_iterable(map(attrgetter("routes"), self.steps))
 
 
 class Step(StepPrototype):
+    """Represent step state."""
+
     type: StepStepKeywordType | None = Field(default=Keyword.Star, alias="Type")
     action: str | None = Field(None, alias="Action")
 
 
 class SubStep(BaseModel):
+    """Represent sub step state."""
+
     sub_step: Step = Field(..., alias="Step")
 
 
 class StarStep(StepPrototype):
+    """Represent star step state."""
+
     type: StepStepKeywordType = Field(Keyword.Star, alias="Type")
     action: str | None = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
+    """Represent given step state."""
+
     type: StepStepKeywordType = Field(Keyword.Given, alias="Type")
     action: str | None = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
+    """Represent when step state."""
+
     type: StepStepKeywordType = Field(Keyword.When, alias="Type")
     action: str | None = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
+    """Represent then step state."""
+
     type: StepStepKeywordType = Field(Keyword.Then, alias="Type")
     action: str | None = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
+    """Represent and step state."""
+
     type: StepStepKeywordType = Field(Keyword.And, alias="Type")
     action: str | None = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
+    """Represent but step state."""
+
     type: StepStepKeywordType = Field(Keyword.But, alias="Type")
     action: str | None = Field(alias=Keyword.But.value)
 

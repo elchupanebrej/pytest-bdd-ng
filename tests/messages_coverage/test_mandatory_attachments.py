@@ -1,3 +1,5 @@
+"""Provide test mandatory attachments helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,9 +15,12 @@ test_scenarios = scenarios(Path(__file__).with_name("fixtures") / "mandatory_cov
 
 
 class Coordinate:
+    """Represent coordinate state."""
+
     __hash__ = None  # type: ignore[assignment]
 
     def __init__(self, x: int, y: int, z: int):
+        """Initialize the coordinate."""
         self.x = x
         self.y = y
         self.z = z
@@ -45,6 +50,7 @@ MANDATORY_PARAMETER_TYPE_REGISTRY = _build_parameter_type_registry()
 
 @pytest.fixture
 def parameter_type_registry():
+    """Handle parameter type registry."""
     return MANDATORY_PARAMETER_TYPE_REGISTRY
 
 

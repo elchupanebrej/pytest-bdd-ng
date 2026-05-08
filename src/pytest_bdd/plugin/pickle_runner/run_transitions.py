@@ -1,3 +1,5 @@
+"""Provide run transitions helpers."""
+
 from __future__ import annotations
 
 from itertools import count
@@ -37,6 +39,7 @@ PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
 
 
 def runtime_object_id(obj: object) -> str:
+    """Handle runtime object id."""
     if obj is None:
         return "none"
     explicit_id = getattr(obj, "id", None)
@@ -55,6 +58,7 @@ def runtime_object_id(obj: object) -> str:
 
 
 def runtime_object_name(obj: object) -> str | None:
+    """Handle runtime object name."""
     if obj is None:
         return None
     name = getattr(obj, "name", None)
@@ -62,6 +66,7 @@ def runtime_object_name(obj: object) -> str | None:
 
 
 def build_lifecycle_ref(kind: LifecycleKind, value: object, *, is_active: bool) -> LifecycleObjectRef | None:
+    """Build lifecycle ref."""
     if value is None:
         return None
     return LifecycleObjectRef(
@@ -189,6 +194,7 @@ def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObj
 
 
 def initial_scenario_run_id(request: FixtureRequest) -> str:
+    """Handle initial scenario run id."""
     node_id = getattr(getattr(request, "node", None), "nodeid", None)
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"
@@ -204,6 +210,7 @@ def apply_transition(
     previous_step: object | None = None,
     status: RunStatus | None = None,
 ) -> ScenarioRun:
+    """Apply transition."""
     stage = PHASE_TO_STAGE[hook_phase]
     run = scenario_run.run
     run_ref, feature_ref, scenario_ref, step_ref, previous_step_ref = _resolve_transition_refs(

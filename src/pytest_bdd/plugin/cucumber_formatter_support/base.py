@@ -1,3 +1,5 @@
+"""Provide base helpers."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -24,6 +26,7 @@ def _load_template_asset(package: str, template_name: str) -> str:
 
 
 def load_formatter_adapter_support_template() -> str:
+    """Load formatter adapter support template."""
     return _load_template_asset(
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates",
         "formatter_adapter_support.cjs.j2",
@@ -31,6 +34,7 @@ def load_formatter_adapter_support_template() -> str:
 
 
 def load_formatter_adapter_template(template_name: str) -> str:
+    """Load formatter adapter template."""
     return _load_template_asset(
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters",
         template_name,
@@ -50,18 +54,31 @@ def _coerce_cli_aliases(raw_value: object) -> tuple[str, ...]:
 
 
 class FormatterOutputMode(StrEnum):
+    """Represent formatter output mode state."""
+
     stdout = "stdout"
     path = "path"
     optional_path = "optional_path"
 
 
 class FormatterRuntimeKind(StrEnum):
+    """Represent formatter runtime kind state."""
+
     builtin = "builtin"
     module = "module"
 
 
 @frozen
 class FormatterReporterPlugin(ABC):
+    """
+    Represent formatter reporter plugin state.
+
+    Raises:
+        NotImplementedError: If the operation cannot be completed.
+        ValueError: If the operation cannot be completed.
+
+    """
+
     option_attr: str
     cli_flag: str
     formatter: str
@@ -80,22 +97,33 @@ class FormatterReporterPlugin(ABC):
 
     @property
     def plugin_name(self) -> str:
+        """Handle plugin name."""
         return f"pytest-bdd-cucumber-formatter-{self.formatter}"
 
     @property
     def plugin_object_name(self) -> str:
+        """Handle plugin object name."""
         return f"{self.formatter.replace('-', '_')}_plugin"
 
     @property
     def plugin_entrypoint_target(self) -> str:
+        """Handle plugin entrypoint target."""
         return f"{self.module_name}:{self.plugin_object_name}"
 
     @property
     def has_module_runtime(self) -> bool:
+        """Return module runtime."""
         return self.runtime_kind == FormatterRuntimeKind.module
 
     @property
     def module_runtime_template_name(self) -> str:
+        """
+        Handle module runtime template name.
+
+        Raises:
+            ValueError: If the operation cannot be completed.
+
+        """
         template_name = type(self).runtime_template_name
         if template_name is None:
             message = f"Formatter {self.formatter} does not define a module runtime template"
@@ -104,6 +132,7 @@ class FormatterReporterPlugin(ABC):
 
     @property
     def module_runtime_path(self) -> str:
+        """Handle module runtime path."""
         return f"formatters/{Path(self.module_runtime_template_name).stem}"
 
     def _option_value(self, option_source: object) -> object:
@@ -115,6 +144,7 @@ class FormatterReporterPlugin(ABC):
         return getattr(option_source, self.option_attr, None)
 
     def addoption(self, parser: Parser) -> None:
+        """Handle addoption."""
         group = parser.getgroup("bdd", "Cucumber Formatters")
         addoption_kwargs = self.build_addoption_kwargs()
         cli_aliases = _coerce_cli_aliases(addoption_kwargs.pop("cli_aliases", ()))
@@ -122,9 +152,17 @@ class FormatterReporterPlugin(ABC):
 
     @abstractmethod
     def build_addoption_kwargs(self) -> dict[str, object]:
+        """
+        Build addoption kwargs.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError
 
     def build_boolean_addoption_kwargs(self) -> dict[str, object]:
+        """Build boolean addoption kwargs."""
         return {
             "dest": self.option_attr,
             "help": self.help_text,
@@ -134,6 +172,7 @@ class FormatterReporterPlugin(ABC):
         }
 
     def build_required_path_addoption_kwargs(self) -> dict[str, object]:
+        """Build required path addoption kwargs."""
         return {
             "dest": self.option_attr,
             "help": self.help_text,
@@ -144,6 +183,7 @@ class FormatterReporterPlugin(ABC):
         }
 
     def build_optional_path_addoption_kwargs(self) -> dict[str, object]:
+        """Build optional path addoption kwargs."""
         return {
             "dest": self.option_attr,
             "help": self.help_text,
@@ -188,9 +228,11 @@ class FormatterReporterPlugin(ABC):
         )
 
     def build_builtin_terminal_request(self) -> CucumberFormatterRequest:
+        """Build builtin terminal request."""
         return self._build_request(output_path=None, runtime_kind=FormatterRuntimeKind.builtin)
 
     def build_module_terminal_request(self, *, template_name: str) -> CucumberFormatterRequest:
+        """Build module terminal request."""
         return self._build_request(
             output_path=None,
             runtime_kind=FormatterRuntimeKind.module,
@@ -203,6 +245,7 @@ class FormatterReporterPlugin(ABC):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build builtin required path request."""
         return self._build_request(
             output_path=resolve_output_path(str(raw_value)),
             runtime_kind=FormatterRuntimeKind.builtin,
@@ -215,6 +258,7 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
         template_name: str,
     ) -> CucumberFormatterRequest:
+        """Build module required path request."""
         return self._build_request(
             output_path=resolve_output_path(str(raw_value)),
             runtime_kind=FormatterRuntimeKind.module,
@@ -227,6 +271,7 @@ class FormatterReporterPlugin(ABC):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build builtin optional path request."""
         output_path = None if raw_value == "-" else resolve_output_path(str(raw_value))
         return self._build_request(output_path=output_path, runtime_kind=FormatterRuntimeKind.builtin)
 
@@ -237,6 +282,7 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
         template_name: str,
     ) -> CucumberFormatterRequest:
+        """Build module optional path request."""
         output_path = None if raw_value == "-" else resolve_output_path(str(raw_value))
         return self._build_request(
             output_path=output_path,
@@ -251,6 +297,13 @@ class FormatterReporterPlugin(ABC):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """
+        Build request from value.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError
 
     def iter_requests_from_options(
@@ -259,6 +312,7 @@ class FormatterReporterPlugin(ABC):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> tuple[CucumberFormatterRequest, ...]:
+        """Yield requests from options."""
         raw_value = self._option_value(option_source)
         if raw_value in {None, False}:
             return ()
@@ -266,6 +320,7 @@ class FormatterReporterPlugin(ABC):
 
     @pytest.hookimpl
     def pytest_addoption(self, parser: Parser) -> None:
+        """Handle the pytest addoption pytest hook."""
         self.addoption(parser)
 
     @pytest.hookimpl
@@ -274,6 +329,7 @@ class FormatterReporterPlugin(ABC):
         config: Config,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest | None:
+        """Handle the pytest bdd cucumber formatter request pytest hook."""
         requests = self.iter_requests_from_options(config.option, resolve_output_path=resolve_output_path)
         if not requests:
             return None
@@ -287,6 +343,7 @@ class FormatterReporterPlugin(ABC):
         formatter_request: CucumberFormatterRequest,  # noqa: ARG002
         formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002
     ) -> dict[str, str]:
+        """Build builtin runtime assets."""
         return {}
 
     def build_module_runtime_assets(
@@ -296,6 +353,7 @@ class FormatterReporterPlugin(ABC):
         formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002
         template_name: str,
     ) -> dict[str, str]:
+        """Build module runtime assets."""
         if formatter_request.formatter != self.formatter:
             return {}
         return {
@@ -308,6 +366,7 @@ class FormatterReporterPlugin(ABC):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Render runtime assets."""
         return self.build_builtin_runtime_assets(formatter_request, formatter_requests)
 
     @pytest.hookimpl
@@ -316,4 +375,5 @@ class FormatterReporterPlugin(ABC):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Handle the pytest bdd cucumber formatter runtime assets pytest hook."""
         return self.render_runtime_assets(formatter_request, formatter_requests)

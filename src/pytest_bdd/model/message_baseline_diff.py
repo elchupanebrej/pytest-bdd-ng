@@ -1,3 +1,5 @@
+"""Provide message baseline diff helpers."""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -14,6 +16,8 @@ WEEKLY_CADENCE: Final[BaselineCadence] = "weekly"
 
 @frozen
 class BaselineComparisonSchedule:
+    """Represent baseline comparison schedule state."""
+
     schedule_id: str
     cadence: BaselineCadence
     last_run_at: datetime
@@ -22,6 +26,8 @@ class BaselineComparisonSchedule:
 
 @frozen
 class BaselineDiffRecord:
+    """Represent baseline diff record state."""
+
     diff_run_id: str
     previous_baseline: str
     current_baseline: str
@@ -33,12 +39,15 @@ class BaselineDiffRecord:
 
 @frozen
 class BaselineDiffExecutionResult:
+    """Represent baseline diff execution result state."""
+
     due: bool
     schedule: BaselineComparisonSchedule
     record: BaselineDiffRecord | None
 
 
 def next_weekly_run_at(last_run_at: datetime) -> datetime:
+    """Handle next weekly run at."""
     return last_run_at + timedelta(days=7)
 
 
@@ -47,6 +56,7 @@ def is_weekly_run_due(
     *,
     now: datetime | None = None,
 ) -> bool:
+    """Return weekly run due."""
     if schedule.cadence != WEEKLY_CADENCE:
         return False
     current = now or datetime.now(timezone.utc)
@@ -72,6 +82,7 @@ def build_baseline_diff(
     current_capabilities: list[MessageCapability],
     generated_at: datetime | None = None,
 ) -> BaselineDiffRecord:
+    """Build baseline diff."""
     previous_map = {capability.capability_id: capability for capability in previous_capabilities}
     current_map = {capability.capability_id: capability for capability in current_capabilities}
 
@@ -107,6 +118,7 @@ def execute_weekly_baseline_diff(
     current_capabilities: list[MessageCapability],
     now: datetime | None = None,
 ) -> BaselineDiffExecutionResult:
+    """Execute weekly baseline diff."""
     current = now or datetime.now(timezone.utc)
     if not is_weekly_run_due(schedule, now=current):
         return BaselineDiffExecutionResult(due=False, schedule=schedule, record=None)

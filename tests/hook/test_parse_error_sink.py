@@ -1,3 +1,5 @@
+"""Provide test parse error sink helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -6,6 +8,7 @@ from pytest_bdd.parser import BaseParser
 
 
 def test_emit_parse_error_emits_through_hook_when_available() -> None:
+    """Verify emit parse error emits through hook when available."""
     captured_messages = []
 
     def pytest_bdd_message(*, config, message) -> None:
@@ -28,6 +31,7 @@ def test_emit_parse_error_emits_through_hook_when_available() -> None:
 
 
 def test_emit_parse_error_uses_no_op_when_hook_is_missing() -> None:
+    """Verify emit parse error uses no op when hook is missing."""
     config = SimpleNamespace()
 
     BaseParser.emit_parse_error(

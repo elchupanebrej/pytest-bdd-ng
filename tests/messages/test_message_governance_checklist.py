@@ -1,3 +1,5 @@
+"""Provide test message governance checklist helpers."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -9,6 +11,7 @@ from .message_capability_fixtures import make_capability, make_decision
 
 
 def test_build_governance_checklist_includes_all_relevant_capabilities() -> None:
+    """Verify build governance checklist includes all relevant capabilities."""
     capabilities = [
         make_capability("cap-implemented", affects=("status_mapping",)),
         make_capability("cap-missing-decision", affects=("governance_checklist_output",)),
@@ -27,6 +30,7 @@ def test_build_governance_checklist_includes_all_relevant_capabilities() -> None
 
 
 def test_build_governance_checklist_marks_newly_changed_capabilities() -> None:
+    """Verify build governance checklist marks newly changed capabilities."""
     capabilities = [
         make_capability("cap-new"),
         make_capability("cap-changed"),
@@ -57,6 +61,7 @@ def test_build_governance_checklist_marks_newly_changed_capabilities() -> None:
 
 
 def test_render_checklist_markdown_includes_blocker_summary() -> None:
+    """Verify render checklist markdown includes blocker summary."""
     checklist = build_governance_checklist(
         [make_capability("cap-1"), make_capability("cap-2")],
         [

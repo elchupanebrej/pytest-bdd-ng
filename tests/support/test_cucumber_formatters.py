@@ -1,3 +1,5 @@
+"""Provide test cucumber formatters helpers."""
+
 from __future__ import annotations
 
 import subprocess  # noqa: S404
@@ -23,6 +25,7 @@ class _FakeCoverage:
 
 
 def test_real_entrypoint_helper_suspends_active_coverage(monkeypatch) -> None:
+    """Verify real entrypoint helper suspends active coverage."""
     fake_coverage = _FakeCoverage()
     fake_coverage_module = SimpleNamespace(Coverage=SimpleNamespace(current=lambda: fake_coverage))
     observed: dict[str, object] = {}
@@ -46,6 +49,8 @@ def test_real_entrypoint_helper_suspends_active_coverage(monkeypatch) -> None:
 
 
 def test_real_entrypoint_helper_ignores_coverage_restart_warning(monkeypatch) -> None:
+    """Verify real entrypoint helper ignores coverage restart warning."""
+
     class FakeCoverageWarning(Warning):
         pass
 
@@ -76,6 +81,7 @@ def test_real_entrypoint_helper_ignores_coverage_restart_warning(monkeypatch) ->
 
 
 def test_fake_node_windows_shim_prefers_path_python_under_pypy(monkeypatch) -> None:
+    """Verify fake node windows shim prefers path python under pypy."""
     monkeypatch.setattr(cucumber_formatters.sys, "implementation", SimpleNamespace(name="pypy"))
     monkeypatch.setattr(cucumber_formatters.sys, "executable", r"C:\tox\pypy\python.exe")
     monkeypatch.setattr(

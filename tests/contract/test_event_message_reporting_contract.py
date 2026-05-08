@@ -1,3 +1,5 @@
+"""Provide test event message reporting contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,10 +18,12 @@ def _contract_text() -> str:
 
 
 def test_event_message_reporting_contract_exists() -> None:
+    """Verify event message reporting contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_contract_has_required_paths() -> None:
+    """Verify contract has required paths."""
     contract_text = _contract_text()
     assert "/reporting/messages/emit:" in contract_text
     assert "/reporting/messages/validate:" in contract_text
@@ -28,6 +32,7 @@ def test_contract_has_required_paths() -> None:
 
 
 def test_contract_has_status_governance_schemas() -> None:
+    """Verify contract has status governance schemas."""
     contract_text = _contract_text()
     assert "ImplementationStatus:" in contract_text
     assert "StatusApplicability:" in contract_text
@@ -37,6 +42,7 @@ def test_contract_has_status_governance_schemas() -> None:
 
 
 def test_contract_has_prefix_audit_schema() -> None:
+    """Verify contract has prefix audit schema."""
     contract_text = _contract_text()
     assert "SpecPrefixAuditRequest:" in contract_text
     assert "SpecPrefixAuditResponse:" in contract_text
@@ -44,6 +50,7 @@ def test_contract_has_prefix_audit_schema() -> None:
 
 
 def test_validate_path_documents_stream_consistency_violations() -> None:
+    """Verify validate path documents stream consistency violations."""
     contract_text = _contract_text()
     assert "/reporting/messages/validate:" in contract_text
     assert "ORPHAN_REFERENCE" in contract_text
@@ -53,6 +60,7 @@ def test_validate_path_documents_stream_consistency_violations() -> None:
 
 
 def test_prefix_audit_path_includes_conflict_payload() -> None:
+    """Verify prefix audit path includes conflict payload."""
     contract_text = _contract_text()
     assert "/governance/spec-prefix/audit:" in contract_text
     assert "recommended_next_prefix" in contract_text

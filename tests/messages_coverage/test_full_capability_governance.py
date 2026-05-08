@@ -1,3 +1,5 @@
+"""Provide test full capability governance helpers."""
+
 from __future__ import annotations
 
 import json
@@ -78,6 +80,7 @@ def _run_capture_case(
 
 
 def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> None:
+    """Verify messages capabilities are implemented or governed."""
     messages_file = tmp_path / "messages-e2e.ndjson"
     report_file = tmp_path / "governance-e2e.json"
 

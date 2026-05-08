@@ -1,3 +1,5 @@
+"""Provide test subprocess output attachments helpers."""
+
 from __future__ import annotations
 
 import pytest
@@ -33,6 +35,7 @@ class _CompletedProcessLikeResult:
 
 
 def test_attach_command_result_outputs_emits_metadata_stdout_and_stderr() -> None:
+    """Verify attach command result outputs emits metadata stdout and stderr."""
     attachments: list[tuple[str, dict[str, str]]] = []
 
     def _attach(body: str, **kwargs: str) -> None:
@@ -68,6 +71,7 @@ def test_attach_command_result_outputs_emits_metadata_stdout_and_stderr() -> Non
 
 
 def test_attach_command_result_outputs_supports_pytester_capture_objects() -> None:
+    """Verify attach command result outputs supports pytester capture objects."""
     attachments: list[tuple[str, dict[str, str]]] = []
 
     def _attach(body: str, **kwargs: str) -> None:
@@ -103,6 +107,8 @@ def test_attach_command_result_outputs_supports_pytester_capture_objects() -> No
 
 
 def test_run_quietly_redirects_harness_stdout_and_stderr() -> None:
+    """Verify run quietly redirects harness stdout and stderr."""
+
     def _noisy_runner() -> str:
         import sys
 
@@ -133,9 +139,11 @@ def test_resolve_pytester_run_mode_supports_legacy_and_current_switches(
     options_dict: dict[str, list[str]],
     expected_mode: str,
 ) -> None:
+    """Verify resolve pytester run mode supports legacy and current switches."""
     assert resolve_pytester_run_mode(options_dict) == expected_mode
 
 
 def test_resolve_pytester_run_mode_rejects_conflicting_switches() -> None:
+    """Verify resolve pytester run mode rejects conflicting switches."""
     with pytest.raises(ValueError, match="Conflicting pytest invocation mode options"):
         resolve_pytester_run_mode({"subprocess": ["true"], "inprocess": ["true"]})

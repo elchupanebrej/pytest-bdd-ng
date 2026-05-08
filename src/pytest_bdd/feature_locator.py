@@ -1,3 +1,5 @@
+"""Provide feature locator helpers."""
+
 from collections.abc import Callable, Iterable
 from contextlib import suppress
 from inspect import signature
@@ -24,6 +26,8 @@ from pytest_bdd.util.url import is_url_parsable
 
 
 class FeatureLocatorArgs(TypedDict):
+    """Represent feature locator args state."""
+
     feature_paths: list[Path | str]  # List of paths to features
     filter_: ScenarioLocatorFilterT | str | StringRepresentable | None  # Callable or string filter
     return_test_decorator: bool | None
@@ -56,6 +60,7 @@ class ScenarioLocatorBuilder:
 
     @property
     def default_features_base_dir(self) -> str:
+        """Handle default features base dir."""
         with suppress(ValueError, KeyError):
             if bool(base_dir := self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION))):
                 return str(base_dir)
@@ -63,6 +68,7 @@ class ScenarioLocatorBuilder:
 
     @property
     def default_features_base_url(self) -> str | None:
+        """Handle default features base url."""
         with suppress(ValueError, KeyError):
             if bool(base_url := self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION))):
                 return str(base_url)
@@ -79,6 +85,13 @@ class ScenarioLocatorBuilder:
         yield from self.build_for_feature_locator_args(enrich_feature_locator_args(mark))
 
     def build_for_feature_locator_args(self, feature_locator_args: FeatureLocatorArgs) -> Iterable[object]:
+        """
+        Build for feature locator args.
+
+        Yields:
+            Generated values.
+
+        """
         yield from feature_locator_args.get("locators") or []
         features_base_dir = self.resolve_features_base_dir(feature_locator_args.get("features_base_dir"))
         features_base_url = self.resolve_features_base_url(feature_locator_args.get("features_base_url"))

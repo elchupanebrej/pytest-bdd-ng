@@ -1,3 +1,5 @@
+"""Provide parser helpers."""
+
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -12,6 +14,8 @@ from pytest_bdd.util.other import IdGenerator
 @runtime_checkable
 @define
 class ParserProtocol(Protocol):
+    """Define the parser protocol contract."""
+
     id_generator: IdGenerator | None = field(default=None, kw_only=True)
 
     def parse(
@@ -22,4 +26,5 @@ class ParserProtocol(Protocol):
         *args: object,
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:  # pragma: no cover
+        """Parse parse."""
         ...

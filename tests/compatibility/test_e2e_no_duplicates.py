@@ -1,9 +1,12 @@
+"""Provide test e2e no duplicates helpers."""
+
 from pathlib import Path
 
 from pytest_bdd.compatibility.matrix import build_migration_coverage_summary
 
 
 def test_duplicate_user_facing_scenarios_are_detected(tmp_path: Path):
+    """Verify duplicate user facing scenarios are detected."""
     tests_feature_dir = tmp_path / "tests" / "feature"
     tests_feature_dir.mkdir(parents=True)
     (tests_feature_dir / "test_no_scenario.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
@@ -19,6 +22,7 @@ def test_duplicate_user_facing_scenarios_are_detected(tmp_path: Path):
 
 
 def test_no_duplicates_when_user_facing_tests_removed(tmp_path: Path):
+    """Verify no duplicates when user facing tests removed."""
     feature_dir = tmp_path / "features" / "Feature"
     feature_dir.mkdir(parents=True)
     (feature_dir / "only-doc.feature.md").write_text("Feature: only doc\n", encoding="utf-8")
@@ -30,6 +34,7 @@ def test_no_duplicates_when_user_facing_tests_removed(tmp_path: Path):
 
 
 def test_e2e_doc_tests_do_not_count_as_migration_duplicates(tmp_path: Path):
+    """Verify e2e doc tests do not count as migration duplicates."""
     feature_dir = tmp_path / "features" / "Feature"
     feature_dir.mkdir(parents=True)
     (feature_dir / "cucumber-formatter-reports.feature.md").write_text("Feature: report docs\n", encoding="utf-8")

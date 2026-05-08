@@ -1,3 +1,5 @@
+"""Provide test message capability inventory helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,6 +18,7 @@ from .message_capability_fixtures import make_capability
 
 
 def test_sync_capability_inventory_counts_relevant_and_detects_duplicates() -> None:
+    """Verify sync capability inventory counts relevant and detects duplicates."""
     entries = [
         make_capability("cap-1", affects=("emitted_envelope_payload",)),
         make_capability("cap-2", affects=()),
@@ -31,6 +34,7 @@ def test_sync_capability_inventory_counts_relevant_and_detects_duplicates() -> N
 
 
 def test_sync_capability_inventory_rewrites_baseline_release() -> None:
+    """Verify sync capability inventory rewrites baseline release."""
     entries = [make_capability("cap-1", baseline_release="legacy")]
 
     result = sync_capability_inventory("v32.0.1", entries)
@@ -39,6 +43,7 @@ def test_sync_capability_inventory_rewrites_baseline_release() -> None:
 
 
 def test_relevance_classifier_uses_supported_impact_domains() -> None:
+    """Verify relevance classifier uses supported impact domains."""
     relevant_capability = make_capability("cap-1", affects=("lifecycle_linkage",))
     out_of_scope_capability = make_capability("cap-2", affects=())
 
@@ -50,11 +55,13 @@ def test_relevance_classifier_uses_supported_impact_domains() -> None:
 
 
 def test_resolve_messages_schema_dir_finds_envelope_schema() -> None:
+    """Verify resolve messages schema dir finds envelope schema."""
     schema_dir = resolve_messages_schema_dir()
     assert (schema_dir / "Envelope.json").exists() or (schema_dir / "Envelope.schema.json").exists()
 
 
 def test_resolve_messages_schema_dir_falls_back_to_bundled_package_schema(tmp_path, monkeypatch) -> None:
+    """Verify resolve messages schema dir falls back to bundled package schema."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(message_capability_inventory, "_schema_dir_from_git_root", lambda: None)
 
@@ -65,11 +72,13 @@ def test_resolve_messages_schema_dir_falls_back_to_bundled_package_schema(tmp_pa
 
 
 def test_coverage_inventory_schema_dir_points_to_bundled_package_schema() -> None:
+    """Verify coverage inventory schema dir points to bundled package schema."""
     assert SCHEMA_DIR.name == "message_jsonschema"
     assert (SCHEMA_DIR / "Envelope.schema.json").exists()
 
 
 def test_generated_inventory_capability_ids_are_unique_and_canonical() -> None:
+    """Verify generated inventory capability ids are unique and canonical."""
     inventory = generate_inventory(resolve_messages_schema_dir())
     capability_ids = iter_capability_ids(inventory)
 
@@ -79,6 +88,7 @@ def test_generated_inventory_capability_ids_are_unique_and_canonical() -> None:
 
 
 def test_reconcile_inventory_with_runtime_required_scope_has_zero_missing() -> None:
+    """Verify reconcile inventory with runtime required scope has zero missing."""
     inventory = generate_inventory(resolve_messages_schema_dir())
     inventory_capability_ids = iter_capability_ids(inventory)
     runtime_required_scope_path = (
@@ -104,6 +114,7 @@ def test_reconcile_inventory_with_runtime_required_scope_has_zero_missing() -> N
 
 
 def test_reconcile_runtime_scope_coverage_tracks_unclassified_non_runtime_gaps() -> None:
+    """Verify reconcile runtime scope coverage tracks unclassified non runtime gaps."""
     reconciliation = reconcile_runtime_scope_coverage(
         inventory_capability_ids=("cap.a", "cap.b", "cap.c"),
         runtime_required_capability_ids=("cap.a",),

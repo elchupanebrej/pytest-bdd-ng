@@ -1,3 +1,5 @@
+"""Provide test empty heading validation contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,10 +28,12 @@ def _write_feature(path: Path, content: str) -> None:
 
 
 def test_empty_heading_validation_contract_exists() -> None:
+    """Verify empty heading validation contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_empty_heading_validation_contract_has_required_paths() -> None:
+    """Verify empty heading validation contract has required paths."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     paths = data["paths"]
 
@@ -39,6 +43,7 @@ def test_empty_heading_validation_contract_has_required_paths() -> None:
 
 
 def test_empty_heading_validation_contract_has_required_schemas() -> None:
+    """Verify empty heading validation contract has required schemas."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     schemas = data["components"]["schemas"]
 
@@ -50,6 +55,7 @@ def test_empty_heading_validation_contract_has_required_schemas() -> None:
 
 
 def test_policy_payload_matches_contract_shape() -> None:
+    """Verify policy payload matches contract shape."""
     payload = heading_validation_policy_payload()
 
     assert payload["policy_id"] == "feature-heading-policy-v1"
@@ -60,6 +66,7 @@ def test_policy_payload_matches_contract_shape() -> None:
 
 
 def test_scan_payload_contains_deterministic_fields(tmp_path: Path) -> None:
+    """Verify scan payload contains deterministic fields."""
     _write_feature(
         tmp_path / "sample.feature",
         """
@@ -80,6 +87,7 @@ def test_scan_payload_contains_deterministic_fields(tmp_path: Path) -> None:
 
 
 def test_baseline_audit_payload_contains_compliance_flags(tmp_path: Path) -> None:
+    """Verify baseline audit payload contains compliance flags."""
     _write_feature(
         tmp_path / "valid.feature",
         """

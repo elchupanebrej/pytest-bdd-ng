@@ -1,3 +1,5 @@
+"""Provide session helpers."""
+
 from __future__ import annotations
 
 import os
@@ -46,6 +48,8 @@ class _FormatterRuntimeAssetsHook(Protocol):
 
 @frozen
 class CucumberFormatterRequest:
+    """Represent cucumber formatter request state."""
+
     option_attr: str
     cli_flag: str
     formatter: str
@@ -70,6 +74,7 @@ class CucumberFormatterConfigurationError(ValueError):
         formatter_labels: str,
         output_path: Path,
     ) -> CucumberFormatterConfigurationError:
+        """Handle duplicate output path."""
         message = f"Multiple formatter outputs target the same path {output_path}: {formatter_labels}"
         return cls(message)
 
@@ -80,6 +85,7 @@ class CucumberFormatterConfigurationError(ValueError):
         cli_flag: str,
         output_dir: Path,
     ) -> CucumberFormatterConfigurationError:
+        """Handle missing output directory."""
         message = f"Formatter output directory does not exist for {cli_flag}: {output_dir}"
         return cls(message)
 
@@ -89,12 +95,15 @@ class CucumberFormatterConfigurationError(ValueError):
         *,
         formatter_labels: str,
     ) -> CucumberFormatterConfigurationError:
+        """Handle terminal output conflict."""
         message = f"Only one terminal-output formatter may be active per run: {formatter_labels}"
         return cls(message)
 
 
 @frozen
 class CucumberFormatterRenderResult:
+    """Represent cucumber formatter render result state."""
+
     success: bool
     rendered_formatters: tuple[CucumberFormatterRequest, ...]
     missing_node: bool = False
@@ -104,6 +113,8 @@ class CucumberFormatterRenderResult:
 
 @frozen
 class NodePackageProvisionResult:
+    """Represent node package provision result state."""
+
     env: dict[str, str]
     missing_packages: tuple[str, ...] = ()
     installed_packages: tuple[str, ...] = ()
@@ -115,16 +126,19 @@ class NodePackageProvisionResult:
 def format_requested_cucumber_formatter_labels(
     formatter_requests: tuple[CucumberFormatterRequest, ...] | list[CucumberFormatterRequest],
 ) -> str:
+    """Format requested cucumber formatter labels."""
     return ", ".join(request.cli_flag for request in formatter_requests)
 
 
 def terminal_output_formatter_requests(
     formatter_requests: list[CucumberFormatterRequest],
 ) -> list[CucumberFormatterRequest]:
+    """Handle terminal output formatter requests."""
     return [request for request in formatter_requests if request.output_path is None]
 
 
 def normalize_cucumber_formatter_output_key(output_path: Path) -> str:
+    """Normalize cucumber formatter output key."""
     return os.path.normcase(str(output_path.resolve()))
 
 
@@ -176,6 +190,7 @@ def resolve_requested_cucumber_formatters(
     *,
     resolve_output_path: ResolveOutputPath,
 ) -> tuple[CucumberFormatterRequest, ...]:
+    """Resolve requested cucumber formatters."""
     requested_formatters: list[CucumberFormatterRequest] = []
     formatter_request_hook = _resolve_formatter_request_hook(config)
     if formatter_request_hook is not None:
@@ -208,6 +223,15 @@ def _order_requested_cucumber_formatters(
 def validate_requested_cucumber_formatters(
     formatter_requests: list[CucumberFormatterRequest],
 ) -> None:
+    """
+    Validate requested cucumber formatters.
+
+    Raises:
+        terminal_output_conflict: If the operation cannot be completed.
+        duplicate_output_path: If the operation cannot be completed.
+        missing_output_directory: If the operation cannot be completed.
+
+    """
     terminal_requests = terminal_output_formatter_requests(formatter_requests)
     if len(terminal_requests) > 1:
         raise CucumberFormatterConfigurationError.terminal_output_conflict(
@@ -241,6 +265,7 @@ def validate_requested_cucumber_formatters(
 
 
 def load_live_formatter_bridge_template() -> str:
+    """Load live formatter bridge template."""
     return _read_template_asset(
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates",
         "live_formatter_bridge.mjs.j2",
@@ -248,16 +273,19 @@ def load_live_formatter_bridge_template() -> str:
 
 
 def load_formatter_adapter_support_template() -> str:
+    """Load formatter adapter support template."""
     loader = cast(Callable[[], str], _load_formatter_adapter_support_template)
     return loader()
 
 
 def load_formatter_adapter_template(template_name: str) -> str:
+    """Load formatter adapter template."""
     loader = cast(Callable[[str], str], _load_formatter_adapter_template)
     return loader(template_name)
 
 
 def render_live_formatter_bridge() -> str:
+    """Render live formatter bridge."""
     return load_live_formatter_bridge_template()
 
 
@@ -266,6 +294,7 @@ def render_live_formatter_runtime_assets(
     *,
     pluginmanager: PytestPluginManager | None,
 ) -> dict[str, str]:
+    """Render live formatter runtime assets."""
     assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}
     module_requests = [
         formatter_request

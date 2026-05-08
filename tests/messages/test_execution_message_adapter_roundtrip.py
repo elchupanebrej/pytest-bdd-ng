@@ -1,3 +1,5 @@
+"""Provide test execution message adapter roundtrip helpers."""
+
 from __future__ import annotations
 
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
@@ -10,6 +12,7 @@ from pytest_bdd.model.message_registry import EnvelopeRegistry
 
 
 def test_execution_message_adapter_roundtrip_preserves_test_case_links() -> None:
+    """Verify execution message adapter roundtrip preserves test case links."""
     envelope = Message(
         test_case=CucumberTestCase(
             id="test-case-1",

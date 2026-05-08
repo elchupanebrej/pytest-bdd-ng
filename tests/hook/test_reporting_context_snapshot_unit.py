@@ -1,3 +1,5 @@
+"""Provide test reporting context snapshot unit helpers."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -41,6 +43,7 @@ def _build_request(*, config: SimpleNamespace | None = None, session: SimpleName
 
 
 def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
+    """Verify snapshot uses run from stash with active scenario."""
     request = _build_request()
     context = _build_scenario_run(stage=RunStage.scenario_running)
     context.run.active_scenario_run = context
@@ -58,6 +61,7 @@ def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
 
 
 def test_snapshot_falls_back_to_run_root_from_stash() -> None:
+    """Verify snapshot falls back to run root from stash."""
     config = SimpleNamespace(stash={})
     session = SimpleNamespace(config=config, name="run-session")
     request = _build_request(config=config, session=session)
@@ -81,6 +85,7 @@ def test_snapshot_falls_back_to_run_root_from_stash() -> None:
 
 
 def test_snapshot_marks_missing_active_scenario_run_explicitly() -> None:
+    """Verify snapshot marks missing active scenario run explicitly."""
     request = _build_request()
     run_root = Run(
         id="run-stash",

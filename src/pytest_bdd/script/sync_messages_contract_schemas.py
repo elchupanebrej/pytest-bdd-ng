@@ -1,3 +1,5 @@
+"""Provide sync messages contract schemas helpers."""
+
 import argparse
 import filecmp
 import importlib
@@ -42,6 +44,7 @@ class _GitModule(Protocol):
 
 
 def copy_schema_tree(source: Path, destination: Path) -> None:
+    """Handle copy schema tree."""
     if destination.exists():
         destination.chmod(destination.stat().st_mode | stat.S_IWRITE)
     shutil.rmtree(str(destination), ignore_errors=True)
@@ -49,6 +52,7 @@ def copy_schema_tree(source: Path, destination: Path) -> None:
 
 
 def fetch_schema_tree(destination: Path) -> None:
+    """Handle fetch schema tree."""
     from pytest_bdd.util.packaging import get_distribution_version
 
     git_module = cast(_GitModule, importlib.import_module("git"))
@@ -71,6 +75,7 @@ def fetch_schema_tree(destination: Path) -> None:
 
 
 def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
+    """Collect schema drift."""
     expected_files = {path.relative_to(expected).as_posix(): path for path in expected.rglob("*") if path.is_file()}
     actual_files = {path.relative_to(actual).as_posix(): path for path in actual.rglob("*") if path.is_file()}
 
@@ -85,6 +90,7 @@ def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
 
 
 def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
+    """Synchronize schema files."""
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
         fetch_schema_tree(fetched_schema_path)
@@ -92,6 +98,7 @@ def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
 
 
 def check_schema_files(schema_path: Path = SCHEMA_PATH) -> tuple[str, ...]:
+    """Check schema files."""
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
         fetch_schema_tree(fetched_schema_path)
@@ -99,6 +106,13 @@ def check_schema_files(schema_path: Path = SCHEMA_PATH) -> tuple[str, ...]:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """
+    Run main.
+
+    Raises:
+        SystemExit: If the operation cannot be completed.
+
+    """
     parser = argparse.ArgumentParser(description="Synchronize generated Cucumber messages JSON schema assets.")
     parser.add_argument(
         "--schema-path",

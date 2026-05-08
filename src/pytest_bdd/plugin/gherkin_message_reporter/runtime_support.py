@@ -1,3 +1,5 @@
+"""Provide runtime support helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -36,6 +38,8 @@ def _format_reporting_worker_id(worker_id: str, gateway_mode: str | None) -> str
 
 @frozen
 class HookRegistration:
+    """Represent hook registration state."""
+
     hook_message_id: str
     expression: str
     kind: str

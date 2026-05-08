@@ -1,3 +1,5 @@
+"""Provide test group ordering helpers."""
+
 # ruff: noqa: INP001
 
 from __future__ import annotations
@@ -24,45 +26,67 @@ REPO_SRC = Path(__file__).parents[2] / "src"
 
 @frozen
 class FakeMarker:
+    """Represent fake marker state."""
+
     name: str
     args: tuple[object, ...] = ()
 
 
 @frozen
 class FakeNode:
+    """Represent fake node state."""
+
     source: str
     own_markers: list[FakeMarker]
 
 
 class FakeParser:
+    """Represent fake parser state."""
+
     def __init__(self) -> None:
+        """Initialize the fake parser."""
         self.ini_options: dict[str, tuple[str, str | None, str | None]] = {}
 
     def addini(self, name: str, help_text: str, **kwargs: str | None) -> None:
+        """Handle addini."""
         self.ini_options[name] = (help_text, kwargs.get("type"), kwargs.get("default"))
 
 
 class FakeConfig:
+    """Represent fake config state."""
+
     def __init__(self, rootpath: Path, ini: dict[str, object]) -> None:
+        """Initialize the fake config."""
         self.rootpath = rootpath
         self._ini = ini
         self.marker_lines: list[str] = []
 
     def getini(self, name: str) -> object:
+        """Handle getini."""
         return self._ini.get(name, [] if name in {"test_group_order", "test_group_paths"} else "")
 
     def addinivalue_line(self, name: str, line: str) -> None:
+        """Handle addinivalue line."""
         if name == "markers":
             self.marker_lines.append(line)
 
 
 class FakeItem:
+    """
+    Represent fake item state.
+
+    Yields:
+        Generated values.
+
+    """
+
     def __init__(
         self,
         path: Path,
         nodeid: str | None = None,
         marker_layers: list[tuple[str, list[str]]] | None = None,
     ) -> None:
+        """Initialize the fake item."""
         self.path = path
         self.nodeid = nodeid or path.as_posix()
         self._marker_layers = [
@@ -71,6 +95,13 @@ class FakeItem:
         self.added_markers: list[FakeMarker] = []
 
     def iter_markers_with_node(self, name: str | None = None):
+        """
+        Yield markers with node.
+
+        Yields:
+            Generated values.
+
+        """
         for node in self._marker_layers:
             for marker in node.own_markers:
                 if name is None or marker.name == name:
@@ -80,9 +111,11 @@ class FakeItem:
                 yield self, marker
 
     def iter_markers(self, name: str | None = None):
+        """Yield markers."""
         return [marker for _, marker in self.iter_markers_with_node(name=name)]
 
     def add_marker(self, marker) -> None:
+        """Handle add marker."""
         mark = getattr(marker, "mark", marker)
         self.added_markers.append(FakeMarker(mark.name, tuple(mark.args)))
 
@@ -101,6 +134,7 @@ def _group_config(rootpath: Path) -> GroupConfig:
 
 
 def test_register_group_config_options_adds_pytest_ini_keys() -> None:
+    """Verify register group config options adds pytest ini keys."""
     parser = FakeParser()
 
     register_group_config_options(parser)  # type: ignore[arg-type]
@@ -111,6 +145,7 @@ def test_register_group_config_options_adds_pytest_ini_keys() -> None:
 
 
 def test_read_group_config_parses_pytest_ini_options(tmp_path: Path) -> None:
+    """Verify read group config parses pytest ini options."""
     config = FakeConfig(
         tmp_path,
         {
@@ -135,6 +170,7 @@ def test_read_group_config_warns_and_normalizes_invalid_ini_values(
     tmp_path: Path,
     recwarn: pytest.WarningsRecorder,
 ) -> None:
+    """Verify read group config warns and normalizes invalid ini values."""
     config = FakeConfig(
         tmp_path,
         {
@@ -165,6 +201,7 @@ def test_read_group_config_warns_and_uses_fallback_for_empty_group_order(
     tmp_path: Path,
     recwarn: pytest.WarningsRecorder,
 ) -> None:
+    """Verify read group config warns and uses fallback for empty group order."""
     config = FakeConfig(tmp_path, {"test_group_order": [], "test_group_default": ""})
 
     group_config = read_group_config(config)  # type: ignore[arg-type]
@@ -178,6 +215,7 @@ def test_resolve_group_ignores_non_group_markers_without_warnings(
     tmp_path: Path,
     recwarn: pytest.WarningsRecorder,
 ) -> None:
+    """Verify resolve group ignores non group markers without warnings."""
     config = _group_config(tmp_path)
     item = FakeItem(
         tmp_path / "tests" / "unknown" / "test_example.py",
@@ -225,6 +263,7 @@ def test_resolve_group_assignment_follows_full_cascade(
     expected_group: str,
     expected_source: str,
 ) -> None:
+    """Verify resolve group assignment follows full cascade."""
     config = _group_config(tmp_path)
     item = FakeItem(tmp_path / path, marker_layers=marker_layers)
 
@@ -236,6 +275,7 @@ def test_resolve_group_assignment_follows_full_cascade(
 
 
 def test_apply_order_marker_adds_order_mark_without_sorting(tmp_path: Path) -> None:
+    """Verify apply order marker adds order mark without sorting."""
     item = FakeItem(tmp_path / "tests" / "unit" / "test_example.py")
     assignment = GroupAssignment(
         item_nodeid=item.nodeid,
@@ -251,6 +291,7 @@ def test_apply_order_marker_adds_order_mark_without_sorting(tmp_path: Path) -> N
 
 
 def test_apply_group_ordering_applies_markers_and_does_not_sort_items(tmp_path: Path) -> None:
+    """Verify apply group ordering applies markers and does not sort items."""
     config = FakeConfig(
         tmp_path,
         {
@@ -273,6 +314,7 @@ def test_apply_group_ordering_applies_markers_and_does_not_sort_items(tmp_path: 
 
 
 def test_apply_group_ordering_marks_three_groups_for_ordering_and_selection(tmp_path: Path) -> None:
+    """Verify apply group ordering marks three groups for ordering and selection."""
     config = FakeConfig(
         tmp_path,
         {
@@ -351,6 +393,7 @@ def _write_runtime_order_project(pytester: pytest.Pytester, test_module: str) ->
 
 
 def test_runtime_order_continues_after_failure_and_skipped_group(pytester: pytest.Pytester) -> None:
+    """Verify runtime order continues after failure and skipped group."""
     event_file = _write_runtime_order_project(
         pytester,
         """
@@ -375,6 +418,7 @@ def test_runtime_order_continues_after_failure_and_skipped_group(pytester: pytes
 
 
 def test_fixture_skip_preserves_later_group_execution(pytester: pytest.Pytester) -> None:
+    """Verify fixture skip preserves later group execution."""
     event_file = pytester.path / "events.txt"
     pytester.makepyprojecttoml(
         """
@@ -438,6 +482,7 @@ def test_fixture_skip_preserves_later_group_execution(pytester: pytest.Pytester)
 
 
 def test_xdist_runtime_barrier_delays_later_group_until_earlier_group_finishes(pytester: pytest.Pytester) -> None:
+    """Verify xdist runtime barrier delays later group until earlier group finishes."""
     event_file = _write_runtime_order_project(
         pytester,
         """
@@ -470,6 +515,7 @@ def test_xdist_runtime_barrier_delays_later_group_until_earlier_group_finishes(p
 
 
 def test_marker_filter_selects_one_group_and_empty_selection_exits_cleanly(pytester: pytest.Pytester) -> None:
+    """Verify marker filter selects one group and empty selection exits cleanly."""
     pytester.makepyprojecttoml(
         """
         [tool.pytest.ini_options]

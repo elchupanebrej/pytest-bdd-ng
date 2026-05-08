@@ -1,3 +1,5 @@
+"""Provide pytest results helpers."""
+
 from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
@@ -9,6 +11,7 @@ _FALSE_VALUES = frozenset({"0", "false", "no", "off"})
 
 
 def coerce_captured_text(stream: Any) -> str:
+    """Handle coerce captured text."""
     if stream is None:
         return ""
     if isinstance(stream, str):
@@ -34,6 +37,7 @@ def attach_command_result_outputs(
     # Nested pytest/docker helper runs are harness diagnostics, not user-facing terminal
     # reporting. Keep them as attachments so the active cucumber formatter remains the
     # only writer to stdout/stderr during the outer test session.
+    """Handle attach command result outputs."""
     metadata_lines = [f"label: {label}"]
     if command:
         metadata_lines.append(f"command: {command}")
@@ -80,6 +84,7 @@ def attach_command_result_outputs(
 
 
 def run_quietly(command, /, *args: Any, **kwargs: Any) -> tuple[Any, str, str]:
+    """Run quietly."""
     stdout_buffer = StringIO()
     stderr_buffer = StringIO()
     with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
@@ -88,6 +93,7 @@ def run_quietly(command, /, *args: Any, **kwargs: Any) -> tuple[Any, str, str]:
 
 
 def combined_result_output(result: Any) -> str:
+    """Handle combined result output."""
     stdout = coerce_captured_text(getattr(result, "stdout", None))
     stderr = coerce_captured_text(getattr(result, "stderr", None))
     return "\n".join(part for part in (stdout, stderr) if part)
@@ -106,6 +112,13 @@ def _coerce_bool_option(raw_value: object, *, option_name: str) -> bool:
 
 
 def resolve_pytester_run_mode(options_dict: dict[str, list[object]]) -> str:
+    """
+    Resolve pytester run mode.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
     requested_modes: set[str] = set()
 
     if options_dict.get("subprocess"):

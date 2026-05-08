@@ -1,3 +1,5 @@
+"""Provide data table helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -7,6 +9,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 def data_table_to_dicts(data_table: DataTable | None) -> dict[str, list[str]]:
+    """Handle data table to dicts."""
     if data_table is None:
         return {}
     return {row.cells[0].value: [cell.value for cell in row.cells[1:]] for row in data_table.rows}

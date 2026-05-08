@@ -1,7 +1,10 @@
+"""Provide test arg fixture mix helpers."""
+
 from textwrap import dedent
 
 
 def test_arg_fixture_mix(testdir, tmp_path):
+    """Verify arg fixture mix."""
     subdir = testdir.mkpydir("arg_fixture_mix")
     subdir.join("test_a.py").write(
         dedent(

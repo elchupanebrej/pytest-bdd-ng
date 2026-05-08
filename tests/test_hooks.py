@@ -1,7 +1,10 @@
+"""Provide test hooks helpers."""
+
 import textwrap
 
 
 def test_hooks(testdir):
+    """Verify hooks."""
     subdir = testdir.mkpydir("subdir")
     subdir.join("conftest.py").write(
         textwrap.dedent(

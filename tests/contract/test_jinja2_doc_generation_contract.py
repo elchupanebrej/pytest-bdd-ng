@@ -1,3 +1,5 @@
+"""Provide test jinja2 doc generation contract helpers."""
+
 from pathlib import Path
 
 import yaml
@@ -12,10 +14,12 @@ CONTRACT_PATH = (
 
 
 def test_jinja2_doc_generation_contract_exists() -> None:
+    """Verify jinja2 doc generation contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_jinja2_doc_generation_contract_has_required_paths() -> None:
+    """Verify jinja2 doc generation contract has required paths."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     paths = data["paths"]
 
@@ -29,6 +33,7 @@ def test_jinja2_doc_generation_contract_has_required_paths() -> None:
 
 
 def test_jinja2_doc_generation_contract_has_required_schemas() -> None:
+    """Verify jinja2 doc generation contract has required schemas."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     schemas = data["components"]["schemas"]
 
@@ -42,6 +47,7 @@ def test_jinja2_doc_generation_contract_has_required_schemas() -> None:
 
 
 def test_jinja2_doc_generation_contract_declares_jinja2_engine() -> None:
+    """Verify jinja2 doc generation contract declares jinja2 engine."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     engine_enum = data["components"]["schemas"]["TemplateAsset"]["properties"]["engine"]["enum"]
 
@@ -49,6 +55,7 @@ def test_jinja2_doc_generation_contract_declares_jinja2_engine() -> None:
 
 
 def test_jinja2_doc_generation_contract_uses_semantic_parity_mode() -> None:
+    """Verify jinja2 doc generation contract uses semantic parity mode."""
     data = yaml.safe_load(CONTRACT_PATH.read_text(encoding="utf-8"))
     parity_enum = data["components"]["schemas"]["GenerationParityCase"]["properties"]["parityMode"]["enum"]
 

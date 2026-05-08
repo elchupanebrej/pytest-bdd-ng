@@ -1,3 +1,5 @@
+"""Provide plugin helpers."""
+
 import mimetypes
 from collections.abc import Generator, Mapping
 from contextlib import suppress
@@ -25,6 +27,17 @@ class _ParserFactory(Protocol):
 
 
 class StructBDDPlugin:
+    """
+    Represent struct bddplugin state.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
+
     extension_to_mimetype: ClassVar[Mapping[StructBDDParser.KIND, Mimetype]] = {
         StructBDDParser.KIND.YAML: Mimetype.struct_bdd_yaml,
         StructBDDParser.KIND.HOCON: Mimetype.struct_bdd_hocon,
@@ -40,6 +53,7 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookspec
         mimetype: str,
     ) -> _ParserFactory | None:
+        """Handle the pytest bdd get parser pytest hook."""
         with suppress(KeyError, ValueError):
             return partial(  # type:ignore[call-arg]
                 StructBDDParser,
@@ -80,6 +94,7 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> Mimetype | None:
+        """Handle the pytest bdd get mimetype pytest hook."""
         with suppress(ValueError):
             return self._get_mimetype(path)
         return None
@@ -90,6 +105,7 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookspec
         path: Path,
     ) -> bool | None:
+        """Handle the pytest bdd is collectible pytest hook."""
         with suppress(ValueError):
             self._get_mimetype(path)
             return True
@@ -111,4 +127,11 @@ class StructBDDPlugin:
         parent: object,  # noqa: ARG002 hookspec
         module_path: Path,  # noqa: ARG002 hookspec
     ) -> Generator[None, _HookCallOutcome, None]:
+        """
+        Handle the pytest pycollect makemodule pytest hook.
+
+        Yields:
+            Generated values.
+
+        """
         yield from self._pytest_pycollect_makemodule()

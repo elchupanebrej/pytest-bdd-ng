@@ -76,6 +76,8 @@ from pytest_bdd.util.toolz_extra import getitemdefault, setdefaultattr
 
 
 class StepFunc(Protocol):
+    """Represent step func state."""
+
     __name__: str
 
 
@@ -264,6 +266,18 @@ def step(
 
 
 class StepDefinitionManager:
+    """
+    Represent step definition manager state.
+
+    Yields:
+        Generated values.
+
+    Raises:
+        MatchNotFoundError: If the operation cannot be completed.
+        TypeError: If the operation cannot be completed.
+
+    """
+
     Model: "TypeAlias" = "Step"
 
     @define
@@ -291,6 +305,7 @@ class StepDefinitionManager:
             previous_step: Step | None,
             step_registry: "StepDefinitionManager.Registry",
         ) -> "StepDefinitionManager.Definition":
+            """Match a runtime step to this definition."""
             self.request = request
             self.feature = feature
             self.pickle = pickle
@@ -325,12 +340,14 @@ class StepDefinitionManager:
             raise self.MatchNotFoundError(self.step.text)
 
         def strict_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
+            """Handle strict matcher."""
             return step_definition.type_ == self.step_type_context and step_definition.parser.is_matching(
                 self.request,
                 self.step.text,
             )
 
         def unspecified_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
+            """Handle unspecified matcher."""
             return (
                 PickleStepType.unknown in {self.step_type_context, step_definition.type_}
             ) and step_definition.parser.is_matching(
@@ -339,6 +356,7 @@ class StepDefinitionManager:
             )
 
         def liberal_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
+            """Handle liberal matcher."""
             if step_definition.liberal is None:
                 if self.config.option.liberal_steps is None:
                     is_step_definition_liberal = self.config.getini(str(Steps.Ini.LIBERAL_OPTION))
@@ -361,6 +379,13 @@ class StepDefinitionManager:
             registry: "StepDefinitionManager.Registry | None",
             matchers: Sequence[Callable[["StepDefinitionManager.Definition"], bool]],
         ) -> Iterator["StepDefinitionManager.Definition"]:
+            """
+            Find step definition matches.
+
+            Yields:
+                Generated values.
+
+            """
             if registry:
                 found_matches = False
                 for matcher in matchers:
@@ -393,6 +418,7 @@ class StepDefinitionManager:
 
         @property
         def fixtures_mapped_from_step_definition(self) -> set[str]:
+            """Handle fixtures mapped from step definition."""
             known_params = {
                 *([] if self.anonymous_group_names is None else self.anonymous_group_names),
                 *self.parser.arguments,
@@ -427,6 +453,13 @@ class StepDefinitionManager:
             return fixture_names
 
         def as_message(self, config: Config | HasPytestStash) -> StepDefinition:
+            """
+            Handle as message.
+
+            Raises:
+                TypeError: If the operation cannot be completed.
+
+            """
             id_generator = IdGenerator.from_stash(config.stash)
             try:
                 message = self.__cache[id(id_generator)]
@@ -471,6 +504,7 @@ class StepDefinitionManager:
             return message
 
         def get_parameters(self, request: FixtureRequest, step: Step) -> dict[str, object]:
+            """Return parameters."""
             parsed_arguments = (
                 self.parser.parse_arguments(request, step.text, anonymous_group_names=self.anonymous_group_names) or {}
             )
@@ -511,6 +545,7 @@ class StepDefinitionManager:
             cls, namespace: "StepDefinitionManager.NamespaceStepRegistryProtocol"
         ) -> None:
             # Go around namespace and search for step definition containers
+            """Handle inject registry fixture and register steps."""
             step_containers: list[StepDefinitionManager.StepProtocol] = [
                 value for value in namespace.__dict__.values() if isinstance(value, StepDefinitionManager.StepProtocol)
             ]
@@ -546,6 +581,7 @@ class StepDefinitionManager:
                 ) -> Callable[[FixtureRequest], object | None]:
                     @pytest.fixture
                     def fixtures_mapped_from_step_definition(request: FixtureRequest) -> object | None:
+                        """Handle fixtures mapped from step definition."""
                         try:
                             return cast(object, request.getfixturevalue(fixture_name))
                         except FixtureLookupError:
@@ -557,6 +593,8 @@ class StepDefinitionManager:
 
         @property
         def fixture(self) -> Callable[["StepDefinitionManager.Registry"], "StepDefinitionManager.Registry"]:
+            """Build the fixture that links a registry to its parent."""
+
             @pytest.fixture
             def step_registry(step_registry: "StepDefinitionManager.Registry") -> "StepDefinitionManager.Registry":
                 self.parent = step_registry

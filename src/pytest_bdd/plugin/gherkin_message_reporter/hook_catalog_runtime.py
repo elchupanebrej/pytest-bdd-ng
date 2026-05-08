@@ -1,3 +1,5 @@
+"""Provide hook catalog runtime helpers."""
+
 from __future__ import annotations
 
 import logging
@@ -36,14 +38,30 @@ class _PickleWithTags(Protocol):
 
 
 class HookCatalogService(ReporterServiceBase):
+    """
+    Represent hook catalog service state.
+
+    Yields:
+        Generated values.
+
+    """
+
     plugin_suffix = "fixtures"
 
     def __init__(self, reporter: GherkinMessageReporter, *, lifecycle_service: LifecycleService) -> None:
+        """Initialize the hook catalog service."""
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef, request: FixtureRequest) -> Iterator[None]:
+        """
+        Handle the pytest fixture setup pytest hook.
+
+        Yields:
+            Generated values.
+
+        """
         if self.reporter.is_disabled:
             yield
             return

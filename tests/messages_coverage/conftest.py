@@ -1,3 +1,5 @@
+"""Provide conftest helpers."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -10,10 +12,12 @@ collect_ignore_glob = ["fixtures/*.feature", "probes/*.feature", "probes/*.py"]
 @pytest.fixture
 def mandatory_attachment_log() -> dict[str, list[str]]:
     # Tracks runtime-only attachment calls emitted by the dedicated audit suite.
+    """Handle mandatory attachment log."""
     return defaultdict(list)
 
 
 def pytest_configure(config) -> None:
+    """Handle configure."""
     for marker in (
         "feature_tag",
         "rule_tag",

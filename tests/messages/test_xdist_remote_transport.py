@@ -1,3 +1,5 @@
+"""Provide test xdist remote transport helpers."""
+
 from __future__ import annotations
 
 import json
@@ -92,6 +94,7 @@ def _build_dummy_transport_service(
 
 
 def test_remote_transport_batches_finalize_without_shared_filesystem() -> None:
+    """Verify remote transport batches finalize without shared filesystem."""
     session = ReportingTransportSession()
     session.register_expected_worker("gw0")
     worker_fragment = _worker_fragment("gw0", "remote scenario")
@@ -128,6 +131,7 @@ def test_remote_transport_batches_finalize_without_shared_filesystem() -> None:
 
 
 def test_reporting_identity_ignores_inherited_xdist_environment(monkeypatch) -> None:
+    """Verify reporting identity ignores inherited xdist environment."""
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw7")
     monkeypatch.setenv("PYTEST_XDIST_WORKER_COUNT", "2")
     worker_id, gateway_mode = _resolve_reporting_worker_identity(SimpleNamespace())
@@ -137,6 +141,7 @@ def test_reporting_identity_ignores_inherited_xdist_environment(monkeypatch) -> 
 
 
 def test_remote_transport_missing_manifest_and_interruption_are_diagnosed() -> None:
+    """Verify remote transport missing manifest and interruption are diagnosed."""
     worker_fragment = _worker_fragment("gw1", "interrupted scenario")
     interrupted_fragment = MessageFragment.from_envelopes(
         worker_id="gw1",
@@ -158,6 +163,14 @@ def test_remote_transport_missing_manifest_and_interruption_are_diagnosed() -> N
 
 
 def test_remote_transport_client_manifest_marks_publish_failures() -> None:
+    """
+    Verify remote transport client manifest marks publish failures.
+
+    Raises:
+        AssertionError: If the manifest does not record the publish failure.
+
+    """
+
     def failing_sender(event_name: str, **kwargs: Any) -> None:
         _ = event_name, kwargs
         msg = "simulated sender failure"
@@ -186,6 +199,7 @@ def test_remote_transport_client_manifest_marks_publish_failures() -> None:
 
 
 def test_remote_transport_zero_batch_interruption_still_emits_partial_diagnostics() -> None:
+    """Verify remote transport zero batch interruption still emits partial diagnostics."""
     interrupted_fragment = MessageFragment.from_envelopes(
         worker_id="gw3",
         role="worker",
@@ -206,6 +220,7 @@ def test_remote_transport_zero_batch_interruption_still_emits_partial_diagnostic
 
 
 def test_remote_transport_compatibility_requires_worker_sender_and_controller_patch() -> None:
+    """Verify remote transport compatibility requires worker sender and controller patch."""
     worker_result = validate_xdist_reporting_compatibility(
         xdist_active=True,
         is_worker=True,
@@ -232,6 +247,7 @@ def test_remote_transport_compatibility_requires_worker_sender_and_controller_pa
 
 
 def test_install_reporting_event_sender_stores_binding_in_config_stash() -> None:
+    """Verify install reporting event sender stores binding in config stash."""
     config = SimpleNamespace(stash={})
 
     def sender(event_name: str, **kwargs: Any) -> None:
@@ -246,6 +262,7 @@ def test_install_reporting_event_sender_stores_binding_in_config_stash() -> None
 
 
 def test_install_reporting_event_sender_initializes_missing_config_stash() -> None:
+    """Verify install reporting event sender initializes missing config stash."""
     config = SimpleNamespace()
 
     def sender(event_name: str, **kwargs: Any) -> None:
@@ -259,6 +276,7 @@ def test_install_reporting_event_sender_initializes_missing_config_stash() -> No
 
 
 def test_process_messages_thread_passes_force_failure_flag(tmp_path) -> None:
+    """Verify process messages thread passes force failure flag."""
     observed: dict[str, object] = {}
 
     def process_messages(
@@ -296,6 +314,8 @@ def test_process_messages_thread_passes_force_failure_flag(tmp_path) -> None:
 
 
 def test_process_messages_writes_without_temporary_directory(monkeypatch, tmp_path) -> None:
+    """Verify process messages writes without temporary directory."""
+
     def fail_temporary_directory():
         msg = "message writer lock must not depend on a temporary directory"
         raise AssertionError(msg)
@@ -325,6 +345,8 @@ def test_process_messages_writes_without_temporary_directory(monkeypatch, tmp_pa
 
 
 def test_finish_process_messages_thread_fails_fast_when_writer_thread_crashes(tmp_path) -> None:
+    """Verify finish process messages thread fails fast when writer thread crashes."""
+
     def process_messages(
         queue,
         stop_event,

@@ -1,3 +1,5 @@
+"""Provide test cucumber formatter cli contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -44,6 +46,7 @@ def _catalog() -> FormatterPluginCatalog:
 
 
 def test_formatter_catalog_discovery_is_cached(monkeypatch) -> None:
+    """Verify formatter catalog discovery is cached."""
     formatter_registry._discover_formatter_plugin_catalog.cache_clear()
 
     original_entry_points = formatter_registry.entry_points
@@ -67,6 +70,7 @@ def test_formatter_catalog_discovery_is_cached(monkeypatch) -> None:
 
 
 def test_collects_legal_formatter_selection(tmp_path: Path) -> None:
+    """Verify collects legal formatter selection."""
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
 
@@ -92,6 +96,7 @@ def test_collects_legal_formatter_selection(tmp_path: Path) -> None:
 
 
 def test_rejects_multiple_terminal_output_formatters(tmp_path: Path) -> None:
+    """Verify rejects multiple terminal output formatters."""
     with pytest.raises(
         CucumberFormatterConfigurationError,
         match="Only one terminal-output formatter may be active per run",
@@ -106,6 +111,7 @@ def test_rejects_multiple_terminal_output_formatters(tmp_path: Path) -> None:
 
 
 def test_rejects_missing_output_directory(tmp_path: Path) -> None:
+    """Verify rejects missing output directory."""
     missing_path = tmp_path / "missing" / "report.json"
 
     with pytest.raises(
@@ -121,6 +127,7 @@ def test_rejects_missing_output_directory(tmp_path: Path) -> None:
 
 
 def test_rejects_duplicate_file_output_paths(tmp_path: Path) -> None:
+    """Verify rejects duplicate file output paths."""
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
     duplicate_path = reports_dir / "report.out"
@@ -139,6 +146,7 @@ def test_rejects_duplicate_file_output_paths(tmp_path: Path) -> None:
 
 
 def test_legacy_cucumber_json_option_destination_remains_separate() -> None:
+    """Verify legacy cucumber json option destination remains separate."""
     legacy_dest = str(CucumberJson.Cli.PATH_OPTION)
     formatter_option_attrs = {definition[0] for definition in cucumber_formatter_definitions()}
 
@@ -146,6 +154,7 @@ def test_legacy_cucumber_json_option_destination_remains_separate() -> None:
 
 
 def test_formatter_registry_maps_requests_to_dedicated_plugin_modules(tmp_path: Path) -> None:
+    """Verify formatter registry maps requests to dedicated plugin modules."""
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
     reporter = GherkinMessageReporter(
@@ -163,6 +172,7 @@ def test_formatter_registry_maps_requests_to_dedicated_plugin_modules(tmp_path: 
 
 
 def test_formatter_plugins_live_in_sibling_plugin_package() -> None:
+    """Verify formatter plugins live in sibling plugin package."""
     for plugin in _catalog().plugins:
         assert plugin.module_name.startswith("pytest_bdd.plugin.cucumber_")
         assert ".cucumber_formatter_support." not in plugin.module_name
@@ -170,6 +180,7 @@ def test_formatter_plugins_live_in_sibling_plugin_package() -> None:
 
 
 def test_formatter_plugins_expose_pytest_hookimpls() -> None:
+    """Verify formatter plugins expose pytest hookimpls."""
     for plugin in _catalog().plugins:
         assert getattr(plugin.pytest_addoption, "pytest_impl", None) is not None
         assert getattr(plugin.pytest_bdd_cucumber_formatter_request, "pytest_impl", None) is not None
@@ -177,6 +188,8 @@ def test_formatter_plugins_expose_pytest_hookimpls() -> None:
 
 
 def test_entrypoint_addhooks_only_registers_hookspecs() -> None:
+    """Verify entrypoint addhooks only registers hookspecs."""
+
     class _PluginManager:
         def __init__(self) -> None:
             self.registered: list[tuple[object, str | None]] = []
@@ -196,6 +209,7 @@ def test_entrypoint_addhooks_only_registers_hookspecs() -> None:
 
 
 def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
+    """Verify formatter plugins have independent pytest11 entrypoints."""
     pyproject_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     pytest11_entrypoints = pyproject["project"]["entry-points"]["pytest11"]
@@ -205,6 +219,7 @@ def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
 
 
 def test_runtime_session_resolves_formatter_requests_via_hooks_not_entrypoint_registry() -> None:
+    """Verify runtime session resolves formatter requests via hooks not entrypoint registry."""
     session_source = (
         Path(__file__).resolve().parents[2]
         / "src"
@@ -220,12 +235,14 @@ def test_runtime_session_resolves_formatter_requests_via_hooks_not_entrypoint_re
 
 
 def test_reporter_implements_explicit_lifecycle_contract(tmp_path: Path) -> None:
+    """Verify reporter implements explicit lifecycle contract."""
     reporter = GherkinMessageReporter(config=_build_config(tmp_path, cucumber_summary=True))
 
     assert isinstance(reporter, ReporterLifecycleContract)
 
 
 def test_entrypoint_source_does_not_fall_back_to_private_reporter_methods() -> None:
+    """Verify entrypoint source does not fall back to private reporter methods."""
     entrypoint_source = (
         Path(__file__).resolve().parents[2]
         / "src"

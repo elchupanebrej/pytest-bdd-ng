@@ -1,3 +1,5 @@
+"""Provide test message outcome mapping helpers."""
+
 from __future__ import annotations
 
 from pytest_bdd.model.message_outcome_mapping import (
@@ -44,6 +46,7 @@ def _fixed_matrix_outcomes():
 
 
 def test_resolve_outcome_mapping_uses_priority_order() -> None:
+    """Verify resolve outcome mapping uses priority order."""
     rules = [
         make_mapping_rule(
             "rule-high-priority",
@@ -69,6 +72,7 @@ def test_resolve_outcome_mapping_uses_priority_order() -> None:
 
 
 def test_resolve_outcome_mapping_reports_ambiguity_for_equal_priority() -> None:
+    """Verify resolve outcome mapping reports ambiguity for equal priority."""
     rules = [
         make_mapping_rule(
             "rule-a",
@@ -93,6 +97,7 @@ def test_resolve_outcome_mapping_reports_ambiguity_for_equal_priority() -> None:
 
 
 def test_validate_outcome_mappings_passes_for_fixed_release_readiness_matrix() -> None:
+    """Verify validate outcome mappings passes for fixed release readiness matrix."""
     result = validate_outcome_mappings(
         _fixed_matrix_rules(),
         _fixed_matrix_outcomes(),
@@ -106,6 +111,7 @@ def test_validate_outcome_mappings_passes_for_fixed_release_readiness_matrix() -
 
 
 def test_validate_outcome_mappings_rejects_missing_retry_and_parallel() -> None:
+    """Verify validate outcome mappings rejects missing retry and parallel."""
     outcomes = [
         ObservedOutcome(outcome_scope="scenario", outcome_status="passed"),
         ObservedOutcome(outcome_scope="scenario", outcome_status="failed"),
@@ -121,6 +127,7 @@ def test_validate_outcome_mappings_rejects_missing_retry_and_parallel() -> None:
 
 
 def test_validate_outcome_mappings_reports_unmapped_fixed_matrix_outcomes() -> None:
+    """Verify validate outcome mappings reports unmapped fixed matrix outcomes."""
     result = validate_outcome_mappings(
         _fixed_matrix_rules()[:-1],
         _fixed_matrix_outcomes(),

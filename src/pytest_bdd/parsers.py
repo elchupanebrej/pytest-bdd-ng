@@ -1,3 +1,5 @@
+"""Provide parsers helpers."""
+
 from abc import ABC, abstractmethod
 from collections.abc import Collection, Iterable, Sequence
 from enum import Enum
@@ -41,12 +43,17 @@ class _RegexCompiler(Protocol):
 
 
 class ParserBuildValueError(ValueError):
+    """Represent parser build value error failures."""
+
     def __init__(self, format_: object) -> None:
+        """Initialize the parser build value error."""
         super().__init__(f"Unable build parser for format {format_}")
 
 
 @runtime_checkable
 class StepParserProtocol(Protocol):
+    """Define the step parser protocol contract."""
+
     type: StepDefinitionPatternType | str = StepDefinitionPatternType.pytest_bdd_other_expression  # type:ignore[attr-defined]
 
     def parse_arguments(
@@ -54,12 +61,18 @@ class StepParserProtocol(Protocol):
         request: FixtureRequest,
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
-    ) -> dict[str, object] | None: ...  # pragma: no cover
+    ) -> dict[str, object] | None:
+        """Parse arguments."""
+        ...  # pragma: no cover
 
     @property
-    def arguments(self) -> Collection[str]: ...  # pragma: no cover
+    def arguments(self) -> Collection[str]:
+        """Handle arguments."""
+        ...  # pragma: no cover
 
-    def is_matching(self, request: FixtureRequest, name: str) -> bool: ...  # pragma: no cover
+    def is_matching(self, request: FixtureRequest, name: str) -> bool:
+        """Return matching."""
+        ...  # pragma: no cover
 
     def __str__(self) -> str:
         """Return parser pattern as a string."""
@@ -67,6 +80,8 @@ class StepParserProtocol(Protocol):
 
 
 class RegistryMode(Enum):
+    """Represent registry mode state."""
+
     NEW = "NEW"
     GLOBAL = "GLOBAL"
     FIXTURE = "FIXTURE"
@@ -140,6 +155,13 @@ class re(StepParser):  # noqa:N801 intentional API
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
+        """
+        Initialize the re.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
@@ -160,6 +182,7 @@ class re(StepParser):  # noqa:N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
+        """Parse arguments."""
         match = cast(Match, self.regex.fullmatch(name))  # Can't be None because is already matched
         group_dict = match.groupdict()
         if anonymous_group_names is not None:
@@ -181,6 +204,7 @@ class re(StepParser):  # noqa:N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
+        """Handle arguments."""
         return [*self.regex.groupindex.keys()]
 
     def is_matching(
@@ -188,6 +212,7 @@ class re(StepParser):  # noqa:N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
     ) -> bool:
+        """Return matching."""
         return bool(self.regex.fullmatch(name))
 
     def __str__(self) -> str:
@@ -196,6 +221,14 @@ class re(StepParser):  # noqa:N801 intentional API
 
 
 class parse(StepParser):  # noqa:N801 intentional API
+    """
+    Initialize the instance.
+
+    Raises:
+        ParserBuildValueError: If the operation cannot be completed.
+
+    """
+
     """parse step parser."""
 
     type = StepDefinitionPatternType.pytest_bdd_parse_expression  # type:ignore[attr-defined]
@@ -203,6 +236,13 @@ class parse(StepParser):  # noqa:N801 intentional API
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
+        """
+        Initialize the parse.
+
+        Raises:
+            ParserBuildValueError: If the operation cannot be completed.
+
+        """
         if isinstance(format_, (StringRepresentable, str, bytes)):
             builder = cast(_ParserBuilder, kwargs.pop("builder", base_parse.compile))
             self._init_stringable(format_, *args, builder=builder, **kwargs)
@@ -226,6 +266,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     @classmethod
     def cfparse(cls, *args: object, **kwargs: object) -> "parse":
+        """Handle cfparse."""
         kwargs.setdefault("builder", base_cfparse.Parser)
         return cast(parse, cls(*args, **kwargs))
 
@@ -235,6 +276,7 @@ class parse(StepParser):  # noqa:N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
+        """Parse arguments."""
         match = cast(_ParseMatchProtocol, self.parser.parse(name))
         group_dict = dict(match.named)
         if anonymous_group_names is not None:
@@ -243,6 +285,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
+        """Handle arguments."""
         return [*self.parser._match_re.groupindex.keys()]
 
     def is_matching(
@@ -250,6 +293,7 @@ class parse(StepParser):  # noqa:N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
     ) -> bool:
+        """Return matching."""
         try:
             return bool(self.parser.parse(name))
         except ValueError:
@@ -261,11 +305,14 @@ class parse(StepParser):  # noqa:N801 intentional API
 
 
 class cfparse(parse):  # noqa:N801 intentional API
+    """Initialize the instance."""
+
     """cfparse step parser."""
 
     type = StepDefinitionPatternType.pytest_bdd_cfparse_expression  # type:ignore[attr-defined]
 
     def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize the cfparse."""
         kwargs.setdefault("builder", base_cfparse.Parser)
         super().__init__(*args, **kwargs)
 
@@ -276,6 +323,7 @@ class string(StepParser):  # noqa: N801 intentional API
     type = StepDefinitionPatternType.pytest_bdd_string_expression  # type:ignore[attr-defined]
 
     def __init__(self, name: StringRepresentable | str | bytes) -> None:
+        """Initialize the string."""
         self.name = normalize_to_string(name)
 
     def parse_arguments(
@@ -293,6 +341,7 @@ class string(StepParser):  # noqa: N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
+        """Handle arguments."""
         return []
 
     def is_matching(
@@ -378,12 +427,27 @@ class _CucumberExpression(StepParser):
 
 
 class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
+    """
+    Represent cucumber expression state.
+
+    Raises:
+        NotImplementedError: If the operation cannot be completed.
+
+    """
+
     type = StepDefinitionPatternType.cucumber_expression  # type:ignore[attr-defined]
     expression_type = CucumberExpression
 
     # https://bugs.python.org/issue45684
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
+        """
+        Initialize the cucumber expression.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
@@ -400,21 +464,38 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
         self,
         expression: CucumberExpression,
     ) -> None:
+        """Handle object."""
         self.pattern = expression.expression
         self.parameter_type_registry_like = expression.parameter_type_registry
 
     @property
     def arguments(self) -> Collection[str]:
+        """Handle arguments."""
         return []
 
 
 class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentional API
+    """
+    Represent cucumber regular expression state.
+
+    Raises:
+        NotImplementedError: If the operation cannot be completed.
+
+    """
+
     type = StepDefinitionPatternType.regular_expression  # type:ignore[attr-defined]
     expression_type = CucumberRegularExpression
     # https://bugs.python.org/issue45684
 
     @singledispatchmethod  # type:ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
+        """
+        Initialize the cucumber regular expression.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
     @__init__.register
@@ -436,10 +517,20 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
 
     @property
     def arguments(self) -> Collection[str]:
+        """Initialize the cucumber regular expression."""
+        """Initialize the cucumber regular expression."""
         return [*re_compile(self.pattern).groupindex.keys()]
 
 
 class heuristic(StepParser):  # noqa: N801 intentional API
+    """
+    Represent heuristic state.
+
+    Raises:
+        ParserBuildValueError: If the operation cannot be completed.
+
+    """
+
     type = StepDefinitionPatternType.pytest_bdd_heuristic_expression  # type:ignore[attr-defined]
 
     def __init__(
@@ -447,6 +538,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         format_: object,
         parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
     ) -> None:
+        """Initialize the heuristic."""
         if isinstance(format_, (StringRepresentable, str, bytes)):
             self.format = normalize_to_string(format_)
         else:
@@ -456,6 +548,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         self.build_parsers()
 
     def build_parsers(self) -> None:
+        """
+        Build parsers.
+
+        Raises:
+            ParserBuildValueError: If the operation cannot be completed.
+
+        """
         if self.parsers_are_built:
             return
 
@@ -493,6 +592,8 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     @property
     def parser_by_priorities(self) -> Sequence[StepParser | None]:
+        """Handle parser by priorities."""
+        """Handle parser by priorities."""
         return [
             self.string_parser,
             self.cucumber_expression_parser,
@@ -501,6 +602,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         ]
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
+        """Return matching."""
         return any(
             map(
                 methodcaller("is_matching", request, name),
@@ -514,6 +616,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object] | None:
+        """Parse arguments."""
         for parser in self.parser_by_priorities:
             if parser is not None and parser.is_matching(request, name):
                 arguments = parser.parse_arguments(request, name, anonymous_group_names=anonymous_group_names)
@@ -524,6 +627,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
+        """Handle arguments."""
         return [
             *chain.from_iterable(
                 (

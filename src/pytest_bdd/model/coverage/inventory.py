@@ -106,7 +106,7 @@ def _resolve_schema(schema_dir: Path, ref: str, root_schema: JSONObject) -> tupl
     return resolved, new_root
 
 
-def _extract_fields(  # noqa: C901
+def _extract_fields(  # noqa: C901, PLR0912, PLR0913, PLR0917
     schema_dir: Path,
     schema: JSONObject,
     root_schema: JSONObject,

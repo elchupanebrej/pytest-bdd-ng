@@ -1,9 +1,12 @@
+"""Provide test cucumber formatter report doc parse helpers."""
+
 from pathlib import Path
 
 from pytest_bdd.script.validate_feature_headings import parse_gherkin_document
 
 
 def test_cucumber_formatter_report_doc_is_parseable() -> None:
+    """Verify cucumber formatter report doc is parseable."""
     feature_path = (
         Path(__file__).resolve().parents[2] / "features" / "07 Report" / "09 Cucumber formatter reports.feature.md"
     )
@@ -15,6 +18,7 @@ def test_cucumber_formatter_report_doc_is_parseable() -> None:
 
 
 def test_cucumber_formatter_report_doc_mentions_live_stream_and_controller_ownership() -> None:
+    """Verify cucumber formatter report doc mentions live stream and controller ownership."""
     feature_path = (
         Path(__file__).resolve().parents[2] / "features" / "07 Report" / "09 Cucumber formatter reports.feature.md"
     )
@@ -27,6 +31,7 @@ def test_cucumber_formatter_report_doc_mentions_live_stream_and_controller_owner
 
 
 def test_cucumber_formatter_report_doc_does_not_require_manual_capture_flags() -> None:
+    """Verify cucumber formatter report doc does not require manual capture flags."""
     feature_path = (
         Path(__file__).resolve().parents[2] / "features" / "07 Report" / "09 Cucumber formatter reports.feature.md"
     )

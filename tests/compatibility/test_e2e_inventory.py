@@ -1,3 +1,5 @@
+"""Provide test e2e inventory helpers."""
+
 from pathlib import Path
 
 from pytest_bdd.compatibility.matrix import (
@@ -7,6 +9,7 @@ from pytest_bdd.compatibility.matrix import (
 
 
 def test_discovers_feature_scenario_ids(tmp_path: Path):
+    """Verify discovers feature scenario ids."""
     feature_dir = tmp_path / "features" / "Feature"
     feature_dir.mkdir(parents=True)
     (feature_dir / "Feature base dir.feature.md").write_text("Feature: Base dir\n", encoding="utf-8")
@@ -17,6 +20,7 @@ def test_discovers_feature_scenario_ids(tmp_path: Path):
 
 
 def test_discovers_user_facing_tests_from_tests_feature_folder(tmp_path: Path):
+    """Verify discovers user facing tests from tests feature folder."""
     user_facing_dir = tmp_path / "tests" / "feature"
     user_facing_dir.mkdir(parents=True)
     (user_facing_dir / "test_no_scenario.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
@@ -29,6 +33,7 @@ def test_discovers_user_facing_tests_from_tests_feature_folder(tmp_path: Path):
 
 
 def test_e2e_report_doc_tests_are_not_treated_as_migration_candidates(tmp_path: Path):
+    """Verify e2e report doc tests are not treated as migration candidates."""
     e2e_dir = tmp_path / "tests" / "e2e"
     e2e_dir.mkdir(parents=True)
     (e2e_dir / "test_report_doc_cucumber_formatters.py").write_text("def test_x():\n    pass\n", encoding="utf-8")
@@ -40,6 +45,7 @@ def test_e2e_report_doc_tests_are_not_treated_as_migration_candidates(tmp_path: 
 
 
 def test_e2e_xdist_html_tests_are_not_treated_as_migration_candidates(tmp_path: Path):
+    """Verify e2e xdist html tests are not treated as migration candidates."""
     e2e_dir = tmp_path / "tests" / "e2e"
     e2e_dir.mkdir(parents=True)
     (e2e_dir / "test_xdist_html_reporting.py").write_text("def test_x():\n    pass\n", encoding="utf-8")

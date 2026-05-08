@@ -1,3 +1,5 @@
+"""Provide test run contract helpers."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,10 +14,12 @@ CONTRACT_PATH = (
 
 
 def test_run_contract_exists() -> None:
+    """Verify run contract exists."""
     assert CONTRACT_PATH.exists()
 
 
 def test_run_contract_has_required_paths() -> None:
+    """Verify run contract has required paths."""
     contract_text = CONTRACT_PATH.read_text()
     assert "/execution-context/session-root:" in contract_text
     assert "/execution-context/session-fixture:" in contract_text
@@ -28,6 +32,7 @@ def test_run_contract_has_required_paths() -> None:
 
 
 def test_run_contract_has_minimal_change_constraints() -> None:
+    """Verify run contract has minimal change constraints."""
     contract_text = CONTRACT_PATH.read_text()
     assert "consumerMigrationRequired:" in contract_text
     assert "- false" in contract_text

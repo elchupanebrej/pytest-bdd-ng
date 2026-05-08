@@ -1,3 +1,5 @@
+"""Provide message governance checklist helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final, Literal
@@ -24,6 +26,8 @@ ChecklistDisposition = Literal["approved", "blocked", "deferred"]
 
 @frozen
 class GovernanceChecklistEntry:
+    """Represent governance checklist entry state."""
+
     capability_id: str
     status: CapabilityStatus
     comment_required: bool
@@ -35,6 +39,8 @@ class GovernanceChecklistEntry:
 
 @frozen
 class GovernanceChecklist:
+    """Represent governance checklist state."""
+
     checklist_name: str
     entries: tuple[GovernanceChecklistEntry, ...]
     unresolved_blockers: int
@@ -51,6 +57,7 @@ def build_governance_checklist(
     checklist_name: str = DEFAULT_CHECKLIST_NAME,
     baseline_diff: BaselineDiffRecord | None = None,
 ) -> GovernanceChecklist:
+    """Build governance checklist."""
     index = _decision_index(decisions)
     added = set(baseline_diff.added_capability_ids) if baseline_diff is not None else set()
     changed = set(baseline_diff.changed_capability_ids) if baseline_diff is not None else set()
@@ -115,6 +122,7 @@ def build_governance_checklist(
 
 
 def render_checklist_markdown(checklist: GovernanceChecklist) -> str:
+    """Render checklist markdown."""
     lines = [
         f"# {checklist.checklist_name}",
         "",

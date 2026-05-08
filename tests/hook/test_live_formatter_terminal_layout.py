@@ -1,3 +1,5 @@
+"""Provide test live formatter terminal layout helpers."""
+
 from __future__ import annotations
 
 import json
@@ -68,6 +70,7 @@ def _run_node_renderer(
 
 
 def test_progress_bar_formatter_tracks_total_pickles_in_live_stream(tmp_path: Path) -> None:
+    """Verify progress bar formatter tracks total pickles in live stream."""
     messages_path = tmp_path / "messages.ndjson"
     envelopes: list[dict[str, object]] = []
     for index in range(1, 6):
@@ -132,6 +135,7 @@ def test_progress_bar_formatter_tracks_total_pickles_in_live_stream(tmp_path: Pa
 
 
 def test_usage_formatter_wraps_to_terminal_width(tmp_path: Path) -> None:
+    """Verify usage formatter wraps to terminal width."""
     feature_path = tmp_path / "demo.feature"
     feature_path.write_text(
         "Feature: demo\n  Scenario: one\n    Given pass\n\n  Scenario: two\n    Given fail\n",

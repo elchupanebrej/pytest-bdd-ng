@@ -1,3 +1,5 @@
+"""Provide cucumber usage helpers."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,12 +11,15 @@ if TYPE_CHECKING:
 
 
 class UsageFormatterPlugin(FormatterReporterPlugin):
+    """Represent usage formatter plugin state."""
+
     output_mode = FormatterOutputMode.optional_path
     writes_to_terminal = True
     runtime_kind = FormatterRuntimeKind.module
     runtime_template_name = "usage.cjs.j2"
 
     def __init__(self) -> None:
+        """Initialize the usage formatter plugin."""
         super().__init__(
             option_attr="cucumber_usage_output",
             cli_flag="--cucumber-usage",
@@ -26,6 +31,7 @@ class UsageFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
+        """Build addoption kwargs."""
         return self.build_optional_path_addoption_kwargs()
 
     def build_request_from_value(
@@ -34,6 +40,7 @@ class UsageFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
+        """Build request from value."""
         return self.build_module_optional_path_request(
             raw_value,
             resolve_output_path=resolve_output_path,
@@ -45,6 +52,7 @@ class UsageFormatterPlugin(FormatterReporterPlugin):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """Render runtime assets."""
         return self.build_module_runtime_assets(
             formatter_request=formatter_request,
             formatter_requests=formatter_requests,

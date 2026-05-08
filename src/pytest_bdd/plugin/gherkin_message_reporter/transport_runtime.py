@@ -1,3 +1,5 @@
+"""Provide transport runtime helpers."""
+
 from __future__ import annotations
 
 import json
@@ -59,9 +61,18 @@ def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
 
 
 class TransportService(ReporterServiceBase):
+    """
+    Represent transport service state.
+
+    Raises:
+        RuntimeError: If the operation cannot be completed.
+
+    """
+
     plugin_suffix = "transport"
 
     def __init__(self, reporter: GherkinMessageReporter, *, live_formatter_service: LiveFormatterService) -> None:
+        """Initialize the transport service."""
         super().__init__(reporter)
         self.live_formatter_service = live_formatter_service
 
@@ -130,6 +141,7 @@ class TransportService(ReporterServiceBase):
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_configure_node(self, node: _WorkerNode) -> None:
+        """Handle the pytest configure node pytest hook."""
         if self.reporter.is_disabled:
             return
         self._activate_xdist_controller_mode()
@@ -151,6 +163,7 @@ class TransportService(ReporterServiceBase):
         }
 
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: JSONObject) -> None:
+        """Handle the pytest bdd xdist message batch pytest hook."""
         _ = config, node
         if (
             self.reporter.is_disabled
@@ -168,6 +181,7 @@ class TransportService(ReporterServiceBase):
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: _WorkerNode, error: object | None) -> None:
+        """Handle the pytest testnodedown pytest hook."""
         if self.reporter.is_disabled:
             return
         if not self.reporter.is_xdist_controller:
@@ -201,6 +215,7 @@ class TransportService(ReporterServiceBase):
         self.reporter._xdist_fragment_records[worker_id] = existing_record
 
     def start_process_messages_thread(self) -> None:
+        """Handle start process messages thread."""
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
         self.reporter._process_messages_thread_error = None
@@ -213,6 +228,13 @@ class TransportService(ReporterServiceBase):
         sleep(0)
 
     def finish_process_messages_thread(self) -> None:
+        """
+        Handle finish process messages thread.
+
+        Raises:
+            RuntimeError: If the operation cannot be completed.
+
+        """
         deadline = monotonic() + 10
         while self.reporter.process_messages_io_queue.unfinished_tasks:
             if self.reporter._process_messages_thread_error is not None:
@@ -255,6 +277,7 @@ class TransportService(ReporterServiceBase):
         *,
         force_transport_publish_failure: bool = False,
     ) -> None:
+        """Handle process messages."""
         messages_path = Path(messages_file_path)
         lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
         last_enter = False
@@ -310,6 +333,7 @@ class TransportService(ReporterServiceBase):
 
     @staticmethod
     def read_envelopes_from_path(messages_file_path: Path) -> list[Message]:
+        """Read envelopes from path."""
         envelopes: list[Message] = []
         if not messages_file_path.exists():
             return envelopes
