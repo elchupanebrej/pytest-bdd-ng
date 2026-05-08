@@ -31,6 +31,9 @@ The following rules were removed from `tool.ruff.lint.ignore` and the reported v
 | Q000 | No current violations remained after formatting. | Removed stale ignore. |
 | PLR0904 | Two broad API classes exceed the public-method threshold. | Enabled the rule globally and added targeted per-file legacy exceptions with rationale. |
 | TD004 | Some TODO comments omitted the required colon after `TODO`. | Normalized TODO comment punctuation. |
+| PLR0911, PLR0912, PLR0914, PLR0915, PLR1702 | Existing complexity hotspots exceed return, branch, local, statement, or nesting thresholds. | Enabled the rules globally and added targeted per-file legacy exceptions with rationale. |
+| PLR0913, PLR0917 | Existing public APIs and hook implementations exceed argument-count thresholds. | Enabled the rules globally and added targeted per-file legacy exceptions for current API/protocol shapes. |
+| PLR2004 | Existing parsing and protocol code compares against compact arity/version literals. | Enabled the rule globally and added targeted per-file legacy exceptions with rationale. |
 
 ## Remaining ignored rules
 
@@ -46,7 +49,5 @@ Counts below come from `uv run --extra test ruff check src tests docs --isolated
 | FIX002, TD002, TD003 | 42 total | TODO comments lack the stricter task metadata required by flake8-todos. | Needs an issue-tracking convention for author and links before enforcement. |
 | PLC0415 | 66 | Imports are intentionally inside functions/hooks to avoid optional dependencies, pytest plugin side effects, or cycles. | Needs dependency-boundary review before moving imports. |
 | PLC2701, SLF001 | 238 total | Tests and compatibility layers access private names. | Many accesses are deliberate white-box tests or compatibility shims; needs API boundary decisions. |
-| PLR0911-PLR0917, PLR1702 | 79 total | Complex parser/plugin functions have many returns, branches, arguments, locals, statements, or nesting. | Requires behavior-preserving refactors with targeted tests. |
-| PLR2004 | 55 | Tests and protocol code compare against literal values directly. | Needs constants only where they improve meaning; mechanical constants can reduce clarity. |
 | PLR6301 | 104 | Many instance methods do not use `self`. | Some methods are protocol hooks, extension points, or intentionally instance-shaped APIs. |
 | TC006 | 206 | Runtime `typing.cast` calls use stringified types. | Kept for the documented PyCharm cast-string behavior in the existing config comment. |
