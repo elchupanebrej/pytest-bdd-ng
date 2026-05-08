@@ -34,6 +34,7 @@ The following rules were removed from `tool.ruff.lint.ignore` and the reported v
 | PLR0911, PLR0912, PLR0914, PLR0915, PLR1702 | Existing complexity hotspots exceed return, branch, local, statement, or nesting thresholds. | Enabled the rules globally and added targeted per-file legacy exceptions with rationale. |
 | PLR0913, PLR0917 | Existing public APIs and hook implementations exceed argument-count thresholds. | Enabled the rules globally and added targeted per-file legacy exceptions for current API/protocol shapes. |
 | PLR2004 | Existing parsing and protocol code compares against compact arity/version literals. | Enabled the rule globally and added targeted per-file legacy exceptions with rationale. |
+| PLC2701 | Compatibility and hook integration modules import pytest private names. | Enabled the rule globally and added targeted per-file exceptions where private pytest APIs are the integration boundary. |
 
 ## Remaining ignored rules
 
@@ -48,6 +49,6 @@ Counts below come from `uv run --extra test ruff check src tests docs --isolated
 | DOC201 | 83 | Docstrings omit return sections. | Requires validating public API return contracts, not just adding boilerplate. |
 | FIX002, TD002, TD003 | 42 total | TODO comments lack the stricter task metadata required by flake8-todos. | Needs an issue-tracking convention for author and links before enforcement. |
 | PLC0415 | 66 | Imports are intentionally inside functions/hooks to avoid optional dependencies, pytest plugin side effects, or cycles. | Needs dependency-boundary review before moving imports. |
-| PLC2701, SLF001 | 238 total | Tests and compatibility layers access private names. | Many accesses are deliberate white-box tests or compatibility shims; needs API boundary decisions. |
+| SLF001 | 207 | Tests and compatibility layers access private members. | Many accesses are deliberate white-box tests or compatibility shims; needs API boundary decisions. |
 | PLR6301 | 104 | Many instance methods do not use `self`. | Some methods are protocol hooks, extension points, or intentionally instance-shaped APIs. |
 | TC006 | 206 | Runtime `typing.cast` calls use stringified types. | Kept for the documented PyCharm cast-string behavior in the existing config comment. |
