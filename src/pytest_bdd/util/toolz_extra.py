@@ -43,6 +43,12 @@ class DefaultMapping(defaultdict[object, object]):
         """
         Return a fallback value for missing keys.
 
+        Args:
+            key: Missing key to look up.
+
+        Returns:
+            Fallback value for the key.
+
         Raises:
             KeyError: If missing-key fallback is disabled or unavailable.
 
@@ -74,7 +80,17 @@ class DefaultMapping(defaultdict[object, object]):
         *,
         warm_up_keys: Collection[object] = (),
     ) -> DefaultMapping:
-        """Handle instantiate from collection or bool."""
+        """
+        Create a DefaultMapping from a collection or boolean.
+
+        Args:
+            bool_or_items: Collection, boolean, or missing sentinel.
+            warm_up_keys: Keys to warm up on creation.
+
+        Returns:
+            New DefaultMapping instance.
+
+        """
         if bool_or_items is _MISSING:
             bool_or_items = True
         if isinstance(bool_or_items, Collection):
@@ -87,7 +103,16 @@ class DefaultMapping(defaultdict[object, object]):
 
 
 def itemgetter_(*items: object) -> Callable[[object], object]:
-    """Handle itemgetter."""
+    """
+    Create an itemgetter that handles missing items.
+
+    Args:
+        items: Items to get from object.
+
+    Returns:
+        Item getter function.
+
+    """
     getter = cast(Callable[[object], object], itemgetter(*items))
 
     def func(obj: object) -> object:
@@ -115,7 +140,17 @@ def getitemdefault(
     treat_as_empty: object = Empty.empty,
 ) -> object:
     """
-    Handle getitemdefault.
+    Get item from object with default handling.
+
+    Args:
+        obj: Object to get item from.
+        index: Index/key to retrieve.
+        default: Default value if key missing.
+        default_factory: Factory for default value.
+        treat_as_empty: Value to treat as empty.
+
+    Returns:
+        Retrieved item or default.
 
     Raises:
         KeyError: If the operation cannot be completed.
@@ -146,7 +181,17 @@ def getitemdefault(
 
 def deepattrgetter(*attrs: str, **kwargs: object) -> Callable[[object], tuple[object, ...]]:
     """
-    Handle deepattrgetter.
+    Get nested attributes from an object.
+
+    Args:
+        attrs: Attribute chain to traverse.
+        **kwargs: Additional keyword arguments. Accepts "default" (default value if attribute missing)
+            and "skip_missing" (whether to skip missing attributes).
+        default: Default value if attribute missing.
+        skip_missing: Whether to skip missing attributes.
+
+    Returns:
+        Function that extracts nested attributes.
 
     Raises:
         ValueError: If the operation cannot be completed.
@@ -184,7 +229,16 @@ def setdefaultattr(
     value_factory: Callable[[], object] | None = None,
 ) -> object:
     """
-    Handle setdefaultattr.
+    Set attribute with default value handling.
+
+    Args:
+        obj: Object to modify.
+        key: Attribute name to set.
+        value: Value to set, or Empty.empty.
+        value_factory: Factory for value if not provided.
+
+    Returns:
+        The value that was set.
 
     Raises:
         ValueError: If the operation cannot be completed.
@@ -210,12 +264,30 @@ class ObjectCallable(Protocol):
 
 
 def compose(*funcs: ObjectCallable) -> ObjectCallable:
-    """Handle compose."""
+    """
+    Compose multiple functions into one.
+
+    Args:
+        funcs: Functions to compose (applied left to right).
+
+    Returns:
+        Composed function.
+
+    """
     return cast(ObjectCallable, reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs))
 
 
 def flip(func: ObjectCallable) -> ObjectCallable:
-    """Handle flip."""
+    """
+    Flip argument order of a binary function.
+
+    Args:
+        func: Function to flip.
+
+    Returns:
+        Function with flipped arguments.
+
+    """
 
     def wrapped(*args: object, **kwargs: object) -> object:
         if len(args) > 1:

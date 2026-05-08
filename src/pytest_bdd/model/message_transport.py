@@ -26,7 +26,7 @@ class ReportingEventSender(Protocol):
     """Represent reporting event sender state."""
 
     def __call__(self, name: str, **kwargs: object) -> None:
-        """Handle call."""
+        """Send a reporting event with its associated payload."""
         ...
 
 
@@ -53,7 +53,7 @@ def install_reporting_event_sender(
     *,
     gateway_mode: str | None = None,
 ) -> None:
-    """Handle install reporting event sender."""
+    """Register a reporting event sender in the pytest stash."""
     ReportingEventSenderBinding(
         sender=sender,
         gateway_mode=gateway_mode,
@@ -61,7 +61,13 @@ def install_reporting_event_sender(
 
 
 def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSender | None:
-    """Resolve reporting event sender."""
+    """
+    Retrieve the configured reporting event sender from the pytest stash.
+
+    Returns:
+        The registered ReportingEventSender, or None if not found or not callable.
+
+    """
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -70,7 +76,13 @@ def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSe
 
 
 def resolve_reporting_gateway_mode(config: _ConfigWithStash) -> str | None:
-    """Resolve reporting gateway mode."""
+    """
+    Retrieve the gateway mode from the configured reporting event sender binding.
+
+    Returns:
+        The gateway mode as a string, or None if not configured.
+
+    """
     binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
     if binding is None:
         return None
@@ -100,7 +112,13 @@ class WorkerChunkBatch:
     gateway_mode: str | None = None
 
     def as_dict(self) -> JSONObject:
-        """Handle as dict."""
+        """
+        Convert the batch state into a JSON-serializable dictionary.
+
+        Returns:
+            A dictionary representation of the worker chunk batch.
+
+        """
         return {
             "worker_id": self.worker_id,
             "batch_sequence": self.batch_sequence,
@@ -112,7 +130,13 @@ class WorkerChunkBatch:
 
     @classmethod
     def from_dict(cls, payload: JSONObject) -> WorkerChunkBatch:
-        """Create dict."""
+        """
+        Instantiate a WorkerChunkBatch from a JSON-serializable dictionary payload.
+
+        Returns:
+            A new instance of WorkerChunkBatch initialized from the payload.
+
+        """
         raw_envelopes = payload.get("envelopes", [])
         envelope_candidates = raw_envelopes if isinstance(raw_envelopes, list) else []
         envelopes = tuple(candidate for candidate in envelope_candidates if isinstance(candidate, dict))
@@ -140,7 +164,13 @@ class WorkerCompletionManifest:
     gateway_mode: str | None = None
 
     def as_dict(self) -> JSONObject:
-        """Handle as dict."""
+        """
+        Convert the completion manifest into a JSON-serializable dictionary.
+
+        Returns:
+            A dictionary representation of the worker completion manifest.
+
+        """
         return {
             "worker_id": self.worker_id,
             "complete": self.complete,
@@ -153,7 +183,13 @@ class WorkerCompletionManifest:
 
     @classmethod
     def from_dict(cls, payload: JSONObject) -> WorkerCompletionManifest:
-        """Create dict."""
+        """
+        Instantiate a WorkerCompletionManifest from a JSON-serializable dictionary payload.
+
+        Returns:
+            A new instance of WorkerCompletionManifest initialized from the payload.
+
+        """
         interruption_reason = payload.get("interruption_reason")
         gateway_mode = payload.get("gateway_mode")
         return cls(
@@ -188,17 +224,17 @@ class ReportingTransportSession:
     _manifests_by_worker: dict[str, WorkerCompletionManifest] = field(init=False, factory=dict, repr=False)
 
     def register_expected_worker(self, worker_id: str) -> None:
-        """Register expected worker."""
+        """Register a worker identifier to track expected incoming batches."""
         with self._lock:
             self._expected_worker_ids.add(worker_id)
 
     def record_batch(self, batch: WorkerChunkBatch) -> None:
-        """Handle record batch."""
+        """Store an incoming chunk batch for a specific worker."""
         with self._lock:
             self._batches_by_worker.setdefault(batch.worker_id, []).append(batch)
 
     def receive_remote_event(self, event_name: str, payload: JSONObject) -> None:
-        """Handle receive remote event."""
+        """Process an incoming remote event, extracting and recording the batch payload if applicable."""
         if event_name != REPORTING_BATCH_EVENT:
             logger.warning("Ignoring unknown reporting event '%s'.", event_name)
             return
@@ -209,23 +245,41 @@ class ReportingTransportSession:
         self.record_batch(WorkerChunkBatch.from_dict(batch_payload))
 
     def record_manifest(self, manifest: WorkerCompletionManifest) -> None:
-        """Handle record manifest."""
+        """Store a completion manifest for a specific worker."""
         with self._lock:
             self._manifests_by_worker[manifest.worker_id] = manifest
 
     def batches_for_worker(self, worker_id: str) -> tuple[WorkerChunkBatch, ...]:
-        """Handle batches for worker."""
+        """
+        Retrieve all recorded batches for a specified worker, sorted by batch sequence.
+
+        Returns:
+            A tuple of sorted WorkerChunkBatch instances for the requested worker.
+
+        """
         with self._lock:
             batches = tuple(self._batches_by_worker.get(worker_id, ()))
         return tuple(sorted(batches, key=lambda batch: batch.batch_sequence))
 
     def manifest_for_worker(self, worker_id: str) -> WorkerCompletionManifest | None:
-        """Handle manifest for worker."""
+        """
+        Retrieve the completion manifest for a specified worker.
+
+        Returns:
+            The recorded WorkerCompletionManifest, or None if the worker has not completed.
+
+        """
         with self._lock:
             return self._manifests_by_worker.get(worker_id)
 
     def snapshot(self) -> ReportingTransportSnapshot:
-        """Handle snapshot."""
+        """
+        Generate a thread-safe snapshot of the current reporting transport session state.
+
+        Returns:
+            A ReportingTransportSnapshot representing the current expected workers, batches, and manifests.
+
+        """
         with self._lock:
             return ReportingTransportSnapshot(
                 expected_worker_ids=tuple(sorted(self._expected_worker_ids)),
@@ -243,7 +297,13 @@ class ReportingTransportSession:
         minimum_count: int = 1,
         timeout: float = 2.0,
     ) -> tuple[WorkerChunkBatch, ...]:
-        """Handle wait for batches."""
+        """
+        Wait for a specified number of batches to arrive from a worker within a timeout.
+
+        Returns:
+            A tuple of WorkerChunkBatch instances for the worker.
+
+        """
         deadline = monotonic() + timeout
         while monotonic() < deadline:
             batches = self.batches_for_worker(worker_id)
@@ -274,11 +334,14 @@ class ReportingTransportClient:
 
     def publish_envelopes(self, envelope_dicts: list[JSONObject]) -> WorkerChunkBatch:
         """
-        Handle publish envelopes.
+        Publish a batch of cucumber message envelopes via the configured sender.
+
+        Returns:
+            The generated WorkerChunkBatch representing the sent payload.
 
         Raises:
-            ValueError: If the operation cannot be completed.
-            RuntimeError: If the operation cannot be completed.
+            ValueError: If the envelope list is empty.
+            RuntimeError: If an error occurs during transmission.
 
         """
         if not envelope_dicts:
@@ -303,7 +366,13 @@ class ReportingTransportClient:
         return batch
 
     def build_manifest(self, *, complete: bool, interruption_reason: str | None = None) -> WorkerCompletionManifest:
-        """Build manifest."""
+        """
+        Construct a final manifest detailing the worker's transmission statistics and completion status.
+
+        Returns:
+            A WorkerCompletionManifest summarizing the worker's transport session.
+
+        """
         resolved_reason = interruption_reason or self.last_publish_error
         resolved_complete = complete and resolved_reason is None
         last_batch_sequence = self.batch_sequence - 1 if self.transferred_batch_count else None

@@ -110,7 +110,16 @@ def register_group_config_options(parser: pytest.Parser) -> None:
 
 
 def read_group_config(config: pytest.Config) -> GroupConfig:
-    """Read group config."""
+    """
+    Read test group configuration from pytest config.
+
+    Args:
+        config: Pytest config object.
+
+    Returns:
+        Group configuration object.
+
+    """
     groups = _normalize_groups(_as_list(_get_ini_value(config, "test_group_order")))
     if not groups:
         warnings.warn(
@@ -132,7 +141,17 @@ def read_group_config(config: pytest.Config) -> GroupConfig:
 
 
 def resolve_group_assignment(item: pytest.Item, group_config: GroupConfig) -> GroupAssignment:
-    """Resolve group assignment."""
+    """
+    Resolve group assignment for a test item.
+
+    Args:
+        item: Pytest test item.
+        group_config: Group configuration.
+
+    Returns:
+        Group assignment for the item.
+
+    """
     group_name, source = _resolve_path_group(item, group_config)
     marker_assignment = _resolve_marker_group(item, group_config)
     if marker_assignment is not None:

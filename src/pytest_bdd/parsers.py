@@ -126,10 +126,12 @@ class StepParser(StepParserProtocol, ABC):
         """
         Get parser by given name.
 
-        :param parserlike: name of the step to parse
+        Args:
+            parserlike: Step parser-like object (string, regex, Parser, etc).
 
-        :return: step parser object
-        :rtype: StepParser
+        Returns:
+            StepParser instance.
+
         """
         if isinstance(parserlike, StepParserProtocol):
             parser = cast(StepParser, parserlike)
@@ -182,7 +184,18 @@ class re(StepParser):  # noqa:N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
-        """Parse arguments."""
+        """
+        Parse arguments from step name.
+
+        Args:
+            request: Pytest fixture request.
+            name: Step name to parse.
+            anonymous_group_names: Names for anonymous groups.
+
+        Returns:
+            Dictionary of parsed arguments.
+
+        """
         match = cast(Match, self.regex.fullmatch(name))  # Can't be None because is already matched
         group_dict = match.groupdict()
         if anonymous_group_names is not None:
@@ -204,7 +217,13 @@ class re(StepParser):  # noqa:N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
-        """Handle arguments."""
+        """
+        Get argument names from the parser.
+
+        Returns:
+            Collection of argument names.
+
+        """
         return [*self.regex.groupindex.keys()]
 
     def is_matching(
@@ -212,24 +231,34 @@ class re(StepParser):  # noqa:N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
     ) -> bool:
-        """Return matching."""
+        """
+        Check if name matches the pattern.
+
+        Returns:
+            True if matches, False otherwise.
+
+        """
         return bool(self.regex.fullmatch(name))
 
     def __str__(self) -> str:
-        """Return parser pattern as a string."""
+        """
+        Get parser pattern as string.
+
+        Returns:
+            Parser pattern string.
+
+        """
         return normalize_to_string(self.pattern)
 
 
 class parse(StepParser):  # noqa:N801 intentional API
     """
-    Initialize the instance.
+    parse step parser.
 
     Raises:
         ParserBuildValueError: If the operation cannot be completed.
 
     """
-
-    """parse step parser."""
 
     type = StepDefinitionPatternType.pytest_bdd_parse_expression  # type:ignore[attr-defined]
 
@@ -266,7 +295,17 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     @classmethod
     def cfparse(cls, *args: object, **kwargs: object) -> "parse":
-        """Handle cfparse."""
+        """
+        Create a cfparse parser.
+
+        Args:
+            args: Positional arguments for parser.
+            kwargs: Keyword arguments for parser.
+
+        Returns:
+            Configured parse parser.
+
+        """
         kwargs.setdefault("builder", base_cfparse.Parser)
         return cast(parse, cls(*args, **kwargs))
 
@@ -276,7 +315,18 @@ class parse(StepParser):  # noqa:N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
-        """Parse arguments."""
+        """
+        Parse arguments from step name.
+
+        Args:
+            request: Pytest fixture request.
+            name: Step name to parse.
+            anonymous_group_names: Anonymous group names.
+
+        Returns:
+            Dictionary of parsed arguments.
+
+        """
         match = cast(_ParseMatchProtocol, self.parser.parse(name))
         group_dict = dict(match.named)
         if anonymous_group_names is not None:
@@ -285,7 +335,13 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
-        """Handle arguments."""
+        """
+        Get argument names.
+
+        Returns:
+            Collection of argument names.
+
+        """
         return [*self.parser._match_re.groupindex.keys()]
 
     def is_matching(
@@ -293,20 +349,30 @@ class parse(StepParser):  # noqa:N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
     ) -> bool:
-        """Return matching."""
+        """
+        Check if name matches.
+
+        Returns:
+            True if matches, False otherwise.
+
+        """
         try:
             return bool(self.parser.parse(name))
         except ValueError:
             return False
 
     def __str__(self) -> str:
-        """Return parser format as a string."""
+        """
+        Get parser format as string.
+
+        Returns:
+            Parser format string.
+
+        """
         return str(self.format)
 
 
 class cfparse(parse):  # noqa:N801 intentional API
-    """Initialize the instance."""
-
     """cfparse step parser."""
 
     type = StepDefinitionPatternType.pytest_bdd_cfparse_expression  # type:ignore[attr-defined]
@@ -333,15 +399,23 @@ class string(StepParser):  # noqa: N801 intentional API
         anonymous_group_names: Iterable[str] | None = None,  # noqa: ARG002 overload
     ) -> dict[str, object]:
         """
-        No parameters are available for simple string step.
+        Parse arguments - no parameters for string step.
 
-        :return: `dict` of step arguments
+        Returns:
+            Empty dictionary.
+
         """
         return {}
 
     @property
     def arguments(self) -> Collection[str]:
-        """Handle arguments."""
+        """
+        Get argument names.
+
+        Returns:
+            Empty list for string parser.
+
+        """
         return []
 
     def is_matching(
@@ -349,11 +423,23 @@ class string(StepParser):  # noqa: N801 intentional API
         request: FixtureRequest,  # noqa: ARG002 overload
         name: str,
     ) -> bool:
-        """Match given name with the step name."""
+        """
+        Match given name with the step name.
+
+        Returns:
+            True if matches, False otherwise.
+
+        """
         return bool(self.name == name)
 
     def __str__(self) -> str:
-        """Return the exact step name."""
+        """
+        Get the exact step name.
+
+        Returns:
+            Step name string.
+
+        """
         return self.name
 
 
@@ -593,8 +679,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     @property
     def parser_by_priorities(self) -> Sequence[StepParser | None]:
-        """Handle parser by priorities."""
-        """Handle parser by priorities."""
+        """
+        Get parsers by priority.
+
+        Returns:
+            List of parsers in priority order.
+
+        """
         return [
             self.string_parser,
             self.cucumber_expression_parser,
@@ -603,7 +694,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         ]
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
-        """Return matching."""
+        """
+        Check if name matches any parser.
+
+        Returns:
+            True if any parser matches, False otherwise.
+
+        """
         return any(
             map(
                 methodcaller("is_matching", request, name),
@@ -617,7 +714,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object] | None:
-        """Parse arguments."""
+        """
+        Parse arguments using matching parser.
+
+        Returns:
+            Parsed arguments or None.
+
+        """
         for parser in self.parser_by_priorities:
             if parser is not None and parser.is_matching(request, name):
                 arguments = parser.parse_arguments(request, name, anonymous_group_names=anonymous_group_names)
@@ -628,7 +731,13 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
     @property
     def arguments(self) -> Collection[str]:
-        """Handle arguments."""
+        """
+        Get all argument names from all parsers.
+
+        Returns:
+            Collection of argument names.
+
+        """
         return [
             *chain.from_iterable(
                 (
@@ -643,5 +752,11 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         ]
 
     def __str__(self) -> str:
-        """Return parser format as a string."""
+        """
+        Get parser format as string.
+
+        Returns:
+            Parser format string.
+
+        """
         return str(self.format)

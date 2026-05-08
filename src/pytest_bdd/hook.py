@@ -64,12 +64,33 @@ def _get_conjunction_and_kind(
     conjunction: str | HookConjunction,
     kind: str | HookKind,
 ) -> tuple[HookConjunction, HookKind]:
+    """
+    Parse hook conjunction and kind from string or enum.
+
+    Args:
+        conjunction: Hook conjunction (before, after, around).
+        kind: Hook kind (mark, tag).
+
+    Returns:
+        Tuple of (conjunction, kind) enums.
+
+    """
     conjunction_ = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     kind_ = HookKind(kind) if isinstance(kind, str) else kind
     return conjunction_, kind_
 
 
 def _get_expression_type(*, _kind: HookKind) -> type[TagExpressionType]:
+    """
+    Get the expression type for a hook kind.
+
+    Args:
+        _kind: Hook kind.
+
+    Returns:
+        Tag expression type class.
+
+    """
     return {
         HookKind.mark: MarksTagExpression,
         HookKind.tag: GherkinTagExpression,
@@ -77,6 +98,17 @@ def _get_expression_type(*, _kind: HookKind) -> type[TagExpressionType]:
 
 
 def _get_marks(*, _kind: HookKind, request: FixtureRequest) -> list[Mark]:
+    """
+    Get marks from the request based on hook kind.
+
+    Args:
+        _kind: Hook kind.
+        request: Pytest fixture request.
+
+    Returns:
+        List of marks.
+
+    """
     pickle_tags = cast(Iterable[_PickleTagProtocol], request.getfixturevalue("pickle").tags)
     return list(
         {
@@ -101,6 +133,19 @@ def _get_args_kwargs(
     func_sig: Signature,
     request: FixtureRequest,
 ) -> tuple[tuple[object, ...], dict[str, object]]:
+    """
+    Get processed args and kwargs for hook function.
+
+    Args:
+        args: Positional arguments.
+        kwargs: Keyword arguments.
+        func_sig: Function signature.
+        request: Pytest fixture request.
+
+    Returns:
+        Tuple of (args, kwargs).
+
+    """
     from pytest_bdd.model.scenario_run import Run
 
     return (
@@ -114,7 +159,17 @@ def _get_args_kwargs(
 
 
 def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) -> _Decorator:
-    """Build a hook decorator for the requested conjunction and kind."""
+    """
+    Build a hook decorator for the requested conjunction and kind.
+
+    Args:
+        conjunction: Hook conjunction (before, after, around).
+        kind: Hook kind (mark, tag).
+
+    Returns:
+        Decorator function.
+
+    """
     conjunction_, kind_ = _get_conjunction_and_kind(conjunction=conjunction, kind=kind)
 
     @function_decorator

@@ -69,6 +69,16 @@ class MigrationCoverageSummary:
 
 
 def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
+    """
+    Parse a Python factor string into a version tuple.
+
+    Args:
+        python_factor: Python factor string (e.g., "310", "312").
+
+    Returns:
+        Tuple of (major, minor) version or None if invalid.
+
+    """
     if not python_factor.isdigit():
         return None
     if len(python_factor) == 2:
@@ -79,11 +89,31 @@ def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
 
 
 def _format_python_version(python_factor: str) -> str:
+    """
+    Format Python factor as version string.
+
+    Args:
+        python_factor: Python factor string.
+
+    Returns:
+        Formatted version string.
+
+    """
     parsed = _parse_python_factor(python_factor)
     return f"{parsed[0]}.{parsed[1]}" if parsed else python_factor
 
 
 def _format_pytest_version(pytest_factor: str) -> str:
+    """
+    Format pytest factor as version string.
+
+    Args:
+        pytest_factor: Pytest factor string.
+
+    Returns:
+        Formatted version string.
+
+    """
     if pytest_factor == "latest":
         return "latest"
     if len(pytest_factor) == 2:
@@ -94,6 +124,16 @@ def _format_pytest_version(pytest_factor: str) -> str:
 
 
 def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
+    """
+    Parse a pytest factor string into a version tuple.
+
+    Args:
+        pytest_factor: Pytest factor string (e.g., "80", "latest").
+
+    Returns:
+        Tuple of (major, minor, patch) version or None if invalid.
+
+    """
     if pytest_factor == "latest":
         # Keep "latest" above current known floor.
         return (99, 0, 0)
@@ -107,7 +147,17 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
 
 
 def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:
-    """Return pair compatible."""
+    """
+    Check if a Python/pytest version pair is compatible.
+
+    Args:
+        python_factor: Python version factor.
+        pytest_factor: Pytest version factor.
+
+    Returns:
+        Tuple of (is_compatible, reason_code).
+
+    """
     py = _parse_python_factor(python_factor)
     if py is None:
         return False, REASON_PYTHON_UNAVAILABLE
@@ -135,7 +185,18 @@ def build_matrix(
     pytest_factors: Iterable[str],
     execution_targets: tuple[str, ...] = ("lin", "mac", "win"),
 ) -> list[CompatibilityMatrixEntry]:
-    """Build matrix."""
+    """
+    Build compatibility matrix for Python/pytest combinations.
+
+    Args:
+        python_factors: Python version factors.
+        pytest_factors: Pytest version factors.
+        execution_targets: Target platforms.
+
+    Returns:
+        List of compatibility matrix entries.
+
+    """
     entries: list[CompatibilityMatrixEntry] = []
     for python_factor, pytest_factor in product(sorted(set(python_factors)), sorted(set(pytest_factors))):
         compatible, reason = is_pair_compatible(python_factor, pytest_factor)
@@ -169,7 +230,13 @@ def _extract_brace_factor_values(*, text: str, prefix: str) -> set[str]:
 
 
 def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[str]]:
-    """Handle extract factors from tox ini."""
+    """
+    Extract Python and pytest factors from tox.ini file.
+
+    Returns:
+        Tuple of (python_factors, pytest_factors) lists.
+
+    """
     text = tox_ini_path.read_text(encoding="utf-8")
     python_factors = sorted(
         set(re.findall(r"py(?:py)?(\d{2,3})", text)) | _extract_brace_factor_values(text=text, prefix="py"),
@@ -181,7 +248,13 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
 
 
 def expand_tox_env_names(entries: Iterable[CompatibilityMatrixEntry]) -> list[str]:
-    """Handle expand tox env names."""
+    """
+    Expand tox env names from compatibility entries.
+
+    Returns:
+        List of tox environment names for compatible entries.
+
+    """
     return [entry.tox_env_name for entry in entries if entry.is_compatible and entry.tox_env_name]
 
 
@@ -190,7 +263,13 @@ def _normalize_scenario_id(value: str) -> str:
 
 
 def discover_feature_scenario_ids(features_root: Path) -> set[str]:
-    """Handle discover feature scenario ids."""
+    """
+    Discover feature scenario IDs from feature files.
+
+    Returns:
+        Set of normalized scenario IDs.
+
+    """
     if not features_root.exists():
         return set()
 
@@ -208,7 +287,13 @@ def discover_feature_scenario_ids(features_root: Path) -> set[str]:
 
 
 def discover_user_facing_test_scenario_ids(tests_root: Path) -> set[str]:
-    """Handle discover user facing test scenario ids."""
+    """
+    Discover user-facing test scenario IDs from test files.
+
+    Returns:
+        Set of normalized test scenario IDs.
+
+    """
     if not tests_root.exists():
         return set()
 
@@ -239,7 +324,13 @@ def build_migration_coverage_summary(
     features_root: Path,
     threshold_percent: int = 80,
 ) -> MigrationCoverageSummary:
-    """Build migration coverage summary."""
+    """
+    Build migration coverage summary.
+
+    Returns:
+        Migration coverage summary with statistics.
+
+    """
     feature_ids = discover_feature_scenario_ids(features_root)
     user_facing_test_ids = discover_user_facing_test_scenario_ids(tests_root)
 

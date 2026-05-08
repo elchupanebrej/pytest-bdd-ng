@@ -17,6 +17,8 @@ SCHEMA_DIR = Path(__file__).resolve().parents[1] / "message_jsonschema"
 
 @define(slots=True)
 class FieldMetadata:
+    """Metadata for a field in the capability inventory."""
+
     path: str
     type: str
     is_required: bool
@@ -25,11 +27,14 @@ class FieldMetadata:
 
 @define(slots=True)
 class CapabilityInventory:
+    """Inventory of message payload kinds and fields."""
+
     payload_kinds: list[str] = field(factory=list)
     fields: dict[tuple[str, str], FieldMetadata] = field(factory=dict)
 
 
 def to_camel_case_identifier(value: str) -> str:
+    """Convert value to camelCase identifier."""
     parts = [part for part in value.split("_") if part]
     if not parts:
         return value
@@ -37,6 +42,7 @@ def to_camel_case_identifier(value: str) -> str:
 
 
 def canonical_payload_kind(payload_kind: str) -> str:
+    """Get canonical payload kind."""
     payload_kind = payload_kind.strip()
     if "_" not in payload_kind:
         return payload_kind
@@ -44,10 +50,12 @@ def canonical_payload_kind(payload_kind: str) -> str:
 
 
 def canonical_capability_key(payload_kind: str, field_path: str) -> tuple[str, str]:
+    """Get canonical capability key."""
     return canonical_payload_kind(payload_kind), field_path.strip(".")
 
 
 def parse_capability_id(capability_id: str) -> tuple[str, str]:
+    """Parse capability ID into payload kind and field path."""
     if "." not in capability_id:
         return canonical_payload_kind(capability_id), ""
     payload_kind, field_path = capability_id.split(".", 1)
@@ -55,16 +63,19 @@ def parse_capability_id(capability_id: str) -> tuple[str, str]:
 
 
 def canonical_capability_id(capability_id: str) -> str:
+    """Get canonical capability ID."""
     payload_kind, field_path = parse_capability_id(capability_id)
     return f"{payload_kind}.{field_path}" if field_path else payload_kind
 
 
 def iter_capability_ids(inventory: CapabilityInventory) -> tuple[str, ...]:
+    """Iterate capability IDs from inventory."""
     capability_ids = [f"{payload_kind}.{path}" if path else payload_kind for payload_kind, path in inventory.fields]
     return tuple(sorted({canonical_capability_id(capability_id) for capability_id in capability_ids}))
 
 
 def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
+    """Get schema file path."""
     target_path = schema_dir / normalized_file
     if target_path.is_file():
         return target_path
@@ -79,6 +90,14 @@ def _schema_file_path(schema_dir: Path, normalized_file: str) -> Path:
 
 
 def _resolve_schema(schema_dir: Path, ref: str, root_schema: JSONObject) -> tuple[JSONObject, JSONObject]:
+    """
+    Resolve schema reference.
+
+    Raises:
+        FileNotFoundError: If the referenced schema file is not found.
+        TypeError: If the schema reference resolves through a non-object segment or does not resolve to an object.
+
+    """
     if "#" in ref:
         file_part, path_part = ref.split("#", 1)
     else:
@@ -119,6 +138,7 @@ def _extract_fields(  # noqa: C901, PLR0912, PLR0913, PLR0917
     is_required: bool = False,
     visited: set[str] | None = None,
 ) -> None:
+    """Extract fields from schema into inventory."""
     refs_seen = visited or set()
     if "$ref" in schema:
         ref = str(schema["$ref"])
@@ -210,6 +230,7 @@ def _extract_fields(  # noqa: C901, PLR0912, PLR0913, PLR0917
 
 
 def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
+    """Generate capability inventory from schema."""
     resolved_schema_dir = resolve_messages_schema_dir(schema_dir)
     envelope_schema, _ = _resolve_schema(resolved_schema_dir, "Envelope.json", {})
 
@@ -235,6 +256,7 @@ def generate_inventory(schema_dir: Path | None = None) -> CapabilityInventory:
 
 
 def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_release: str) -> JSONArray:
+    """Convert inventory to capability payload."""
     payload: JSONArray = []
     for capability_id in iter_capability_ids(inventory):
         payload_kind, path = parse_capability_id(capability_id)
@@ -249,12 +271,13 @@ def inventory_to_capability_payload(inventory: CapabilityInventory, *, baseline_
                 "affects": cast(JSONArray, ["emitted_envelope_payload"]),
                 "source_reference": "messages/jsonschema/src/Envelope.json",
                 "explicit_relevance": "relevant",
-            }
+            },
         )
     return payload
 
 
 def main() -> None:
+    """Generate capability inventory from messages schema."""
     parser = argparse.ArgumentParser(description="Generate capability inventory from messages schema.")
     parser.add_argument(
         "--schema-dir",

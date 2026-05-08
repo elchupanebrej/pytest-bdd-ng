@@ -45,7 +45,17 @@ class ScenarioReportData(TypedDict):
 
 
 def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) -> RuntimeStepStatus:
-    """Normalize runtime step status."""
+    """
+    Normalize runtime step status.
+
+    Args:
+        status: Raw status string.
+        failed_fallback: Fallback status when status is invalid.
+
+    Returns:
+        Normalized runtime step status.
+
+    """
     normalized = (status or "").strip().lower()
     if normalized == "passed":
         return "passed"
@@ -67,8 +77,12 @@ class StepReport:
         """
         Serialize the step execution report.
 
-        :return: Serialized step execution report.
-        :rtype: dict
+        Args:
+            feature_binding: Feature runtime binding.
+
+        Returns:
+            Serialized step execution report.
+
         """
         keyword = getattr(self.step, "keyword", None) or feature_binding.step_keyword(self.step)
         line_number = getattr(self.step, "line_number", None)
@@ -144,10 +158,11 @@ class ScenarioReport:
 
     def serialize(self) -> ScenarioReportData:
         """
-        Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode.
+        Serialize scenario execution report for distributed mode.
 
-        :return: Serialized report.
-        :rtype: dict
+        Returns:
+            Serialized scenario report.
+
         """
         pickle = self.pickle
         feature_binding = self.feature_binding

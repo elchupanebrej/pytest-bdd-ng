@@ -47,7 +47,16 @@ class Repo(Protocol):
 
 
 def init_repo(path: Path) -> Repo:
-    """Handle init repo."""
+    """
+    Initialize a git repository at the given path.
+
+    Args:
+        path: Path to initialize the repository.
+
+    Returns:
+        Git Repo object.
+
+    """
     git_module = import_module("git")
     repo_class = git_module.Repo
     return cast(Repo, repo_class.init(path))

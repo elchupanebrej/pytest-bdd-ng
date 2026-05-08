@@ -4,7 +4,13 @@ from __future__ import annotations
 
 
 def escape_html_formatter_message_json(message_json: str) -> str:
-    """Handle escape html formatter message json."""
+    """
+    Escape HTML formatter message JSON.
+
+    Returns:
+        Escaped message JSON.
+
+    """
     return message_json.replace("<", "\\x3C")
 
 
@@ -19,7 +25,13 @@ def render_html_report_content(
     script: str,
     custom_script: str,
 ) -> str:
-    """Render html report content."""
+    """
+    Render HTML report content.
+
+    Returns:
+        Rendered HTML report.
+
+    """
     escaped_messages = ",".join(escape_html_formatter_message_json(message_json) for message_json in messages)
     rendered = template
     for placeholder, value in (

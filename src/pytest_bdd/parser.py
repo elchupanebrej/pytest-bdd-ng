@@ -96,7 +96,13 @@ class BaseParser(ParserProtocol):
 
     @staticmethod
     def normalize_gherkin_document_payload(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
-        """Normalize gherkin document payload."""
+        """
+        Normalize gherkin document payload.
+
+        Returns:
+            Normalized gherkin document dictionary.
+
+        """
         gherkin_document_raw_dict.setdefault("comments", [])
 
         def _normalize(node: object) -> None:
@@ -118,7 +124,13 @@ class BaseParser(ParserProtocol):
 
     @staticmethod
     def build_feature(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
-        """Build feature."""
+        """
+        Build feature from gherkin document dict.
+
+        Returns:
+            Built feature object.
+
+        """
         gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
         # TODO: here must adapter layer not just direct casting
         return cast(GherkinDocument, gherkin_document)
@@ -143,7 +155,10 @@ class GherkinParser(BaseParser):
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
         """
-        Parse parse.
+        Parse gherkin feature file.
+
+        Returns:
+            Tuple of (parsed gherkin document, raw feature file text).
 
         Raises:
             FeatureConcreteParseError: If the operation cannot be completed.
@@ -198,7 +213,10 @@ class MarkdownGherkinParser(BaseParser):
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
         """
-        Parse parse.
+        Parse markdown gherkin feature file.
+
+        Returns:
+            Tuple of (parsed gherkin document, raw feature file text).
 
         Raises:
             FeatureConcreteParseError: If the operation cannot be completed.

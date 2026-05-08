@@ -24,12 +24,24 @@ DECORATOR_PUBLIC_SYMBOLS = {
 
 
 def normalize_public_symbols(symbols: list[str]) -> list[str]:
-    """Normalize public symbols."""
+    """
+    Normalize public symbols.
+
+    Returns:
+        Sorted list of unique symbols.
+
+    """
     return sorted(dict.fromkeys(symbols))
 
 
 def collect_hook_public_symbols() -> list[str]:
-    """Collect hook public symbols."""
+    """
+    Collect hook public symbols.
+
+    Returns:
+        List of public hook symbols.
+
+    """
     symbols: list[str] = []
     for attr_name, attr_value in vars(PickleRunnerHookSpec).items():
         if attr_name.startswith("_"):
@@ -41,7 +53,13 @@ def collect_hook_public_symbols() -> list[str]:
 
 
 def load_api_baseline(path: str | Path) -> JSONObject:
-    """Load api baseline."""
+    """
+    Load api baseline.
+
+    Returns:
+        Parsed JSON baseline.
+
+    """
     baseline_path = Path(path)
     payload = json.loads(baseline_path.read_text(encoding="utf-8"))
     return cast(JSONObject, payload)
@@ -53,7 +71,13 @@ def build_external_api_compatibility_record(
     baseline_symbols: list[str],
     current_symbols: list[str] | None = None,
 ) -> ExternalApiCompatibilityRecord:
-    """Build external api compatibility record."""
+    """
+    Build external api compatibility record.
+
+    Returns:
+        External API compatibility record.
+
+    """
     effective_current_symbols = normalize_public_symbols(current_symbols or collect_hook_public_symbols())
     normalized_baseline_symbols = normalize_public_symbols(baseline_symbols)
     baseline_set = set(normalized_baseline_symbols)

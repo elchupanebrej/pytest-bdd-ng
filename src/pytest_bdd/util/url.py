@@ -7,7 +7,16 @@ from urllib.parse import urlparse
 
 
 def is_local_url(urllike: object) -> bool:
-    """Return local url."""
+    """
+    Check if URL is a local file URL.
+
+    Args:
+        urllike: URL string or path-like object.
+
+    Returns:
+        True if URL is local (no scheme or netloc).
+
+    """
     try:
         if not isinstance(urllike, (str, bytes, bytearray)):
             return False
@@ -17,7 +26,16 @@ def is_local_url(urllike: object) -> bool:
 
 
 def is_url_parsable(urllike: object) -> bool:
-    """Return url parsable."""
+    """
+    Check if URL can be parsed.
+
+    Args:
+        urllike: URL string or path-like object.
+
+    Returns:
+        True if URL is parsable.
+
+    """
     try:
         urlparse(str(urllike))
     except ValueError:

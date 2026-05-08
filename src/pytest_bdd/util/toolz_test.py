@@ -28,6 +28,13 @@ def collect_dumped_objects(result: RunResult) -> list[object]:
 
     Note: You must run the result with output to stdout enabled.
     For example, using ``testdir.runpytest("-s")``.
+
+    Args:
+        result: Pytest run result.
+
+    Returns:
+        List of unpickled objects.
+
     """
     stdout = result.stdout.str()  # pytest < 6.2, otherwise we could just do str(result.stdout)
     payloads = re.findall(rf"{_DUMP_START}(.*?){_DUMP_END}", stdout)
@@ -47,7 +54,16 @@ class InstanceOfType:
         self.type = type_
 
     def __eq__(self, other: object) -> bool:
-        """Return whether the other object matches the expected type."""
+        """
+        Return whether the other object matches the expected type.
+
+        Args:
+            other: Object to compare.
+
+        Returns:
+            True if matches expected type.
+
+        """
         return isinstance(other, self.type) if self.type else True
 
     __hash__ = None  # type: ignore[assignment]

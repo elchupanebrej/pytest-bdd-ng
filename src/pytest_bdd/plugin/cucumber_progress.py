@@ -31,7 +31,13 @@ class ProgressFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
-        """Build addoption kwargs."""
+        """
+        Build addoption kwargs.
+
+        Returns:
+            Keyword arguments for addoption.
+
+        """
         return self.build_boolean_addoption_kwargs()
 
     def build_request_from_value(
@@ -40,7 +46,13 @@ class ProgressFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
-        """Build request from value."""
+        """
+        Build request from value.
+
+        Returns:
+            Cucumber formatter request.
+
+        """
         _ = raw_value, resolve_output_path
         return self.build_module_terminal_request(template_name=type(self).runtime_template_name)
 
@@ -49,7 +61,13 @@ class ProgressFormatterPlugin(FormatterReporterPlugin):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
-        """Render runtime assets."""
+        """
+        Render runtime assets.
+
+        Returns:
+            Rendered runtime assets dictionary.
+
+        """
         return self.build_module_runtime_assets(
             formatter_request=formatter_request,
             formatter_requests=formatter_requests,

@@ -79,7 +79,13 @@ class OrderingValidationError(ValueError):
         super().__init__(str(self))
 
     def __str__(self) -> str:
-        """Return the formatted heading validation error."""
+        """
+        Return the formatted heading validation error.
+
+        Returns:
+            Formatted error string.
+
+        """
         return (
             f"{self.error_code}: {self.message} "
             f"(scope={self.scope_path.as_posix()}, source={self.source_path.as_posix()})"
@@ -88,13 +94,31 @@ class OrderingValidationError(ValueError):
 
 @lru_cache(maxsize=8)
 def load_template(template_name: str) -> Template:
-    """Load template."""
+    """
+    Load a Jinja2 template by name.
+
+    Args:
+        template_name: Name of the template file.
+
+    Returns:
+        Compiled Jinja2 template.
+
+    """
     template_source = files("pytest_bdd.template").joinpath(template_name).read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 
 
 def diff_folders(dcmp: _DirCmp) -> list[object] | None:
-    """Handle diff folders."""
+    """
+    Compare two directory trees and return differences.
+
+    Args:
+        dcmp: Directory comparison object.
+
+    Returns:
+        List of differences or None if identical.
+
+    """
     diff: list[object] = [dcmp.diff_files, dcmp.left_only, dcmp.right_only]
     if any(diff):
         dcmp.report()
@@ -109,7 +133,17 @@ def extract_existing_intro(
     existing_index_file: Path,
     top_level_headings: Sequence[str],
 ) -> tuple[str, str]:
-    """Handle extract existing intro."""
+    """
+    Extract intro and suffix from existing index file.
+
+    Args:
+        existing_index_file: Path to existing index.rst.
+        top_level_headings: List of top-level heading names.
+
+    Returns:
+        Tuple of (intro_text, suffix_text).
+
+    """
     if not existing_index_file.exists():
         return "", ""
 
@@ -133,7 +167,16 @@ def extract_existing_intro(
 
 
 def render_toctree_section(section: ToctreeSection) -> str:
-    """Render toctree section."""
+    """
+    Render a toctree section as RST.
+
+    Args:
+        section: Toctree section to render.
+
+    Returns:
+        Rendered RST string.
+
+    """
     underline = SECTION_SYMBOLS[section.depth - 1] * len(section.heading) if section.heading else ""
     template = load_template("features_section.rst.jinja2")
     rendered_section = cast(
@@ -148,7 +191,18 @@ def render_toctree_section(section: ToctreeSection) -> str:
 
 
 def render_index_document(intro_block: str, sections_content: str, suffix_block: str) -> str:
-    """Render index document."""
+    """
+    Render the index document as RST.
+
+    Args:
+        intro_block: Intro text before generated content.
+        sections_content: Rendered sections content.
+        suffix_block: Suffix text after generated content.
+
+    Returns:
+        Complete rendered index document.
+
+    """
     template = load_template("features_index.rst.jinja2")
     rendered_index = cast(
         str,
@@ -167,7 +221,17 @@ def render_generated_index(
     sections: Sequence[ToctreeSection],
     existing_index_file: Path,
 ) -> str:
-    """Render generated index."""
+    """
+    Render the generated index document.
+
+    Args:
+        sections: Toctree sections to render.
+        existing_index_file: Path to existing index file.
+
+    Returns:
+        Complete rendered index.
+
+    """
     top_level_headings = [section.heading for section in sections if section.depth == 1 and section.heading]
     preserved_intro, preserved_suffix = extract_existing_intro(existing_index_file, top_level_headings)
     sections_content = "\n\n".join(map(render_toctree_section, sections)).rstrip("\n")
@@ -179,7 +243,16 @@ def render_generated_index(
 
 
 def strip_ordering_prefix(name: str) -> str:
-    """Handle strip ordering prefix."""
+    """
+    Strip ordering prefix from a name.
+
+    Args:
+        name: Name to strip prefix from.
+
+    Returns:
+        Name without ordering prefix.
+
+    """
     match = ORDERING_PREFIX_PATTERN.match(name)
     if match is None:
         return name
@@ -187,7 +260,17 @@ def strip_ordering_prefix(name: str) -> str:
 
 
 def source_display_name(path: Path, kind: str) -> str:
-    """Handle source display name."""
+    """
+    Get display name for a source path.
+
+    Args:
+        path: Source path.
+        kind: Source kind (section, markdown, etc).
+
+    Returns:
+        Display name for the source.
+
+    """
     if kind == "section":
         return strip_ordering_prefix(path.name)
     if kind == "markdown":
@@ -196,7 +279,16 @@ def source_display_name(path: Path, kind: str) -> str:
 
 
 def classify_source_path(path: Path) -> str:
-    """Handle classify source path."""
+    """
+    Classify a source path into a category.
+
+    Args:
+        path: Path to classify.
+
+    Returns:
+        Category string (section, markdown, yaml, gherkin, ignore).
+
+    """
     if path.is_dir():
         return "section"
     if path.name.endswith((".gherkin.md", ".feature.md")):
@@ -209,7 +301,16 @@ def classify_source_path(path: Path) -> str:
 
 
 def format_scope_path(scope_rel_path: Path) -> Path:
-    """Format scope path."""
+    """
+    Format a scope path for display.
+
+    Args:
+        scope_rel_path: Relative scope path.
+
+    Returns:
+        Formatted path.
+
+    """
     if scope_rel_path.as_posix() == ".":
         return Path(".")
     return scope_rel_path
@@ -217,7 +318,15 @@ def format_scope_path(scope_rel_path: Path) -> Path:
 
 def parse_ordered_source(path: Path, kind: str, scope_rel_path: Path) -> OrderedSource:
     """
-    Parse ordered source.
+    Parse an ordered source from a path.
+
+    Args:
+        path: Path to parse.
+        kind: Source kind.
+        scope_rel_path: Relative scope path.
+
+    Returns:
+        Parsed ordered source.
 
     Raises:
         OrderingValidationError: If the operation cannot be completed.
@@ -242,7 +351,14 @@ def parse_ordered_source(path: Path, kind: str, scope_rel_path: Path) -> Ordered
 
 def sort_ordered_sources(sources: Sequence[OrderedSource], scope_rel_path: Path) -> list[OrderedSource]:
     """
-    Handle sort ordered sources.
+    Sort ordered sources by ordering prefix.
+
+    Args:
+        sources: Sources to sort.
+        scope_rel_path: Relative scope path.
+
+    Returns:
+        Sorted list of sources.
 
     Raises:
         OrderingValidationError: If the operation cannot be completed.
@@ -270,7 +386,17 @@ def collect_ordered_sources(
     processable_path: Path,
     features_path: Path,
 ) -> tuple[list[OrderedSource], list[OrderedSource]]:
-    """Collect ordered sources."""
+    """
+    Collect ordered sources from a directory.
+
+    Args:
+        processable_path: Directory to collect from.
+        features_path: Features root path.
+
+    Returns:
+        Tuple of (file_sources, directory_sources).
+
+    """
     processable_rel_path = processable_path.relative_to(features_path)
     ordered_file_sources: list[OrderedSource] = []
     ordered_dir_sources: list[OrderedSource] = []
@@ -292,7 +418,19 @@ def collect_ordered_sources(
 
 
 def render_include_page(title: str, rel_path: Path, include_path: str, code_type: str) -> str:
-    """Render include page."""
+    """
+    Render an include page in RST format.
+
+    Args:
+        title: Page title.
+        rel_path: Relative path.
+        include_path: Path to include.
+        code_type: Type of code (e.g., gherkin, yaml).
+
+    Returns:
+        Rendered include page.
+
+    """
     template = load_template("feature_include.rst.jinja2")
     rendered_include = cast(
         str,
@@ -307,7 +445,15 @@ def render_include_page(title: str, rel_path: Path, include_path: str, code_type
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
-    """Convert convert."""
+    """
+    Convert feature files to RST documentation.
+
+    Args:
+        features_path: Path to features directory.
+        output_path: Output path for RST files.
+        temp_path: Temporary directory for processing.
+
+    """
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
     output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)

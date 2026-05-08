@@ -26,7 +26,7 @@ ChecklistDisposition = Literal["approved", "blocked", "deferred"]
 
 @frozen
 class GovernanceChecklistEntry:
-    """Represent governance checklist entry state."""
+    """Record governance result for a single capability."""
 
     capability_id: str
     status: CapabilityStatus
@@ -39,7 +39,7 @@ class GovernanceChecklistEntry:
 
 @frozen
 class GovernanceChecklist:
-    """Represent governance checklist state."""
+    """Consolidate capability governance entries into a checklist."""
 
     checklist_name: str
     entries: tuple[GovernanceChecklistEntry, ...]
@@ -57,7 +57,13 @@ def build_governance_checklist(
     checklist_name: str = DEFAULT_CHECKLIST_NAME,
     baseline_diff: BaselineDiffRecord | None = None,
 ) -> GovernanceChecklist:
-    """Build governance checklist."""
+    """
+    Evaluate each relevant capability against its corresponding decisions and generate a release governance checklist.
+
+    Returns:
+        A GovernanceChecklist containing per-capability disposition entries and the total count of unresolved blockers.
+
+    """
     index = _decision_index(decisions)
     added = set(baseline_diff.added_capability_ids) if baseline_diff is not None else set()
     changed = set(baseline_diff.changed_capability_ids) if baseline_diff is not None else set()
@@ -122,7 +128,13 @@ def build_governance_checklist(
 
 
 def render_checklist_markdown(checklist: GovernanceChecklist) -> str:
-    """Render checklist markdown."""
+    """
+    Render a governance checklist as a human-readable markdown table, suitable for inclusion in release documentation.
+
+    Returns:
+        A markdown-formatted string with a table of capabilities, dispositions, and a final blocker count.
+
+    """
     lines = [
         f"# {checklist.checklist_name}",
         "",

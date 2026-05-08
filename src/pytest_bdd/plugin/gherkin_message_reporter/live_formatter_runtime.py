@@ -546,7 +546,13 @@ class LiveFormatterService(ReporterServiceBase):
         }
 
     def build_cucumber_formatter_support_code_payload(self, envelopes: list[Message]) -> JSONObject:
-        """Build cucumber formatter support code payload."""
+        """
+        Build cucumber formatter support code payload.
+
+        Returns:
+            Support code payload.
+
+        """
         return self._build_cucumber_formatter_support_code_payload(envelopes)
 
     def _build_cucumber_formatter_payload(
@@ -800,7 +806,13 @@ class LiveFormatterService(ReporterServiceBase):
         self,
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
-        """Run requested cucumber formatters."""
+        """
+        Run requested cucumber formatters.
+
+        Returns:
+            Cucumber formatter render result.
+
+        """
         return self._run_requested_cucumber_formatters(envelopes)
 
     def generate_html_report(self) -> None:

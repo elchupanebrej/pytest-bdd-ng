@@ -7,7 +7,13 @@ from pytest_bdd.plugin.scenario_reporter.report import ScenarioReportData, StepR
 
 
 def canonical_terminal_step_status(step: StepReportData) -> str:
-    """Handle canonical terminal step status."""
+    """
+    Get canonical terminal step status.
+
+    Returns:
+        Normalized step status string.
+
+    """
     return normalize_runtime_step_status(step["status"], failed_fallback=step["failed"])
 
 

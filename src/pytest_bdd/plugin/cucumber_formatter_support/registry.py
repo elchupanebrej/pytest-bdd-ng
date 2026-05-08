@@ -63,20 +63,41 @@ class FormatterPluginCatalog:
 
     @classmethod
     def discover(cls) -> FormatterPluginCatalog:
-        """Handle discover."""
+        """
+        Discover formatter plugins.
+
+        Returns:
+            Formatter plugin catalog.
+
+        """
         return _discover_formatter_plugin_catalog()
 
     def by_option_attr(self) -> dict[str, FormatterReporterPlugin]:
-        """Handle by option attr."""
+        """
+        Get plugins by option attribute.
+
+        Returns:
+            Dictionary mapping option attributes to plugins.
+
+        """
         return {plugin.option_attr: plugin for plugin in self.plugins}
 
     def by_name(self) -> dict[str, FormatterReporterPlugin]:
-        """Handle by name."""
+        """
+        Get plugins by name.
+
+        Returns:
+            Dictionary mapping formatter names to plugins.
+
+        """
         return {plugin.formatter: plugin for plugin in self.plugins}
 
     def require_plugin(self, formatter_name: str) -> FormatterReporterPlugin:
         """
-        Handle require plugin.
+        Require a plugin by formatter name.
+
+        Returns:
+            Formatter reporter plugin.
 
         Raises:
             UnknownFormatterPluginError: If the operation cannot be completed.
@@ -92,7 +113,13 @@ class FormatterPluginCatalog:
             ) from exc
 
     def render_runtime_assets(self, formatter_requests: tuple[CucumberFormatterRequest, ...]) -> dict[str, str]:
-        """Render runtime assets."""
+        """
+        Render runtime assets.
+
+        Returns:
+            Rendered runtime assets dictionary.
+
+        """
         from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
 
         assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}

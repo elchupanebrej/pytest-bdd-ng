@@ -269,7 +269,13 @@ def pytest_configure(config: Config) -> None:
 
 @pytest.hookimpl(optionalhook=True, tryfirst=True)
 def pytest_xdist_getremotemodule() -> ModuleType:
-    """Handle xdist getremotemodule."""
+    """
+    Get xdist remote module.
+
+    Returns:
+        Remote module type.
+
+    """
     from pytest_bdd_worker_bootstrap import xdist_remote
 
     return xdist_remote

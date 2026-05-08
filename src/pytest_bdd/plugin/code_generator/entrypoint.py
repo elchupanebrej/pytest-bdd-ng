@@ -37,7 +37,13 @@ def pytest_addoption(parser: Parser) -> None:
 
 
 def pytest_cmdline_main(config: Config) -> int | ExitCode | None:
-    """Check a config option to show missing code."""
+    """
+    Check a config option to show missing code.
+
+    Returns:
+        Exit code or None.
+
+    """
     if config.option.generate_missing:
         return generate_and_print_missing_code(config)
     if config.option.generate:

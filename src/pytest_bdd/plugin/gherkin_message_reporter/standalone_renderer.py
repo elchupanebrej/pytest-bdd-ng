@@ -79,7 +79,13 @@ class StandaloneCucumberFormatterRenderer:
         *,
         catalog: FormatterPluginCatalog | None = None,
     ) -> StandaloneCucumberFormatterRenderer:
-        """Handle discover."""
+        """
+        Discover formatter plugins.
+
+        Returns:
+            Standalone renderer instance.
+
+        """
         return cls(catalog=resolve_standalone_formatter_catalog(catalog))
 
     def resolve_requests(
@@ -88,7 +94,13 @@ class StandaloneCucumberFormatterRenderer:
         rootpath: Path,
         formatter_option_values: dict[str, object],
     ) -> tuple[CucumberFormatterRequest, ...]:
-        """Resolve requests."""
+        """
+        Resolve formatter requests.
+
+        Returns:
+            Tuple of formatter requests.
+
+        """
         return cast(
             tuple[CucumberFormatterRequest, ...],
             resolve_standalone_formatter_requests(
@@ -105,7 +117,13 @@ class StandaloneCucumberFormatterRenderer:
         rootpath: Path,
         formatter_option_values: dict[str, object],
     ) -> CucumberFormatterRenderResult:
-        """Render from messages path."""
+        """
+        Render from messages path.
+
+        Returns:
+            Render result.
+
+        """
         formatter_requests = self.resolve_requests(
             rootpath=rootpath,
             formatter_option_values=formatter_option_values,

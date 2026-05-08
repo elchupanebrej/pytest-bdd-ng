@@ -27,7 +27,11 @@ RELEVANT_IMPACTS: Final[frozenset[CapabilityImpact]] = frozenset(
 
 @frozen
 class MessageCapability:
-    """Represent message capability state."""
+    """
+    Represent a distinct capability introduced by a cucumber-messages schema release.
+
+    Used to track supported features and generate compatibility inventories.
+    """
 
     capability_id: str
     baseline_release: str
@@ -40,12 +44,24 @@ class MessageCapability:
 
     @property
     def relevance(self) -> CapabilityRelevance:
-        """Handle relevance."""
+        """
+        Determine whether this capability falls within the supported scope of the project.
+
+        Returns:
+            The relevance classification indicating if the capability is supported or out of scope.
+
+        """
         return classify_capability_relevance(self)
 
 
 def classify_capability_relevance(capability: MessageCapability) -> CapabilityRelevance:
-    """Handle classify capability relevance."""
+    """
+    Classify a given capability based on its explicit relevance or inferred impact.
+
+    Returns:
+        The evaluated relevance, classifying it as either 'relevant' or 'out_of_scope'.
+
+    """
     if capability.explicit_relevance is not None:
         return capability.explicit_relevance
     if capability.affects.intersection(RELEVANT_IMPACTS):
@@ -54,5 +70,11 @@ def classify_capability_relevance(capability: MessageCapability) -> CapabilityRe
 
 
 def capability_is_relevant(capability: MessageCapability) -> bool:
-    """Handle capability is relevant."""
+    """
+    Check if the specified message capability is considered relevant for the project.
+
+    Returns:
+        True if the capability is classified as relevant, False otherwise.
+
+    """
     return classify_capability_relevance(capability) == "relevant"

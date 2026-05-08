@@ -72,7 +72,13 @@ def _candidate_repo_roots() -> tuple[Path, ...]:
 
 
 def discover_governance_schema_path() -> Path | None:
-    """Handle discover governance schema path."""
+    """
+    Discover the governance schema path.
+
+    Returns:
+        Path to governance schema or None if not found.
+
+    """
     canonical_path = (_repo_root().resolve() / DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH).resolve()
     if canonical_path.exists():
         return canonical_path
@@ -87,7 +93,13 @@ def discover_governance_schema_path() -> Path | None:
 
 def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject:
     """
-    Load governance report schema.
+    Load governance report schema from file.
+
+    Args:
+        schema_path: Optional explicit schema path.
+
+    Returns:
+        Loaded schema as JSON object.
 
     Raises:
         FileNotFoundError: If the operation cannot be completed.
@@ -389,7 +401,16 @@ def _emit_text(text: str, *, output_path: Path | None = None) -> None:
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse args."""
+    """
+    Parse command-line arguments.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv).
+
+    Returns:
+        Parsed arguments namespace.
+
+    """
     parser = argparse.ArgumentParser(description="Manage message capability governance artifacts")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -472,7 +493,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     """
-    Run main.
+    Run the governance CLI.
+
+    Args:
+        argv: Command-line arguments.
+
+    Returns:
+        Exit code.
 
     Raises:
         ValueError: If the operation cannot be completed.

@@ -40,7 +40,7 @@ OUTCOME_SCOPE_ALIASES: Final[dict[str, OutcomeScope]] = {
 
 @frozen
 class OutcomeMappingRule:
-    """Represent outcome mapping rule state."""
+    """Define a rule for mapping a specific outcome scope and status to one or more capabilities."""
 
     mapping_id: str
     outcome_scope: OutcomeScope
@@ -52,7 +52,7 @@ class OutcomeMappingRule:
 
 @frozen
 class ObservedOutcome:
-    """Represent observed outcome state."""
+    """Capture a concrete test outcome observed during execution, including environmental context."""
 
     outcome_scope: OutcomeScope
     outcome_status: OutcomeStatus
@@ -62,7 +62,7 @@ class ObservedOutcome:
 
 @frozen
 class MappingValidationResult:
-    """Represent mapping validation result state."""
+    """Summarize the validity and coverage of a set of mapping rules against observed outcomes."""
 
     status: Literal["pass", "fail"]
     matrix_profile: MatrixProfile
@@ -72,12 +72,24 @@ class MappingValidationResult:
 
     @property
     def is_valid(self) -> bool:
-        """Return valid."""
+        """
+        Check if the mapping validation passed without ambiguities, unmapped outcomes, or missing cases.
+
+        Returns:
+            True if the mapping rules completely cover the observed outcomes and matrix profile, False otherwise.
+
+        """
         return self.status == "pass"
 
 
 def normalize_outcome_status(value: object) -> OutcomeStatus | None:
-    """Normalize outcome status."""
+    """
+    Convert a raw outcome status string into a recognized canonical OutcomeStatus.
+
+    Returns:
+        The normalized OutcomeStatus, or None if the status cannot be matched.
+
+    """
     if value is None:
         return None
     normalized = str(value).strip().split(".")[-1].lower()
@@ -87,7 +99,13 @@ def normalize_outcome_status(value: object) -> OutcomeStatus | None:
 
 
 def normalize_outcome_scope(value: object) -> OutcomeScope | None:
-    """Normalize outcome scope."""
+    """
+    Convert a raw scope identifier into a recognized canonical OutcomeScope.
+
+    Returns:
+        The normalized OutcomeScope, or None if the scope cannot be matched.
+
+    """
     if value is None:
         return None
     normalized = str(value).strip().lower()
@@ -97,7 +115,13 @@ def normalize_outcome_scope(value: object) -> OutcomeScope | None:
 
 
 def outcome_key(scope: OutcomeScope, status: OutcomeStatus) -> str:
-    """Handle outcome key."""
+    """
+    Generate a unique dictionary key combining an outcome scope and status.
+
+    Returns:
+        A formatted string representing the outcome key.
+
+    """
     return f"{scope}:{status}"
 
 
@@ -107,7 +131,13 @@ def find_matching_rules(
     outcome_scope: OutcomeScope,
     outcome_status: OutcomeStatus,
 ) -> list[OutcomeMappingRule]:
-    """Find matching rules."""
+    """
+    Filter a list of rules to find those that exactly match the provided scope and status.
+
+    Returns:
+        A list of OutcomeMappingRule instances matching the criteria.
+
+    """
     return [rule for rule in rules if rule.outcome_scope == outcome_scope and rule.outcome_status == outcome_status]
 
 
@@ -117,7 +147,14 @@ def resolve_outcome_mapping(
     outcome_scope: OutcomeScope,
     outcome_status: OutcomeStatus,
 ) -> tuple[OutcomeMappingRule | None, bool]:
-    """Resolve outcome mapping."""
+    """
+    Select the highest-priority mapping rule for a specific scope and status.
+
+    Returns:
+        A tuple containing the best-matching OutcomeMappingRule (or None if no match)
+        and a boolean flag indicating if multiple rules share the highest priority (ambiguous).
+
+    """
     matches = sorted(
         find_matching_rules(rules, outcome_scope=outcome_scope, outcome_status=outcome_status),
         key=lambda rule: rule.priority,
@@ -151,7 +188,13 @@ def validate_outcome_mappings(
     *,
     matrix_profile: MatrixProfile = MATRIX_PROFILE_FIXED_RELEASE_READINESS_V1,
 ) -> MappingValidationResult:
-    """Validate outcome mappings."""
+    """
+    Evaluate a set of mapping rules against actual observed outcomes to ensure complete coverage.
+
+    Returns:
+        A MappingValidationResult detailing any ambiguous mappings, unmapped outcomes, or missing matrix cases.
+
+    """
     ambiguous: list[str] = []
     unmapped: list[str] = []
 

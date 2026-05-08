@@ -98,11 +98,23 @@ class Module(pytest.Module):
 
     @classmethod
     def build(cls, parent: Collector, file_path: str | PathLike[str]) -> Module:
-        """Build build."""
+        """
+        Build module instance.
+
+        Returns:
+            Module instance configured with the given file path.
+
+        """
         return cls.from_parent(parent, path=Path(file_path))
 
     def get_path(self) -> Path:
-        """Return path."""
+        """
+        Get the module's path.
+
+        Returns:
+            Path to the module file.
+
+        """
         return getattr(self, "path", Path(self.fspath))
 
 
@@ -127,7 +139,13 @@ def assert_outcomes(
 
 
 def get_config_root_path(config: Config) -> Path:
-    """Return config root path."""
+    """
+    Get the config root path.
+
+    Returns:
+        Root path of the pytest configuration.
+
+    """
     return Path(cast(Config, config).rootpath)
 
 

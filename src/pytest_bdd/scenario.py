@@ -130,6 +130,10 @@ def scenario(
     :param parse_args: args consumed by parser during parsing
     :param locators: Feature locators to load Features; Could be custom
     :param return_test_decorator; Return test decorator or generated test
+
+    Returns:
+        Scenario decorator or test function.
+
     """
     feature_paths = [feature_name] if feature_name is not None else []
     if return_test_decorator:
@@ -227,6 +231,9 @@ def scenarios(
     :param parse_args: args consumed by parser during parsing
     :param return_test_decorator; Return test decorator or generated test
     :param locators: Feature locators to load Features; Could be custom
+
+    Returns:
+        Scenario decorator or test function.
 
     Raises:
         ValueError: If both features_base_dir and features_base_url are specified.

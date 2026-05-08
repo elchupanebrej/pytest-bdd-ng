@@ -27,37 +27,95 @@ if TYPE_CHECKING:
 
 
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
-    """Resolve feature binding."""
+    """
+    Resolve feature binding from run.
+
+    Args:
+        run: Current run.
+
+    Returns:
+        Feature binding or None.
+
+    """
     scenario_run = run.active_scenario_run
     return scenario_run.feature_binding if scenario_run is not None else None
 
 
 def require_feature_binding(run: Run, *, hook_name: str) -> FeatureRuntimeBinding:
-    """Handle require feature binding."""
+    """
+    Require feature binding from run.
+
+    Args:
+        run: Current run.
+        hook_name: Name of the hook calling this.
+
+    Returns:
+        Feature binding.
+
+    """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_feature_binding(hook_name=hook_name)
 
 
 def require_feature_object(run: Run, *, hook_name: str) -> GherkinDocument:
-    """Handle require feature object."""
+    """
+    Require feature object from run.
+
+    Args:
+        run: Current run.
+        hook_name: Name of the hook calling this.
+
+    Returns:
+        Gherkin document.
+
+    """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_gherkin_document(hook_name=hook_name)
 
 
 def require_pickle_object(run: Run, *, hook_name: str) -> Pickle:
-    """Handle require pickle object."""
+    """
+    Require pickle object from run.
+
+    Args:
+        run: Current run.
+        hook_name: Name of the hook calling this.
+
+    Returns:
+        Pickle object.
+
+    """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_pickle(hook_name=hook_name)
 
 
 def require_step_object(run: Run, *, hook_name: str) -> PickleStep:
-    """Handle require step object."""
+    """
+    Require step object from run.
+
+    Args:
+        run: Current run.
+        hook_name: Name of the hook calling this.
+
+    Returns:
+        Step object.
+
+    """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_step_object(hook_name=hook_name)
 
 
 def resolve_feature_object(run: Run) -> GherkinDocument | None:
-    """Resolve feature object."""
+    """
+    Resolve feature object from run.
+
+    Args:
+        run: Current run.
+
+    Returns:
+        Gherkin document or None.
+
+    """
     binding = run.active_feature_binding
     if binding is not None:
         return binding.gherkin_document
@@ -66,7 +124,16 @@ def resolve_feature_object(run: Run) -> GherkinDocument | None:
 
 
 def resolve_feature_source(run: Run) -> Source | None:
-    """Resolve feature source."""
+    """
+    Resolve feature source from run.
+
+    Args:
+        run: Current run.
+
+    Returns:
+        Source or None.
+
+    """
     binding = run.active_feature_binding
     if binding is not None:
         return binding.source
@@ -75,19 +142,37 @@ def resolve_feature_source(run: Run) -> Source | None:
 
 
 def resolve_pickle_object(run: Run) -> Pickle | None:
-    """Resolve pickle object."""
+    """
+    Resolve pickle object.
+
+    Returns:
+        Pickle object or None.
+
+    """
     scenario_run = run.active_scenario_run
     return scenario_run.pickle if scenario_run is not None else None
 
 
 def resolve_step_object(run: Run) -> PickleStep | None:
-    """Resolve step object."""
+    """
+    Resolve step object.
+
+    Returns:
+        Pickle step or None.
+
+    """
     scenario_run = run.active_scenario_run
     return scenario_run.step_object if scenario_run is not None else None
 
 
 def resolve_previous_step_object(run: Run) -> PickleStep | object | None:
-    """Resolve previous step object."""
+    """
+    Resolve previous step object.
+
+    Returns:
+        Previous step object or None.
+
+    """
     scenario_run = run.active_scenario_run
     return scenario_run.previous_step_object if scenario_run is not None else None
 
@@ -98,7 +183,13 @@ def resolve_active_object_or_error(
     scenario_run: ScenarioRun,
     requested_kind: LifecycleKind,
 ) -> tuple[LifecycleObjectRef | None, ContextErrorState | None]:
-    """Resolve active object or error."""
+    """
+    Resolve active object or error.
+
+    Returns:
+        Tuple of (active object, error state).
+
+    """
     active_object = scenario_run.get_active_object(requested_kind)
     if active_object is not None:
         return active_object, None
@@ -152,7 +243,13 @@ def build_reporting_context_snapshot(
     request: FixtureRequest,
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot:
-    """Build reporting context snapshot."""
+    """
+    Build reporting context snapshot.
+
+    Returns:
+        Reporting context snapshot.
+
+    """
     run = Run.find_in_stash(request.config.stash)
 
     if run is not None and run.active_scenario_run is not None:
@@ -182,7 +279,13 @@ def resolve_registry_node(
     ast_node_id: str,
     scenario_run: ScenarioRun | None = None,
 ) -> Identifiable | None:
-    """Resolve registry node."""
+    """
+    Resolve registry node.
+
+    Returns:
+        Identifiable node or None.
+
+    """
     node = None
     if feature_binding is not None:
         with suppress(KeyError):
@@ -199,7 +302,13 @@ def resolve_scenario_description(
     feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
 ) -> str | None:
-    """Resolve scenario description."""
+    """
+    Resolve scenario description.
+
+    Returns:
+        Scenario description or None.
+
+    """
     ast_node_ids = getattr(pickle, "ast_node_ids", None) or ()
     if not ast_node_ids:
         if scenario_run is not None:
@@ -224,7 +333,13 @@ def resolve_step_runtime_enrichment(
     feature_binding: FeatureRuntimeBinding | None = None,
     scenario_run: ScenarioRun | None = None,
 ) -> dict[str, object]:
-    """Resolve step runtime enrichment."""
+    """
+    Resolve step runtime enrichment.
+
+    Returns:
+        Step runtime enrichment dictionary.
+
+    """
     effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     model_step = effective_binding.pickle_step_ast_step(step) if effective_binding is not None else None
     if model_step is None:

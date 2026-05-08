@@ -19,7 +19,13 @@ class HeadingType(str, Enum):
 
     @property
     def display_name(self) -> str:
-        """Human-friendly heading label used in diagnostics."""
+        """
+        Provide a human-readable label for the heading type, used in diagnostic output.
+
+        Returns:
+            The string label corresponding to the specific heading type.
+
+        """
         if self is HeadingType.FEATURE:
             return "Feature"
         if self is HeadingType.SCENARIO:
@@ -53,7 +59,13 @@ class HeadingValidationPolicy:
     snippet_text_excluded: bool = True
 
     def normalize_name(self, name: str | None) -> str:
-        """Normalize heading title according to policy."""
+        """
+        Normalize a raw heading title string by applying policy rules, such as whitespace trimming.
+
+        Returns:
+            The normalized heading title as a string, or an empty string if the input is None.
+
+        """
         normalized = "" if name is None else name
         if self.trim_whitespace:
             normalized = normalized.strip()
@@ -72,7 +84,13 @@ class HeadingValidationViolation:
     raw_name: str | None
 
     def to_payload(self) -> dict[str, object]:
-        """Serialize violation to contract-compatible payload."""
+        """
+        Convert the validation violation into a JSON-serializable dictionary format.
+
+        Returns:
+            A dictionary containing the structured violation data.
+
+        """
         return {
             "path": self.path,
             "line": self.line,
@@ -95,11 +113,23 @@ class HeadingValidationRun:
 
     @property
     def status(self) -> str:
-        """Run status in contract form."""
+        """
+        Determine the overall pass/fail status of the validation run based on emitted violations.
+
+        Returns:
+            The string 'fail' if violations exist, otherwise 'pass'.
+
+        """
         return "fail" if self.violations else "pass"
 
     def to_payload(self) -> dict[str, object]:
-        """Serialize run result to contract-compatible payload."""
+        """
+        Convert the comprehensive validation run results into a JSON-serializable dictionary format.
+
+        Returns:
+            A dictionary capturing the full validation run state.
+
+        """
         return {
             "run_id": self.run_id,
             "documents_scanned": self.documents_scanned,
@@ -121,7 +151,13 @@ class BaselineAuditSummary:
     compliant: bool
 
     def to_payload(self) -> dict[str, object]:
-        """Serialize audit summary to contract-compatible payload."""
+        """
+        Convert the baseline audit summary into a JSON-serializable dictionary format.
+
+        Returns:
+            A dictionary summarizing the baseline compliance check.
+
+        """
         return {
             "record_id": self.record_id,
             "policy_id": self.policy_id,
@@ -132,5 +168,11 @@ class BaselineAuditSummary:
 
 
 def default_heading_validation_policy() -> HeadingValidationPolicy:
-    """Build default policy instance."""
+    """
+    Instantiate the default heading validation policy ruleset.
+
+    Returns:
+        A HeadingValidationPolicy populated with standard defaults.
+
+    """
     return HeadingValidationPolicy()

@@ -30,7 +30,7 @@ def _resolve_registry_index(
 
 @frozen
 class ExecutionProjection:
-    """Represent execution projection state."""
+    """Wrap an event envelope with payload kind, payload, and registry access."""
 
     envelope: EventEnvelope
     payload_kind: PayloadKind
@@ -39,14 +39,26 @@ class ExecutionProjection:
 
     @property
     def payload_id(self) -> str | None:
-        """Handle payload id."""
+        """
+        Extract the string-based identifier from the current payload, if one exists.
+
+        Returns:
+            The payload ID string, or None if the payload lacks an ID.
+
+        """
         raw_id = getattr(self.payload, "id", None)
         if raw_id is None:
             return None
         return str(raw_id)
 
     def resolve(self, object_id: str) -> object | None:
-        """Resolve resolve."""
+        """
+        Retrieve a registered identifiable object using its string ID via the associated registry.
+
+        Returns:
+            The resolved object if found, or None if the registry is unavailable or the object is unknown.
+
+        """
         if self.registry is None:
             return None
         return self.registry.resolve(str(object_id))
@@ -92,7 +104,13 @@ class ExecutionMessageAdapter:
 
     @classmethod
     def namespace_dict_ids(cls, envelope_dict: JSONObject, *, namespace: str) -> JSONObject:
-        """Handle namespace dict ids."""
+        """
+        Prefix all identified reference strings within an envelope dictionary with a given namespace.
+
+        Returns:
+            A new dictionary with namespaced IDs.
+
+        """
         prefix = f"{namespace}:"
 
         def _namespace(value: str) -> str:
@@ -102,7 +120,13 @@ class ExecutionMessageAdapter:
 
     @classmethod
     def rewrite_dict_ids(cls, envelope_dict: JSONObject, remap: dict[str, str]) -> JSONObject:
-        """Handle rewrite dict ids."""
+        """
+        Map reference strings in an envelope dictionary to new values using a provided mapping dictionary.
+
+        Returns:
+            A new dictionary reflecting the remapped IDs.
+
+        """
         if not remap:
             return cast(JSONObject, deepcopy(envelope_dict))
         return cast(
@@ -116,7 +140,13 @@ class ExecutionMessageAdapter:
         *,
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> EventEnvelope:
-        """Handle serialize."""
+        """
+        Normalize an EventEnvelope based on a specified serialization profile without mutating its class type.
+
+        Returns:
+            The processed EventEnvelope instance.
+
+        """
         ExecutionMessageAdapter.serialize_to_dict(envelope, profile=profile)
         return envelope
 
@@ -126,7 +156,15 @@ class ExecutionMessageAdapter:
         *,
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> JSONObject:
-        """Handle serialize to dict."""
+        """
+        Convert envelope to JSON dict, stripping internal fields.
+
+        Returns:
+            A JSON-compatible dictionary representation of the envelope.
+
+        """
+        envelope_dict = envelope_to_dict(envelope)
+        return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
         envelope_dict = envelope_to_dict(envelope)
         return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
 
@@ -138,10 +176,13 @@ class ExecutionMessageAdapter:
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
         """
-        Handle deserialize.
+        Normalize an incoming EventEnvelope and extract its internal projection state (payload, kind).
+
+        Returns:
+            An ExecutionProjection representing the normalized envelope.
 
         Raises:
-            TypeError: If the operation cannot be completed.
+            TypeError: If the envelope fails payload shape validation (e.g., missing or multiple payloads).
 
         """
         normalized_envelope = cls.serialize(envelope)
@@ -164,5 +205,11 @@ class ExecutionMessageAdapter:
         *,
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
-        """Handle deserialize dict."""
+        """
+        Instantiate an EventEnvelope from a dictionary and immediately extract its projection state.
+
+        Returns:
+            An ExecutionProjection derived from the parsed dictionary.
+
+        """
         return cls.deserialize(envelope_from_dict(payload), registry=registry)

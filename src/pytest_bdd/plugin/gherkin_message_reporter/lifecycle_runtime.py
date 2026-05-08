@@ -151,7 +151,13 @@ class LifecycleService(ReporterServiceBase):
 
     @staticmethod
     def get_timestamp() -> Timestamp:
-        """Return timestamp."""
+        """
+        Get current timestamp.
+
+        Returns:
+            Current timestamp.
+
+        """
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
@@ -360,6 +366,10 @@ class LifecycleService(ReporterServiceBase):
         expose branch only via platform-specific env vars in merge-request
         pipelines. We enrich only the missing branch field to keep emitted
         metadata stable without overriding detector-provided values.
+
+        Returns:
+            Enriched CI payload.
+
         """
         payload = dict(ci_payload)
         git_payload_raw = payload.get("git")
@@ -374,7 +384,13 @@ class LifecycleService(ReporterServiceBase):
 
     @staticmethod
     def _resolve_ci_branch(env: Mapping[str, str]) -> str | None:
-        """Resolve VCS branch name from common CI env var conventions."""
+        """
+        Resolve VCS branch name from common CI env var conventions.
+
+        Returns:
+            Branch name or None.
+
+        """
         github_ref_type = (env.get("GITHUB_REF_TYPE") or "").strip().lower()
         github_ref = (env.get("GITHUB_REF") or "").strip()
         github_ref_name = (env.get("GITHUB_REF_NAME") or "").strip()
@@ -457,7 +473,13 @@ class LifecycleService(ReporterServiceBase):
         return test_step_id
 
     def resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
-        """Resolve test step id for runtime step."""
+        """
+        Resolve test step ID for runtime step.
+
+        Returns:
+            Test step ID or None.
+
+        """
         return self._resolve_test_step_id_for_runtime_step(request=request, step=step)
 
     def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901

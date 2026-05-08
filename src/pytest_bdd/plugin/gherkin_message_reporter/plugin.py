@@ -177,21 +177,48 @@ class GherkinMessageReporter:
         return self._services
 
     def read_envelopes_from_path(self, messages_file_path: Path) -> list[Message]:
-        """Read envelopes from path."""
+        """
+        Read envelopes from a messages file.
+
+        Args:
+            messages_file_path: Path to messages NDJSON file.
+
+        Returns:
+            List of message envelopes.
+
+        """
         return self.transport_service.read_envelopes_from_path(messages_file_path)
 
     def render_requested_cucumber_formatters(
         self,
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
-        """Render requested cucumber formatters."""
+        """
+        Render requested cucumber formatters.
+
+        Args:
+            envelopes: List of message envelopes.
+
+        Returns:
+            Render result.
+
+        """
         return self.live_formatter_service.run_requested_cucumber_formatters(envelopes)
 
     def render_requested_cucumber_formatters_from_path(
         self,
         messages_file_path: Path,
     ) -> CucumberFormatterRenderResult:
-        """Render requested cucumber formatters from path."""
+        """
+        Render requested cucumber formatters from a file.
+
+        Args:
+            messages_file_path: Path to messages file.
+
+        Returns:
+            Render result.
+
+        """
         envelopes = self.read_envelopes_from_path(messages_file_path)
         return self.render_requested_cucumber_formatters(envelopes)
 
@@ -199,7 +226,16 @@ class GherkinMessageReporter:
         self,
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
-        """Render runtime assets."""
+        """
+        Render runtime assets for formatters.
+
+        Args:
+            formatter_requests: List of formatter requests.
+
+        Returns:
+            Dictionary of rendered assets.
+
+        """
         pluginmanager = getattr(self.config, "pluginmanager", None)
         return render_live_formatter_runtime_assets(formatter_requests, pluginmanager=pluginmanager)
 

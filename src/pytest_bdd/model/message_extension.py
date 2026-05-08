@@ -27,7 +27,7 @@ StepDefinitionPatternType = Enum(  # type:ignore[misc]
 
 @define(init=False, repr=False, eq=False)
 class StepDefinitionPattern(_BaseStepDefinitionPattern):
-    """Represent step definition pattern state."""
+    """Extend the canonical cucumber StepDefinitionPattern with pytest-bdd-specific expression type variants."""
 
     type: StepDefinitionPatternType
 
@@ -125,7 +125,7 @@ EXECUTION_PRESERVED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
 
 @define(frozen=True, slots=True)
 class LifecycleCorrelation:
-    """Represent lifecycle correlation state."""
+    """Associate a scenario execution attempt with its parent run, worker, and step context for traceability."""
 
     run_id: str
     scenario_attempt_id: str
@@ -136,7 +136,7 @@ class LifecycleCorrelation:
 
 @define(frozen=True, slots=True)
 class EnvelopeStatus:
-    """Represent envelope status state."""
+    """Capture governance status fields extracted from an envelope for validation and reporting purposes."""
 
     implementation_status: str | None
     implementation_comment: str | None
@@ -145,7 +145,14 @@ class EnvelopeStatus:
 
 
 def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
-    """Return payload merge class."""
+    """
+    Classify an envelope's payload kind into a merge-strategy bucket for stream consolidation.
+
+    Returns:
+        A string denoting the merge class ('controller_singular', 'structural_deduplicated', or 'execution_preserved'),
+        or None if the payload kind is unrecognized.
+
+    """
     if payload_kind is None:
         return None
     if payload_kind in CONTROLLER_SINGULAR_PAYLOAD_KINDS:
@@ -158,7 +165,13 @@ def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
 
 
 def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
-    """Return payload kind."""
+    """
+    Identify the single active payload field name within an EventEnvelope.
+
+    Returns:
+        The payload kind string if exactly one field is populated, or None if the envelope is empty or ambiguous.
+
+    """
     matched_payload_kinds = [
         payload_kind for payload_kind in PAYLOAD_KINDS if getattr(message, payload_kind, None) is not None
     ]
@@ -168,5 +181,11 @@ def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
 
 
 def has_single_payload(message: EventEnvelope) -> bool:
-    """Return single payload."""
+    """
+    Verify that an EventEnvelope satisfies the oneof payload constraint by carrying exactly one populated field.
+
+    Returns:
+        True if exactly one payload field is present, otherwise False.
+
+    """
     return get_payload_kind(message) is not None

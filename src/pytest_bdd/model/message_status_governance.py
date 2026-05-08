@@ -88,7 +88,7 @@ LEGACY_STATUS_ALIASES: Final[dict[str, CapabilityStatus]] = {
 
 @frozen
 class CapabilityDecision:
-    """Represent capability decision state."""
+    """Represent a recorded implementation decision for a specific cucumber-messages capability."""
 
     capability_id: str
     status: CapabilityStatus
@@ -103,7 +103,7 @@ class CapabilityDecision:
 
 @frozen
 class DecisionValidationResult:
-    """Represent decision validation result state."""
+    """Hold the outcome of validating a capability decision against governance policies."""
 
     accepted: bool
     missing_required_evidence_fields: tuple[str, ...]
@@ -112,7 +112,7 @@ class DecisionValidationResult:
 
 @frozen
 class StatusUniquenessResult:
-    """Represent status uniqueness result state."""
+    """Indicate whether all provided capability decisions are uniquely assigned per target release."""
 
     is_unique: bool
     duplicates: tuple[str, ...]
@@ -120,7 +120,7 @@ class StatusUniquenessResult:
 
 @frozen
 class BlockerEvaluationResult:
-    """Represent blocker evaluation result state."""
+    """Summarize any release-blocking capability states based on current implementation decisions."""
 
     unresolved_blocker_capability_ids: tuple[str, ...]
     deferred_capability_ids: tuple[str, ...]
@@ -128,7 +128,13 @@ class BlockerEvaluationResult:
 
     @property
     def blocker_count(self) -> int:
-        """Handle blocker count."""
+        """
+        Calculate the total number of unresolved blocker capabilities.
+
+        Returns:
+            The integer count of unresolved blockers.
+
+        """
         return len(self.unresolved_blocker_capability_ids)
 
 
@@ -137,14 +143,26 @@ def _is_non_empty_text(value: object) -> bool:
 
 
 def normalize_capability_status(status: CapabilityStatusLike) -> CapabilityStatus | None:
-    """Normalize capability status."""
+    """
+    Standardize a raw status string into a recognized CapabilityStatus, handling legacy aliases.
+
+    Returns:
+        The normalized CapabilityStatus, or None if the status string is unrecognized.
+
+    """
     if status in CAPABILITY_STATUSES:
         return cast(CapabilityStatus, status)
     return LEGACY_STATUS_ALIASES.get(str(status).strip().lower())
 
 
 def missing_required_evidence_fields(decision: CapabilityDecision) -> tuple[str, ...]:
-    """Handle missing required evidence fields."""
+    """
+    Identify which mandatory evidence fields are missing for a given decision, based on its status.
+
+    Returns:
+        A tuple of string field names that require population.
+
+    """
     status = normalize_capability_status(decision.status)
     if status is None or status not in NON_IMPLEMENTED_STATUSES:
         return ()
@@ -167,7 +185,13 @@ def missing_required_evidence_fields(decision: CapabilityDecision) -> tuple[str,
 
 
 def validate_non_implementable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
-    """Validate non implementable policy."""
+    """
+    Check if a 'Non-Implementable' decision violates policy by using forbidden rationale patterns.
+
+    Returns:
+        A tuple of violation message strings, empty if compliant.
+
+    """
     status = normalize_capability_status(decision.status)
     if status != "Non-Implementable":
         return ()
@@ -184,7 +208,13 @@ def validate_non_implementable_policy(decision: CapabilityDecision) -> tuple[str
 
 
 def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str, ...]:
-    """Validate partly applicable policy."""
+    """
+    Check if a 'Partly-Applicable' decision provides an acceptable rationale regarding runtime differences.
+
+    Returns:
+        A tuple of violation message strings, empty if compliant.
+
+    """
     status = normalize_capability_status(decision.status)
     if status != "Partly-Applicable":
         return ()
@@ -201,7 +231,13 @@ def validate_partly_applicable_policy(decision: CapabilityDecision) -> tuple[str
 
 
 def validate_capability_decision(decision: CapabilityDecision) -> DecisionValidationResult:
-    """Validate capability decision."""
+    """
+    Perform comprehensive policy and evidence validation on a capability decision.
+
+    Returns:
+        A DecisionValidationResult capturing whether the decision is fully compliant or has violations.
+
+    """
     violations: list[str] = []
     status = normalize_capability_status(decision.status)
     if status is None:
@@ -222,7 +258,13 @@ def validate_mandatory_scope_decision(
     *,
     mandatory_capability_ids: set[str],
 ) -> tuple[str, ...]:
-    """Validate mandatory scope decision."""
+    """
+    Ensure that a capability in the mandatory scope is not assigned a deferred or rejected status.
+
+    Returns:
+        A tuple of violation message strings, empty if compliant.
+
+    """
     if decision.capability_id not in mandatory_capability_ids:
         return ()
     status = normalize_capability_status(decision.status)
@@ -236,7 +278,13 @@ def validate_mandatory_scope_decision(
 
 
 def ensure_single_status_per_capability(decisions: list[CapabilityDecision]) -> StatusUniquenessResult:
-    """Ensure single status per capability."""
+    """
+    Verify that no capability is assigned conflicting statuses for the same release target.
+
+    Returns:
+        A StatusUniquenessResult indicating if duplicates exist.
+
+    """
     seen: set[tuple[str, str]] = set()
     duplicates: list[str] = []
     for decision in decisions:
@@ -249,7 +297,13 @@ def ensure_single_status_per_capability(decisions: list[CapabilityDecision]) -> 
 
 
 def is_release_blocker_status(status: CapabilityStatus) -> bool:
-    """Return release blocker status."""
+    """
+    Determine if a specific capability status represents a release blocker.
+
+    Returns:
+        True if the status blocks a release, False otherwise.
+
+    """
     return status in RELEASE_BLOCKER_STATUSES
 
 
@@ -258,7 +312,13 @@ def evaluate_release_blockers(
     *,
     relevant_capability_ids: tuple[str, ...] = (),
 ) -> BlockerEvaluationResult:
-    """Handle evaluate release blockers."""
+    """
+    Analyze all decisions and identify any that block a release, including missing relevant decisions.
+
+    Returns:
+        A BlockerEvaluationResult summarizing all blockers and deferred capabilities.
+
+    """
     index = {decision.capability_id: decision for decision in decisions}
     blocker_ids: set[str] = set()
     deferred_ids: set[str] = set()

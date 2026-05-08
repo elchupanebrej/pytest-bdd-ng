@@ -38,12 +38,18 @@ _OPTIONAL_PATH_TERMINAL_FLAGS = frozenset(
 
 
 def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
-    """Handle cucumber formatter definitions."""
+    """
+    Return all cucumber formatter definitions.
+
+    Returns:
+        Tuple of formatter definitions.
+
+    """
     return _FORMATTER_DEFINITIONS
 
 
 def register_cucumber_formatter_options(parser: Parser) -> None:
-    """Register cucumber formatter options."""
+    """Register cucumber formatter options with pytest."""
     from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases
     from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 
@@ -56,12 +62,27 @@ def register_cucumber_formatter_options(parser: Parser) -> None:
 
 
 def terminal_formatter_cli_flags() -> frozenset[str]:
-    """Handle terminal formatter cli flags."""
+    """
+    Return all terminal formatter CLI flags.
+
+    Returns:
+        Frozenset of CLI flag strings.
+
+    """
     return frozenset((*_TERMINAL_FORMATTER_CLI_FLAGS, *_OPTIONAL_PATH_TERMINAL_FLAGS))
 
 
 def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
-    """Handle terminal formatter flags requested."""
+    """
+    Check if any terminal formatter flags are requested.
+
+    Args:
+        args: Command-line arguments.
+
+    Returns:
+        True if terminal formatter flag is present.
+
+    """
     requested_stdout_flags = terminal_formatter_cli_flags()
     for arg in args:
         if arg in requested_stdout_flags:
@@ -72,14 +93,29 @@ def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
 
 
 def pytest_capture_already_configured(args: Sequence[str]) -> bool:
-    """Handle capture already configured."""
+    """
+    Check if pytest capture is already configured.
+
+    Args:
+        args: Command-line arguments.
+
+    Returns:
+        True if capture is already configured.
+
+    """
     return any(
         arg in CAPTURE_OPTION_FLAGS or any(arg.startswith(prefix) for prefix in CAPTURE_OPTION_PREFIXES) for arg in args
     )
 
 
 def any_cucumber_formatter_requested(options: object) -> bool:
-    """Handle any cucumber formatter requested."""
+    """
+    Check if any cucumber formatter is requested.
+
+    Returns:
+        True if any cucumber formatter is requested.
+
+    """
     return any(
         getattr(options, option_attr, None) not in {None, False}
         for option_attr, *_rest in cucumber_formatter_definitions()

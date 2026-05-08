@@ -12,7 +12,16 @@ from pytest_bdd.model.stash_access import StashBound
 
 
 def format_as_python_identifier(s: object) -> str:
-    """Format as python identifier."""
+    """
+    Format an object as a valid Python identifier.
+
+    Args:
+        s: Object to format.
+
+    Returns:
+        Valid Python identifier string.
+
+    """
     s1: str = str(s)
     s2 = re.sub(r"[^.a-zA-Z0-9]", "_", s1)
     s3 = re.sub(r"_+", "_", s2)
@@ -21,7 +30,16 @@ def format_as_python_identifier(s: object) -> str:
 
 
 def format_as_simplified_python_identifier(string: str) -> str:
-    """Format as simplified python identifier."""
+    """
+    Format a string as a simplified Python identifier.
+
+    Args:
+        string: String to format.
+
+    Returns:
+        Simplified identifier string.
+
+    """
     string = re.sub(PYTHON_REPLACE_REGEX, "", string.replace(" ", "_"))
     return re.sub(ALPHA_REGEX, "", string).lower()
 
@@ -36,7 +54,16 @@ class StringRepresentable(Protocol):
 
 
 def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
-    """Normalize to string."""
+    """
+    Normalize a value to a string.
+
+    Args:
+        value: Value to normalize.
+
+    Returns:
+        Normalized string.
+
+    """
     return str(value, **({"encoding": "utf-8"} if isinstance(value, bytes) else {}))
 
 
@@ -50,7 +77,13 @@ class IdGenerator(BaseIdGenerator, StashBound):
         self._id_counter = 0
 
     def __next__(self) -> str:
-        """Return the next generated ID."""
+        """
+        Return the next generated ID.
+
+        Returns:
+            String representation of the next ID.
+
+        """
         try:
             return str(self._id_counter)
         finally:
@@ -60,7 +93,13 @@ class IdGenerator(BaseIdGenerator, StashBound):
 
     @classmethod
     def stash_missing_message(cls) -> str:
-        """Handle stash missing message."""
+        """
+        Return error message for missing stash.
+
+        Returns:
+            Error message string.
+
+        """
         return (
             "`pytest_bdd_id_generator` is unavailable in config.stash. "
             "Execution and collection plugins must initialize stash-backed runtime services before use."
@@ -68,7 +107,13 @@ class IdGenerator(BaseIdGenerator, StashBound):
 
     @classmethod
     def stash_duplicate_message(cls) -> str:
-        """Handle stash duplicate message."""
+        """
+        Return error message for duplicate stash.
+
+        Returns:
+            Error message string.
+
+        """
         return (
             "`pytest_bdd_id_generator` is already initialized in config.stash. "
             "Framework bootstrap must initialize it exactly once."

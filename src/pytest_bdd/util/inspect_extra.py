@@ -27,13 +27,26 @@ def get_args(func: ObjectCallable) -> Sequence[str]:
 
     :return: A list of argument names.
     :rtype: list
+
+    Returns:
+        List of positional argument names.
+
     """
     params = signature(func).parameters.values()
     return [param.name for param in params if param.kind == param.POSITIONAL_OR_KEYWORD]
 
 
 def get_first_source_line(obj: object) -> int:
-    """Return first source line."""
+    """
+    Get the first source line number of an object.
+
+    Args:
+        obj: Object to inspect.
+
+    Returns:
+        First source line number.
+
+    """
     try:
         return getsourcelines(
             cast(ModuleType | type[object] | MethodType | FunctionType | TracebackType | FrameType | CodeType, obj),
@@ -51,6 +64,10 @@ def get_caller_module_locals(stacklevel: int = 1) -> dict[str, object]:
 
     We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
     all the frames in the stack.
+
+    Returns:
+        Caller's module locals dictionary.
+
     """
     return _getframe(stacklevel).f_locals
 
@@ -61,6 +78,10 @@ def get_caller_module_path(stacklevel: int = 1) -> str:
 
     We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
     all the frames in the stack.
+
+    Returns:
+        Path to the caller's module file.
+
     """
     frame = _getframe(stacklevel)
     return getframeinfo(frame, context=0).filename

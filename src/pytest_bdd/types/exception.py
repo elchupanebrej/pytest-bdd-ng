@@ -124,5 +124,11 @@ class FeatureConcreteParseError(FeatureParseError):
     message = "{0}.\nLine number: {1}.\nLine: {2}.\nFile: {3}"
 
     def __str__(self) -> str:
-        """Return the string representation."""
+        """
+        Return the string representation.
+
+        Returns:
+            Formatted error message.
+
+        """
         return self.message.format(*self.args[:4])

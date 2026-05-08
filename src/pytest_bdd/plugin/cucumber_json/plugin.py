@@ -26,9 +26,14 @@ class LogBDDCucumberJSON:
         """
         Get scenario test run result.
 
-        :param step: `Step` step we get result for
-        :param report: pytest `Report` object
-        :return: `dict` in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}
+        Args:
+            step: Step we get result for.
+            report: Pytest Report object.
+            error_message: Whether to include error message.
+
+        Returns:
+            Dict in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}.
+
         """
         result: JSONObject = {}
         if report.passed or not step["failed"]:  # ignore setup/teardown
@@ -49,14 +54,12 @@ class LogBDDCucumberJSON:
         """
         Serialize item's tags.
 
-        :param item: json-serialized `Scenario` or `Feature`.
-        :return: `list` of `dict` in the form of:
-            [
-                {
-                    "name": "<tag>",
-                    "line": 2,
-                }
-            ]
+        Args:
+            item: JSON-serialized Scenario or Feature.
+
+        Returns:
+            List of dicts in the form of [{"name": "<tag>", "line": 2}, ...].
+
         """
         raw_tags = item.get("tags", [])
         tags = raw_tags if isinstance(raw_tags, list) else []

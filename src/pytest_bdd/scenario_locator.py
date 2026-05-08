@@ -125,7 +125,18 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         pickles: Iterable[Pickle],
         config: Config | HasPytestStash,
     ) -> Iterable[tuple[GherkinDocument, Pickle]]:
-        """Handle filter scenarios."""
+        """
+        Filter scenarios based on filter criteria.
+
+        Args:
+            gherkin_document: Parsed Gherkin document.
+            pickles: List of pickle scenarios.
+            config: Pytest config.
+
+        Returns:
+            Filtered tuples of (document, pickle).
+
+        """
         return (
             (gherkin_document, pickle)
             for pickle in pickles
@@ -138,7 +149,18 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         source: Source,
         config: Config | HasPytestStash,
     ) -> FeatureRuntimeBinding:
-        """Handle bind feature."""
+        """
+        Bind a Gherkin document to the runtime.
+
+        Args:
+            gherkin_document: Parsed Gherkin document.
+            source: Feature source information.
+            config: Pytest config.
+
+        Returns:
+            Feature runtime binding.
+
+        """
         run = Run.from_stash(config.stash)
         binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
         binding.ensure_pickles(id_generator=IdGenerator.from_stash(config.stash))
@@ -186,7 +208,17 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     parse_args: Args | None = field(default=None)
 
     async def fetch(self, session: aiohttp.ClientSession, url: str) -> tuple[str, str]:
-        """Fetch fetch."""
+        """
+        Fetch content from URL.
+
+        Args:
+            session: aiohttp client session.
+            url: URL to fetch.
+
+        Returns:
+            Tuple of (content_type, content_text).
+
+        """
         import certifi
 
         sslcontext = ssl.create_default_context(cafile=certifi.where())
@@ -194,7 +226,16 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             return response.content_type, await response.text(encoding=self.encoding or "utf-8")
 
     async def fetch_all(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
-        """Fetch all."""
+        """
+        Fetch all URLs concurrently.
+
+        Args:
+            urls: Sequence of URLs to fetch.
+
+        Returns:
+            List of tuples (content_type, content_text) or exceptions.
+
+        """
         import aiohttp
 
         async with aiohttp.ClientSession() as session:
@@ -300,13 +341,24 @@ class FileScenarioLocatorDefaults:
 
     @staticmethod
     def encoding() -> str:
-        """Represent encoding state."""
-        """Handle encoding."""
+        """
+        Return default encoding for feature files.
+
+        Returns:
+            Default encoding (utf-8).
+
+        """
         return "utf-8"
 
     @staticmethod
     def parse_args() -> Args:
-        """Represent parse args state."""
+        """
+        Return default parse arguments.
+
+        Returns:
+            Default args tuple.
+
+        """
         return Args((), {})
 
 

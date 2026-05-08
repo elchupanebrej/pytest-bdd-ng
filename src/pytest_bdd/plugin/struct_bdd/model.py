@@ -115,7 +115,16 @@ class SubTable(Node):
 
 @AfterValidator
 def convert_sub_tables_to_tables(value: object) -> object:
-    """Convert sub tables to tables."""
+    """
+    Convert sub tables to tables.
+
+    Args:
+        value: Input value that may be a SubTable.
+
+    Returns:
+        SubTable converted to Table, or original value.
+
+    """
     return value.sub_table if isinstance(value, SubTable) else value
 
 
@@ -254,7 +263,16 @@ StepPrototypeT = TypeVar("StepPrototypeT", bound="StepPrototype")
 
 @BeforeValidator
 def before_convert_to_step(value: object) -> object:
-    """Handle before convert to step."""
+    """
+    Convert value to Step before validation.
+
+    Args:
+        value: Input value (string or dict).
+
+    Returns:
+        Step object or original value.
+
+    """
     if isinstance(value, str):
         return Step(action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
@@ -267,7 +285,16 @@ def before_convert_to_step(value: object) -> object:
 
 @AfterValidator
 def select_step_keyword_type(value: str) -> Keyword | str:
-    """Handle select step keyword type."""
+    """
+    Select step keyword type from string.
+
+    Args:
+        value: Keyword string.
+
+    Returns:
+        Keyword enum or original string.
+
+    """
     try:
         return Keyword(value)
     except ValueError:
@@ -276,7 +303,16 @@ def select_step_keyword_type(value: str) -> Keyword | str:
 
 @AfterValidator
 def after_convert_sub_steps_to_steps(value: object) -> object:
-    """Handle after convert sub steps to steps."""
+    """
+    Convert SubStep to Step after validation.
+
+    Args:
+        value: Input value that may be a SubStep.
+
+    Returns:
+        SubStep converted to Step, or original value.
+
+    """
     return value.sub_step if isinstance(value, SubStep) else value
 
 
@@ -319,7 +355,13 @@ class StepPrototype(Node):
 
     @model_validator(mode="after")  # type: ignore[misc] # migration to pydantic 2
     def set_keyword_type(self) -> Self:
-        """Handle set keyword type."""
+        """
+        Set keyword type based on step type.
+
+        Returns:
+            Self with keyword_type set.
+
+        """
         self.keyword_type = KEYWORD_TO_TYPE[self.type]
         return self  # type: ignore[return-value] # migration to pydantic 2
 
@@ -384,7 +426,13 @@ class StepPrototype(Node):
         *args: object,
         **kwargs: object,
     ) -> StepPrototypeT:
-        """Build by action."""
+        """
+        Build step prototype by action.
+
+        Returns:
+            Step prototype instance.
+
+        """
         return cast(StepPrototypeT, cls(*args, **kwargs, action=action))  # type: ignore[call-arg]
 
     @define
@@ -439,7 +487,13 @@ class StepPrototype(Node):
             yield gherkin_document, feature_source
 
     def as_test(self, filename: str | Path) -> "ScenarioTest":
-        """Handle as test."""
+        """
+        Convert struct BDD model to pytest scenario test.
+
+        Returns:
+            Scenario test function.
+
+        """
         from pytest_bdd.scenario import scenarios
 
         return scenarios(
@@ -455,7 +509,13 @@ class StepPrototype(Node):
         )
 
     def as_test_decorator(self, filename: str | Path) -> "ScenarioDecorator":
-        """Handle as test decorator."""
+        """
+        Convert struct BDD model to pytest scenario decorator.
+
+        Returns:
+            Scenario decorator.
+
+        """
         from pytest_bdd.scenario import scenarios
 
         return scenarios(
@@ -471,7 +531,13 @@ class StepPrototype(Node):
         )
 
     def __call__(self, func: Callable[..., object]) -> Callable[..., object]:
-        """Handle call."""
+        """
+        Apply decorator to function.
+
+        Returns:
+            Decorated function.
+
+        """
         return self.as_test_decorator(getfile(func))(func)
 
 

@@ -190,7 +190,13 @@ class ScenarioTestCollector(_ModernTestCollector):
         pickle: Pickle,
         tag: str,
     ) -> Collection[Mark | MarkDecorator] | None:
-        """Handle bdd convert tag to marks."""
+        """
+        Convert tag to pytest marks.
+
+        Returns:
+            Collection of marks or None.
+
+        """
         _ = gherkin_document
         _ = pickle
         return [getattr(pytest.mark, tag)]
@@ -201,7 +207,13 @@ class ScenarioTestCollector(_ModernTestCollector):
         request: FixtureRequest,
         run: Run,
     ) -> StepDefinitionManager.Definition:
-        """Handle bdd match step definition to step."""
+        """
+        Match step definition to step.
+
+        Returns:
+            Step definition.
+
+        """
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         pickle = require_pickle_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
@@ -217,7 +229,13 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> Mimetype | None:
-        """Handle bdd get mimetype."""
+        """
+        Get mimetype for file path.
+
+        Returns:
+            Mimetype or None.
+
+        """
         mimetype_string, _encoding = mimetypes.guess_type(path)
         if mimetype_string is None:
             return None
@@ -237,7 +255,13 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         mimetype: str,
     ) -> type[ParserProtocol] | None:
-        """Handle bdd get parser."""
+        """
+        Get parser for mimetype.
+
+        Returns:
+            Parser class or None.
+
+        """
         with suppress(KeyError, ValueError):
             return {
                 Mimetype.gherkin_plain: GherkinParser,
@@ -251,7 +275,13 @@ class ScenarioTestCollector(_ModernTestCollector):
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> bool | None:
-        """Handle bdd is collectible."""
+        """
+        Check if path is collectible.
+
+        Returns:
+            True if collectible, False or None otherwise.
+
+        """
         return (
             any(
                 map(
@@ -267,7 +297,13 @@ class ScenarioTestCollector(_ModernTestCollector):
 
     @staticmethod
     def is_enabled(config: Config) -> bool:
-        """Return enabled."""
+        """
+        Check if collector is enabled.
+
+        Returns:
+            True if enabled, False otherwise.
+
+        """
         is_enabled = config.getoption(str(FeatureAutoLoad.Cli.DISABLE_OPTION))
         if is_enabled is None:
             is_enabled = not config.getini(str(FeatureAutoLoad.Ini.DISABLE_OPTION))

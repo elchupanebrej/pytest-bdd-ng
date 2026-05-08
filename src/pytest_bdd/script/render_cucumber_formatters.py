@@ -69,7 +69,16 @@ def _register_formatter_argument(parser: argparse.ArgumentParser, plugin: Format
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse args."""
+    """
+    Parse command-line arguments.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv).
+
+    Returns:
+        Parsed arguments namespace.
+
+    """
     catalog = FormatterPluginCatalog.discover()
     parser = argparse.ArgumentParser(description="Render cucumber formatter outputs from an NDJSON message stream")
     parser.add_argument(
@@ -89,6 +98,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def _emit_error(message: str) -> None:
+    """Emit error message to stderr."""
     sys.stderr.write(message)
     sys.stderr.write("\n")
 
@@ -98,12 +108,29 @@ def _build_formatter_option_values(
     *,
     catalog: FormatterPluginCatalog,
 ) -> dict[str, object]:
+    """
+    Build formatter option values from parsed args.
+
+    Args:
+        args: Parsed arguments.
+        catalog: Plugin catalog.
+
+    Returns:
+        Dictionary of option values.
+
+    """
     return {plugin.option_attr: getattr(args, plugin.option_attr) for plugin in catalog.plugins}
 
 
 def main(argv: list[str] | None = None) -> int:
     """
-    Run main.
+    Run the cucumber formatter renderer.
+
+    Args:
+        argv: Command-line arguments.
+
+    Returns:
+        Exit code.
 
     Raises:
         SystemExit: If the operation cannot be completed.

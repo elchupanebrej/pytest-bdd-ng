@@ -66,12 +66,12 @@ def _resolve_identifiable_id(candidate: object) -> str | None:
 
 @define(slots=True)
 class IdentifiableObjectRegistry:
-    """Represent identifiable object registry state."""
+    """Maintain a fast-lookup index of all globally identifiable objects parsed from messages."""
 
     objects_by_id: dict[str, Identifiable] = field(factory=dict)
 
     def index_tree(self, root: object) -> None:
-        """Handle index tree."""
+        """Recursively traverse an object graph to locate and index any Identifiable elements."""
         for candidate in _iter_object_graph(root):
             identifier = _resolve_identifiable_id(candidate)
             if identifier is None:
@@ -79,13 +79,19 @@ class IdentifiableObjectRegistry:
             self.objects_by_id[identifier] = cast(Identifiable, candidate)
 
     def resolve(self, object_id: str) -> Identifiable:
-        """Resolve resolve."""
+        """
+        Retrieve an Identifiable object from the registry by its globally unique identifier.
+
+        Returns:
+            The matched Identifiable object.
+
+        """
         return self.objects_by_id[object_id]
 
 
 @define(slots=True)
 class EnvelopeRegistry(StashBound):
-    """Represent envelope registry state."""
+    """Store the complete sequence of emitted EventEnvelopes and maintain an index of their identifiable contents."""
 
     STASH_KEY: ClassVar[str] = "_pytest_bdd_envelope_registry"
 
@@ -93,17 +99,29 @@ class EnvelopeRegistry(StashBound):
     identifiable: IdentifiableObjectRegistry = field(factory=IdentifiableObjectRegistry)
 
     def add_envelope(self, envelope: EventEnvelope) -> None:
-        """Handle add envelope."""
+        """Append a new event envelope to the registry and index its identifiable objects."""
         self.envelopes.append(envelope)
         self.identifiable.index_tree(envelope)
 
     def resolve(self, object_id: str) -> Identifiable | None:
-        """Resolve resolve."""
+        """
+        Retrieve a registered Identifiable object from within any stored envelope by its unique identifier.
+
+        Returns:
+            The matched Identifiable object, or None if the identifier is not found.
+
+        """
         return self.identifiable.resolve(object_id)
 
     @classmethod
     def stash_missing_message(cls) -> str:
-        """Handle stash missing message."""
+        """
+        Provide a customized error message when the EnvelopeRegistry is absent from the pytest stash.
+
+        Returns:
+            A string explaining the prerequisite initialization for envelope tracking.
+
+        """
         return (
             "`EnvelopeRegistry` is unavailable in config.stash. "
             "Execution plugins must initialize envelope tracking before reporter emission."
@@ -115,7 +133,13 @@ class EnvelopeRegistry(StashBound):
         stash: Stash,
         envelope: EventEnvelope,
     ) -> EnvelopeRegistry:
-        """Register envelope in pytest stash."""
+        """
+        Fetch the current EnvelopeRegistry from the pytest stash and append a new envelope to it.
+
+        Returns:
+            The updated EnvelopeRegistry instance.
+
+        """
         registry = cls.from_stash(stash)
         registry.add_envelope(envelope)
         return registry

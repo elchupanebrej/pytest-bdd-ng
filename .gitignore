@@ -108,3 +108,5 @@ node_modules/
 /result.html
 /test_stream.ndjson
 /pytest-bdd-remote-artifacts-*/
+
+.tox/

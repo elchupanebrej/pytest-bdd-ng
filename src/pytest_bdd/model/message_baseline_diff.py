@@ -16,7 +16,7 @@ WEEKLY_CADENCE: Final[BaselineCadence] = "weekly"
 
 @frozen
 class BaselineComparisonSchedule:
-    """Represent baseline comparison schedule state."""
+    """Define schedule and metadata for baseline capability diffs."""
 
     schedule_id: str
     cadence: BaselineCadence
@@ -26,7 +26,7 @@ class BaselineComparisonSchedule:
 
 @frozen
 class BaselineDiffRecord:
-    """Represent baseline diff record state."""
+    """Capture the structural differences in capabilities between two specific reporting baselines."""
 
     diff_run_id: str
     previous_baseline: str
@@ -39,7 +39,7 @@ class BaselineDiffRecord:
 
 @frozen
 class BaselineDiffExecutionResult:
-    """Represent baseline diff execution result state."""
+    """Aggregate the outcome of a scheduled baseline diff evaluation, including any generated records."""
 
     due: bool
     schedule: BaselineComparisonSchedule
@@ -47,7 +47,13 @@ class BaselineDiffExecutionResult:
 
 
 def next_weekly_run_at(last_run_at: datetime) -> datetime:
-    """Handle next weekly run at."""
+    """
+    Calculate the next scheduled execution timestamp based on a weekly interval.
+
+    Returns:
+        A datetime object representing exactly one week after the provided last run time.
+
+    """
     return last_run_at + timedelta(days=7)
 
 
@@ -56,7 +62,13 @@ def is_weekly_run_due(
     *,
     now: datetime | None = None,
 ) -> bool:
-    """Return weekly run due."""
+    """
+    Evaluate whether a weekly baseline comparison schedule is currently due for execution.
+
+    Returns:
+        True if the schedule dictates a run is due, otherwise False.
+
+    """
     if schedule.cadence != WEEKLY_CADENCE:
         return False
     current = now or datetime.now(timezone.utc)
@@ -82,7 +94,13 @@ def build_baseline_diff(
     current_capabilities: list[MessageCapability],
     generated_at: datetime | None = None,
 ) -> BaselineDiffRecord:
-    """Build baseline diff."""
+    """
+    Compute the specific capability additions, modifications, and removals between two baseline sets.
+
+    Returns:
+        A BaselineDiffRecord encapsulating the computed capability differences.
+
+    """
     previous_map = {capability.capability_id: capability for capability in previous_capabilities}
     current_map = {capability.capability_id: capability for capability in current_capabilities}
 
@@ -118,7 +136,13 @@ def execute_weekly_baseline_diff(
     current_capabilities: list[MessageCapability],
     now: datetime | None = None,
 ) -> BaselineDiffExecutionResult:
-    """Execute weekly baseline diff."""
+    """
+    Conditionally generate a baseline diff if the provided schedule indicates an execution is due.
+
+    Returns:
+        A BaselineDiffExecutionResult indicating whether a run occurred and the resulting record.
+
+    """
     current = now or datetime.now(timezone.utc)
     if not is_weekly_run_due(schedule, now=current):
         return BaselineDiffExecutionResult(due=False, schedule=schedule, record=None)

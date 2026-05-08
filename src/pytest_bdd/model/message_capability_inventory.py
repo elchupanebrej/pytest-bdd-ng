@@ -19,7 +19,7 @@ PACKAGE_SCHEMA_RELATIVE_DIR = Path("message_jsonschema")
 
 @frozen
 class CapabilitySyncResult:
-    """Represent capability sync result state."""
+    """Store the results of parsing and normalizing capabilities from the message schema."""
 
     total_relevant: int
     total_out_of_scope: int
@@ -29,7 +29,7 @@ class CapabilitySyncResult:
 
 @frozen
 class MandatoryScopeReconciliation:
-    """Represent mandatory scope reconciliation state."""
+    """Detail the coverage comparison between the identified capabilities and those considered mandatory."""
 
     inventory_capability_ids: tuple[str, ...]
     mandatory_capability_ids: tuple[str, ...]
@@ -37,23 +37,41 @@ class MandatoryScopeReconciliation:
 
     @property
     def mandatory_total(self) -> int:
-        """Handle mandatory total."""
+        """
+        Count the total number of capabilities that are deemed mandatory.
+
+        Returns:
+            The total number of mandatory capabilities.
+
+        """
         return len(self.mandatory_capability_ids)
 
     @property
     def inventory_total(self) -> int:
-        """Handle inventory total."""
+        """
+        Count the total number of capabilities identified in the inventory.
+
+        Returns:
+            The total number of capabilities in the inventory.
+
+        """
         return len(self.inventory_capability_ids)
 
     @property
     def has_missing_mandatory_capabilities(self) -> bool:
-        """Return missing mandatory capabilities."""
+        """
+        Check if any capabilities deemed mandatory are missing from the parsed inventory.
+
+        Returns:
+            True if one or more mandatory capabilities are absent, False otherwise.
+
+        """
         return bool(self.missing_mandatory_capability_ids)
 
 
 @frozen
 class CoverageScopeReconciliation:
-    """Represent coverage scope reconciliation state."""
+    """Summarize how well the implemented capabilities cover the expected runtime scope."""
 
     inventory_capability_ids: tuple[str, ...]
     runtime_required_capability_ids: tuple[str, ...]
@@ -64,41 +82,83 @@ class CoverageScopeReconciliation:
 
     @property
     def runtime_required_total(self) -> int:
-        """Handle runtime required total."""
+        """
+        Calculate the total number of capabilities required by the runtime.
+
+        Returns:
+            The total count of required runtime capabilities.
+
+        """
         return len(self.runtime_required_capability_ids)
 
     @property
     def runtime_required_covered(self) -> int:
-        """Handle runtime required covered."""
+        """
+        Calculate the total number of required runtime capabilities that are covered.
+
+        Returns:
+            The count of covered required runtime capabilities.
+
+        """
         return self.runtime_required_total - len(self.missing_runtime_required_capability_ids)
 
     @property
     def runtime_required_missing(self) -> int:
-        """Handle runtime required missing."""
+        """
+        Calculate the total number of required runtime capabilities that are missing.
+
+        Returns:
+            The count of missing required runtime capabilities.
+
+        """
         return len(self.missing_runtime_required_capability_ids)
 
     @property
     def non_runtime_required_total(self) -> int:
-        """Handle non runtime required total."""
+        """
+        Calculate the total number of capabilities outside the required runtime scope.
+
+        Returns:
+            The total count of non-runtime required capabilities.
+
+        """
         return len(tuple(set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)))
 
     @property
     def non_runtime_covered(self) -> int:
-        """Handle non runtime covered."""
+        """
+        Calculate the total number of non-runtime capabilities that are covered by observed implementations.
+
+        Returns:
+            The count of covered non-runtime capabilities.
+
+        """
         non_runtime_set = set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)
         observed_set = set(self.observed_capability_ids)
         return len(non_runtime_set.intersection(observed_set))
 
     @property
     def non_runtime_classified(self) -> int:
-        """Handle non runtime classified."""
+        """
+        Calculate the total number of non-runtime capabilities that have a recorded classification.
+
+        Returns:
+            The count of classified non-runtime capabilities.
+
+        """
         non_runtime_set = set(self.inventory_capability_ids).difference(self.runtime_required_capability_ids)
         classified_set = set(self.classified_capability_ids)
         return len(non_runtime_set.intersection(classified_set))
 
     @property
     def has_unclassified_non_runtime_gaps(self) -> bool:
-        """Return unclassified non runtime gaps."""
+        """
+        Check if there are any non-runtime capabilities lacking both coverage and classification.
+
+        Returns:
+            True if there are unclassified gaps, False otherwise.
+
+        """
         return bool(self.uncovered_non_runtime_unclassified_capability_ids)
 
 
@@ -124,7 +184,13 @@ def _canonical_capability_id(capability_id: str) -> str:
 
 
 def normalize_capability_ids(capability_ids: Iterable[str]) -> tuple[str, ...]:
-    """Normalize capability ids."""
+    """
+    Normalize and deduplicate an iterable of capability identifiers.
+
+    Returns:
+        A sorted tuple of canonical capability identifiers.
+
+    """
     return tuple(sorted({_canonical_capability_id(capability_id) for capability_id in capability_ids}))
 
 
@@ -132,7 +198,13 @@ def reconcile_inventory_with_mandatory_scope(
     inventory_capability_ids: Iterable[str],
     mandatory_capability_ids: Iterable[str],
 ) -> MandatoryScopeReconciliation:
-    """Handle reconcile inventory with mandatory scope."""
+    """
+    Compare the current capability inventory against the predefined mandatory scope.
+
+    Returns:
+        A MandatoryScopeReconciliation object detailing missing capabilities.
+
+    """
     normalized_inventory = normalize_capability_ids(inventory_capability_ids)
     normalized_mandatory = normalize_capability_ids(mandatory_capability_ids)
     inventory_set = set(normalized_inventory)
@@ -152,7 +224,13 @@ def reconcile_runtime_scope_coverage(
     observed_capability_ids: Iterable[str],
     classified_capability_ids: Iterable[str],
 ) -> CoverageScopeReconciliation:
-    """Handle reconcile runtime scope coverage."""
+    """
+    Assess coverage levels of the runtime required capabilities against observed and classified lists.
+
+    Returns:
+        A CoverageScopeReconciliation object capturing gap analysis.
+
+    """
     inventory_ids = normalize_capability_ids(inventory_capability_ids)
     runtime_required_ids = normalize_capability_ids(runtime_required_capability_ids)
     observed_ids = normalize_capability_ids(observed_capability_ids)
@@ -204,10 +282,13 @@ def _schema_dir_from_git_root() -> Path | None:
 
 def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
     """
-    Resolve messages schema dir.
+    Locate the directory containing the cucumber-messages schema envelope definition.
+
+    Returns:
+        A resolved Path pointing to the verified schema directory.
 
     Raises:
-        FileNotFoundError: If the operation cannot be completed.
+        FileNotFoundError: If no valid directory with an Envelope schema can be found.
 
     """
     candidates: list[Path] = []
@@ -238,7 +319,13 @@ def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:
 
 
 def load_envelope_schema(schema_dir: Path | None = None) -> tuple[Path, JSONObject]:
-    """Load envelope schema."""
+    """
+    Read and parse the main cucumber-messages Envelope schema definition into a JSON object.
+
+    Returns:
+        A tuple containing the resolved schema directory path and the parsed JSON schema payload.
+
+    """
     resolved_schema_dir = resolve_messages_schema_dir(schema_dir)
     envelope_path = _envelope_path(resolved_schema_dir)
     return resolved_schema_dir, cast(JSONObject, json.loads(envelope_path.read_text(encoding="utf-8")))
@@ -248,7 +335,13 @@ def sync_capability_inventory(
     baseline_release: str,
     source_entries: list[MessageCapability],
 ) -> CapabilitySyncResult:
-    """Synchronize capability inventory."""
+    """
+    Filter and merge a raw capability list into a standardized inventory format.
+
+    Returns:
+        A CapabilitySyncResult summarizing relevant capabilities, out-of-scope counts, and duplicates.
+
+    """
     seen: set[str] = set()
     duplicates: set[str] = set()
     synchronized: list[MessageCapability] = []

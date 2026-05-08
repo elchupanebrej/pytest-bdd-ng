@@ -122,8 +122,11 @@ def given(
     :param liberal: Could step definition be used with other keywords
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
-
     :return: Decorator function for the step.
+
+    Returns:
+        Step decorator function.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.context,
@@ -166,6 +169,10 @@ def when(
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
+
+    Returns:
+        Step decorator function.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.action,
@@ -208,6 +215,10 @@ def then(
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
+
+    Returns:
+        Step decorator function.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.outcome,
@@ -250,6 +261,10 @@ def step(
     :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture.
 
     :return: Decorator function for the step.
+
+    Returns:
+        Step decorator function.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.unknown,
@@ -305,7 +320,13 @@ class StepDefinitionManager:
             previous_step: Step | None,
             step_registry: "StepDefinitionManager.Registry",
         ) -> "StepDefinitionManager.Definition":
-            """Match a runtime step to this definition."""
+            """
+            Match a runtime step to this definition.
+
+            Returns:
+                Matched step definition.
+
+            """
             self.request = request
             self.feature = feature
             self.pickle = pickle
@@ -340,14 +361,26 @@ class StepDefinitionManager:
             raise self.MatchNotFoundError(self.step.text)
 
         def strict_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
-            """Handle strict matcher."""
+            """
+            Check if step definition strictly matches.
+
+            Returns:
+                True if step definition matches strictly.
+
+            """
             return step_definition.type_ == self.step_type_context and step_definition.parser.is_matching(
                 self.request,
                 self.step.text,
             )
 
         def unspecified_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
-            """Handle unspecified matcher."""
+            """
+            Check if step definition matches with unspecified type.
+
+            Returns:
+                True if matches with unspecified type.
+
+            """
             return (
                 PickleStepType.unknown in {self.step_type_context, step_definition.type_}
             ) and step_definition.parser.is_matching(
@@ -356,7 +389,13 @@ class StepDefinitionManager:
             )
 
         def liberal_matcher(self, step_definition: "StepDefinitionManager.Definition") -> bool:
-            """Handle liberal matcher."""
+            """
+            Check if step definition matches using liberal matching.
+
+            Returns:
+                True if liberal matching applies, False otherwise.
+
+            """
             if step_definition.liberal is None:
                 if self.config.option.liberal_steps is None:
                     is_step_definition_liberal = self.config.getini(str(Steps.Ini.LIBERAL_OPTION))
@@ -454,7 +493,10 @@ class StepDefinitionManager:
 
         def as_message(self, config: Config | HasPytestStash) -> StepDefinition:
             """
-            Handle as message.
+            Convert to message representation.
+
+            Returns:
+                Step definition message.
 
             Raises:
                 TypeError: If the operation cannot be completed.
@@ -504,7 +546,13 @@ class StepDefinitionManager:
             return message
 
         def get_parameters(self, request: FixtureRequest, step: Step) -> dict[str, object]:
-            """Return parameters."""
+            """
+            Get step parameters from parsed arguments.
+
+            Returns:
+                Dictionary of parameter names to values.
+
+            """
             parsed_arguments = (
                 self.parser.parse_arguments(request, step.text, anonymous_group_names=self.anonymous_group_names) or {}
             )
@@ -582,7 +630,13 @@ class StepDefinitionManager:
                 ) -> Callable[[FixtureRequest], object | None]:
                     @pytest.fixture
                     def fixtures_mapped_from_step_definition(request: FixtureRequest) -> object | None:
-                        """Handle fixtures mapped from step definition."""
+                        """
+                        Map step definition fixture.
+
+                        Returns:
+                            Fixture value or None if not found.
+
+                        """
                         try:
                             return cast(object, request.getfixturevalue(fixture_name))
                         except FixtureLookupError:
@@ -606,7 +660,13 @@ class StepDefinitionManager:
             return step_registry
 
         def __iter__(self) -> Iterator["StepDefinitionManager.Definition"]:
-            """Iterate over registered step definitions."""
+            """
+            Iterate over registered step definitions.
+
+            Returns:
+                Iterator over step definitions.
+
+            """
             return iter(self.registry)
 
     @staticmethod
@@ -626,18 +686,21 @@ class StepDefinitionManager:
         """
         Step decorator for the type and the name.
 
-        :param step_type: Step type (CONTEXT, ACTION or OUTCOME).
-        :param step_parserlike: Step name as in the feature file.
-        :param anonymous_group_names: Grant names for anonymous groups of parserlike
-        :param converters: Optional step arguments converters mapping
-        :param target_fixture: Optional fixture name to replace by step definition
-        :param target_fixtures: Target fixture names to be replaced by steps definition function.
-        :param params_fixtures_mapping: Step parameters would be injected as fixtures
-        :param param_defaults: Default parameters for step definition
-        :param liberal: Could step definition be used with other keywords
-        :param stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture
+        Args:
+            step_type: Step type (CONTEXT, ACTION or OUTCOME).
+            step_parserlike: Step name as in the feature file.
+            anonymous_group_names: Grant names for anonymous groups of parserlike
+            converters: Optional step arguments converters mapping
+            target_fixture: Optional fixture name to replace by step definition
+            target_fixtures: Target fixture names to be replaced by steps definition function.
+            params_fixtures_mapping: Step parameters would be injected as fixtures
+            param_defaults: Default parameters for step definition
+            liberal: Could step definition be used with other keywords
+            stacklevel: Stack level to find the caller frame. This is used when injecting the step definition fixture
 
-        :return: Decorator function for the step.
+        Returns:
+            Decorator function for the step.
+
         """
         converters = dict(converters or {})
         param_defaults = dict(param_defaults or {})
@@ -657,9 +720,14 @@ class StepDefinitionManager:
 
         def decorator(step_func: StepFunc) -> StepFunc:
             """
-            Step decorator.
+            Apply step decorator to function.
 
-            :param function step_func: Step definition function
+            Args:
+                step_func: Step definition function
+
+            Returns:
+                Decorated step function.
+
             """
             step_definition = StepDefinitionManager.Definition(
                 func=step_func,

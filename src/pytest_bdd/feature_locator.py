@@ -42,7 +42,16 @@ class FeatureLocatorArgs(TypedDict):
 
 
 def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
-    """Retrieve and bind the arguments from the mark to their default values."""
+    """
+    Retrieve and bind the arguments from the mark to their default values.
+
+    Args:
+        mark: Pytest mark with feature arguments.
+
+    Returns:
+        Feature locator arguments dictionary.
+
+    """
     raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
     raw_mark_arguments.apply_defaults()
     return cast(FeatureLocatorArgs, raw_mark_arguments.arguments)
@@ -114,7 +123,13 @@ class ScenarioLocatorBuilder:
             yield url_locator
 
     def resolve_features_base_dir(self, features_base_dir: str | Path | Callable[[Config], str] | None) -> str:
-        """Resolve the base directory for the features from the mark or config."""
+        """
+        Resolve the base directory for the features from the mark or config.
+
+        Returns:
+            Resolved features base directory path.
+
+        """
         resolved_features_base_dir: str
         if features_base_dir is None:
             resolved_features_base_dir = self.default_features_base_dir
@@ -125,7 +140,13 @@ class ScenarioLocatorBuilder:
         return resolved_features_base_dir
 
     def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> str | None:
-        """Resolve the base URL for the features from the mark or config."""
+        """
+        Resolve the base URL for the features from the mark or config.
+
+        Returns:
+            Resolved features base URL or None.
+
+        """
         if features_base_url is None:
             features_base_url = self.default_features_base_url
         if callable(features_base_url):
@@ -136,6 +157,9 @@ class ScenarioLocatorBuilder:
     def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> FeaturePathType:
         """
         Resolve the type of feature paths (PATH, URL, or UNDEFINED).
+
+        Returns:
+            Resolved feature path type.
 
         Raises:
             ValueError: If the feature path type is unknown.
@@ -157,7 +181,13 @@ class ScenarioLocatorBuilder:
         features_base_dir: str,
         features_path_type: FeaturePathType,
     ) -> FileScenarioLocator | None:
-        """Create a FileScenarioLocator instance if applicable."""
+        """
+        Create a FileScenarioLocator instance if applicable.
+
+        Returns:
+            FileScenarioLocator instance or None if not applicable.
+
+        """
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
         if features_path_type is FeaturePathType.PATH:
             file_locator_feature_paths = feature_paths
@@ -186,7 +216,13 @@ class ScenarioLocatorBuilder:
         features_base_url: str | None,
         features_path_type: FeaturePathType,
     ) -> UrlScenarioLocator | None:
-        """Create a UrlScenarioLocator instance if applicable."""
+        """
+        Create a UrlScenarioLocator instance if applicable.
+
+        Returns:
+            UrlScenarioLocator instance or None if not applicable.
+
+        """
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
 
         if features_path_type is FeaturePathType.URL:
@@ -213,7 +249,13 @@ class ScenarioLocatorBuilder:
     def build_scenario_filter(
         filter_: ScenarioLocatorFilterT | str | StringRepresentable | None,
     ) -> ScenarioLocatorFilterT | None:
-        """Build and return a scenario filter function."""
+        """
+        Build and return a scenario filter function.
+
+        Returns:
+            Scenario filter function or None.
+
+        """
         if callable(filter_):
             return filter_
 

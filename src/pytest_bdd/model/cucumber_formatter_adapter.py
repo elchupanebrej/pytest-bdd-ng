@@ -20,18 +20,7 @@ class _FormatterAttemptState:
 
 
 class CucumberFormatterEnvelopeAdapter:
-    """
-    Normalize schema-valid streams for stricter upstream formatter assumptions.
-
-    The canonical pytest-bdd-ng NDJSON stream remains untouched. This adapter is
-    formatter-only compatibility glue for `@cucumber/cucumber`, whose formatter
-    helpers assume every pickle-backed `testCase.testSteps[*].id` resolves to a
-    `stepResults` entry by render time. That stronger invariant is not required
-    by the message schema and has been observed to crash formatter helpers such
-    as `summary_helpers.js`, `usage_helpers`, and `json_formatter` in
-    `@cucumber/cucumber` 11.3.0. Keep this normalization until upstream tolerates
-    missing step results or the reporter guarantees that stronger invariant.
-    """
+    """Normalize schema-valid streams for stricter upstream formatter assumptions."""
 
     def __init__(self) -> None:
         """Initialize the cucumber formatter envelope adapter."""
@@ -39,7 +28,13 @@ class CucumberFormatterEnvelopeAdapter:
         self._attempts_by_started_id: dict[str, _FormatterAttemptState] = {}
 
     def adapt_envelope_dict(self, envelope_dict: JSONObject) -> tuple[JSONObject, ...]:
-        """Handle adapt envelope dict."""
+        """
+        Process envelope dict, injecting synthetic step results.
+
+        Returns:
+            A tuple of processed envelope dicts.
+
+        """
         synthetic_envelopes: list[JSONObject] = []
 
         test_case = envelope_dict.get("testCase")
@@ -75,7 +70,13 @@ class CucumberFormatterEnvelopeAdapter:
         return (*synthetic_envelopes, envelope_dict)
 
     def flush(self, *, timestamp_payload: object | None = None) -> tuple[JSONObject, ...]:
-        """Handle flush."""
+        """
+        Emit synthetic step-finished envelopes for any test attempts that were not properly closed by the stream.
+
+        Returns:
+            A tuple of synthetic testStepFinished envelopes for all unclosed attempts.
+
+        """
         synthetic_envelopes: list[JSONObject] = []
         for test_case_started_id in list(self._attempts_by_started_id):
             synthetic_envelopes.extend(
@@ -156,7 +157,13 @@ class CucumberFormatterEnvelopeAdapter:
 
 
 def normalize_formatter_envelope_dicts(envelope_dicts: JSONArray) -> JSONArray:
-    """Normalize formatter envelope dicts."""
+    """
+    Pass NDJSON stream through adapter to ensure all test steps are accounted for.
+
+    Returns:
+        A JSON array of normalized envelope dicts.
+
+    """
     adapter = CucumberFormatterEnvelopeAdapter()
     normalized_envelopes: list[JSONValue] = []
     for envelope_dict in envelope_dicts:

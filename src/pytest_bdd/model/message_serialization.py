@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class MessageSerializationProfile(str, Enum):
-    """Represent message serialization profile state."""
+    """Enumerate the output serialization modes."""
 
     extended = "extended"
     schema_compatible = "schema_compatible"
@@ -32,7 +32,17 @@ def normalize_envelope_dict_for_profile(
     *,
     profile: MessageSerializationProfile,
 ) -> JSONObject:
-    """Normalize envelope dict for profile."""
+    """
+    Normalize an envelope dictionary based on the requested serialization profile.
+
+    In 'schema_compatible' mode, pytest-bdd-specific step definition pattern types are downgraded to their canonical
+    cucumber counterparts so the output passes strict upstream schema validation. In 'extended' mode the dictionary
+    is returned unchanged, preserving pytest-bdd-specific type information for internal consumers.
+
+    Returns:
+        A normalized copy of the envelope dictionary conforming to the requested profile.
+
+    """
     if profile is MessageSerializationProfile.extended:
         return envelope_dict
 

@@ -25,7 +25,13 @@ class Module(PytestModule):
     """Represent module state."""
 
     def collect(self) -> Iterable[Item | Collector]:
-        """Collect collect."""
+        """
+        Collect tests from this module.
+
+        Returns:
+            Iterable of pytest items and collectors.
+
+        """
         StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(self.obj)
         return cast(Iterable[Item | Collector], super().collect())
 
@@ -72,7 +78,16 @@ class FeatureFileModule(Module):
 
     @staticmethod
     def detect_uri_pathtype(path: str | None) -> tuple[str | None, PathType]:
-        """Handle detect uri pathtype."""
+        """
+        Detect URI path type from a URL string.
+
+        Args:
+            path: URL string to parse.
+
+        Returns:
+            Tuple of (parsed_path, path_type).
+
+        """
         try:
             parsed_url = urlparse(path)
         except Exception:  # noqa: BLE001 intentional
@@ -89,7 +104,16 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
-        """Return feature pathlike from url file."""
+        """
+        Get feature path from a .url file.
+
+        Args:
+            path: Path to the .url file.
+
+        Returns:
+            Tuple of (feature_path, path_type, working_dir).
+
+        """
         config_parser = ConfigParser()
         config_parser.read(path)
 
@@ -100,7 +124,16 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, None]:
-        """Return feature pathlike from desktop file."""
+        """
+        Get feature path from a .desktop file.
+
+        Args:
+            path: Path to the .desktop file.
+
+        Returns:
+            Tuple of (feature_path, path_type, None).
+
+        """
         config_parser = ConfigParser()
         config_parser.read(path)
 
@@ -109,5 +142,14 @@ class FeatureFileModule(Module):
 
     @classmethod
     def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, None]:
-        """Return feature pathlike from weblock file."""
+        """
+        Get feature path from a .webloc file.
+
+        Args:
+            path: Path to the .webloc file.
+
+        Returns:
+            Tuple of (feature_path, path_type, None).
+
+        """
         return *cls.detect_uri_pathtype(cast(str, webloc_read(str(path)))), None

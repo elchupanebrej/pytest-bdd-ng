@@ -44,12 +44,24 @@ class StructBDDParser(ParserProtocol):
 
     @kind.default
     def kind_default(self) -> str | None:
-        """Handle kind default."""
+        """
+        Get default kind.
+
+        Returns:
+            Default kind value.
+
+        """
         return self.KIND.YAML.value if getattr(self, "loader", None) is None else None
 
     @loader.default
     def loader_default(self) -> Loader | None:
-        """Handle loader default."""
+        """
+        Get default loader.
+
+        Returns:
+            Loader or None.
+
+        """
         return self.build_loader()
 
     def parse(
@@ -60,7 +72,13 @@ class StructBDDParser(ParserProtocol):
         *args: object,
         **kwargs: object,
     ) -> tuple[GherkinDocument, str]:
-        """Parse parse."""
+        """
+        Parse struct BDD file.
+
+        Returns:
+            Tuple of (parsed gherkin document, file content).
+
+        """
         _ = config
         encoding = cast(str, kwargs.pop("encoding", "utf-8"))
         mode = cast(str, kwargs.pop("mode", "r"))
@@ -78,7 +96,13 @@ class StructBDDParser(ParserProtocol):
 
     # TODO: make loaders part of public API
     def build_loader(self) -> Loader | None:
-        """Build loader."""
+        """
+        Build loader based on kind.
+
+        Returns:
+            Loader function or None.
+
+        """
         if self.kind is self.KIND.YAML:
             from yaml import FullLoader
             from yaml import load as load_yaml

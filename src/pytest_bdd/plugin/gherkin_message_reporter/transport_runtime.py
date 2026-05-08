@@ -333,7 +333,13 @@ class TransportService(ReporterServiceBase):
 
     @staticmethod
     def read_envelopes_from_path(messages_file_path: Path) -> list[Message]:
-        """Read envelopes from path."""
+        """
+        Read envelopes from path.
+
+        Returns:
+            List of messages.
+
+        """
         envelopes: list[Message] = []
         if not messages_file_path.exists():
             return envelopes

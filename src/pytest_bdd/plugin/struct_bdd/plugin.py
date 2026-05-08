@@ -53,7 +53,17 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookspec
         mimetype: str,
     ) -> _ParserFactory | None:
-        """Handle the pytest bdd get parser pytest hook."""
+        """
+        Handle the pytest bdd get parser pytest hook.
+
+        Args:
+            config: Pytest config.
+            mimetype: Mimetype string.
+
+        Returns:
+            Parser factory or None.
+
+        """
         with suppress(KeyError, ValueError):
             return partial(  # type:ignore[call-arg]
                 StructBDDParser,
@@ -94,7 +104,17 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookimpl
         path: Path,
     ) -> Mimetype | None:
-        """Handle the pytest bdd get mimetype pytest hook."""
+        """
+        Handle the pytest bdd get mimetype pytest hook.
+
+        Args:
+            config: Pytest config.
+            path: File path.
+
+        Returns:
+            Mimetype or None.
+
+        """
         with suppress(ValueError):
             return self._get_mimetype(path)
         return None
@@ -105,7 +125,13 @@ class StructBDDPlugin:
         config: Config,  # noqa: ARG002 hookspec
         path: Path,
     ) -> bool | None:
-        """Handle the pytest bdd is collectible pytest hook."""
+        """
+        Check if path is collectible as struct BDD.
+
+        Returns:
+            True if collectible, None otherwise.
+
+        """
         with suppress(ValueError):
             self._get_mimetype(path)
             return True

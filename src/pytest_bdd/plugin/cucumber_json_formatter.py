@@ -28,7 +28,13 @@ class JsonFormatterPlugin(FormatterReporterPlugin):
         )
 
     def build_addoption_kwargs(self) -> dict[str, object]:
-        """Build addoption kwargs."""
+        """
+        Build addoption kwargs.
+
+        Returns:
+            Keyword arguments for addoption.
+
+        """
         return self.build_required_path_addoption_kwargs()
 
     def build_request_from_value(
@@ -37,7 +43,13 @@ class JsonFormatterPlugin(FormatterReporterPlugin):
         *,
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
-        """Build request from value."""
+        """
+        Build request from value.
+
+        Returns:
+            Cucumber formatter request.
+
+        """
         return self.build_builtin_required_path_request(raw_value, resolve_output_path=resolve_output_path)
 
 

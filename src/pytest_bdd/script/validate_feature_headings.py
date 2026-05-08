@@ -39,7 +39,13 @@ _MARKDOWN_SUFFIXES = {(".feature", ".md"), (".gherkin", ".md")}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
+    """
+    Parse command line arguments.
+
+    Returns:
+        Parsed arguments namespace.
+
+    """
     parser = argparse.ArgumentParser(description="Validate non-empty parsed BDD headings")
     parser.add_argument("--root-path", type=Path, default=Path("features"), help="Path to feature documents root")
     parser.add_argument(
@@ -62,7 +68,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def heading_validation_policy_payload(policy: HeadingValidationPolicy | None = None) -> dict[str, object]:
-    """Serialize heading validation policy for contract checks."""
+    """
+    Serialize heading validation policy for contract checks.
+
+    Args:
+        policy: Heading validation policy.
+
+    Returns:
+        Policy as dictionary.
+
+    """
     active_policy = default_heading_validation_policy() if policy is None else policy
     return {
         "policy_id": active_policy.policy_id,
@@ -74,7 +89,17 @@ def heading_validation_policy_payload(policy: HeadingValidationPolicy | None = N
 
 
 def discover_feature_documents(root_path: Path, include_patterns: Iterable[str] | None = None) -> list[Path]:
-    """Discover feature documents under a root path."""
+    """
+    Discover feature documents under a root path.
+
+    Args:
+        root_path: Root path to search.
+        include_patterns: Include patterns.
+
+    Returns:
+        List of discovered paths.
+
+    """
     patterns = tuple(include_patterns or DEFAULT_INCLUDE_PATTERNS)
     discovered_paths = {
         path.resolve()
@@ -90,7 +115,18 @@ def run_heading_validation_scan(
     include_patterns: Iterable[str] | None = None,
     policy: HeadingValidationPolicy | None = None,
 ) -> HeadingValidationRun:
-    """Execute heading validation scan for feature documents."""
+    """
+    Execute heading validation scan for feature documents.
+
+    Args:
+        root_path: Root path to scan.
+        include_patterns: Patterns to include.
+        policy: Validation policy.
+
+    Returns:
+        Heading validation run result.
+
+    """
     started_at = datetime.now(timezone.utc)
     active_policy = default_heading_validation_policy() if policy is None else policy
     document_paths = discover_feature_documents(root_path, include_patterns)
@@ -120,7 +156,18 @@ def build_baseline_audit(
     include_patterns: Iterable[str] | None = None,
     policy: HeadingValidationPolicy | None = None,
 ) -> BaselineAuditSummary:
-    """Build baseline compliance summary for repository feature documents."""
+    """
+    Build baseline compliance summary for repository feature documents.
+
+    Args:
+        root_path: Root path to scan.
+        include_patterns: Patterns to include.
+        policy: Validation policy.
+
+    Returns:
+        Baseline audit summary.
+
+    """
     active_policy = default_heading_validation_policy() if policy is None else policy
     validation_run = run_heading_validation_scan(
         root_path=root_path,
@@ -140,6 +187,12 @@ def build_baseline_audit(
 def parse_gherkin_document(path: Path) -> JSONObject:
     """
     Parse a gherkin or gherkin-markdown document into raw AST dictionary.
+
+    Args:
+        path: Path to the feature file.
+
+    Returns:
+        Parsed Gherkin document as JSON.
 
     Raises:
         ValueError: If the feature document cannot be parsed.
@@ -164,7 +217,13 @@ def extract_parsed_heading_records(
     gherkin_document: Mapping[str, object],
     root_path: Path,
 ) -> list[ParsedHeadingRecord]:
-    """Extract heading records from parsed feature document."""
+    """
+    Extract heading records from parsed feature document.
+
+    Returns:
+        List of parsed heading records.
+
+    """
     relative_path = path.resolve().relative_to(root_path.resolve()).as_posix()
     feature_data = gherkin_document.get("feature")
     if not isinstance(feature_data, Mapping):
@@ -188,7 +247,13 @@ def validate_heading_records(
     records: Iterable[ParsedHeadingRecord],
     policy: HeadingValidationPolicy | None = None,
 ) -> list[HeadingValidationViolation]:
-    """Validate heading records against policy."""
+    """
+    Validate heading records against policy.
+
+    Returns:
+        List of validation violations.
+
+    """
     active_policy = default_heading_validation_policy() if policy is None else policy
     violations: list[HeadingValidationViolation] = []
 
@@ -323,7 +388,13 @@ def _emit_text_baseline_result(summary: BaselineAuditSummary) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point."""
+    """
+    CLI entry point.
+
+    Returns:
+        Exit code.
+
+    """
     args = parse_args(argv)
 
     include_patterns = tuple(args.include_patterns or DEFAULT_INCLUDE_PATTERNS)

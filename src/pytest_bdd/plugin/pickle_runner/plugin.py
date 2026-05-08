@@ -229,7 +229,17 @@ class PickleRunner:
         request: FixtureRequest,
         run: Run,
     ) -> object:
-        """Execute scenarios via step dispatcher."""
+        """
+        Execute scenarios via step dispatcher.
+
+        Args:
+            request: Pytest fixture request.
+            run: Current run.
+
+        Returns:
+            Result of step dispatch.
+
+        """
         __tracebackhide__ = True
         require_feature_object(run, hook_name="pytest_bdd_run_scenario")
         pickle = require_pickle_object(run, hook_name="pytest_bdd_run_scenario")
@@ -247,7 +257,17 @@ class PickleRunner:
         request: FixtureRequest,
         run: Run,
     ) -> Callable[[deque[PickleStep]], None]:
-        """Provide alternative approach to execute steps."""
+        """
+        Provide alternative approach to execute steps.
+
+        Args:
+            request: Pytest fixture request.
+            run: Current run.
+
+        Returns:
+            Step dispatcher function.
+
+        """
         __tracebackhide__ = True
 
         def dispatcher(left_steps: deque[PickleStep]) -> None:
@@ -428,8 +448,13 @@ class PickleRunner:
         step_func_args: Mapping[str, object],
         step_definition: StepDefinitionManager.Definition,
     ) -> Callable[[], object]:
-        # Execute the step as if it was a fixture to support generator fixtures.
-        """Handle the pytest bdd get step caller pytest hook."""
+        """
+        Get step caller function.
+
+        Returns:
+            Callable that executes the step as a fixture.
+
+        """
         return partial(
             cast(_FixtureCaller, call_fixture_func),
             fixturefunc=step_definition.func,

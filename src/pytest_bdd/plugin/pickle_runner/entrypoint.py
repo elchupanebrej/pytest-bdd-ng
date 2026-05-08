@@ -96,7 +96,13 @@ _step_registry = StepDefinitionManager.Registry()
 
 @pytest.fixture
 def step_registry() -> StepDefinitionManager.Registry:
-    """Fixture containing registry of all user-defined steps."""
+    """
+    Fixture containing registry of all user-defined steps.
+
+    Returns:
+        Step definition registry.
+
+    """
     return _step_registry
 
 
@@ -105,25 +111,49 @@ step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[a
 
 @pytest.fixture
 def step_matcher(pytestconfig: Config) -> StepDefinitionManager.Matcher:
-    """Fixture containing matcher to help find step definition for selected step of scenario."""
+    """
+    Fixture containing matcher to help find step definition for selected step of scenario.
+
+    Returns:
+        Step definition matcher.
+
+    """
     return StepDefinitionManager.Matcher(pytestconfig)  # type: ignore[call-arg]
 
 
 @pytest.fixture
 def steps_left() -> deque[Step]:
-    """Fixture containing steps which are left to be executed."""
+    """
+    Fixture containing steps which are left to be executed.
+
+    Returns:
+        Empty deque of steps.
+
+    """
     return deque()
 
 
 @pytest.fixture
 def parameter_type_registry() -> "ParameterTypeRegistry":
-    """Fixture parameter type registry for Cucumber expressions."""
+    """
+    Fixture parameter type registry for Cucumber expressions.
+
+    Returns:
+        Parameter type registry.
+
+    """
     return cucumber_expression.parameter_type_registry
 
 
 @pytest.fixture
 def attach(request: FixtureRequest) -> AttachmentCallable:
-    """Fixture parameter type registry for Cucumber expressions."""
+    """
+    Fixture to attach data to test report.
+
+    Returns:
+        Attachment callable.
+
+    """
 
     def add_attachment(
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
@@ -157,5 +187,11 @@ def attach(request: FixtureRequest) -> AttachmentCallable:
 
 @pytest.fixture(scope="session")
 def run_context(request: FixtureRequest) -> Run:
-    """Session-scoped fixture exposing canonical Run."""
+    """
+    Session-scoped fixture exposing canonical Run.
+
+    Returns:
+        Run instance.
+
+    """
     return Run.from_stash(request.config.stash)

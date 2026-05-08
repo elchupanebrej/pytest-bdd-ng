@@ -45,7 +45,10 @@ class _PatchedProcessFromRemote(Protocol):
 
 def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
     """
-    Handle coerce reporting batch payload.
+    Coerce reporting batch payload to dictionary.
+
+    Returns:
+        Batch payload as dictionary.
 
     Raises:
         TypeError: If the operation cannot be completed.
@@ -58,7 +61,13 @@ def coerce_reporting_batch_payload(batch_payload: object) -> dict[str, object]:
 
 
 def ensure_xdist_controller_batch_patch() -> bool:
-    """Ensure xdist controller batch patch."""
+    """
+    Ensure xdist controller batch patch.
+
+    Returns:
+        True if patched, False otherwise.
+
+    """
     try:
         from xdist import workermanage
     except ImportError:

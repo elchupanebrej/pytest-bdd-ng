@@ -14,6 +14,9 @@ def relpath(path: str | PathLike[str], start: str | PathLike[str] = os.curdir) -
     """
     Handle relpath.
 
+    Returns:
+        Relative path from start to path.
+
     Raises:
         ValueError: If relative path resolution fails on a non-Windows platform.
 

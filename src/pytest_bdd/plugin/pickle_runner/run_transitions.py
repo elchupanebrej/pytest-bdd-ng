@@ -39,7 +39,16 @@ PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
 
 
 def runtime_object_id(obj: object) -> str:
-    """Handle runtime object id."""
+    """
+    Get runtime object ID.
+
+    Args:
+        obj: Object to get ID for.
+
+    Returns:
+        String representation of object ID.
+
+    """
     if obj is None:
         return "none"
     explicit_id = getattr(obj, "id", None)
@@ -58,7 +67,16 @@ def runtime_object_id(obj: object) -> str:
 
 
 def runtime_object_name(obj: object) -> str | None:
-    """Handle runtime object name."""
+    """
+    Get runtime object name.
+
+    Args:
+        obj: Object to get name for.
+
+    Returns:
+        Name string or None.
+
+    """
     if obj is None:
         return None
     name = getattr(obj, "name", None)
@@ -66,7 +84,18 @@ def runtime_object_name(obj: object) -> str | None:
 
 
 def build_lifecycle_ref(kind: LifecycleKind, value: object, *, is_active: bool) -> LifecycleObjectRef | None:
-    """Build lifecycle ref."""
+    """
+    Build a lifecycle reference.
+
+    Args:
+        kind: Lifecycle kind.
+        value: Object to reference.
+        is_active: Whether the object is active.
+
+    Returns:
+        LifecycleObjectRef or None.
+
+    """
     if value is None:
         return None
     return LifecycleObjectRef(
@@ -194,7 +223,13 @@ def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObj
 
 
 def initial_scenario_run_id(request: FixtureRequest) -> str:
-    """Handle initial scenario run id."""
+    """
+    Get initial scenario run ID.
+
+    Returns:
+        Initial scenario run ID string.
+
+    """
     node_id = getattr(getattr(request, "node", None), "nodeid", None)
     key = node_id or f"unknown-{next(_context_index)}"
     return f"ctx-{key}-{next(_context_index)}"
@@ -210,7 +245,13 @@ def apply_transition(
     previous_step: object | None = None,
     status: RunStatus | None = None,
 ) -> ScenarioRun:
-    """Apply transition."""
+    """
+    Apply transition to scenario run.
+
+    Returns:
+        Updated scenario run.
+
+    """
     stage = PHASE_TO_STAGE[hook_phase]
     run = scenario_run.run
     run_ref, feature_ref, scenario_ref, step_ref, previous_step_ref = _resolve_transition_refs(

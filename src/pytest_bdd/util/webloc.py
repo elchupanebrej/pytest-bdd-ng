@@ -12,7 +12,16 @@ if TYPE_CHECKING:
 
 
 def read(path: str | PathLike[str]) -> str | None:
-    """Return webloc url."""
+    """
+    Read URL from a .webloc file.
+
+    Args:
+        path: Path to the .webloc file.
+
+    Returns:
+        URL string or None if not found.
+
+    """
     load = getattr(plistlib, "load", None)
     if load is not None:
         with Path(path).open("rb") as f:

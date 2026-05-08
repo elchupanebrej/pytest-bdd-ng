@@ -27,7 +27,13 @@ class SchemaValidator(Protocol):
 
 
 def build_validator(schema: object, *, registry: object | None = None) -> SchemaValidator:
-    """Build validator."""
+    """
+    Build validator.
+
+    Returns:
+        Configured validator instance.
+
+    """
     validators = import_module("jsonschema.validators")
     validator_class = validators.validator_for(schema)
     validator_class.check_schema(schema)

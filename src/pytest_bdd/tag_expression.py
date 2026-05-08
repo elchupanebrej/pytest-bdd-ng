@@ -88,10 +88,16 @@ class GherkinTagExpression(TagExpression):
     @classmethod
     def parse(cls, expression: str) -> Self:
         """
-        Parse parse.
+        Parse a tag expression string.
+
+        Args:
+            expression: Tag expression string.
+
+        Returns:
+            Parsed tag expression object.
 
         Raises:
-            ValueError: If the operation cannot be completed.
+            ValueError: If the expression is invalid.
 
         """
         try:
@@ -101,7 +107,16 @@ class GherkinTagExpression(TagExpression):
             raise ValueError(msg) from e
 
     def evaluate(self, marks: list[Mark]) -> bool:
-        """Handle evaluate."""
+        """
+        Evaluate tag expression against pytest marks.
+
+        Args:
+            marks: List of pytest marks.
+
+        Returns:
+            True if expression matches.
+
+        """
         return bool(self.expression.evaluate(map(attrgetter("name"), marks)))
 
 

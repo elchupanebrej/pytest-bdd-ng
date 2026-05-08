@@ -92,7 +92,7 @@ OUTCOME_SCOPE_BY_PAYLOAD_KIND: Final[dict[str, OutcomeScope]] = {
 
 @frozen
 class MessageValidationViolation:
-    """Represent message validation violation state."""
+    """Capture details about a specific validation error encountered while analyzing a message envelope or stream."""
 
     code: ValidationCode
     message: str
@@ -103,7 +103,7 @@ class MessageValidationViolation:
 
 @frozen
 class MessageValidationResult:
-    """Represent message validation result state."""
+    """Aggregate outcomes and violations from a validation pass."""
 
     status: Literal["pass", "fail"]
     orphan_reference_count: int
@@ -114,20 +114,32 @@ class MessageValidationResult:
 
     @property
     def is_valid(self) -> bool:
-        """Return valid."""
+        """
+        Determine if the validation result represents a complete success with no violations.
+
+        Returns:
+            True if the status is 'pass', otherwise False.
+
+        """
         return self.status == "pass"
 
 
 @frozen
 class XdistReportingCompatibilityResult:
-    """Represent xdist reporting compatibility result state."""
+    """Indicate whether the current distributed execution environment meets the requirements for xdist reporting."""
 
     status: Literal["pass", "fail"]
     reason: str | None = None
 
     @property
     def is_valid(self) -> bool:
-        """Return valid."""
+        """
+        Determine if the environment is fully compatible for xdist reporting.
+
+        Returns:
+            True if the status is 'pass', otherwise False.
+
+        """
         return self.status == "pass"
 
 
@@ -140,7 +152,13 @@ def validate_xdist_reporting_compatibility(
     controller_event_patch_installed: bool,
     worker_sender_available: bool,
 ) -> XdistReportingCompatibilityResult:
-    """Validate xdist reporting compatibility."""
+    """
+    Verify that the xdist plugin configuration and node topology support remote message aggregation.
+
+    Returns:
+        An XdistReportingCompatibilityResult detailing success or the specific blocking constraint.
+
+    """
     if not xdist_active:
         return XdistReportingCompatibilityResult(status="pass")
     if is_controller and not remote_module_available:
@@ -211,7 +229,13 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
 
 
 def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome | None:
-    """Handle observed outcome from envelope."""
+    """
+    Extract and normalize the execution outcome status associated with a specific message envelope.
+
+    Returns:
+        An ObservedOutcome representing the status and context, or None if the payload does not carry an outcome.
+
+    """
     payload_kind = get_payload_kind(envelope)
     if payload_kind is None:
         return None
@@ -231,7 +255,13 @@ def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome |
 
 
 def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOutcome]:
-    """Collect observed outcomes."""
+    """
+    Iterate over a sequence of message envelopes, extracting all normalized observed execution outcomes.
+
+    Returns:
+        A list of ObservedOutcome instances harvested from the stream.
+
+    """
     outcomes: list[ObservedOutcome] = []
     for envelope in envelopes:
         outcome = observed_outcome_from_envelope(envelope)
@@ -241,7 +271,13 @@ def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOu
 
 
 def collect_observed_capability_ids(envelopes: list[EventEnvelope]) -> tuple[str, ...]:
-    """Collect observed capability ids."""
+    """
+    Perform a coverage pass over a stream of envelopes to extract a distinct set of exercised capability identifiers.
+
+    Returns:
+        A sorted tuple of canonical capability strings observed in the stream.
+
+    """
     validation_result = validate_message_stream(envelopes, track_coverage=True)
     if validation_result.observed_coverage is None:
         return ()
@@ -253,7 +289,13 @@ def collect_observed_capability_ids(envelopes: list[EventEnvelope]) -> tuple[str
 
 
 def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
-    """Handle default outcome mapping rules."""
+    """
+    Generate the standard baseline mapping rules for resolving execution outcomes across standard BDD scopes.
+
+    Returns:
+        A list of OutcomeMappingRule instances encoding the default governance rules.
+
+    """
     scopes: tuple[OutcomeScope, ...] = ("run", "scenario", "step", "hook", "attachment")
     statuses: tuple[OutcomeStatus, ...] = ("passed", "failed", "skipped", "undefined", "interrupted")
     result: list[OutcomeMappingRule] = []
@@ -320,7 +362,13 @@ def validate_execnet_serializable_payload(
     *,
     path: tuple[str, ...] = (),
 ) -> tuple[MessageValidationViolation, ...]:
-    """Validate execnet serializable payload."""
+    """
+    Recursively verify that a payload dictionary only contains types that can be reliably transported via execnet.
+
+    Returns:
+        A tuple of MessageValidationViolation instances for any keys or values that break serialization constraints.
+
+    """
     if payload is None or isinstance(payload, (str, int, float, bool)):
         return ()
     if isinstance(payload, tuple):
@@ -356,7 +404,13 @@ def validate_execnet_serializable_payload(
 
 
 def format_xdist_transport_compatibility_error(reason: str) -> str:
-    """Format xdist transport compatibility error."""
+    """
+    Construct a standardized error message indicating a failure in the xdist reporting transport constraints.
+
+    Returns:
+        A formatted error string detailing the incompatibility.
+
+    """
     return (
         "Distributed reporting requires the pytest-bdd xdist remote-module adapter and "
         f"compatible worker/controller channel handling. {reason}"
@@ -366,7 +420,13 @@ def format_xdist_transport_compatibility_error(reason: str) -> str:
 def validate_envelope_dict_against_schema(
     envelope_dict: Mapping[str, object],
 ) -> tuple[MessageValidationViolation, ...]:
-    """Validate envelope dict against schema."""
+    """
+    Validate a raw dictionary representation of a message envelope against the loaded JSON schema.
+
+    Returns:
+        A tuple of MessageValidationViolation instances mapping to specific JSON schema violations, if any.
+
+    """
     clean_envelope_dict = cast(dict[str, object], _strip_nones(envelope_dict))
     validator, validator_init_error = _schema_validator_state()
     if validator_init_error is not None:
@@ -386,7 +446,13 @@ def validate_envelope_against_schema(
     *,
     serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
 ) -> tuple[MessageValidationViolation, ...]:
-    """Validate envelope against schema."""
+    """
+    Serialize an EventEnvelope into its dictionary representation and validate it against the JSON schema.
+
+    Returns:
+        A tuple of MessageValidationViolation instances discovered during schema validation.
+
+    """
     from .execution_message_adapter import ExecutionMessageAdapter
 
     return validate_envelope_dict_against_schema(
@@ -403,7 +469,15 @@ def validate_message_stream(  # noqa: C901
     track_coverage: bool = True,
     serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
 ) -> MessageValidationResult:
-    """Validate message stream."""
+    """
+    Perform an exhaustive pass over a stream of message envelopes.
+
+    Enforces schema compliance, lifecycle consistency, and capability governance rules.
+
+    Returns:
+        A comprehensive MessageValidationResult aggregating all findings, metrics, and coverage data.
+
+    """
     violations: list[MessageValidationViolation] = []
 
     payload_ids: set[str] = set()
@@ -704,10 +778,10 @@ def validate_message_stream(  # noqa: C901
 
 def validate_envelope_shape(envelope: EventEnvelope) -> None:
     """
-    Validate envelope shape.
+    Verify that an EventEnvelope strictly adheres to the oneof payload constraint defined by the cucumber protocol.
 
     Raises:
-        TypeError: If the operation cannot be completed.
+        TypeError: If the envelope is missing a payload or contains multiple contradictory payloads.
 
     """
     if not has_single_payload(envelope):
@@ -716,7 +790,13 @@ def validate_envelope_shape(envelope: EventEnvelope) -> None:
 
 
 def parse_message_dict(payload: dict) -> EventEnvelope:
-    """Parse message dict."""
+    """
+    Instantiate an EventEnvelope from a raw dictionary while ensuring strict payload shape enforcement.
+
+    Returns:
+        The instantiated EventEnvelope object.
+
+    """
     message = Message(**payload)
     validate_envelope_shape(message)
     return message

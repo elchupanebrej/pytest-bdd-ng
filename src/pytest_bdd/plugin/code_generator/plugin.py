@@ -46,7 +46,13 @@ TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa
 
 @lru_cache(maxsize=1)
 def get_code_generation_template() -> Template:
-    """Return code generation template."""
+    """
+    Return code generation template.
+
+    Returns:
+        Jinja2 template for code generation.
+
+    """
     template_source = files("pytest_bdd.template").joinpath("test.py.jinja2").read_text(encoding="utf-8")
     return TEMPLATE_ENV.from_string(template_source)
 
@@ -56,6 +62,12 @@ def get_code_generation_template() -> Template:
 def check_existence(file_name: str) -> Path:
     """
     Check file or directory name for existence.
+
+    Args:
+        file_name: File or directory name.
+
+    Returns:
+        Path object if exists.
 
     Raises:
         argparse.ArgumentTypeError: If the file or directory does not exist.
@@ -72,7 +84,13 @@ def generate_code(
     feature_pickles: Sequence[tuple[FeatureRuntimeBinding, Pickle]],
     feature_pickle_steps: Sequence[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> str:
-    """Generate test code for the given filenames."""
+    """
+    Generate test code for the given filenames.
+
+    Returns:
+        Generated Python code string.
+
+    """
     template = get_code_generation_template()
     code = template.render(
         features=features,
@@ -119,7 +137,13 @@ def generate_and_print_missing_code_callback(config: Config, session: Session) -
 
 
 def validate_feature_option(config: Config, session: Session, tw: py.io.TerminalWriter) -> bool:
-    """Validate if the --feature parameter is provided."""
+    """
+    Validate if the --feature parameter is provided.
+
+    Returns:
+        True if valid, False otherwise.
+
+    """
     if config.option.features is None:
         tw.line("The --feature parameter is required.", red=True)
         session.exitstatus = 100
@@ -130,7 +154,13 @@ def validate_feature_option(config: Config, session: Session, tw: py.io.Terminal
 def process_session_items(
     session: Session,
 ) -> tuple[set[tuple[str, str]], list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]]]:
-    """Process session items to gather matched and unmatched data."""
+    """
+    Process session items to gather matched and unmatched data.
+
+    Returns:
+        Tuple of (seen feature pickle IDs, non-matched feature pickle steps).
+
+    """
     seen_feature_pickles_ids: set[tuple[str, str]] = set()
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]] = []
 
@@ -197,7 +227,13 @@ def collect_features_and_seen_uris(
     config: Config,
     seen_feature_pickles_ids: set[tuple[str, str]],
 ) -> tuple[Sequence[FeatureRuntimeBinding], set[str]]:
-    """Collect all features and the set of seen feature URIs."""
+    """
+    Collect all features and the set of seen feature URIs.
+
+    Returns:
+        Tuple of (features, seen feature URIs).
+
+    """
     locator_builder = ScenarioLocatorBuilder(config=config)
     locators = cast(
         Sequence[ScenarioLocatorResolver],
@@ -225,7 +261,13 @@ def find_non_seen_features_and_pickles(
     seen_feature_pickles_ids: set[tuple[str, str]],
     seen_features_uris: set[str],
 ) -> tuple[list[FeatureRuntimeBinding], list[tuple[FeatureRuntimeBinding, Pickle]]]:
-    """Identify features and pickles that were not seen."""
+    """
+    Identify features and pickles that were not seen.
+
+    Returns:
+        Tuple of (non-seen features, non-seen feature pickles).
+
+    """
     non_seen_features: list[FeatureRuntimeBinding] = list(
         filterfalse(lambda feature: feature.uri in seen_features_uris, features),
     )
@@ -243,7 +285,13 @@ def find_non_seen_features_and_pickles(
 def find_unique_non_matched_steps(
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]]:
-    """Find unique non-matched feature pickle steps."""
+    """
+    Find unique non-matched feature pickle steps.
+
+    Returns:
+        List of unique non-matched feature pickle steps.
+
+    """
     unique_step_defs_ids: set[tuple[PickleStepType | None, str]] = {
         (step.type, step.text) for _, step in non_matched_feature_pickle_steps
     }
@@ -264,7 +312,13 @@ def find_unique_non_matched_steps(
 
 
 def generate_and_print_missing_code(config: Config) -> int | ExitCode:
-    """Wrap pytest session to show missing code."""
+    """
+    Wrap pytest session to show missing code.
+
+    Returns:
+        Exit code.
+
+    """
     return wrap_session(config=config, doit=generate_and_print_missing_code_callback)
 
 
@@ -333,7 +387,13 @@ def generate_and_print_code_callback(config: Config, session: Session) -> None:
 
 
 def generate_and_print_code(config: Config) -> int | ExitCode:
-    """Wrap pytest session to show missing code."""
+    """
+    Wrap pytest session to show missing code.
+
+    Returns:
+        Exit code.
+
+    """
     verbosity = config.option.verbose
     try:
         config.option.verbose = -2
@@ -387,10 +447,28 @@ def print_missing_code(
 
 
 def make_python_docstring(string: str) -> str:
-    """Make a python docstring literal out of a given string."""
+    """
+    Make a python docstring literal out of a given string.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Python docstring literal.
+
+    """
     return '"""{}."""'.format(string.replace('"""', '\\"\\"\\"'))
 
 
 def make_string_literal(string: str) -> str:
-    """Make python string literal out of a given string."""
+    """
+    Make python string literal out of a given string.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Python string literal.
+
+    """
     return "'{}'".format(string.replace("'", "\\'"))

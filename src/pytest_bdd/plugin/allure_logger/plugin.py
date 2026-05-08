@@ -87,6 +87,16 @@ class AttrsAsDict(Protocol):
 
 
 def _node_callspec(node: object) -> _CallSpecProtocol | None:
+    """
+    Extract callspec from a node.
+
+    Args:
+        node: Pytest node object.
+
+    Returns:
+        Callspec or None.
+
+    """
     callspec = getattr(node, "callspec", None)
     return callspec if hasattr(callspec, "params") else None
 
@@ -238,7 +248,13 @@ class AllureLogger:
 
     @staticmethod
     def get_params(node: object) -> list[object] | None:
-        """Return params."""
+        """
+        Get parameters from node.
+
+        Returns:
+            List of parameters or None.
+
+        """
         callspec = _node_callspec(node)
         if callspec is not None:
             params = callspec.params
@@ -247,7 +263,13 @@ class AllureLogger:
 
     @staticmethod
     def get_name(node: Item, pickle: Pickle) -> str:
-        """Return name."""
+        """
+        Get name for the node.
+
+        Returns:
+            Name string.
+
+        """
         if _node_callspec(node) is not None:
             parts = node.nodeid.rsplit("[")
             return f"{pickle.name} [{parts[-1]}"
@@ -255,7 +277,13 @@ class AllureLogger:
 
     @staticmethod
     def get_full_name(gherkin_document: GherkinDocument, pickle: Pickle) -> str:
-        """Return full name."""
+        """
+        Get full name for the pickle.
+
+        Returns:
+            Full name string with path and pickle name.
+
+        """
         uri = str(gherkin_document.uri)
         feature_path = uri.removeprefix("file:") if uri.startswith("file:") else uri
         return f"{os.path.normpath(feature_path)}:{pickle.name}"

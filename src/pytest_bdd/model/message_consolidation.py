@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 @frozen
 class ConsolidationDiagnostic:
-    """Represent consolidation diagnostic state."""
+    """Represent a warning or error generated during the process of merging distributed message streams."""
 
     code: str
     severity: Literal["info", "warning", "error"]
@@ -41,7 +41,7 @@ class ConsolidationDiagnostic:
 
 @frozen
 class MessageFragment:
-    """Represent message fragment state."""
+    """Contain a sequence of messages from a single execution participant."""
 
     worker_id: str
     role: ParticipantRole
@@ -62,7 +62,13 @@ class MessageFragment:
         path: Path | None,
         complete: bool = True,
     ) -> MessageFragment:
-        """Create path."""
+        """
+        Instantiate a MessageFragment by reading line-delimited JSON envelopes from a file.
+
+        Returns:
+            A new MessageFragment populated with parsed envelopes.
+
+        """
         if path is None or not path.exists():
             return cls(worker_id=worker_id, role=role, path=path, complete=False, envelopes=())
 
@@ -84,7 +90,13 @@ class MessageFragment:
         last_batch_sequence: int | None = None,
         interruption_reason: str | None = None,
     ) -> MessageFragment:
-        """Create envelopes."""
+        """
+        Instantiate a MessageFragment directly from an in-memory tuple of JSON envelope dictionaries.
+
+        Returns:
+            A new MessageFragment containing the provided envelopes.
+
+        """
         return cls(
             worker_id=worker_id,
             role=role,
@@ -112,7 +124,7 @@ class _EnvelopeRecord:
 
 @frozen
 class ConsolidatedMessageStream:
-    """Represent consolidated message stream state."""
+    """Store the unified message sequence from all participants."""
 
     envelopes: tuple[object, ...]
     envelope_dicts: tuple[JSONObject, ...]
@@ -303,7 +315,16 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
 def consolidate_message_fragments(  # noqa: C901
     fragments: list[MessageFragment],
 ) -> ConsolidatedMessageStream:
-    """Handle consolidate message fragments."""
+    """
+    Merge multiple message fragments into a single, valid cucumber-messages stream.
+
+    This function handles ID deduplication, sorts events chronologically, and resolves
+    conflicts between multiple workers emitting structurally identical elements.
+
+    Returns:
+        A ConsolidatedMessageStream containing the ordered envelopes and any consolidation diagnostics.
+
+    """
     diagnostics = [diagnostic for fragment in fragments for diagnostic in _diagnostics_for_fragment(fragment)]
     sorted_fragments = sorted(fragments, key=_participant_sort_key)
     records: list[_EnvelopeRecord] = []

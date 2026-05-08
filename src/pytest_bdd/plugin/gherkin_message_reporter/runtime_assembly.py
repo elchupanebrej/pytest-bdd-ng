@@ -113,7 +113,13 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
 
 
 def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServiceGraph:
-    """Handle assemble reporter runtime."""
+    """
+    Assemble reporter runtime services.
+
+    Returns:
+        Reporter service graph.
+
+    """
     live_formatter_service = LiveFormatterService(reporter=reporter)
     transport_service = TransportService(reporter=reporter, live_formatter_service=live_formatter_service)
     lifecycle_service = LifecycleService(

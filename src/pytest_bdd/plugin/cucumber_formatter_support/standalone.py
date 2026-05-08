@@ -14,7 +14,13 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import (
 def resolve_standalone_formatter_catalog(
     catalog: FormatterPluginCatalog | None = None,
 ) -> FormatterPluginCatalog:
-    """Resolve standalone formatter catalog."""
+    """
+    Resolve standalone formatter catalog.
+
+    Returns:
+        Formatter plugin catalog.
+
+    """
     return FormatterPluginCatalog.discover() if catalog is None else catalog
 
 
@@ -24,7 +30,13 @@ def resolve_standalone_formatter_requests(
     formatter_option_values: dict[str, object],
     catalog: FormatterPluginCatalog | None = None,
 ) -> tuple[CucumberFormatterRequest, ...]:
-    """Resolve standalone formatter requests."""
+    """
+    Resolve standalone formatter requests.
+
+    Returns:
+        Tuple of cucumber formatter requests.
+
+    """
     resolved_catalog = resolve_standalone_formatter_catalog(catalog)
 
     def resolve_output_path(output_path: str) -> Path:

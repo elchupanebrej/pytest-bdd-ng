@@ -75,7 +75,17 @@ def fetch_schema_tree(destination: Path) -> None:
 
 
 def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
-    """Collect schema drift."""
+    """
+    Collect schema drift between expected and actual schema directories.
+
+    Args:
+        expected: Expected schema directory.
+        actual: Actual schema directory.
+
+    Returns:
+        Tuple of drift messages.
+
+    """
     expected_files = {path.relative_to(expected).as_posix(): path for path in expected.rglob("*") if path.is_file()}
     actual_files = {path.relative_to(actual).as_posix(): path for path in actual.rglob("*") if path.is_file()}
 
@@ -90,7 +100,13 @@ def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
 
 
 def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
-    """Synchronize schema files."""
+    """
+    Synchronize schema files from remote repository.
+
+    Args:
+        schema_path: Target schema path.
+
+    """
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
         fetch_schema_tree(fetched_schema_path)
@@ -98,7 +114,16 @@ def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
 
 
 def check_schema_files(schema_path: Path = SCHEMA_PATH) -> tuple[str, ...]:
-    """Check schema files."""
+    """
+    Check schema files for drift.
+
+    Args:
+        schema_path: Schema path to check.
+
+    Returns:
+        Tuple of drift messages.
+
+    """
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
         fetch_schema_tree(fetched_schema_path)

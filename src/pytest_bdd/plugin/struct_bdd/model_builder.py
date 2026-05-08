@@ -45,7 +45,13 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
     model: StructStep = field()
 
     def build(self, id_generator: object) -> GherkinDocument:
-        """Build build."""
+        """
+        Build gherkin document.
+
+        Returns:
+            Gherkin document.
+
+        """
         comments = [
             Comment(
                 location=Location(column=1, line=index + 1),
@@ -60,7 +66,13 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
         )
 
     def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:
-        """Build feature."""
+        """
+        Build feature with filename and URI.
+
+        Returns:
+            Gherkin document with feature.
+
+        """
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
         gherkin_document._pytest_bdd_filename = filename
@@ -80,7 +92,13 @@ class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
     model: StructStep = field()
 
     def build(self, id_generator: object) -> Feature:
-        """Build build."""
+        """
+        Build feature AST.
+
+        Returns:
+            Feature AST.
+
+        """
         return Feature(
             children=self._build_children(id_generator=id_generator),
             description=self.model.description or "",
@@ -221,7 +239,13 @@ class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
     model: StructJoin | StructTable = field()
 
     def build(self, id_generator: object) -> Examples:
-        """Build build."""
+        """
+        Build examples AST.
+
+        Returns:
+            Examples AST.
+
+        """
         return Examples(
             description=self.model.description,
             id=next(cast(Iterator[str], id_generator)),

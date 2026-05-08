@@ -21,6 +21,15 @@ class ObservedCoverage:
         *,
         evidence_scenario_id: str | None = None,
     ) -> None:
+        """
+        Record a field observation.
+
+        Args:
+            payload_kind: The kind of payload the field belongs to.
+            field_path: The path of the field.
+            evidence_scenario_id: Optional scenario ID that provided evidence.
+
+        """
         key = canonical_capability_key(payload_kind, field_path)
         self.observed_fields.add(key)
         if evidence_scenario_id is not None:
