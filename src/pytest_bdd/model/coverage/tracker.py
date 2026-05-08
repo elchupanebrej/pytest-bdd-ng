@@ -1,3 +1,5 @@
+"""Provide tracker."""
+
 from attrs import define, field
 
 from .inventory import canonical_capability_key

@@ -307,7 +307,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 fixable = ["ALL"]
 ignore = [
   "CPY001",  # missing-copyright - notice - Requires mass header insertion - ~335 errors
-  "D100",  # undocumented-public - module - Legacy/Noisy - ~121 errors
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
   "DOC201",  # docstring-missing - returns - Legacy/Noisy - ~73 errors
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
