@@ -23,7 +23,9 @@ from pytest_bdd.model.message_transport import (
 )
 from pytest_bdd.model.message_validation import validate_message_stream, validate_xdist_reporting_compatibility
 from pytest_bdd.plugin.gherkin_message_reporter import transport_runtime
-from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_reporting_worker_identity
+from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
+    _resolve_reporting_worker_identity,
+)
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
 from tests.messages.message_stream_assertions import worker_ids_for_payloads
 from tests.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment

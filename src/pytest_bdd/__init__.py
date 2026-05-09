@@ -10,7 +10,16 @@ if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.steps import given, step, then, when
     from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 
-__all__ = ["given", "scenario", "scenarios", "step", "then", "when"]
+__all__ = [
+    "FeaturePathType",
+    "PytestBDDStepDefinitionWarning",
+    "given",
+    "scenario",
+    "scenarios",
+    "step",
+    "then",
+    "when",
+]
 
 
 def __getattr__(name: str) -> object:
