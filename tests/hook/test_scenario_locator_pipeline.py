@@ -18,6 +18,7 @@ from cucumber_messages import (
     StepKeywordType,
 )
 
+from pytest_bdd.compatibility.parser import ParsedFeature
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_bdd.util.other import IdGenerator
@@ -32,7 +33,7 @@ class _DummyLocator(ScenarioLocatorFilterMixin):
         yield from self.entries
 
 
-def _build_gherkin_document() -> GherkinDocument:
+def _build_gherkin_document() -> ParsedFeature:
     scenario_step = Step(
         id="ast-step-1",
         keyword="Given ",
@@ -65,15 +66,19 @@ def _build_gherkin_document() -> GherkinDocument:
         feature=feature_message,
         uri="file:features/example.feature",
     )
-    gherkin_document._pytest_bdd_filename = "features/example.feature"
-    return gherkin_document
+    return ParsedFeature(
+        gherkin_document=gherkin_document,
+        filename="features/example.feature",
+        raw_data="Feature: Feature",
+    )
 
 
 def test_resolve_features_phase_does_not_materialize_pickles() -> None:
     """Verify resolve features phase does not materialize pickles."""
-    gherkin_document = _build_gherkin_document()
+    parsed = _build_gherkin_document()
+    gherkin_document = parsed.gherkin_document
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(gherkin_document, source)])
+    locator = _DummyLocator(entries=[(parsed, source)])
     config = SimpleNamespace(stash={})
     IdGenerator().initialize_in_stash(config.stash)
 
@@ -85,9 +90,10 @@ def test_resolve_features_phase_does_not_materialize_pickles() -> None:
 
 def test_resolve_pipeline_materializes_pickles_without_message_emission() -> None:
     """Verify resolve pipeline materializes pickles without message emission."""
-    gherkin_document = _build_gherkin_document()
+    parsed = _build_gherkin_document()
+    gherkin_document = parsed.gherkin_document
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(gherkin_document, source)])
+    locator = _DummyLocator(entries=[(parsed, source)])
     config = SimpleNamespace(stash={})
     Run.initialize_for_config(stash=config.stash, config=config)
     IdGenerator().initialize_in_stash(config.stash)
@@ -103,9 +109,10 @@ def test_resolve_pipeline_materializes_pickles_without_message_emission() -> Non
 
 def test_resolve_pipeline_invokes_collection_callbacks_in_order() -> None:
     """Verify resolve pipeline invokes collection callbacks in order."""
-    gherkin_document = _build_gherkin_document()
+    parsed = _build_gherkin_document()
+    gherkin_document = parsed.gherkin_document
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(gherkin_document, source)])
+    locator = _DummyLocator(entries=[(parsed, source)])
     config = SimpleNamespace(stash={})
     Run.initialize_for_config(stash=config.stash, config=config)
     IdGenerator().initialize_in_stash(config.stash)

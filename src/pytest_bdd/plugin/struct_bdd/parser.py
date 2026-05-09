@@ -6,10 +6,9 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from attrs import define, field
-from cucumber_messages import GherkinDocument  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.enum import StrEnum
-from pytest_bdd.compatibility.parser import ParserProtocol
+from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.types.protocol import HasPytestStash
 
@@ -71,12 +70,12 @@ class StructBDDParser(ParserProtocol):
         uri: str,
         *args: object,
         **kwargs: object,
-    ) -> tuple[GherkinDocument, str]:
+    ) -> ParsedFeature:
         """
         Parse struct BDD file.
 
         Returns:
-            Tuple of (parsed gherkin document, file content).
+            ParsedFeature with gherkin document, filename, and file content.
 
         """
         _ = config
@@ -92,7 +91,11 @@ class StructBDDParser(ParserProtocol):
             uri,
             self.id_generator,
         )
-        return gherkin_document, content
+        return ParsedFeature(
+            gherkin_document=gherkin_document,
+            filename=filename,
+            raw_data=content,
+        )
 
     # TODO: make loaders part of public API
     def build_loader(self) -> Loader | None:  # noqa: PLR0911

@@ -11,6 +11,15 @@ from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 
 
+@define
+class ParsedFeature:
+    """Parsed feature result — bundles gherkin document, filename, and raw source data."""
+
+    gherkin_document: GherkinDocument
+    filename: str
+    raw_data: str
+
+
 @runtime_checkable
 @define
 class ParserProtocol(Protocol):
@@ -25,6 +34,6 @@ class ParserProtocol(Protocol):
         uri: str,
         *args: object,
         **kwargs: object,
-    ) -> tuple[GherkinDocument, str]:  # pragma: no cover
+    ) -> ParsedFeature:  # pragma: no cover
         """Parse parse."""
         ...

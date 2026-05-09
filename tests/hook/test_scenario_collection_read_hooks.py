@@ -19,6 +19,7 @@ from cucumber_messages import (
     StepKeywordType,
 )
 
+from pytest_bdd.compatibility.parser import ParsedFeature
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.plugin.scenario_test_collector.plugin import _iter_resolved_feature_scenarios  # noqa: PLC2701
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
@@ -53,7 +54,7 @@ class _HookSpy:
         assert gherkin_document.uri
 
 
-def _build_gherkin_document() -> GherkinDocument:
+def _build_gherkin_document() -> ParsedFeature:
     scenario_step = Step(
         id="ast-step-1",
         keyword="Given ",
@@ -86,15 +87,19 @@ def _build_gherkin_document() -> GherkinDocument:
         feature=feature_message,
         uri="file:features/example.feature",
     )
-    gherkin_document._pytest_bdd_filename = "features/example.feature"
-    return gherkin_document
+    return ParsedFeature(
+        gherkin_document=gherkin_document,
+        filename="features/example.feature",
+        raw_data="Feature: Feature",
+    )
 
 
 def test_collection_iter_calls_read_hooks_in_expected_order() -> None:
     """Verify collection iter calls read hooks in expected order."""
-    gherkin_document = _build_gherkin_document()
+    parsed = _build_gherkin_document()
+    gherkin_document = parsed.gherkin_document
     source = Source(uri=gherkin_document.uri, data="Feature: Feature", media_type="text/x.cucumber.gherkin+plain")
-    locator = _DummyLocator(entries=[(gherkin_document, source)])
+    locator = _DummyLocator(entries=[(parsed, source)])
     hook = _HookSpy()
     config = SimpleNamespace(stash={}, hook=hook)
     Run.initialize_for_config(stash=config.stash, config=config)

@@ -65,7 +65,7 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
             feature=StepToFeatureASTBuilder(self.model).build(id_generator=id_generator),
         )
 
-    def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:
+    def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:  # noqa: ARG002
         """
         Build feature with filename and URI.
 
@@ -75,7 +75,6 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
         """
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
-        gherkin_document._pytest_bdd_filename = filename  # noqa: SLF001
         return gherkin_document
 
 

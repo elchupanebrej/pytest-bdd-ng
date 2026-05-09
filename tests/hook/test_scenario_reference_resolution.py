@@ -63,9 +63,9 @@ def _build_feature_binding(run: Run, entries: dict[str, object]) -> FeatureRunti
         ),
         uri="file:features/reference.feature",
     )
-    gherkin_document._pytest_bdd_filename = "features/reference.feature"
     binding = run.ensure_feature_binding(
         gherkin_document=gherkin_document,
+        filename="features/reference.feature",
         source=Source(
             uri=gherkin_document.uri,
             data="Feature: Reference",

@@ -39,7 +39,7 @@ from pytest_bdd.util.url import is_local_url
 if TYPE_CHECKING:
     import aiohttp
 
-    from pytest_bdd.compatibility.parser import ParserProtocol
+    from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 
 
 @runtime_checkable
@@ -49,7 +49,7 @@ class ScenarioLocatorFeatureResolver(Protocol):
     def resolve_features(
         self,
         config: Config | HasPytestStash,
-    ) -> Iterable[tuple[GherkinDocument, Source]]:  # pragma: no cover
+    ) -> Iterable[tuple[ParsedFeature, Source]]:  # pragma: no cover
         """Resolve features."""
         ...
 
@@ -145,7 +145,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
 
     @staticmethod
     def _bind_feature(
-        gherkin_document: GherkinDocument,
+        parsed: ParsedFeature,
         source: Source,
         config: Config | HasPytestStash,
     ) -> FeatureRuntimeBinding:
@@ -153,7 +153,7 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
         Bind a Gherkin document to the runtime.
 
         Args:
-            gherkin_document: Parsed Gherkin document.
+            parsed: Parsed feature with gherkin document, filename, and raw data.
             source: Feature source information.
             config: Pytest config.
 
@@ -162,7 +162,11 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
 
         """
         run = Run.from_stash(config.stash)
-        binding = run.ensure_feature_binding(gherkin_document=gherkin_document, source=source)
+        binding = run.ensure_feature_binding(
+            gherkin_document=parsed.gherkin_document,
+            source=source,
+            filename=parsed.filename,
+        )
         binding.ensure_pickles(id_generator=IdGenerator.from_stash(config.stash))
         return binding
 
@@ -179,15 +183,15 @@ class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocator
             Generated values.
 
         """
-        for gherkin_document, feature_source in self.resolve_features(config):
-            binding = self._bind_feature(gherkin_document, feature_source, config)
+        for parsed, feature_source in self.resolve_features(config):
+            binding = self._bind_feature(parsed, feature_source, config)
             if observer is not None:
-                observer.on_source_loaded(gherkin_document, feature_source)
-                observer.on_feature_loaded(gherkin_document)
-            for _, pickle in self.filter_scenarios(gherkin_document, binding.pickles, config):
+                observer.on_source_loaded(parsed.gherkin_document, feature_source)
+                observer.on_feature_loaded(parsed.gherkin_document)
+            for _, pickle in self.filter_scenarios(parsed.gherkin_document, binding.pickles, config):
                 if observer is not None:
-                    observer.on_pickle_loaded(gherkin_document, pickle)
-                yield gherkin_document, pickle, feature_source
+                    observer.on_pickle_loaded(parsed.gherkin_document, pickle)
+                yield parsed.gherkin_document, pickle, feature_source
 
 
 @define
@@ -241,7 +245,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
-    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
+    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[ParsedFeature, Source]]:
         """
         Resolve features.
 
@@ -308,7 +312,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         feature_content: str,
         mimetype: Mimetype,
         encoding: str,
-    ) -> Iterator[tuple[GherkinDocument, Source]]:
+    ) -> Iterator[tuple[ParsedFeature, Source]]:
         filename = None
         try:
             with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
@@ -316,7 +320,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 f.write(feature_content)
             try:
                 parse_args = self.parse_args or Args((), {})
-                feature, feature_data = parser.parse(
+                parsed = parser.parse(
                     config,
                     Path(filename),
                     url,
@@ -329,7 +333,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 else:
                     raise
             media_type = str(mimetype) if mimetype is not None else "text/plain;charset=UTF-8"
-            yield feature, Source(uri=url, data=feature_data, media_type=media_type)
+            yield parsed, Source(uri=url, data=parsed.raw_data, media_type=media_type)
         finally:
             if filename is not None:
                 with suppress(Exception):
@@ -432,7 +436,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return "file:" + str(rel_feature_path.as_posix())
 
-    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[GherkinDocument, Source]]:
+    def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[ParsedFeature, Source]]:
         """
         Resolve features.
 
@@ -478,7 +482,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             try:
                 parse_args = self.parse_args or Args((), {})
-                feature, feature_data = parser.parse(
+                parsed = parser.parse(
                     config,
                     feature_path,
                     uri,
@@ -491,4 +495,4 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 else:
                     raise
             source_media_type = str(media_type) if media_type is not None else "text/plain;charset=UTF-8"
-            yield feature, Source(uri=uri, data=feature_data, media_type=source_media_type)
+            yield parsed, Source(uri=uri, data=parsed.raw_data, media_type=source_media_type)

@@ -359,6 +359,7 @@ class FeatureRuntimeBinding:
         *,
         run: Run,
         gherkin_document: GherkinDocument,
+        filename: str | None = None,
         source: Source | None = None,
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
@@ -369,7 +370,6 @@ class FeatureRuntimeBinding:
             A fully initialized FeatureRuntimeBinding instance.
 
         """
-        filename = getattr(gherkin_document, "_pytest_bdd_filename", None)
         if filename is None and source is not None:
             filename = cls._feature_filename_from_uri(source.uri)
         if filename is None:
@@ -957,6 +957,7 @@ class Run(StashBound):
         *,
         gherkin_document: GherkinDocument,
         source: Source | None = None,
+        filename: str | None = None,
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
         """
@@ -972,6 +973,7 @@ class Run(StashBound):
             binding = FeatureRuntimeBinding.build(
                 run=self,
                 gherkin_document=gherkin_document,
+                filename=filename,
                 source=source,
                 pickles=pickles,
             )

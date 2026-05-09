@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Annotated, Literal, NamedTuple, TypeAlias, Typ
 
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
-    GherkinDocument,
     Source,
     SourceMediaType,
     StepKeywordType,
@@ -35,6 +34,7 @@ from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
 if TYPE_CHECKING:
+    from pytest_bdd.compatibility.parser import ParsedFeature
     from pytest_bdd.compatibility.pytest import Config
     from pytest_bdd.scenario import ScenarioDecorator, ScenarioTest
     from pytest_bdd.types.protocol import HasPytestStash
@@ -448,7 +448,7 @@ class StepPrototype(Node):
         def resolve_features(
             self,
             config: "Config | HasPytestStash",
-        ) -> Iterator[tuple[GherkinDocument, Source]]:
+        ) -> Iterator["tuple[ParsedFeature, Source]"]:
             """
             Resolve features.
 
@@ -456,6 +456,7 @@ class StepPrototype(Node):
                 Generated values.
 
             """
+            from pytest_bdd.compatibility.parser import ParsedFeature  # noqa: PLC0415
             from pytest_bdd.plugin.struct_bdd.model_builder import (  # noqa: PLC0415 -- circular import with model_builder.py, resolved via lazy load
                 GherkinDocumentBuilder,
             )
@@ -485,7 +486,14 @@ class StepPrototype(Node):
                     data=source_data,
                     media_type=media_type,
                 )
-            yield gherkin_document, feature_source
+            yield (
+                ParsedFeature(
+                    gherkin_document=gherkin_document,
+                    filename=self.filename,
+                    raw_data=source_data,
+                ),
+                feature_source,
+            )
 
     def as_test(self, filename: str | Path) -> "ScenarioTest":
         """

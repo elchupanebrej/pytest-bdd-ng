@@ -3,7 +3,7 @@
 import linecache
 from inspect import getfile, getsourcelines
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from attrs import define
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
@@ -21,7 +21,7 @@ from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import
 from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
 from gherkin.token_scanner import TokenScanner
 
-from pytest_bdd.compatibility.parser import ParserProtocol
+from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding
@@ -30,14 +30,6 @@ from pytest_bdd.types.protocol import HasPytestStash
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser  # noqa: F401
-
-
-class _PytestBddFilenameCarrier(Protocol):
-    _pytest_bdd_filename: str | None
-
-
-def _set_feature_filename(feature: GherkinDocument, path: Path) -> None:
-    cast("_PytestBddFilenameCarrier", feature)._pytest_bdd_filename = str(path.as_posix())  # noqa: SLF001
 
 
 class BaseParser(ParserProtocol):
@@ -151,12 +143,12 @@ class GherkinParser(BaseParser):
         uri: str,
         *args: object,  # noqa: ARG002 overload
         **kwargs: object,
-    ) -> tuple[GherkinDocument, str]:
+    ) -> ParsedFeature:
         """
         Parse gherkin feature file.
 
         Returns:
-            Tuple of (parsed gherkin document, raw feature file text).
+            ParsedFeature with the document, filename, and raw data.
 
         Raises:
             FeatureConcreteParseError: If the operation cannot be completed.
@@ -188,8 +180,11 @@ class GherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(gherkin_document_raw_dict)
-        _set_feature_filename(feature, path)
-        return feature, feature_file_data
+        return ParsedFeature(
+            gherkin_document=feature,
+            filename=str(path.as_posix()),
+            raw_data=feature_file_data,
+        )
 
 
 @define
@@ -209,12 +204,12 @@ class MarkdownGherkinParser(BaseParser):
         uri: str,
         *args: object,  # noqa: ARG002 overload
         **kwargs: object,
-    ) -> tuple[GherkinDocument, str]:
+    ) -> ParsedFeature:
         """
         Parse markdown gherkin feature file.
 
         Returns:
-            Tuple of (parsed gherkin document, raw feature file text).
+            ParsedFeature with the document, filename, and raw data.
 
         Raises:
             FeatureConcreteParseError: If the operation cannot be completed.
@@ -250,5 +245,8 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict = self.normalize_gherkin_document_payload(gherkin_document_raw_dict)
 
         feature = self.build_feature(gherkin_document_raw_dict)
-        _set_feature_filename(feature, path)
-        return feature, feature_file_data
+        return ParsedFeature(
+            gherkin_document=feature,
+            filename=str(path.as_posix()),
+            raw_data=feature_file_data,
+        )
