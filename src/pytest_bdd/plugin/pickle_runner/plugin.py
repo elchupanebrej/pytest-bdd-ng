@@ -474,7 +474,7 @@ class PickleRunner:
         )
 
         for param, fixture_name in resolved_mapping.items():
-            if fixture_name is None or fixture_name is ...:
+            if param is ... or fixture_name is None or fixture_name is ...:
                 continue
             inject_fixture(self._require_request(), str(fixture_name), step_params[str(param)])
 
