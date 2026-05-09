@@ -1,6 +1,6 @@
 ﻿# pytest-bdd-ng Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-05-05
+Auto-generated from all feature plans. Last updated: 2026-05-09
 
 ## Active Technologies
 - Project type: Python library and CLI tooling
@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-05-05
 - Distributed/live-reporting stack: `pytest-xdist>=3.8.0`, `execnet`, `filelock`, Docker/Compose for non-native remote acceptance, Node.js on `PATH`, `@cucumber/cucumber`, and `@cucumber/pretty-formatter`
 - Runtime/storage model: in-memory `Run`/`ScenarioRun`/execution-context state plus file artifacts such as NDJSON, JSON, YAML, Markdown, and temporary rendered script/output files under repository and temp paths
 - Python 3.10–3.14 + `pytest >= 7`, `pytest-order` (new, to be added to test deps), `pytest-xdist >= 3.8.0` (existing) (020-test-group-ordering)
+- Python 3.10–3.14 + `cucumber_messages`, `gherkin`, `attrs`, `pytest >= 7` (020-test-group-ordering)
+- N/A (no new storage) (020-test-group-ordering)
 
 ## Project Structure
 

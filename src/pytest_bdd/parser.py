@@ -3,11 +3,12 @@
 import linecache
 from inspect import getfile, getsourcelines
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from attrs import define
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    GherkinDocument,
     JavaMethod,
     JavaStackTraceElement,
     Location,
@@ -20,7 +21,6 @@ from gherkin.parser import Parser as CucumberIOBaseParser  # type: ignore[import
 from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
 from gherkin.token_scanner import TokenScanner
 
-from pytest_bdd.compatibility.gherkin import GherkinDocument
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
@@ -95,7 +95,7 @@ class BaseParser(ParserProtocol):
             return
 
     @staticmethod
-    def normalize_gherkin_document_payload(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
+    def normalize_gherkin_document_payload(gherkin_document_raw_dict: dict[str, Any]) -> dict[str, Any]:
         """
         Normalize gherkin document payload.
 
@@ -123,7 +123,7 @@ class BaseParser(ParserProtocol):
         return gherkin_document_raw_dict
 
     @staticmethod
-    def build_feature(gherkin_document_raw_dict: GherkinDocument) -> GherkinDocument:
+    def build_feature(gherkin_document_raw_dict: dict[str, Any]) -> GherkinDocument:
         """
         Build feature from gherkin document dict.
 
@@ -131,9 +131,7 @@ class BaseParser(ParserProtocol):
             Built feature object.
 
         """
-        gherkin_document = FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
-        # TODO: here must adapter layer not just direct casting
-        return cast("GherkinDocument", gherkin_document)
+        return FeatureRuntimeBinding.load_gherkin_document(gherkin_document_raw_dict)
 
 
 @define
@@ -169,7 +167,7 @@ class GherkinParser(BaseParser):
         feature_file_data = path.read_text(encoding=encoding)
 
         try:
-            gherkin_document_raw_dict = cast("GherkinDocument", gherkin_parser.parse(feature_file_data))
+            gherkin_document_raw_dict = cast("dict[str, Any]", gherkin_parser.parse(feature_file_data))
         except CompositeParserException as e:
             error_location = e.errors[0].location
             self.emit_parse_error(
@@ -229,7 +227,7 @@ class MarkdownGherkinParser(BaseParser):
         token_scanner = TokenScanner(feature_file_data)
 
         try:
-            gherkin_document_raw_dict = cast("GherkinDocument", gherkin_parser.parse(token_scanner, matcher))
+            gherkin_document_raw_dict = cast("dict[str, Any]", gherkin_parser.parse(token_scanner, matcher))
         except CompositeParserException as e:
             error_location = e.errors[0].location
             self.emit_parse_error(

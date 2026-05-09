@@ -305,7 +305,6 @@ skip-magic-trailing-comma = false
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
-future-annotations = true
 ignore = [
   "D203",  # incorrect-blank-line-before-class - Conflicts with active D211 convention
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
