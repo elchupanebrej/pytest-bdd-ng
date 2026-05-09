@@ -82,7 +82,7 @@ def ensure_xdist_controller_batch_patch() -> bool:
     marker_end = workermanage.Marker.END
 
     def patched_process_from_remote(self: _WorkerControllerProtocol, eventcall: object) -> None:
-        if eventcall is not marker_end and isinstance(eventcall, tuple) and len(eventcall) == 2:
+        if eventcall is not marker_end and isinstance(eventcall, tuple) and len(eventcall) == 2:  # noqa: PLR2004
             event_name, kwargs = eventcall
             if event_name == REPORTING_BATCH_EVENT and isinstance(kwargs, dict):
                 try:

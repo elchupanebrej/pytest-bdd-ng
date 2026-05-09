@@ -75,7 +75,7 @@ class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
         """
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
-        gherkin_document._pytest_bdd_filename = filename
+        gherkin_document._pytest_bdd_filename = filename  # noqa: SLF001
         return gherkin_document
 
 

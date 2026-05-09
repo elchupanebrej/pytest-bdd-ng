@@ -101,31 +101,31 @@ class LiveFormatterService(ReporterServiceBase):
                     process.wait(timeout=5)
 
     def _join_live_formatter_threads(self) -> None:
-        if self.reporter._live_formatter_stdout_thread is not None:
-            self.reporter._live_formatter_stdout_thread.join(timeout=5)
-            self.reporter._live_formatter_stdout_thread = None
-        if self.reporter._live_formatter_stderr_thread is not None:
-            self.reporter._live_formatter_stderr_thread.join(timeout=5)
-            self.reporter._live_formatter_stderr_thread = None
+        if self.reporter._live_formatter_stdout_thread is not None:  # noqa: SLF001
+            self.reporter._live_formatter_stdout_thread.join(timeout=5)  # noqa: SLF001
+            self.reporter._live_formatter_stdout_thread = None  # noqa: SLF001
+        if self.reporter._live_formatter_stderr_thread is not None:  # noqa: SLF001
+            self.reporter._live_formatter_stderr_thread.join(timeout=5)  # noqa: SLF001
+            self.reporter._live_formatter_stderr_thread = None  # noqa: SLF001
 
     def _record_live_formatter_failure(self, message: str) -> None:
-        if self.reporter._live_formatter_failure_message == message:
+        if self.reporter._live_formatter_failure_message == message:  # noqa: SLF001
             return
-        if self.reporter._live_formatter_failure_message is None:
-            self.reporter._live_formatter_failure_message = message
+        if self.reporter._live_formatter_failure_message is None:  # noqa: SLF001
+            self.reporter._live_formatter_failure_message = message  # noqa: SLF001
             restore_terminal_reporter = getattr(self.reporter, "_restore_terminal_reporter", None)
             if restore_terminal_reporter is not None:
                 restore_terminal_reporter()
-                self.reporter._restore_terminal_reporter = None
+                self.reporter._restore_terminal_reporter = None  # noqa: SLF001
         logger.error("%s", message)
         sys.stderr.write(f"{message}\n")
         sys.stderr.flush()
 
     def _emit_live_formatter_json_lines(self, message_json_lines: list[str], *, source: str) -> None:
         normalized_lines = self._normalize_live_formatter_json_lines(message_json_lines)
-        if not normalized_lines or self.reporter._live_formatter_failure_message is not None:
+        if not normalized_lines or self.reporter._live_formatter_failure_message is not None:  # noqa: SLF001
             return
-        process = self.reporter._live_formatter_process
+        process = self.reporter._live_formatter_process  # noqa: SLF001
         if process is None:
             return
         stdin = process.stdin
@@ -140,7 +140,7 @@ class LiveFormatterService(ReporterServiceBase):
                 f"Live cucumber formatter session exited early with code {process.returncode} while handling {source}.",
             )
             return
-        with self.reporter._live_formatter_lock:
+        with self.reporter._live_formatter_lock:  # noqa: SLF001
             try:
                 for message_json in normalized_lines:
                     stdin.write(message_json)
@@ -161,14 +161,14 @@ class LiveFormatterService(ReporterServiceBase):
             envelope_dict = json.loads(message_json)
             normalized_lines.extend(
                 json.dumps(adapted_envelope_dict)
-                for adapted_envelope_dict in self.reporter._live_formatter_envelope_adapter.adapt_envelope_dict(
+                for adapted_envelope_dict in self.reporter._live_formatter_envelope_adapter.adapt_envelope_dict(  # noqa: SLF001
                     envelope_dict,
                 )
             )
         return normalized_lines
 
     def _build_live_formatter_flush_json_lines(self) -> list[str]:
-        return [json.dumps(envelope_dict) for envelope_dict in self.reporter._live_formatter_envelope_adapter.flush()]
+        return [json.dumps(envelope_dict) for envelope_dict in self.reporter._live_formatter_envelope_adapter.flush()]  # noqa: SLF001
 
     @staticmethod
     def _close_live_formatter_stream(stream: IO[str] | None) -> None:
@@ -630,8 +630,8 @@ class LiveFormatterService(ReporterServiceBase):
             )
             return
 
-        self.reporter._live_formatter_temp_dir = tempfile.TemporaryDirectory(prefix="pytest-bdd-live-formatters-")
-        temp_dir = Path(self.reporter._live_formatter_temp_dir.name)
+        self.reporter._live_formatter_temp_dir = tempfile.TemporaryDirectory(prefix="pytest-bdd-live-formatters-")  # noqa: SLF001
+        temp_dir = Path(self.reporter._live_formatter_temp_dir.name)  # noqa: SLF001
         script_path = temp_dir / "render_cucumber_formatters.js"
         payload_path = temp_dir / "formatter_payload.json"
         runtime_assets = self._render_cucumber_formatter_runtime_assets(runnable_requests)
@@ -650,7 +650,7 @@ class LiveFormatterService(ReporterServiceBase):
             encoding="utf-8",
         )
         try:
-            self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603
+            self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001
                 [node_executable, str(script_path), str(payload_path)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -659,27 +659,27 @@ class LiveFormatterService(ReporterServiceBase):
                 cwd=str(get_config_root_path(self.reporter.config)),
                 env=node_env,
             )
-            if self.reporter._live_formatter_process.stdout is not None:
-                self.reporter._live_formatter_stdout_thread = Thread(
+            if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001
+                self.reporter._live_formatter_stdout_thread = Thread(  # noqa: SLF001
                     target=relay_live_formatter_output,
-                    args=(self.reporter._live_formatter_process.stdout, sys.stdout),
+                    args=(self.reporter._live_formatter_process.stdout, sys.stdout),  # noqa: SLF001
                     daemon=True,
                 )
-                self.reporter._live_formatter_stdout_thread.start()
-            if self.reporter._live_formatter_process.stderr is not None:
-                self.reporter._live_formatter_stderr_thread = Thread(
+                self.reporter._live_formatter_stdout_thread.start()  # noqa: SLF001
+            if self.reporter._live_formatter_process.stderr is not None:  # noqa: SLF001
+                self.reporter._live_formatter_stderr_thread = Thread(  # noqa: SLF001
                     target=relay_live_formatter_output,
-                    args=(self.reporter._live_formatter_process.stderr, sys.stderr),
+                    args=(self.reporter._live_formatter_process.stderr, sys.stderr),  # noqa: SLF001
                     daemon=True,
                 )
-                self.reporter._live_formatter_stderr_thread.start()
-            if self.reporter._live_formatter_process.poll() is not None:
+                self.reporter._live_formatter_stderr_thread.start()  # noqa: SLF001
+            if self.reporter._live_formatter_process.poll() is not None:  # noqa: SLF001
                 self._record_live_formatter_failure(
                     "Live cucumber formatter session exited early with code "
-                    f"{self.reporter._live_formatter_process.returncode} during startup.",
+                    f"{self.reporter._live_formatter_process.returncode} during startup.",  # noqa: SLF001
                 )
                 return
-            self.reporter._live_formatter_session_started = True
+            self.reporter._live_formatter_session_started = True  # noqa: SLF001
         except OSError:
             logger.exception(
                 "Unable to execute Node.js while streaming to cucumber formatters for %s.",
@@ -823,7 +823,7 @@ class LiveFormatterService(ReporterServiceBase):
                 find_resource(
                     self.reporter.npm_formatter_package,
                     str(Path("dist") / "main.js"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,
+                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
                 ),
             ),
         )
@@ -832,7 +832,7 @@ class LiveFormatterService(ReporterServiceBase):
                 find_resource(
                     self.reporter.npm_formatter_package,
                     str(Path("dist") / "main.css"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,
+                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
                 ),
             ),
         )
@@ -841,7 +841,7 @@ class LiveFormatterService(ReporterServiceBase):
                 find_resource(
                     self.reporter.npm_formatter_package,
                     str(Path("src") / "index.mustache.html"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,
+                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
                 ),
             ),
         )
@@ -852,7 +852,7 @@ class LiveFormatterService(ReporterServiceBase):
                 find_resource(
                     self.reporter.npm_formatter_package,
                     str(Path("src") / "icon.url"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,
+                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
                 ),
                 None,
             )
@@ -897,4 +897,4 @@ class LiveFormatterService(ReporterServiceBase):
                 "generate html report. Install it manually with "
                 f"`npm install --save-dev {self.reporter.npm_formatter_package}`",
             )
-        self.reporter._auto_provisioned_node_modules_roots = provision_result.node_modules_roots
+        self.reporter._auto_provisioned_node_modules_roots = provision_result.node_modules_roots  # noqa: SLF001

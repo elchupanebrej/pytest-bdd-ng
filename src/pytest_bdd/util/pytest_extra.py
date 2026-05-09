@@ -32,27 +32,27 @@ def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
     )
     fd.cached_result = (value, 0, None)
 
-    old_fd: FixtureDef[object] | None = request._fixture_defs.get(arg)
+    old_fd: FixtureDef[object] | None = request._fixture_defs.get(arg)  # noqa: SLF001
     add_fixturename = arg not in request.fixturenames
 
     def fin() -> None:
-        request._fixturemanager._arg2fixturedefs[arg].remove(fd)
+        request._fixturemanager._arg2fixturedefs[arg].remove(fd)  # noqa: SLF001
         if old_fd is None:
-            request._fixture_defs.pop(arg, None)
+            request._fixture_defs.pop(arg, None)  # noqa: SLF001
         else:
-            request._fixture_defs[arg] = old_fd
+            request._fixture_defs[arg] = old_fd  # noqa: SLF001
 
         if add_fixturename:
-            request._pyfuncitem._fixtureinfo.names_closure.remove(arg)
+            request._pyfuncitem._fixtureinfo.names_closure.remove(arg)  # noqa: SLF001
 
     request.addfinalizer(fin)
 
     # inject fixture definition
-    request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)
+    request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)  # noqa: SLF001
     # inject fixture value in request cache
-    request._fixture_defs[arg] = fd
+    request._fixture_defs[arg] = fd  # noqa: SLF001
     if add_fixturename:
-        request._pyfuncitem._fixtureinfo.names_closure.append(arg)
+        request._pyfuncitem._fixtureinfo.names_closure.append(arg)  # noqa: SLF001
 
 
 @contextmanager

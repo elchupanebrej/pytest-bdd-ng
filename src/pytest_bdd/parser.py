@@ -37,7 +37,7 @@ class _PytestBddFilenameCarrier(Protocol):
 
 
 def _set_feature_filename(feature: GherkinDocument, path: Path) -> None:
-    cast("_PytestBddFilenameCarrier", feature)._pytest_bdd_filename = str(path.as_posix())
+    cast("_PytestBddFilenameCarrier", feature)._pytest_bdd_filename = str(path.as_posix())  # noqa: SLF001
 
 
 class BaseParser(ParserProtocol):

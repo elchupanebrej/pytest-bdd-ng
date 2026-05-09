@@ -81,9 +81,9 @@ def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
     """
     if not python_factor.isdigit():
         return None
-    if len(python_factor) == 2:
+    if len(python_factor) == 2:  # noqa: PLR2004
         return (3, int(python_factor[1]))
-    if len(python_factor) == 3:
+    if len(python_factor) == 3:  # noqa: PLR2004
         return (int(python_factor[0]), int(python_factor[1:]))
     return None
 
@@ -116,9 +116,9 @@ def _format_pytest_version(pytest_factor: str) -> str:
     """
     if pytest_factor == "latest":
         return "latest"
-    if len(pytest_factor) == 2:
+    if len(pytest_factor) == 2:  # noqa: PLR2004
         return f"{pytest_factor[0]}.{pytest_factor[1]}"
-    if len(pytest_factor) == 3:
+    if len(pytest_factor) == 3:  # noqa: PLR2004
         return f"{pytest_factor[0]}.{pytest_factor[1]}.{pytest_factor[2]}"
     return pytest_factor
 
@@ -139,14 +139,14 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
         return (99, 0, 0)
     if not pytest_factor.isdigit():
         return None
-    if len(pytest_factor) == 2:
+    if len(pytest_factor) == 2:  # noqa: PLR2004
         return (int(pytest_factor[0]), int(pytest_factor[1]), 0)
-    if len(pytest_factor) == 3:
+    if len(pytest_factor) == 3:  # noqa: PLR2004
         return (int(pytest_factor[0]), int(pytest_factor[1]), int(pytest_factor[2]))
     return None
 
 
-def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:
+def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:  # noqa: PLR0911
     """
     Check if a Python/pytest version pair is compatible.
 

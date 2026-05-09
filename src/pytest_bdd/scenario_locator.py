@@ -300,7 +300,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             )
         return self.parser_type
 
-    def _parse_and_yield_feature(
+    def _parse_and_yield_feature(  # noqa: PLR0913, PLR0917
         self,
         parser: ParserProtocol,
         config: Config | HasPytestStash,

@@ -80,7 +80,7 @@ class MessageFragment:
         return cls(worker_id=worker_id, role=role, path=path, complete=complete, envelopes=envelopes)
 
     @classmethod
-    def from_envelopes(
+    def from_envelopes(  # noqa: PLR0913
         cls,
         *,
         worker_id: str,
@@ -314,7 +314,7 @@ def _diagnostics_for_fragment(fragment: MessageFragment) -> list[ConsolidationDi
     return diagnostics
 
 
-def consolidate_message_fragments(  # noqa: C901
+def consolidate_message_fragments(  # noqa: C901, PLR0912, PLR0914, PLR0915
     fragments: list[MessageFragment],
 ) -> ConsolidatedMessageStream:
     """

@@ -49,7 +49,7 @@ def envelope_from_dict(payload: JSONObject) -> Message:
     return message
 
 
-def governance_value_to_dict(value: object) -> JSONValue:
+def governance_value_to_dict(value: object) -> JSONValue:  # noqa: PLR0911
     """
     Recursively convert an arbitrary governance value into a JSON-serializable primitive representation.
 

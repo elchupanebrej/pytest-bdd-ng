@@ -107,7 +107,7 @@ class FormatterRuntimeKind(StrEnum):
     module = "module"
 
 
-@frozen
+@frozen  # noqa: PLR0904
 class FormatterReporterPlugin(ABC):
     """
     Represent formatter reporter plugin state.

@@ -67,7 +67,7 @@ def _payload_kind_from_type_name(type_name: str) -> str | None:
     return candidate if candidate in PAYLOAD_KINDS else None
 
 
-def _infer_payload_kinds_from_expression(expression: ast.expr) -> set[str]:
+def _infer_payload_kinds_from_expression(expression: ast.expr) -> set[str]:  # noqa: PLR0911
     if isinstance(expression, ast.Call):
         func = expression.func
         if isinstance(func, ast.Name):

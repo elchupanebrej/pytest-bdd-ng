@@ -144,7 +144,7 @@ class XdistReportingCompatibilityResult:
         return self.status == "pass"
 
 
-def validate_xdist_reporting_compatibility(
+def validate_xdist_reporting_compatibility(  # noqa: PLR0913
     *,
     xdist_active: bool,
     is_worker: bool,
@@ -198,7 +198,7 @@ def _normalize_outcome_status(value: object) -> OutcomeStatus | None:
     return normalize_outcome_status(value)
 
 
-def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:  # noqa: C901
+def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:  # noqa: C901, PLR0911
     if payload_kind == "test_step_finished":
         test_step_result = getattr(payload, "test_step_result", None)
         result_status = getattr(test_step_result, "status", None) if test_step_result is not None else None
@@ -459,7 +459,7 @@ def validate_envelope_against_schema(
     )
 
 
-def validate_message_stream(  # noqa: C901
+def validate_message_stream(  # noqa: C901, PLR0912, PLR0913, PLR0914, PLR0915
     envelopes: list[EventEnvelope],
     *,
     latest_protocol_version: str | None = None,

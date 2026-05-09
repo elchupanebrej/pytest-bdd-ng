@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from inspect import getframeinfo, getsourcelines, signature
-from sys import _getframe
+from sys import _getframe  # noqa: PLC2701
 from typing import TYPE_CHECKING, Protocol, cast
 
 if TYPE_CHECKING:

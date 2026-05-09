@@ -290,7 +290,7 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     @__init__.register
     def _(self, format_: base_parse.Parser) -> None:
-        self.format = format_._format
+        self.format = format_._format  # noqa: SLF001
         self.parser = format_
 
     @classmethod
@@ -342,7 +342,7 @@ class parse(StepParser):  # noqa:N801 intentional API
             Collection of argument names.
 
         """
-        return [*self.parser._match_re.groupindex.keys()]
+        return [*self.parser._match_re.groupindex.keys()]  # noqa: SLF001
 
     def is_matching(
         self,

@@ -11,7 +11,7 @@ from .plugin import GherkinTerminalReporter
 def pytest_addoption(parser: Parser) -> None:
     """Handle addoption."""
     group = parser.getgroup("terminal reporting", "reporting", after="general")
-    group._addoption(
+    group._addoption(  # noqa: SLF001
         "--gherkin-terminal-reporter",
         action="store_true",
         dest="gherkin_terminal_reporter",

@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
-from _pytest.mark import Mark
+from _pytest.mark import Mark  # noqa: PLC2701
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Hook, HookType, JavaMethod, JavaStackTraceElement, Location, SourceReference
 
@@ -120,7 +120,7 @@ class HookCatalogService(ReporterServiceBase):
                 kind=str(hook_kind),
             )
 
-            self.lifecycle_service._emit_envelope(config, Message(hook=hook_message))
+            self.lifecycle_service._emit_envelope(config, Message(hook=hook_message))  # noqa: SLF001
 
         yield
 

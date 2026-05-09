@@ -305,8 +305,8 @@ skip-magic-trailing-comma = false
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
+future-annotations = true
 ignore = [
-  "CPY001",  # missing-copyright - No copyright headers are used in the project
   "D203",  # incorrect-blank-line-before-class - Conflicts with active D211 convention
   "D212",  # multi-line - summary-first-line - Conflicts with active D213 convention
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
@@ -324,7 +324,6 @@ select = [
   "C4",  # flake8-comprehensions: Comprehension optimizations
   "C90",  # flake8-c90: C90 style issues
   "COM",  # flake8-commas: Comma issues
-  "CPY",  # flake8-copyright: Copyright headers
   "D",  # pydocstyle: Docstring conventions
   "DTZ",  # flake8-datetimez: Datetime issues
   "DOC",  # pydoclint: Docstring linting
@@ -391,63 +390,13 @@ max-complexity = 10  # TODO target is 6
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # F401: ~2 errors
-"docs/conf.py" = ["ERA001"]  # ERA001: ~40 errors
+"docs/conf.py" = ["ERA001"]  # ERA001: ~40 errors (generated docs config)
 "docs/tutorial/tests/*" = ["S101"]  # S101: ~2 errors
-"src/pytest_bdd/collector.py" = ["PLC2701"]  # Collector integrates with pytest private collection APIs.
-"src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001: ~3 errors
-"src/pytest_bdd/compatibility/matrix.py" = ["PLR0911", "PLR2004"]  # Compatibility factor parsing uses compact version arity checks.
-"src/pytest_bdd/compatibility/pytest/__init__.py" = ["PLC2701", "PLR0913", "PLR0917", "RUF", "SLF001"]  # Compatibility shims mirror pytest internals and signatures.
-"src/pytest_bdd/compatibility/pytest/outcomes.py" = ["PLC2701"]  # Outcome compatibility wraps pytest private outcome API.
-"src/pytest_bdd/hook.py" = ["PLC2701"]  # Hook API re-exports pytest private typing used by plugins.
-"src/pytest_bdd/model/message_baseline_diff.py" = ["PLR0913"]  # Baseline diff entries carry complete comparison context.
-"src/pytest_bdd/model/message_consolidation.py" = ["PLR0912", "PLR0913", "PLR0914", "PLR0915"]  # Stream consolidation is stateful by design.
-"src/pytest_bdd/model/message_converter.py" = ["PLR0911"]  # Message conversion dispatch uses direct returns.
-"src/pytest_bdd/model/message_governance_checklist.py" = ["PLR0914"]  # Checklist rendering keeps related context local.
-"src/pytest_bdd/model/message_validation.py" = ["PLR0911", "PLR0912", "PLR0913", "PLR0914", "PLR0915"]  # Validation pass is intentionally consolidated.
-"src/pytest_bdd/model/scenario_run.py" = ["PLR0904", "SLF001"]  # Lifecycle model intentionally exposes broad query API.
-"src/pytest_bdd/parser.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/parsers.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001: ~11 errors
-"src/pytest_bdd/plugin/allure_logger/plugin.py" = ["PLC2701", "SLF001"]  # Allure integration depends on pytest private fixture typing.
-"src/pytest_bdd/plugin/code_generator/plugin.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/cucumber_formatter_support/base.py" = ["PLR0904"]  # Formatter plugin base API is intentionally broad.
-"src/pytest_bdd/plugin/cucumber_json/entrypoint.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/gherkin_message_reporter/attachment_runtime.py" = ["PLR0912", "PLR0913", "PLR0917", "SLF001"]  # Attachment routing follows message protocol shape.
-"src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py" = ["PLC2701", "SLF001"]  # Hook catalog introspects pytest private hook caller objects.
-"src/pytest_bdd/plugin/gherkin_message_reporter/html_report.py" = ["PLR0913"]  # HTML report generation accepts explicit rendering context.
-"src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime.py" = ["PLR0912", "SLF001"]  # Lifecycle routing has protocol-specific branches.
-"src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/gherkin_message_reporter/message_stream.py" = ["PLR2004"]  # Xdist event tuple arity check mirrors execnet protocol.
-"src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py" = ["PLR0915", "SLF001"]  # Runtime graph assembly is intentionally centralized.
-"src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py" = ["PLR0913", "PLR0917", "PLR2004", "SLF001"]  # Scenario runtime mirrors hook/message context.
-"src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime.py" = ["PLR0914", "SLF001"]  # Step catalog conversion keeps related context local.
-"src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/gherkin_terminal_reporter/entrypoint.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/pickle_runner/entrypoint.py" = ["PLR0913"]  # Fixture helper accepts explicit attachment context.
-"src/pytest_bdd/plugin/pickle_runner/hook.py" = ["PLR0913", "PLR0917"]  # Hook specs mirror pytest-bdd protocol signatures.
-"src/pytest_bdd/plugin/pickle_runner/plugin.py" = ["PLR0913", "PLR0914", "PLR2004", "SLF001"]  # Step execution mirrors hook protocol context.
-"src/pytest_bdd/plugin/pickle_runner/run_transitions.py" = ["PLR0913"]  # Transition helpers carry explicit lifecycle context.
-"src/pytest_bdd/plugin/struct_bdd/model.py" = ["PLR1702"]  # Struct table expansion is dense combinatoric logic.
-"src/pytest_bdd/plugin/struct_bdd/model_builder.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/plugin/struct_bdd/parser.py" = ["PLR0911", "PLR0913", "PLR0917"]  # Parser constructor mirrors parser protocol and loader dispatch.
-"src/pytest_bdd/scenario.py" = ["PLR0913", "PLR0917"]  # Public scenario API keeps explicit configuration parameters.
-"src/pytest_bdd/scenario_locator.py" = ["PLR0913", "PLR0917"]  # Locator constructors carry explicit feature-source context.
-"src/pytest_bdd/script/bdd_tree_to_rst.py" = ["PLR0914"]  # Documentation tree conversion keeps path context local.
-"src/pytest_bdd/script/compatibility_matrix.py" = ["PLR2004"]  # CLI compatibility factor formatting uses compact version arity checks.
-"src/pytest_bdd/script/message_capability_governance.py" = ["PLR0911", "PLR0912", "PLR0914", "PLR0915"]  # Governance CLI combines parsing, validation, and rendering.
-"src/pytest_bdd/script/validate_feature_headings.py" = ["PLR2004"]  # Markdown suffix detection checks the two-suffix convention.
-"src/pytest_bdd/steps.py" = ["PLR0913", "PLR0917"]  # Step decorator API keeps explicit options for users.
-"src/pytest_bdd/util/inspect_extra.py" = ["PLC2701"]  # Signature helper supports pytest private fixture definitions.
-"src/pytest_bdd/util/pytest_extra.py" = ["SLF001"]  # Private member access within same class
-"src/pytest_bdd/util/toolz_test.py" = ["S301"]  # S301: ~1 errors
-"src/pytest_bdd_worker_bootstrap/xdist_remote.py" = ["PLC2701", "SLF001"]  # Worker bootstrap imports pytest private Config for remote startup.
+"src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001 + RUF100 circular issue prevents inlining
+"src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF067 preview rule not recognized by pre-commit ruff v0.12.0
+"src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001 + RUF100 circular issue prevents inlining
 "tests/*" = ["ANN", "D", "DOC201", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
-"tests/e2e/fixtures/remote_xdist/controller_entrypoint.py" = ["PLR0914", "PLR0915"]  # Fixture script intentionally keeps setup inline.
-"tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # e2e test intentionally starts fixed local execnet socket servers. - S603: ~2 errors
-"tests/hook/test_scenario_collection_read_hooks.py" = ["PLC2701"]  # Test verifies pytest private collection hook integration.
-"tests/messages/test_message_emission_points.py" = ["PLR0911"]  # Test fixture dispatch uses direct returns.
-"tests/messages/test_xdist_remote_transport.py" = ["PLC2701"]  # Test exercises pytest private xdist hook integration.
+"tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

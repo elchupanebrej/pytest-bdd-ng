@@ -444,7 +444,7 @@ def render_include_page(title: str, rel_path: Path, include_path: str, code_type
     return rendered_include.rstrip("\n") + "\n"
 
 
-def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
+def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:  # noqa: PLR0914
     """
     Convert feature files to RST documentation.
 

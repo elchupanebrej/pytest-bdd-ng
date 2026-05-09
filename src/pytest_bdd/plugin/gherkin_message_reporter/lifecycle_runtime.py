@@ -106,9 +106,9 @@ class LifecycleService(ReporterServiceBase):
         self.live_formatter_service = live_formatter_service
 
     def _emit_disabled_warning_once(self) -> None:
-        if self.reporter._disabled_warning_emitted:
+        if self.reporter._disabled_warning_emitted:  # noqa: SLF001
             return
-        self.reporter._disabled_warning_emitted = True
+        self.reporter._disabled_warning_emitted = True  # noqa: SLF001
         logger.warning("Message reporting disabled; message-output guarantees were skipped for this run.")
 
     def _emit_envelope(self, config: Config, message: Message) -> None:
@@ -118,19 +118,19 @@ class LifecycleService(ReporterServiceBase):
         observed_outcome = observed_outcome_from_envelope(message)
         if observed_outcome is not None:
             selected_rule, is_ambiguous = resolve_outcome_mapping(
-                self.reporter._outcome_mapping_rules,
+                self.reporter._outcome_mapping_rules,  # noqa: SLF001
                 outcome_scope=observed_outcome.outcome_scope,
                 outcome_status=observed_outcome.outcome_status,
             )
             if is_ambiguous:
-                self.reporter._mapping_diagnostics_count += 1
+                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001
                 logger.warning(
                     "Ambiguous outcome mapping for %s:%s",
                     observed_outcome.outcome_scope,
                     observed_outcome.outcome_status,
                 )
             elif selected_rule is None:
-                self.reporter._mapping_diagnostics_count += 1
+                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001
                 logger.warning(
                     "No outcome mapping rule for %s:%s",
                     observed_outcome.outcome_scope,
@@ -202,7 +202,7 @@ class LifecycleService(ReporterServiceBase):
             message_text = "Message emission failed while serializing envelope"
             raise RuntimeError(message_text) from exc
 
-        self.live_formatter_service._emit_live_formatter_json_lines([message_json], source="local envelope emission")
+        self.live_formatter_service._emit_live_formatter_json_lines([message_json], source="local envelope emission")  # noqa: SLF001
 
         self.reporter.process_messages_io_queue.put_nowait(message_json)
 
@@ -256,7 +256,7 @@ class LifecycleService(ReporterServiceBase):
                     id=before_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),
+                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),  # noqa: SLF001
                 ),
             ),
         )
@@ -288,7 +288,7 @@ class LifecycleService(ReporterServiceBase):
             self._emit_disabled_warning_once()
             return
 
-        self.transport_service._ensure_xdist_worker_transport_client(require_sender=True)
+        self.transport_service._ensure_xdist_worker_transport_client(require_sender=True)  # noqa: SLF001
         pluginmanager = getattr(self.reporter.config, "pluginmanager", None)
         dsession_plugin = pluginmanager.getplugin("dsession") if pluginmanager is not None else None
 
@@ -297,23 +297,23 @@ class LifecycleService(ReporterServiceBase):
             and dsession_plugin is not None
             and self.reporter.xdist_fragment_dir is None
         ):
-            self.transport_service._activate_xdist_controller_mode()
+            self.transport_service._activate_xdist_controller_mode()  # noqa: SLF001
 
         compatibility = validate_xdist_reporting_compatibility(
             xdist_active=self.reporter.is_xdist_worker or dsession_plugin is not None,
             is_worker=self.reporter.is_xdist_worker,
             is_controller=self.reporter.is_xdist_controller,
             remote_module_available=True,
-            controller_event_patch_installed=self.reporter._xdist_compatibility_error is None,
+            controller_event_patch_installed=self.reporter._xdist_compatibility_error is None,  # noqa: SLF001
             worker_sender_available=self.reporter.xdist_transport_client is not None,
         )
         if not compatibility.is_valid:
             raise RuntimeError(str(compatibility.reason))
-        if self.reporter._xdist_compatibility_error is not None:
-            raise RuntimeError(self.reporter._xdist_compatibility_error)
+        if self.reporter._xdist_compatibility_error is not None:  # noqa: SLF001
+            raise RuntimeError(self.reporter._xdist_compatibility_error)  # noqa: SLF001
 
-        if not self.reporter._live_formatter_session_started and self.reporter._live_formatter_failure_message is None:
-            self.live_formatter_service._start_live_formatters()
+        if not self.reporter._live_formatter_session_started and self.reporter._live_formatter_failure_message is None:  # noqa: SLF001
+            self.live_formatter_service._start_live_formatters()  # noqa: SLF001
         self.transport_service.start_process_messages_thread()
 
         config = session.config
@@ -433,9 +433,9 @@ class LifecycleService(ReporterServiceBase):
         return scenario_run.gherkin_document, scenario_run.pickle
 
     def _emit_run_hook_definition(self, config: Config, *, hook_id: str, hook_type: HookType, hook_name: str) -> None:
-        if hook_id in self.reporter._emitted_run_hook_definition_ids:
+        if hook_id in self.reporter._emitted_run_hook_definition_ids:  # noqa: SLF001
             return
-        self.reporter._emitted_run_hook_definition_ids.add(hook_id)
+        self.reporter._emitted_run_hook_definition_ids.add(hook_id)  # noqa: SLF001
         hook_method = (
             type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
         )
@@ -484,7 +484,7 @@ class LifecycleService(ReporterServiceBase):
         """
         return self._resolve_test_step_id_for_runtime_step(request=request, step=step)
 
-    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901
+    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901, PLR0912
         """Handle the pytest sessionfinish pytest hook."""
         if self.reporter.is_disabled:
             return
@@ -511,7 +511,7 @@ class LifecycleService(ReporterServiceBase):
                     id=after_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),
+                    worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),  # noqa: SLF001
                 ),
             ),
         )
@@ -563,21 +563,21 @@ class LifecycleService(ReporterServiceBase):
                 ).as_dict()
             workeroutput["pytest_bdd_messages_fragment_worker_id"] = str(worker_id)
             if (
-                self.reporter._xdist_worker_temp_messages_path is not None
-                and self.reporter._xdist_worker_temp_messages_path.exists()
+                self.reporter._xdist_worker_temp_messages_path is not None  # noqa: SLF001
+                and self.reporter._xdist_worker_temp_messages_path.exists()  # noqa: SLF001
             ):
-                self.reporter._xdist_worker_temp_messages_path.unlink()
+                self.reporter._xdist_worker_temp_messages_path.unlink()  # noqa: SLF001
             return
 
         if self.reporter.is_xdist_controller:
-            self.reporter._xdist_fragment_records["master"] = {
+            self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001
                 "worker_id": "master",
                 "role": "controller",
                 "path": self.reporter.messages_file_path,
                 "complete": True,
                 "manifest_received": True,
             }
-            envelopes = self.transport_service._finalize_xdist_messages_file()
+            envelopes = self.transport_service._finalize_xdist_messages_file()  # noqa: SLF001
         else:
             envelopes = self.transport_service.read_envelopes_from_path(self.reporter.final_messages_file_path)
         validation_result = validate_message_stream(
@@ -590,20 +590,20 @@ class LifecycleService(ReporterServiceBase):
                 "Canonical message stream validation failed with %s violation(s).",
                 len(validation_result.violations),
             )
-        if self.reporter._mapping_diagnostics_count:
+        if self.reporter._mapping_diagnostics_count:  # noqa: SLF001
             logger.error(
                 "Detected %s mapping diagnostic warning(s) in message emission flow.",
-                self.reporter._mapping_diagnostics_count,
+                self.reporter._mapping_diagnostics_count,  # noqa: SLF001
             )
         if not self._check_derived_output_consistency(envelopes):
             logger.error("Derived-output consistency check failed: required run lifecycle envelopes are incomplete.")
 
         if (
             self.reporter.requested_cucumber_formatters
-            and not self.reporter._live_formatter_session_started
-            and self.reporter._live_formatter_failure_message is None
+            and not self.reporter._live_formatter_session_started  # noqa: SLF001
+            and self.reporter._live_formatter_failure_message is None  # noqa: SLF001
         ):
-            self.live_formatter_service._record_live_formatter_failure(
+            self.live_formatter_service._record_live_formatter_failure(  # noqa: SLF001
                 "Requested cucumber formatters were not attached to a live session; "
                 "post-run replay is disabled for live formatter runs.",
             )

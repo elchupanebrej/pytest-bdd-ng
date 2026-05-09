@@ -127,7 +127,7 @@ def build_baseline_diff(
     )
 
 
-def execute_weekly_baseline_diff(
+def execute_weekly_baseline_diff(  # noqa: PLR0913
     *,
     schedule: BaselineComparisonSchedule,
     previous_baseline: str,

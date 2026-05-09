@@ -50,8 +50,8 @@ def pytest_configure(config: Union[Config, "BaseConfig"]) -> None:
     cucumber_json_path = config.option.cucumber_json_path
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
-        cast("Config", config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)
-        config.pluginmanager.register(cast("Config", config)._bddcucumberjson)
+        cast("Config", config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)  # noqa: SLF001
+        config.pluginmanager.register(cast("Config", config)._bddcucumberjson)  # noqa: SLF001
 
 
 def pytest_unconfigure(config: Union[Config, "BaseConfig"]) -> None:
@@ -59,5 +59,5 @@ def pytest_unconfigure(config: Union[Config, "BaseConfig"]) -> None:
     xml = getattr(config, "_bddcucumberjson", None)
     if xml is not None:
         config_ = cast("Config", config)
-        del config_._bddcucumberjson
+        del config_._bddcucumberjson  # noqa: SLF001
         config.pluginmanager.unregister(xml)

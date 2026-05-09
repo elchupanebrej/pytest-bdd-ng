@@ -187,7 +187,7 @@ class Join(BaseModel):
 
         def _() -> Iterator[list[object]]:
             filled_tables = list(filter(attrgetter("parameters"), self.tables))
-            if filled_tables:
+            if filled_tables:  # noqa: PLR1702
                 filled_tables_parameters = list(
                     chain.from_iterable(table.parameters or [] for table in self._tables()),
                 )

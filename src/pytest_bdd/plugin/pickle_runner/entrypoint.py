@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class AttachmentCallable(Protocol):
     """Represent attachment callable state."""
 
-    def __call__(
+    def __call__(  # noqa: PLR0913
         self,
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
         media_type: str | None = None,
@@ -154,7 +154,7 @@ def attach(request: FixtureRequest) -> AttachmentCallable:
 
     """
 
-    def add_attachment(
+    def add_attachment(  # noqa: PLR0913
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
         media_type: str | None = None,
         file_name: str | None = None,

@@ -86,7 +86,7 @@ class TransportService(ReporterServiceBase):
                 force_transport_publish_failure=force_transport_publish_failure,
             )
         except Exception as exc:  # pragma: no cover - exercised via finish_process_messages_thread
-            self.reporter._process_messages_thread_error = exc
+            self.reporter._process_messages_thread_error = exc  # noqa: SLF001
             logger.exception("Message writer thread crashed before queued envelopes were drained.")
             self.reporter.process_messages_stop_event.set()
 
@@ -98,7 +98,7 @@ class TransportService(ReporterServiceBase):
         sender = resolve_reporting_event_sender(self.reporter.config)
         if sender is None:
             if require_sender:
-                self.reporter._xdist_compatibility_error = (
+                self.reporter._xdist_compatibility_error = (  # noqa: SLF001
                     "Distributed reporting requires the xdist remote-module adapter; "
                     "worker channel sender was not installed."
                 )
@@ -108,7 +108,7 @@ class TransportService(ReporterServiceBase):
             sender=sender,
             gateway_mode=gateway_mode or None,
         )
-        self.reporter._xdist_compatibility_error = None
+        self.reporter._xdist_compatibility_error = None  # noqa: SLF001
 
     @staticmethod
     def _current_reporting_worker_id(config: Config) -> str:
@@ -119,7 +119,7 @@ class TransportService(ReporterServiceBase):
         if self.reporter.is_disabled or self.reporter.is_xdist_worker or self.reporter.is_xdist_controller:
             return
         if not ensure_xdist_controller_batch_patch():
-            self.reporter._xdist_compatibility_error = (
+            self.reporter._xdist_compatibility_error = (  # noqa: SLF001
                 "pytest-xdist is active but controller batch-event integration could not be installed."
             )
             return
@@ -132,7 +132,7 @@ class TransportService(ReporterServiceBase):
             shutil.rmtree(self.reporter.xdist_fragment_dir)
         self.reporter.xdist_fragment_dir.mkdir(parents=True, exist_ok=True)
         self.reporter.messages_file_path = self.reporter.xdist_fragment_dir / "controller.ndjson"
-        self.reporter._xdist_fragment_records["master"] = {
+        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001
             "worker_id": "master",
             "role": "controller",
             "path": self.reporter.messages_file_path,
@@ -155,7 +155,7 @@ class TransportService(ReporterServiceBase):
         node.workerinput["pytest_bdd_messages_force_publish_failure"] = (
             worker_id in _configured_transport_fail_worker_ids(self.reporter.config)
         )
-        self.reporter._xdist_fragment_records[worker_id] = {
+        self.reporter._xdist_fragment_records[worker_id] = {  # noqa: SLF001
             "worker_id": worker_id,
             "role": "worker",
             "path": None,
@@ -175,7 +175,7 @@ class TransportService(ReporterServiceBase):
         self.reporter.xdist_transport_session.receive_remote_event(REPORTING_BATCH_EVENT, {"batch": batch})
         raw_envelopes = batch.get("envelopes", [])
         envelopes = raw_envelopes if isinstance(raw_envelopes, list) else []
-        self.live_formatter_service._emit_live_formatter_json_lines(
+        self.live_formatter_service._emit_live_formatter_json_lines(  # noqa: SLF001
             [json.dumps(envelope_dict) for envelope_dict in envelopes],
             source="xdist worker batch forwarding",
         )
@@ -189,7 +189,7 @@ class TransportService(ReporterServiceBase):
             return
         workeroutput = cast("dict[str, object]", getattr(node, "workeroutput", {}))
         worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or node_worker_id(node))
-        existing_record = self.reporter._xdist_fragment_records.get(
+        existing_record = self.reporter._xdist_fragment_records.get(  # noqa: SLF001
             worker_id,
             {
                 "worker_id": worker_id,
@@ -213,16 +213,16 @@ class TransportService(ReporterServiceBase):
             existing_record["complete"] = False
             existing_record["manifest_received"] = False
             existing_record["interruption_reason"] = str(error) if error is not None else None
-        self.reporter._xdist_fragment_records[worker_id] = existing_record
+        self.reporter._xdist_fragment_records[worker_id] = existing_record  # noqa: SLF001
 
     def start_process_messages_thread(self) -> None:
         """Handle start process messages thread."""
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
-        self.reporter._process_messages_thread_error = None
+        self.reporter._process_messages_thread_error = None  # noqa: SLF001
         self.reporter.process_messages_thread = Thread(
             target=self._run_process_messages_thread,
-            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},
+            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},  # noqa: SLF001
             daemon=True,
         )
         self.reporter.process_messages_thread.start()
@@ -238,9 +238,9 @@ class TransportService(ReporterServiceBase):
         """
         deadline = monotonic() + 10
         while self.reporter.process_messages_io_queue.unfinished_tasks:
-            if self.reporter._process_messages_thread_error is not None:
+            if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001
                 msg = "Message writer thread crashed before queued envelopes were drained."
-                raise RuntimeError(msg) from self.reporter._process_messages_thread_error
+                raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001
             if not self.reporter.process_messages_thread.is_alive():
                 msg = "Message writer thread stopped before queued envelopes were drained."
                 raise RuntimeError(msg)
@@ -253,21 +253,21 @@ class TransportService(ReporterServiceBase):
         if self.reporter.process_messages_thread.is_alive():
             msg = "Message writer thread did not terminate after drain signal."
             raise RuntimeError(msg)
-        if self.reporter._process_messages_thread_error is not None:
+        if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001
             msg = "Message writer thread crashed during shutdown."
-            raise RuntimeError(msg) from self.reporter._process_messages_thread_error
-        process = self.reporter._live_formatter_process
+            raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001
+        process = self.reporter._live_formatter_process  # noqa: SLF001
         if process is not None:
-            self.live_formatter_service._finalize_live_formatter_process(process)
-        self.live_formatter_service._join_live_formatter_threads()
+            self.live_formatter_service._finalize_live_formatter_process(process)  # noqa: SLF001
+        self.live_formatter_service._join_live_formatter_threads()  # noqa: SLF001
         if process is not None:
-            self.live_formatter_service._close_live_formatter_stream(process.stdin)
-            self.live_formatter_service._close_live_formatter_stream(process.stdout)
-            self.live_formatter_service._close_live_formatter_stream(process.stderr)
-            self.reporter._live_formatter_process = None
-        if self.reporter._live_formatter_temp_dir is not None:
-            self.reporter._live_formatter_temp_dir.cleanup()
-            self.reporter._live_formatter_temp_dir = None
+            self.live_formatter_service._close_live_formatter_stream(process.stdin)  # noqa: SLF001
+            self.live_formatter_service._close_live_formatter_stream(process.stdout)  # noqa: SLF001
+            self.live_formatter_service._close_live_formatter_stream(process.stderr)  # noqa: SLF001
+            self.reporter._live_formatter_process = None  # noqa: SLF001
+        if self.reporter._live_formatter_temp_dir is not None:  # noqa: SLF001
+            self.reporter._live_formatter_temp_dir.cleanup()  # noqa: SLF001
+            self.reporter._live_formatter_temp_dir = None  # noqa: SLF001
 
     @staticmethod
     def process_messages(  # noqa: C901
@@ -375,7 +375,7 @@ class TransportService(ReporterServiceBase):
             worker_ids.update(transport_snapshot.expected_worker_ids)
             worker_ids.update(transport_snapshot.batches_by_worker.keys())
             worker_ids.update(transport_snapshot.manifests_by_worker.keys())
-        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")
+        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")  # noqa: SLF001
         fragment_specs = [controller_fragment]
         for worker_id in sorted(worker_ids):
             batches = () if transport_snapshot is None else transport_snapshot.batches_by_worker.get(worker_id, ())

@@ -40,44 +40,44 @@ class ReporterServiceGraph:
     services: tuple[object, ...]
 
 
-def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
+def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # noqa: PLR0915
     """Handle initialize reporter runtime."""
     reporter.parameter_type_registry = set()
     reporter.hook_registry = set()
     reporter.hook_registration_registry = {}
-    reporter._disabled_warning_emitted = False
-    reporter._outcome_mapping_rules = default_outcome_mapping_rules()
-    reporter._mapping_diagnostics_count = 0
-    reporter._emitted_step_definition_ids = set()
-    reporter._emitted_run_hook_definition_ids = set()
-    reporter._auto_provisioned_node_modules_roots = ()
-    reporter._xdist_fragment_records = {}
+    reporter._disabled_warning_emitted = False  # noqa: SLF001
+    reporter._outcome_mapping_rules = default_outcome_mapping_rules()  # noqa: SLF001
+    reporter._mapping_diagnostics_count = 0  # noqa: SLF001
+    reporter._emitted_step_definition_ids = set()  # noqa: SLF001
+    reporter._emitted_run_hook_definition_ids = set()  # noqa: SLF001
+    reporter._auto_provisioned_node_modules_roots = ()  # noqa: SLF001
+    reporter._xdist_fragment_records = {}  # noqa: SLF001
     reporter.xdist_fragment_dir = None
     reporter.xdist_transport_session = None
     reporter.xdist_transport_client = None
-    reporter._xdist_worker_temp_messages_path = None
-    reporter._xdist_force_publish_failure = False
-    reporter._xdist_compatibility_error = None
+    reporter._xdist_worker_temp_messages_path = None  # noqa: SLF001
+    reporter._xdist_force_publish_failure = False  # noqa: SLF001
+    reporter._xdist_compatibility_error = None  # noqa: SLF001
     reporter.is_xdist_worker = _is_xdist_worker_process(reporter.config)
     reporter.is_xdist_controller = False
     reporter.requested_cucumber_formatters = resolve_requested_cucumber_formatters(
         reporter.config,
-        resolve_output_path=reporter._resolve_output_path,
+        resolve_output_path=reporter._resolve_output_path,  # noqa: SLF001
     )
     reporter.live_formatters = reporter.requested_cucumber_formatters
     reporter.deferred_formatters = ()
-    reporter._live_formatter_process = None
-    reporter._live_formatter_temp_dir = None
-    reporter._live_formatter_stdout_thread = None
-    reporter._live_formatter_stderr_thread = None
-    reporter._live_formatter_failure_message = None
-    reporter._live_formatter_session_started = False
-    reporter._restore_terminal_reporter = None
-    reporter._process_messages_thread_error = None
-    reporter._live_formatter_envelope_adapter = CucumberFormatterEnvelopeAdapter()
+    reporter._live_formatter_process = None  # noqa: SLF001
+    reporter._live_formatter_temp_dir = None  # noqa: SLF001
+    reporter._live_formatter_stdout_thread = None  # noqa: SLF001
+    reporter._live_formatter_stderr_thread = None  # noqa: SLF001
+    reporter._live_formatter_failure_message = None  # noqa: SLF001
+    reporter._live_formatter_session_started = False  # noqa: SLF001
+    reporter._restore_terminal_reporter = None  # noqa: SLF001
+    reporter._process_messages_thread_error = None  # noqa: SLF001
+    reporter._live_formatter_envelope_adapter = CucumberFormatterEnvelopeAdapter()  # noqa: SLF001
     reporter.is_messages_file_temp = False
-    reporter._services = ()
-    reporter._hook_services = ()
+    reporter._services = ()  # noqa: SLF001
+    reporter._hook_services = ()  # noqa: SLF001
 
     reporter.is_disabled = all(
         [
@@ -96,7 +96,7 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
         os.close(handle)
         reporter.final_messages_file_path = Path(messages_file_path_raw)
     else:
-        reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)
+        reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)  # noqa: SLF001
         reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         if not reporter.is_xdist_worker:
             reporter.final_messages_file_path.write_text("", encoding="utf-8")
@@ -105,9 +105,9 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
     if reporter.is_xdist_worker:
         handle, messages_file_path_raw = tempfile.mkstemp(prefix="pytest-bdd-xdist-worker-", suffix=".ndjson")
         os.close(handle)
-        reporter._xdist_worker_temp_messages_path = Path(messages_file_path_raw)
-        reporter.messages_file_path = reporter._xdist_worker_temp_messages_path
-        reporter._xdist_force_publish_failure = bool(
+        reporter._xdist_worker_temp_messages_path = Path(messages_file_path_raw)  # noqa: SLF001
+        reporter.messages_file_path = reporter._xdist_worker_temp_messages_path  # noqa: SLF001
+        reporter._xdist_force_publish_failure = bool(  # noqa: SLF001
             getattr(reporter.config, "workerinput", {}).get("pytest_bdd_messages_force_publish_failure"),
         )
 
@@ -166,10 +166,10 @@ def finalize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
         return
 
     if reporter.is_xdist_worker:
-        reporter.transport_service._ensure_xdist_worker_transport_client(require_sender=False)
+        reporter.transport_service._ensure_xdist_worker_transport_client(require_sender=False)  # noqa: SLF001
 
     if reporter.config.option.cucumber_html_path is not None:
-        html_report_path = reporter._resolve_output_path(reporter.config.option.cucumber_html_path)
+        html_report_path = reporter._resolve_output_path(reporter.config.option.cucumber_html_path)  # noqa: SLF001
         html_report_path.parent.mkdir(parents=True, exist_ok=True)
         reporter.config.option.cucumber_html_path = str(html_report_path)
         reporter.live_formatter_service.check_npm_and_cucumber_packages()

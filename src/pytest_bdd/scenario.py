@@ -102,7 +102,7 @@ def scenario(
 ) -> ScenarioTest: ...
 
 
-def scenario(
+def scenario(  # noqa: PLR0913, PLR0917
     feature_name: Path | str | None = None,
     scenario_name: str | None = None,
     encoding: str = "utf-8",
@@ -203,7 +203,7 @@ def scenarios(
 ) -> ScenarioTest: ...
 
 
-def scenarios(
+def scenarios(  # noqa: PLR0913
     *feature_paths: Path | str,
     filter_: ScenarioFilterT = None,
     return_test_decorator: bool = False,

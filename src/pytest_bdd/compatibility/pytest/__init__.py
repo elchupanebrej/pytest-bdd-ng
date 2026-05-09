@@ -13,20 +13,20 @@ if TYPE_CHECKING:
     from _pytest.scope import Scope, _ScopeName
 
 import pytest
-from _pytest.compat import NotSetType
-from _pytest.config import Config, ExitCode, PytestPluginManager
-from _pytest.config.argparsing import Parser
-from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
-from _pytest.main import Session, wrap_session
-from _pytest.mark import Mark, MarkDecorator, MarkMatcher
-from _pytest.mark import expression as _mark_expression
-from _pytest.nodes import Collector
-from _pytest.pytester import RunResult
-from _pytest.python import Metafunc
-from _pytest.reports import TestReport
-from _pytest.runner import CallInfo
-from _pytest.stash import Stash
-from _pytest.terminal import TerminalReporter
+from _pytest.compat import NotSetType  # noqa: PLC2701
+from _pytest.config import Config, ExitCode, PytestPluginManager  # noqa: PLC2701
+from _pytest.config.argparsing import Parser  # noqa: PLC2701
+from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func  # noqa: PLC2701
+from _pytest.main import Session, wrap_session  # noqa: PLC2701
+from _pytest.mark import Mark, MarkDecorator, MarkMatcher  # noqa: PLC2701
+from _pytest.mark import expression as _mark_expression  # noqa: PLC2701
+from _pytest.nodes import Collector  # noqa: PLC2701
+from _pytest.pytester import RunResult  # noqa: PLC2701
+from _pytest.python import Metafunc  # noqa: PLC2701
+from _pytest.reports import TestReport  # noqa: PLC2701
+from _pytest.runner import CallInfo  # noqa: PLC2701
+from _pytest.stash import Stash  # noqa: PLC2701
+from _pytest.terminal import TerminalReporter  # noqa: PLC2701
 
 from pytest_bdd.util.packaging import compare_distribution_version
 
@@ -90,7 +90,7 @@ if TYPE_CHECKING:  # pragma: no cover
         _request: FixtureRequest
 
 else:
-    from _pytest.nodes import Item
+    from _pytest.nodes import Item  # noqa: PLC2701
 
 
 class Module(pytest.Module):
@@ -118,7 +118,7 @@ class Module(pytest.Module):
         return getattr(self, "path", Path(self.fspath))
 
 
-def assert_outcomes(
+def assert_outcomes(  # noqa: PLR0913, PLR0917
     result: RunResult,
     passed: int = 0,
     skipped: int = 0,
@@ -172,7 +172,7 @@ def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
 
 
 class _LegacyFixtureDefFactory(Protocol):
-    def __call__(
+    def __call__(  # noqa: PLR0913, PLR0917
         self,
         fixturemanager: object,
         baseid: str | None,
@@ -186,7 +186,7 @@ class _LegacyFixtureDefFactory(Protocol):
     ) -> FixtureDef[object]: ...
 
 
-def build_fixture_def(
+def build_fixture_def(  # noqa: PLR0913
     request: FixtureRequest,
     *,
     baseid: str | None,
@@ -207,7 +207,7 @@ def build_fixture_def(
             _ispytest=PYTEST8,
         )
     legacy_fixture_def = cast("_LegacyFixtureDefFactory", FixtureDef)
-    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)
+    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)  # noqa: SLF001
 
 
 Expression = _mark_expression.Expression

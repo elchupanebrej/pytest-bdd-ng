@@ -28,7 +28,7 @@ class AttachmentService(ReporterServiceBase):
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
 
-    def pytest_bdd_attach(  # noqa: C901
+    def pytest_bdd_attach(  # noqa: C901, PLR0912, PLR0913, PLR0917
         self,
         request: FixtureRequest,
         attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | object,
@@ -95,7 +95,7 @@ class AttachmentService(ReporterServiceBase):
             )
         attachment_url = url
 
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(
                 attachment=Attachment(
@@ -124,7 +124,7 @@ class AttachmentService(ReporterServiceBase):
 
         if as_external and attachment_url is not None:
             external_media_type = media_type_ or "application/octet-stream"
-            self.lifecycle_service._emit_envelope(
+            self.lifecycle_service._emit_envelope(  # noqa: SLF001
                 config,
                 Message(
                     external_attachment=ExternalAttachment(

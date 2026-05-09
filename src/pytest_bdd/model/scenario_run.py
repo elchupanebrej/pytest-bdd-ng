@@ -304,7 +304,7 @@ class ContextErrorState:
         }
 
 
-@define(slots=True)
+@define(slots=True)  # noqa: PLR0904
 class FeatureRuntimeBinding:
     """
     Represent feature runtime binding state.
@@ -939,7 +939,7 @@ class Run(StashBound):
             step_object=None,
             previous_step_object=NoPreviousStep(),
         )
-        key = type(self)._request_key(request)
+        key = type(self)._request_key(request)  # noqa: SLF001
         run.scenario_runs_by_request[key] = scenario_run
         run.active_scenario_run = scenario_run
         return scenario_run
@@ -986,7 +986,7 @@ class Run(StashBound):
             binding.pickles = tuple(pickles)
         binding.index_runtime_objects()
         if not binding.filename:
-            binding.filename = FeatureRuntimeBinding._feature_filename_from_uri(uri)
+            binding.filename = FeatureRuntimeBinding._feature_filename_from_uri(uri)  # noqa: SLF001
         return binding
 
     def feature_binding_for_uri(self, uri: str | None) -> FeatureRuntimeBinding | None:

@@ -121,7 +121,7 @@ class PickleRunner:
         if PYTEST_BDD_MARK not in mark_names:
             return
 
-        request = item._request
+        request = item._request  # noqa: SLF001
         gherkin_document, pickle, feature_source = self._resolve_runtime_params(item=item)
         if gherkin_document is None or pickle is None or feature_source is None:
             return
@@ -142,7 +142,7 @@ class PickleRunner:
         if PYTEST_BDD_MARK not in mark_names:
             return
 
-        self.request = item._request
+        self.request = item._request  # noqa: SLF001
         self.gherkin_document = self.request.getfixturevalue("gherkin_document")
         self.pickle = self.request.getfixturevalue("pickle")
         self.feature_source = self.request.getfixturevalue("feature_source")
@@ -171,7 +171,7 @@ class PickleRunner:
         # Allow test function to use updated fixtures directly
         fixturenames = getattr(item, "fixturenames", [])
         for argname in fixturenames:
-            item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
+            item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]  # noqa: SLF001
 
     @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(self, item: Item, nextitem: Item | None) -> Iterator[None]:  # noqa: ARG002, PLR6301 -- pytest hook
@@ -184,10 +184,10 @@ class PickleRunner:
         """
         __tracebackhide__ = True
         yield
-        Run.pop_scenario_run(item._request)
+        Run.pop_scenario_run(item._request)  # noqa: SLF001
 
     @staticmethod
-    def _invoke_bdd_hook(
+    def _invoke_bdd_hook(  # noqa: PLR0913
         *,
         hook_name: str,
         request: FixtureRequest,
@@ -289,7 +289,7 @@ class PickleRunner:
 
         return dispatcher
 
-    def pytest_bdd_run_step(
+    def pytest_bdd_run_step(  # noqa: PLR0914
         self,
         request: FixtureRequest,
         run: Run,
@@ -534,7 +534,7 @@ class PickleRunner:
                 while step_registry is not None:
                     for step_definition in step_registry:
                         candidate = getattr(step_definition.parser, "last_undefined_parameter_type", None)
-                        if isinstance(candidate, tuple) and len(candidate) == 2 and candidate[1]:
+                        if isinstance(candidate, tuple) and len(candidate) == 2 and candidate[1]:  # noqa: PLR2004
                             undefined_info = (str(candidate[0]), str(candidate[1]))
                             break
                     if undefined_info is not None:

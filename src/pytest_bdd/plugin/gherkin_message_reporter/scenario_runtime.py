@@ -75,13 +75,13 @@ class ScenarioService(ReporterServiceBase):
         fallback_expression: str,
     ) -> tuple[str, str] | None:
         explicit = getattr(exception, "undefined_parameter_type", None)
-        if isinstance(explicit, tuple) and len(explicit) == 2:
+        if isinstance(explicit, tuple) and len(explicit) == 2:  # noqa: PLR2004
             return str(explicit[0]), str(explicit[1])
 
         for candidate in (exception, getattr(exception, "__cause__", None)):
             if isinstance(candidate, UndefinedParameterTypeError):
                 expression = str(candidate.args[1]) if len(candidate.args) > 1 else fallback_expression
-                parameter_name = str(candidate.args[2]) if len(candidate.args) > 2 else ""
+                parameter_name = str(candidate.args[2]) if len(candidate.args) > 2 else ""  # noqa: PLR2004
                 if parameter_name:
                     return expression, parameter_name
 
@@ -113,7 +113,7 @@ class ScenarioService(ReporterServiceBase):
             pickle_step_id=str(pickle_step_id),
             snippets=[Snippet(code=self._build_suggestion_snippet(step), language="python")],
         )
-        self.lifecycle_service._emit_envelope(config, Message(suggestion=suggestion))
+        self.lifecycle_service._emit_envelope(config, Message(suggestion=suggestion))  # noqa: SLF001
 
         undefined_parameter = self._extract_undefined_parameter_type(
             exception=exception,
@@ -121,7 +121,7 @@ class ScenarioService(ReporterServiceBase):
         )
         if undefined_parameter is not None:
             expression, parameter_name = undefined_parameter
-            self.lifecycle_service._emit_envelope(
+            self.lifecycle_service._emit_envelope(  # noqa: SLF001
                 config,
                 Message(
                     undefined_parameter_type=UndefinedParameterType(
@@ -145,7 +145,7 @@ class ScenarioService(ReporterServiceBase):
         if test_case_id is None:
             return
         attempt_index = getattr(request.node, "execution_count", 0)
-        worker_id = self.transport_service._current_reporting_worker_id(cast("Config", config))
+        worker_id = self.transport_service._current_reporting_worker_id(cast("Config", config))  # noqa: SLF001
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
             id=next(IdGenerator.from_stash(cast("Config", config).stash)),
@@ -159,7 +159,7 @@ class ScenarioService(ReporterServiceBase):
             "attempt_index": attempt_index,
             "worker_id": worker_id,
         }
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(test_case_started=test_case_start),
         )
@@ -177,7 +177,7 @@ class ScenarioService(ReporterServiceBase):
         if test_case_started_id is None:
             return
         config = request.config
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(
                 test_case_finished=TestCaseFinished(
@@ -217,7 +217,7 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001
         if test_step_id is None:
             return
 
@@ -230,7 +230,7 @@ class ScenarioService(ReporterServiceBase):
             test_step_id=test_step_id,
         )
 
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(test_step_started=test_step_started),
         )
@@ -251,7 +251,7 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001
         if test_step_id is None:
             return
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
@@ -261,7 +261,7 @@ class ScenarioService(ReporterServiceBase):
             finish_timestamp=step_finish_timestamp,
         )
 
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(
                 test_step_finished=TestStepFinished(
@@ -274,7 +274,7 @@ class ScenarioService(ReporterServiceBase):
         )
         reporting_state.active_test_step_id = None
 
-    def pytest_bdd_step_error(
+    def pytest_bdd_step_error(  # noqa: PLR0913, PLR0917
         self,
         request: FixtureRequest,
         run: Run,
@@ -293,7 +293,7 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001
         if test_step_id is None:
             return
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
@@ -303,7 +303,7 @@ class ScenarioService(ReporterServiceBase):
             finish_timestamp=step_finish_timestamp,
         )
 
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             config,
             Message(
                 test_step_finished=TestStepFinished(

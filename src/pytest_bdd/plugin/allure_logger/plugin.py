@@ -25,7 +25,7 @@ from pytest_bdd.steps import StepDefinitionManager
 
 if ALLURE_INSTALLED:
     from allure_commons import hookimpl as allure_hookimpl
-    from allure_commons._allure import StepContext
+    from allure_commons._allure import StepContext  # noqa: PLC2701
     from allure_commons.model2 import Label, Parameter, Status, TestStepResult
     from allure_commons.types import LabelType
     from allure_commons.utils import md5, now, platform_label
@@ -149,7 +149,7 @@ class PatchedAllureListener:
     def __init__(self, allure_listener: _AllureListenerProtocol) -> None:
         """Initialize the patched allure listener."""
         self.allure_listener = allure_listener
-        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
+        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache  # noqa: SLF001
 
     @allure_hookimpl(hookwrapper=True, tryfirst=True)
     def report_result(  # noqa: PLR6301 -- allure hookimpl, must be instance method
@@ -174,7 +174,7 @@ class AllureLogger:
 
     def __init__(self, allure_listener: _AllureListenerProtocol) -> None:
         """Initialize the allure logger."""
-        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache
+        self.allure_logger, self._cache = allure_listener.allure_logger, allure_listener._cache  # noqa: SLF001
 
     @pytest.hookimpl
     def pytest_bdd_before_step_call(  # noqa: PLR6301 -- pytest hook, must be instance method

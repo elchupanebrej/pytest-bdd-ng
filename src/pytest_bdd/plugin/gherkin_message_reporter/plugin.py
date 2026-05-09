@@ -155,7 +155,7 @@ class GherkinMessageReporter:
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
         """Handle activate quiet terminal output."""
-        terminal_requests = type(self)._terminal_output_formatter_requests(list(self.requested_cucumber_formatters))
+        terminal_requests = type(self)._terminal_output_formatter_requests(list(self.requested_cucumber_formatters))  # noqa: SLF001
         if not terminal_requests:
             return
         if not self._live_formatter_session_started:
@@ -258,7 +258,7 @@ class GherkinMessageReporter:
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
         """Configure configure."""
-        self.live_formatter_service._start_live_formatters()
+        self.live_formatter_service._start_live_formatters()  # noqa: SLF001
         self.activate_quiet_terminal_output(quiet_terminal_replacer=quiet_terminal_replacer)
         self.register_hook_plugins(pluginmanager)
 

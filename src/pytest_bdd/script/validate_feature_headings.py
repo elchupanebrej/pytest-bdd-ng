@@ -345,7 +345,7 @@ def _as_optional_string(value: object) -> str | None:
 
 
 def _is_markdown_gherkin(path: Path) -> bool:
-    suffixes = tuple(path.suffixes[-2:]) if len(path.suffixes) >= 2 else ()
+    suffixes = tuple(path.suffixes[-2:]) if len(path.suffixes) >= 2 else ()  # noqa: PLR2004
     return suffixes in _MARKDOWN_SUFFIXES
 
 

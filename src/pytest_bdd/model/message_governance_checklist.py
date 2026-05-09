@@ -50,7 +50,7 @@ def _decision_index(decisions: list[CapabilityDecision]) -> dict[str, Capability
     return {decision.capability_id: decision for decision in decisions}
 
 
-def build_governance_checklist(
+def build_governance_checklist(  # noqa: PLR0914
     capabilities: list[MessageCapability],
     decisions: list[CapabilityDecision],
     *,

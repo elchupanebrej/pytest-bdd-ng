@@ -178,8 +178,8 @@ def process_single_item(
     non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
 ) -> None:
     """Handle processing for a single test item."""
-    item.session._setupstate.setup(item)
-    item_request: FixtureRequest = item._request
+    item.session._setupstate.setup(item)  # noqa: SLF001
+    item_request: FixtureRequest = item._request  # noqa: SLF001
     pickle: Pickle = item_request.getfixturevalue("pickle")
     gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
     feature_source: Source = item_request.getfixturevalue("feature_source")
@@ -190,7 +190,7 @@ def process_single_item(
     )
     seen_feature_pickles_ids.add((feature_binding.uri, pickle.name))
     process_pickle_steps(pickle, item_request, feature_binding, non_matched_feature_pickle_steps)
-    item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]
+    item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]  # noqa: SLF001
 
 
 def process_pickle_steps(

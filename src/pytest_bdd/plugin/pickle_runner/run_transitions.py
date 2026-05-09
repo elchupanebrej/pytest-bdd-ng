@@ -127,7 +127,7 @@ def _resolve_lifecycle_ref(
     return _inactive_ref(kind, reason=inactive_reason, fail_fast_code=fail_fast_code)
 
 
-def _resolve_transition_refs(
+def _resolve_transition_refs(  # noqa: PLR0913
     scenario_run: ScenarioRun,
     *,
     hook_phase: HookPhase,
@@ -235,7 +235,7 @@ def initial_scenario_run_id(request: FixtureRequest) -> str:
     return f"ctx-{key}-{next(_context_index)}"
 
 
-def apply_transition(
+def apply_transition(  # noqa: PLR0913
     scenario_run: ScenarioRun,
     *,
     hook_phase: HookPhase,

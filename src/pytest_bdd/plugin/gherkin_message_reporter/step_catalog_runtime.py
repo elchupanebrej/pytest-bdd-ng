@@ -78,7 +78,7 @@ class StepCatalogService(ReporterServiceBase):
         self.hook_catalog_service = hook_catalog_service
 
     @pytest.hookimpl(wrapper=True)
-    def pytest_runtest_setup(self, item: Item) -> Iterator[None]:
+    def pytest_runtest_setup(self, item: Item) -> Iterator[None]:  # noqa: PLR0914
         """
         Handle the pytest runtest setup pytest hook.
 
@@ -93,7 +93,7 @@ class StepCatalogService(ReporterServiceBase):
         session = item.session
         config: Config = cast("Config", session.config)
         hook_handler = cast("Config", config).hook
-        request = item._request
+        request = item._request  # noqa: SLF001
         run = Run.from_stash(request.config.stash)
         scenario_run = run.active_scenario_run
         if scenario_run is None:
@@ -102,7 +102,7 @@ class StepCatalogService(ReporterServiceBase):
                 "skipping context-backed correlation writes.",
             )
             return
-        gherkin_document, pickle = self.lifecycle_service._resolve_gherkin_document_and_pickle(run=run)
+        gherkin_document, pickle = self.lifecycle_service._resolve_gherkin_document_and_pickle(run=run)  # noqa: SLF001
         if gherkin_document is None or pickle is None:
             logger.warning("Execution context does not carry runtime feature/pickle during pytest_runtest_setup.")
             return
@@ -121,7 +121,7 @@ class StepCatalogService(ReporterServiceBase):
                     id=next(IdGenerator.from_stash(cast("Config", config).stash)),
                     hook_id=hook_registration.hook_message_id,
                 )
-                for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(
+                for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(  # noqa: SLF001
                     request=request,
                     pickle=runtime_pickle,
                 )
@@ -168,7 +168,7 @@ class StepCatalogService(ReporterServiceBase):
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
         )
         reporting_state.active_test_case_id = test_case.id
-        self.lifecycle_service._emit_envelope(
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001
             cast("Config", config),
             Message(test_case=test_case),
         )
@@ -184,10 +184,10 @@ class StepCatalogService(ReporterServiceBase):
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
                     step_definition_message = step_definition.as_message(config=config)
-                    if step_definition_message.id in self.reporter._emitted_step_definition_ids:
+                    if step_definition_message.id in self.reporter._emitted_step_definition_ids:  # noqa: SLF001
                         continue
-                    self.reporter._emitted_step_definition_ids.add(step_definition_message.id)
-                    self.lifecycle_service._emit_envelope(
+                    self.reporter._emitted_step_definition_ids.add(step_definition_message.id)  # noqa: SLF001
+                    self.lifecycle_service._emit_envelope(  # noqa: SLF001
                         config,
                         Message(step_definition=step_definition_message),
                     )
@@ -324,14 +324,14 @@ class StepCatalogService(ReporterServiceBase):
                             cast("Config", config),
                             parameter_type,
                         )
-                        self.lifecycle_service._emit_envelope(
+                        self.lifecycle_service._emit_envelope(  # noqa: SLF001
                             config,
                             Message(
                                 parameter_type=ParameterType(
                                     name=parameter_type.name,
                                     regular_expressions=parameter_type.regexps,
-                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
-                                    use_for_snippets=parameter_type._use_for_snippets,
+                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,  # noqa: SLF001
+                                    use_for_snippets=parameter_type._use_for_snippets,  # noqa: SLF001
                                     id=next(IdGenerator.from_stash(cast("Config", config).stash)),
                                     **(
                                         {"source_reference": parameter_type_source_reference}

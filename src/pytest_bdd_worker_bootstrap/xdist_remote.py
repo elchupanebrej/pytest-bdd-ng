@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
 import xdist.remote as upstream_remote
-from _pytest.config import _prepareconfig
+from _pytest.config import _prepareconfig  # noqa: PLC2701
 from xdist.remote import WorkerInteractor as XdistWorkerInteractor
 
 if TYPE_CHECKING:
@@ -106,7 +106,7 @@ def _prepare_worker_config(
     prepared_config = cast("_PreparedConfig", config)
     typed_remote = cast("_XdistRemoteModule", upstream_remote)
     typed_remote.setup_config(config, option_dict.get("basetemp"))
-    prepared_config._parser.prog = Path(workerinput["mainargv"][0]).name
+    prepared_config._parser.prog = Path(workerinput["mainargv"][0]).name  # noqa: SLF001
     prepared_config.workerinput = workerinput
     prepared_config.workeroutput = {}
     return prepared_config, typed_remote

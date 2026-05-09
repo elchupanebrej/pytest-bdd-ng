@@ -57,7 +57,7 @@ class PickleRunnerHookSpec:
     ) -> None:
         """Call after step function is successfully executed."""
 
-    def pytest_bdd_step_error(
+    def pytest_bdd_step_error(  # noqa: PLR0913, PLR0917
         self,
         request: FixtureRequest,
         run: Run,
@@ -103,7 +103,7 @@ class PickleRunnerHookSpec:
     ) -> Callable[[deque[Step]], object] | None:
         """Provide alternative approach to execute scenario steps."""
 
-    def pytest_bdd_attach(
+    def pytest_bdd_attach(  # noqa: PLR0913, PLR0917
         self,
         request: FixtureRequest,
         attachment: object,

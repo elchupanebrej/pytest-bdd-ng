@@ -38,7 +38,7 @@ def collect_dumped_objects(result: RunResult) -> list[object]:
     """
     stdout = result.stdout.str()  # pytest < 6.2, otherwise we could just do str(result.stdout)
     payloads = re.findall(rf"{_DUMP_START}(.*?){_DUMP_END}", stdout)
-    return [pickle.loads(base64.b64decode(payload)) for payload in payloads]
+    return [pickle.loads(base64.b64decode(payload)) for payload in payloads]  # noqa: S301
 
 
 class InstanceOfType:

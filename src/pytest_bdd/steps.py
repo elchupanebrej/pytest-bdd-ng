@@ -98,7 +98,7 @@ def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
     return source_file, int(source_line)
 
 
-def given(
+def given(  # noqa: PLR0913, PLR0917
     parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
     converters: Mapping[str, ConverterT] | None = None,
@@ -144,7 +144,7 @@ def given(
     )
 
 
-def when(
+def when(  # noqa: PLR0913, PLR0917
     parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
     converters: Mapping[str, ConverterT] | None = None,
@@ -190,7 +190,7 @@ def when(
     )
 
 
-def then(
+def then(  # noqa: PLR0913, PLR0917
     parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
     converters: Mapping[str, ConverterT] | None = None,
@@ -236,7 +236,7 @@ def then(
     )
 
 
-def step(
+def step(  # noqa: PLR0913, PLR0917
     parserlike: object,
     anonymous_group_names: Iterable[str] | None = None,
     converters: Mapping[str, ConverterT] | None = None,
@@ -313,7 +313,7 @@ class StepDefinitionManager:
         class MatchNotFoundError(RuntimeError):
             """Raised when no step definition matches a scenario step."""
 
-        def __call__(
+        def __call__(  # noqa: PLR0913, PLR0917
             self,
             request: FixtureRequest,
             feature: Feature,
@@ -672,7 +672,7 @@ class StepDefinitionManager:
             return iter(self.registry)
 
     @staticmethod
-    def decorator_builder(
+    def decorator_builder(  # noqa: PLR0913, PLR0917
         step_type: str | PickleStepType | None,
         step_parserlike: object,
         anonymous_group_names: Iterable[str] | None = None,

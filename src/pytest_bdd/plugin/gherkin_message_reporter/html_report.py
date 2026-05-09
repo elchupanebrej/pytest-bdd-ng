@@ -14,7 +14,7 @@ def escape_html_formatter_message_json(message_json: str) -> str:
     return message_json.replace("<", "\\x3C")
 
 
-def render_html_report_content(
+def render_html_report_content(  # noqa: PLR0913
     *,
     template: str,
     title: str,

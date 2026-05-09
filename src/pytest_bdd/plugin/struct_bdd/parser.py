@@ -95,7 +95,7 @@ class StructBDDParser(ParserProtocol):
         return gherkin_document, content
 
     # TODO: make loaders part of public API
-    def build_loader(self) -> Loader | None:
+    def build_loader(self) -> Loader | None:  # noqa: PLR0911
         """
         Build loader based on kind.
 
@@ -129,7 +129,7 @@ class StructBDDParser(ParserProtocol):
 
             from pyhocon import ConfigFactory, HOCONConverter  # noqa: PLC0415 -- lazy format dispatch
 
-            def load_hocon(
+            def load_hocon(  # noqa: PLR0913, PLR0917
                 s: str,
                 hocon_parse_args: Sequence[object] = (),
                 hocon_parse_kwargs: Mapping[str, object] | None = None,

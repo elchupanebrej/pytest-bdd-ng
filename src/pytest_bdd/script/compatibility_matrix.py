@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         compatible, reason = is_pair_compatible(args.python_factor, args.pytest_factor)
         pair_payload: dict[str, object] = {
             "pythonVersion": f"{args.python_factor[0]}.{args.python_factor[1:]}"
-            if args.python_factor.isdigit() and len(args.python_factor) == 3
+            if args.python_factor.isdigit() and len(args.python_factor) == 3  # noqa: PLR2004
             else args.python_factor,
             "pytestVersion": args.pytest_factor,
             "isCompatible": compatible,
