@@ -143,7 +143,7 @@ def _generate_feature_suite_messages(
         # language=python
         """\
         import pytest
-from pytest_bdd.model.scenario_run import Run
+        from pytest_bdd.model.scenario_run import Run
         from cucumber_expressions.parameter_type import ParameterType
         from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 

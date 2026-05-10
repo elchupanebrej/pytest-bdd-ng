@@ -31,9 +31,9 @@ class StepDefinitionPattern(_BaseStepDefinitionPattern):
 
     type: StepDefinitionPatternType
 
-    def __init__(self, source: str, pattern_type: StepDefinitionPatternType) -> None:
+    def __init__(self, source: str, type: StepDefinitionPatternType) -> None:  # noqa: A002
         """Initialize the step definition pattern."""
-        super().__init__(source=source, type=pattern_type)
+        super().__init__(source=source, type=type)
 
 
 EventEnvelope: TypeAlias = _BaseEnvelope

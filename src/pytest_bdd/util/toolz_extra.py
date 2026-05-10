@@ -277,7 +277,7 @@ def compose(*funcs: ObjectCallable) -> ObjectCallable:
     return cast("ObjectCallable", reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs))
 
 
-def flip(func: ObjectCallable) -> ObjectCallable:
+def flip(func: ObjectCallable | Callable) -> ObjectCallable | Callable:
     """
     Flip argument order of a binary function.
 
@@ -302,3 +302,4 @@ class _NoneExceptionError(Exception): ...
 
 
 chain_map: ObjectCallable = compose(cast("ObjectCallable", chain.from_iterable), cast("ObjectCallable", map))
+is_of_type = flip(isinstance)

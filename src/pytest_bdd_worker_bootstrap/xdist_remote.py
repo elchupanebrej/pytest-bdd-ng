@@ -18,6 +18,8 @@ import xdist.remote as upstream_remote
 from _pytest.config import _prepareconfig  # noqa: PLC2701
 from xdist.remote import WorkerInteractor as XdistWorkerInteractor
 
+from pytest_bdd.model.message_transport import ReportingEventSenderBinding
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -137,10 +139,6 @@ def channel_main(reporting_channel: _ReportingChannel) -> None:
 
     config, upstream_remote = _prepare_worker_config(workerinput, args, option_dict)
 
-    from pytest_bdd.model.message_transport import (  # noqa: PLC0415 -- must stay after _prepareconfig() for xdist workers
-        install_reporting_event_sender,
-    )
-
     class ReportingWorkerInteractor(XdistWorkerInteractor):
         def sendevent(self, name: str, **kwargs: object) -> None:
             self.log("sending", name, kwargs)
@@ -150,14 +148,15 @@ def channel_main(reporting_channel: _ReportingChannel) -> None:
     upstream_remote.interactor = interactor
     force_publish_failure = bool(workerinput.get("pytest_bdd_messages_force_publish_failure"))
 
-    install_reporting_event_sender(
-        config,
-        _build_reporting_sender(
-            interactor,
-            force_publish_failure=force_publish_failure,
-        ),
-        gateway_mode=gateway_mode or None,
+    sender = _build_reporting_sender(
+        interactor,
+        force_publish_failure=force_publish_failure,
     )
+    mode = gateway_mode or None
+    ReportingEventSenderBinding(
+        sender=sender,
+        gateway_mode=mode,
+    ).set_in_stash(config.stash)
     config.hook.pytest_cmdline_main(config=config)
 
 

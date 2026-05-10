@@ -522,7 +522,7 @@ class StepDefinitionManager:
                         msg = f"Unsupported step definition pattern type: {parser_expression_type!r}"
                         raise TypeError(msg) from exc
 
-                pattern = StepDefinitionPattern(source=str(self.parser), pattern_type=expression_type)
+                pattern = StepDefinitionPattern(source=str(self.parser), type=expression_type)
                 source_file, source_line = _resolve_callable_source_location(self.func)
                 message = self.__cache[id(id_generator)] = StepDefinition(
                     id=self.id,

@@ -6,7 +6,7 @@ import logging
 from contextlib import suppress
 from inspect import getfile, signature
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
@@ -37,18 +37,13 @@ from pytest_bdd.util.toolz_extra import deepattrgetter
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
+    from cucumber_expressions.group import Group as CucumberExpressionGroup
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
     from pytest_bdd.compatibility.pytest import Item
     from pytest_bdd.plugin.gherkin_message_reporter.hook_catalog_runtime import HookCatalogService
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
-
-
-class _CucumberGroup(Protocol):
-    start: int | None
-    value: str | None
-    children: list[object]
 
 
 logger = logging.getLogger(__name__)
@@ -210,12 +205,11 @@ class StepCatalogService(ReporterServiceBase):
             matches = parser.rebuild_expression_in_test_context(request).match(step_text)
             if matches:
 
-                def build_group(group: object) -> Group:
-                    typed_group = cast("_CucumberGroup", group)
+                def build_group(group: CucumberExpressionGroup) -> Group:
                     return Group(
-                        **({"start": typed_group.start} if typed_group.start is not None else {}),
-                        **({"value": typed_group.value} if typed_group.value is not None else {}),
-                        children=[build_group(child) for child in typed_group.children],
+                        **({"start": group.start} if group.start is not None else {}),
+                        **({"value": group.value} if group.value is not None else {}),
+                        children=[build_group(child) for child in (group.children or [])],
                     )
 
                 step_match_arguments = []

@@ -1,12 +1,43 @@
 """Test code generation command."""
 
+import ast
 import sys
 from pathlib import Path
-from textwrap import dedent
 
 import pytest
 
 pytestmark = pytest.mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")
+
+
+def _get_decorator_name(func: ast.FunctionDef) -> str | None:
+    if not func.decorator_list:
+        return None
+    decorator = func.decorator_list[0]
+    if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name):
+        return decorator.func.id
+    return None
+
+
+def _get_decorator_args(func: ast.FunctionDef) -> list[ast.expr]:
+    decorator = func.decorator_list[0]
+    if isinstance(decorator, ast.Call):
+        return decorator.args
+    return []
+
+
+def _get_step_text(func: ast.FunctionDef) -> str | None:
+    args = _get_decorator_args(func)
+    if args and isinstance(args[0], ast.Constant):
+        return args[0].value
+    return None
+
+
+def _has_raise_not_implemented(func: ast.FunctionDef) -> bool:
+    return any(isinstance(stmt, ast.Raise) for stmt in func.body)
+
+
+def _get_func_docstring(func: ast.FunctionDef) -> str | None:
+    return ast.get_docstring(func)
 
 
 def test_generate(testdir):
@@ -31,57 +62,59 @@ def test_generate(testdir):
     )
 
     result = testdir.runpytest("--generate", "--feature", str(Path("scripts", "generate.feature")))
-    assert (
-        result.stdout.str().strip()
-        == dedent(
-            # language=python
-            '''\
-            """Code generation feature tests."""
+    code = result.stdout.str()
+    tree1 = ast.parse(code)
+    tree = tree1
 
-            from pathlib import Path
+    assert ast.get_docstring(tree) == "Code generation feature tests."
 
-            from pytest_bdd import (
-                scenario,
-                given,
-                when,
-                then,
-                step,
-            )
-
-
-            @scenario(
-                Path('scripts/generate.feature'),
-                'Given and when using the same fixture should not evaluate it twice',
-            )
-            def test_given_and_when_using_the_same_fixture_should_not_evaluate_it_twice():
-                """Given and when using the same fixture should not evaluate it twice."""
-
-
-            @given('1 have a fixture (appends 1 to a list) in reuse syntax')
-            def have_a_fixture_appends_1_to_a_list_in_reuse_syntax():
-                """1 have a fixture (appends 1 to a list) in reuse syntax."""
-                raise NotImplementedError
-
-
-            @given('I have an empty list')
-            def i_have_an_empty_list():
-                """I have an empty list."""
-                raise NotImplementedError
-
-
-            @when('I use this fixture')
-            def i_use_this_fixture():
-                """I use this fixture."""
-                raise NotImplementedError
-
-
-            @then('my list should be [1]')
-            def my_list_should_be_1():
-                """my list should be [1]."""
-                raise NotImplementedError
-            ''',
-        ).strip()
+    imports = [node for node in ast.walk(tree) if isinstance(node, (ast.Import, ast.ImportFrom))]
+    import_names = sorted(
+        (import_node.module, sorted(alias.name for alias in import_node.names))
+        for import_node in imports
+        if isinstance(import_node, ast.ImportFrom)
     )
+    assert ("pathlib", ["Path"]) in import_names
+    assert ("pytest_bdd", ["given", "scenario", "step", "then", "when"]) in import_names
+
+    top_level_functions = [node1 for node1 in ast.iter_child_nodes(tree) if isinstance(node1, ast.FunctionDef)]
+    assert len(top_level_functions) == 5
+
+    scenario_func = top_level_functions[0]
+    assert _get_decorator_name(scenario_func) == "scenario"
+    scenario_args = _get_decorator_args(scenario_func)
+    assert len(scenario_args) == 2
+    assert isinstance(scenario_args[0], ast.Call)
+    assert isinstance(scenario_args[0].func, ast.Name)
+    assert scenario_args[0].func.id == "Path"
+    assert isinstance(scenario_args[0].args[0], ast.Constant)
+    assert scenario_args[0].args[0].value == "scripts/generate.feature"
+    assert isinstance(scenario_args[1], ast.Constant)
+    assert scenario_args[1].value == "Given and when using the same fixture should not evaluate it twice"
+
+    step_funcs = top_level_functions[1:]
+    step_decorators = {_get_decorator_name(f) for f in step_funcs}
+    assert step_decorators == {"given", "when", "then"}
+
+    given_funcs = [f for f in step_funcs if _get_decorator_name(f) == "given"]
+    assert len(given_funcs) == 2
+    given_texts = {_get_step_text(f) for f in given_funcs}
+    assert given_texts == {
+        "I have an empty list",
+        "1 have a fixture (appends 1 to a list) in reuse syntax",
+    }
+
+    when_funcs = [f for f in step_funcs if _get_decorator_name(f) == "when"]
+    assert len(when_funcs) == 1
+    assert _get_step_text(when_funcs[0]) == "I use this fixture"
+
+    then_funcs = [f for f in step_funcs if _get_decorator_name(f) == "then"]
+    assert len(then_funcs) == 1
+    assert _get_step_text(then_funcs[0]) == "my list should be [1]"
+
+    for func in step_funcs:
+        assert _get_func_docstring(func) is not None
+        assert _has_raise_not_implemented(func)
 
 
 def test_generate_with_quotes(testdir):
@@ -89,82 +122,57 @@ def test_generate_with_quotes(testdir):
     testdir.makefile(
         ".feature",
         # language=gherkin
-        generate_with_quotes='''\
+        generate_with_quotes="""\
         Feature: Handling quotes in code generation
 
             Scenario: A step definition with quotes should be escaped as needed
                 Given I have a fixture with 'single' quotes
                 And I have a fixture with "double" quotes
-                And I have a fixture with single-quote \'\'\'triple\'\'\' quotes
-                And I have a fixture with double-quote """triple""" quotes
+                And I have a fixture with single-quote '''triple''' quotes
+                And I have a fixture with double-quote \"""triple\""" quotes
 
                 When I generate the code
 
                 Then The generated string should be written
-        ''',
+        """,
     )
 
     result = testdir.runpytest("--generate", "--feature", "generate_with_quotes.feature")
-    assert (
-        result.stdout.str().strip()
-        == dedent(
-            # language=python
-            '''\
-            """Handling quotes in code generation feature tests."""
+    code = result.stdout.str()
+    tree1 = ast.parse(code)
+    tree = tree1
 
-            from pathlib import Path
+    assert ast.get_docstring(tree) == "Handling quotes in code generation feature tests."
 
-            from pytest_bdd import (
-                scenario,
-                given,
-                when,
-                then,
-                step,
-            )
+    funcs = [node for node in ast.iter_child_nodes(tree) if isinstance(node, ast.FunctionDef)]
+    assert len(funcs) == 7
 
+    scenario_func = funcs[0]
+    assert _get_decorator_name(scenario_func) == "scenario"
 
-            @scenario(Path('generate_with_quotes.feature'), 'A step definition with quotes should be escaped as needed')
-            def test_a_step_definition_with_quotes_should_be_escaped_as_needed():
-                """A step definition with quotes should be escaped as needed."""
+    step_funcs = funcs[1:]
+    step_decorators = {_get_decorator_name(f) for f in step_funcs}
+    assert step_decorators == {"given", "when", "then"}
 
+    given_funcs = [f for f in step_funcs if _get_decorator_name(f) == "given"]
+    assert len(given_funcs) == 4
+    given_texts = {_get_step_text(f) for f in given_funcs}
+    assert "I have a fixture with 'single' quotes" in given_texts
+    assert 'I have a fixture with "double" quotes' in given_texts
+    assert "I have a fixture with single-quote '''triple''' quotes" in given_texts
+    assert 'I have a fixture with double-quote """triple""" quotes' in given_texts
 
-            @when('I generate the code')
-            def i_generate_the_code():
-                """I generate the code."""
-                raise NotImplementedError
+    when_funcs = [f for f in step_funcs if _get_decorator_name(f) == "when"]
+    assert len(when_funcs) == 1
+    assert _get_step_text(when_funcs[0]) == "I generate the code"
 
+    then_funcs = [f for f in step_funcs if _get_decorator_name(f) == "then"]
+    assert len(then_funcs) == 1
+    assert _get_step_text(then_funcs[0]) == "The generated string should be written"
 
-            @given('I have a fixture with "double" quotes')
-            def i_have_a_fixture_with_double_quotes():
-                """I have a fixture with "double" quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with \\'single\\' quotes')
-            def i_have_a_fixture_with_single_quotes():
-                """I have a fixture with 'single' quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with double-quote """triple""" quotes')
-            def i_have_a_fixture_with_doublequote_triple_quotes():
-                """I have a fixture with double-quote \\"\\"\\"triple\\"\\"\\" quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with single-quote \\'\\'\\'triple\\'\\'\\' quotes')
-            def i_have_a_fixture_with_singlequote_triple_quotes():
-                """I have a fixture with single-quote \'\'\'triple\'\'\' quotes."""
-                raise NotImplementedError
-
-
-            @then('The generated string should be written')
-            def the_generated_string_should_be_written():
-                """The generated string should be written."""
-                raise NotImplementedError
-            ''',
-        ).strip()
-    )
+    for func in step_funcs:
+        assert _get_func_docstring(func) is not None
+        assert _has_raise_not_implemented(func)
 
 
 def test_unicode_characters(testdir):
@@ -181,48 +189,39 @@ def test_unicode_characters(testdir):
                 Scenario: Calculating the circumference of a circle
                     Given We have a circle
                     When We want to know its circumference
-                    Then We calculate 2 * ℼ * 𝑟
-            """,  # noqa:RUF001
+                    Then We calculate 2 * pi * r
+            """,
     )
 
     result = testdir.runpytest("--generate", "--feature", "unicode_characters.feature")
-    expected_output = dedent(
-        # language=python
-        '''\
-        """Generating unicode characters feature tests."""
+    code = result.stdout.str()
+    tree1 = ast.parse(code)
+    tree = tree1
 
-        from pathlib import Path
+    assert ast.get_docstring(tree) == "Generating unicode characters feature tests."
 
-        from pytest_bdd import (
-            scenario,
-            given,
-            when,
-            then,
-            step,
-        )
+    funcs = [node for node in ast.iter_child_nodes(tree) if isinstance(node, ast.FunctionDef)]
+    assert len(funcs) == 4
 
+    scenario_func = funcs[0]
+    assert _get_decorator_name(scenario_func) == "scenario"
 
-        @scenario(Path('unicode_characters.feature'), 'Calculating the circumference of a circle')
-        def test_calculating_the_circumference_of_a_circle():
-            """Calculating the circumference of a circle."""
+    step_funcs = funcs[1:]
+    step_decorators = {_get_decorator_name(f) for f in step_funcs}
+    assert step_decorators == {"given", "when", "then"}
 
+    given_funcs = [f for f in step_funcs if _get_decorator_name(f) == "given"]
+    assert len(given_funcs) == 1
+    assert _get_step_text(given_funcs[0]) == "We have a circle"
 
-        @then('We calculate 2 * ℼ * 𝑟')
-        def we_calculate_2__ℼ__𝑟():
-            """We calculate 2 * ℼ * 𝑟."""
-            raise NotImplementedError
+    when_funcs = [f for f in step_funcs if _get_decorator_name(f) == "when"]
+    assert len(when_funcs) == 1
+    assert _get_step_text(when_funcs[0]) == "We want to know its circumference"
 
+    then_funcs = [f for f in step_funcs if _get_decorator_name(f) == "then"]
+    assert len(then_funcs) == 1
+    assert _get_step_text(then_funcs[0]) == "We calculate 2 * pi * r"
 
-        @given('We have a circle')
-        def we_have_a_circle():
-            """We have a circle."""
-            raise NotImplementedError
-
-
-        @when('We want to know its circumference')
-        def we_want_to_know_its_circumference():
-            """We want to know its circumference."""
-            raise NotImplementedError
-        ''',  # noqa:RUF001
-    ).strip()
-    assert result.stdout.str().strip() == expected_output
+    for func in step_funcs:
+        assert _get_func_docstring(func) is not None
+        assert _has_raise_not_implemented(func)

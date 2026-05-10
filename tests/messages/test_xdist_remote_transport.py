@@ -15,9 +15,9 @@ from pytest_bdd.model.message_consolidation import MessageFragment, consolidate_
 from pytest_bdd.model.message_transport import (
     REPORTING_BATCH_EVENT,
     REPORTING_TRANSPORT_BINDING_STASH_KEY,
+    ReportingEventSenderBinding,
     ReportingTransportClient,
     ReportingTransportSession,
-    install_reporting_event_sender,
     resolve_reporting_event_sender,
     resolve_reporting_gateway_mode,
 )
@@ -255,26 +255,15 @@ def test_install_reporting_event_sender_stores_binding_in_config_stash() -> None
     def sender(event_name: str, **kwargs: Any) -> None:
         _ = event_name, kwargs
 
-    install_reporting_event_sender(config, sender, gateway_mode="socket")
+    ReportingEventSenderBinding(
+        sender=sender,
+        gateway_mode="socket",
+    ).set_in_stash(config.stash)
 
     assert resolve_reporting_event_sender(config) is sender
     assert resolve_reporting_gateway_mode(config) == "socket"
     assert REPORTING_TRANSPORT_BINDING_STASH_KEY in config.stash
     assert getattr(config, REPORTING_TRANSPORT_BINDING_STASH_KEY, None) is None
-
-
-def test_install_reporting_event_sender_initializes_missing_config_stash() -> None:
-    """Verify install reporting event sender initializes missing config stash."""
-    config = SimpleNamespace()
-
-    def sender(event_name: str, **kwargs: Any) -> None:
-        _ = event_name, kwargs
-
-    install_reporting_event_sender(config, sender)
-
-    assert hasattr(config, "stash")
-    assert resolve_reporting_event_sender(config) is sender
-    assert resolve_reporting_gateway_mode(config) is None
 
 
 def test_process_messages_thread_passes_force_failure_flag(tmp_path) -> None:

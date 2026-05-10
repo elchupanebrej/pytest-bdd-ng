@@ -43,23 +43,6 @@ class _ConfigWithStash(Protocol):
     stash: Stash
 
 
-def _config_stash(config: _ConfigWithStash) -> Stash:
-    return config.stash
-
-
-def install_reporting_event_sender(
-    config: _ConfigWithStash,
-    sender: ReportingEventSender,
-    *,
-    gateway_mode: str | None = None,
-) -> None:
-    """Register a reporting event sender in the pytest stash."""
-    ReportingEventSenderBinding(
-        sender=sender,
-        gateway_mode=gateway_mode,
-    ).set_in_stash(_config_stash(config))
-
-
 def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSender | None:
     """
     Retrieve the configured reporting event sender from the pytest stash.
@@ -68,7 +51,7 @@ def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSe
         The registered ReportingEventSender, or None if not found or not callable.
 
     """
-    binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
+    binding = ReportingEventSenderBinding.find_in_stash(config.stash)
     if binding is None:
         return None
     sender = binding.sender
@@ -83,7 +66,7 @@ def resolve_reporting_gateway_mode(config: _ConfigWithStash) -> str | None:
         The gateway mode as a string, or None if not configured.
 
     """
-    binding = ReportingEventSenderBinding.find_in_stash(_config_stash(config))
+    binding = ReportingEventSenderBinding.find_in_stash(config.stash)
     if binding is None:
         return None
     gateway_mode = binding.gateway_mode

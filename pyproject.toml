@@ -69,6 +69,7 @@ dependencies = [
   "py",
   "pydantic>=2.0.3",
   "pytest>=7.0.0",
+  "ruff",
   "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
 ]
@@ -142,8 +143,7 @@ test = [
   "pytest-order",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
-  "pytest-bdd-ng[doc-gen];python_version>='3.13.0'",
-  "ruff"
+  "pytest-bdd-ng[doc-gen];python_version>='3.13.0'"
 ]
 test-playwright = [
   "playwright"
@@ -193,7 +193,6 @@ module = [
   "attr.*",
   "ci_environment.*",
   "cucumber_messages",
-  "cucumber_messages.*",
   "cucumber_expressions.*",
   "cucumber_tag_expressions.*",
   "decopatch.*",
