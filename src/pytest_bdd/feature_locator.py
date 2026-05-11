@@ -15,7 +15,7 @@ from pathvalidate import is_valid_filepath
 from typing_extensions import TypedDict
 
 from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import Config, Mark, get_config_root_path
+from pytest_bdd.compatibility.pytest import Config, Mark
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
@@ -71,15 +71,19 @@ class ScenarioLocatorBuilder:
     def default_features_base_dir(self) -> str:
         """Handle default features base dir."""
         with suppress(ValueError, KeyError):
-            if bool(base_dir := self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION))):
+            base_dir_cli = self.config.getoption(str(FeatureBaseLoad.Cli.DIR_OPTION))
+            base_dir_ini = self.config.getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
+            if bool(base_dir := base_dir_cli or base_dir_ini):
                 return str(base_dir)
-        return str(get_config_root_path(self.config))
+        return "."
 
     @property
     def default_features_base_url(self) -> str | None:
         """Handle default features base url."""
         with suppress(ValueError, KeyError):
-            if bool(base_url := self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION))):
+            base_url_cli = self.config.getoption(str(FeatureBaseLoad.Cli.URL_OPTION))
+            base_url_ini = self.config.getini(str(FeatureBaseLoad.Ini.URL_OPTION))
+            if bool(base_url := base_url_cli or base_url_ini):
                 return str(base_url)
         return None
 
@@ -122,7 +126,7 @@ class ScenarioLocatorBuilder:
         ):
             yield url_locator
 
-    def resolve_features_base_dir(self, features_base_dir: str | Path | Callable[[Config], str] | None) -> str:
+    def resolve_features_base_dir(self, features_base_dir: str | Path | Callable[[Config], str] | None) -> Path:
         """
         Resolve the base directory for the features from the mark or config.
 
@@ -137,7 +141,11 @@ class ScenarioLocatorBuilder:
             resolved_features_base_dir = features_base_dir(self.config)
         else:
             resolved_features_base_dir = str(features_base_dir)
-        return resolved_features_base_dir
+
+        if (resolved_path := Path(resolved_features_base_dir)).is_absolute():
+            return resolved_path
+
+        return (self.config.rootpath / resolved_features_base_dir).resolve()
 
     def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> str | None:
         """
@@ -178,7 +186,7 @@ class ScenarioLocatorBuilder:
     def _create_file_locator(
         feature_locator_args: FeatureLocatorArgs,
         filter_: ScenarioLocatorFilterT | None,
-        features_base_dir: str,
+        features_base_dir: Path,
         features_path_type: FeaturePathType,
     ) -> FileScenarioLocator | None:
         """
@@ -202,8 +210,8 @@ class ScenarioLocatorBuilder:
         return FileScenarioLocator(  # type: ignore[call-arg]
             feature_paths=file_locator_feature_paths,
             filter_=filter_,
-            encoding=feature_locator_args.get("encoding"),
             features_base_dir=features_base_dir,
+            encoding=feature_locator_args.get("encoding"),
             mimetype=feature_locator_args.get("features_mimetype"),
             parser_type=feature_locator_args.get("parser_type"),
             parse_args=feature_locator_args.get("parse_args"),

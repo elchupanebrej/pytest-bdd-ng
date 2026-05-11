@@ -17,7 +17,6 @@ from typing import IO, TYPE_CHECKING, Protocol, cast
 import pytest
 from filelock import FileLock
 
-from pytest_bdd.compatibility.pytest import get_config_root_path
 from pytest_bdd.model.cucumber_formatter_adapter import normalize_formatter_envelope_dicts
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_serialization import MessageSerializationProfile
@@ -206,7 +205,7 @@ class LiveFormatterService(ReporterServiceBase):
             check=False,
             capture_output=True,
             text=True,
-            cwd=str(get_config_root_path(self.reporter.config)),
+            cwd=str(Path(self.reporter.config.rootpath)),
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
@@ -237,7 +236,7 @@ class LiveFormatterService(ReporterServiceBase):
             check=False,
             capture_output=True,
             text=True,
-            cwd=str(get_config_root_path(self.reporter.config)),
+            cwd=str(Path(self.reporter.config.rootpath)),
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
@@ -348,7 +347,7 @@ class LiveFormatterService(ReporterServiceBase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    cwd=str(get_config_root_path(self.reporter.config)),
+                    cwd=str(Path(self.reporter.config.rootpath)),
                     env=install_env,
                 )
                 if completed.stderr:
@@ -562,7 +561,7 @@ class LiveFormatterService(ReporterServiceBase):
         messages_path: Path | None = None,
     ) -> JSONObject:
         return {
-            "cwd": str(get_config_root_path(self.reporter.config)),
+            "cwd": str(Path(self.reporter.config.rootpath)),
             "messagesPath": str(messages_path) if messages_path is not None else None,
             "formatters": [
                 {
@@ -656,7 +655,7 @@ class LiveFormatterService(ReporterServiceBase):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd=str(get_config_root_path(self.reporter.config)),
+                cwd=str(Path(self.reporter.config.rootpath)),
                 env=node_env,
             )
             if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001
@@ -768,7 +767,7 @@ class LiveFormatterService(ReporterServiceBase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    cwd=str(get_config_root_path(self.reporter.config)),
+                    cwd=str(Path(self.reporter.config.rootpath)),
                     env=node_env,
                 )
         except OSError:

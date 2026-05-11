@@ -56,9 +56,7 @@ __all__ = [
     "TerminalReporter",
     "TestReport",
     "Testdir",
-    "assert_outcomes",
     "call_fixture_func",
-    "get_config_root_path",
     "wrap_session",
 ]
 
@@ -118,37 +116,6 @@ class Module(pytest.Module):
         return getattr(self, "path", Path(self.fspath))
 
 
-def assert_outcomes(  # noqa: PLR0913, PLR0917
-    result: RunResult,
-    passed: int = 0,
-    skipped: int = 0,
-    failed: int = 0,
-    errors: int = 0,
-    xpassed: int = 0,
-    xfailed: int = 0,
-) -> None:
-    """Compatibility function for result.assert_outcomes."""
-    result.assert_outcomes(
-        errors=errors,
-        passed=passed,
-        skipped=skipped,
-        failed=failed,
-        xpassed=xpassed,
-        xfailed=xfailed,
-    )
-
-
-def get_config_root_path(config: Config) -> Path:
-    """
-    Get the config root path.
-
-    Returns:
-        Root path of the pytest configuration.
-
-    """
-    return Path(cast("Config", config).rootpath)
-
-
 def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
     __tracebackhide__ = True
     pytest.fail(reason, pytrace=pytrace)
@@ -156,15 +123,6 @@ def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
 
 def is_set(obj: object) -> bool:
     return not isinstance(obj, NotSetType)
-
-
-class _MetafuncCall(Protocol):
-    params: dict[str, object]
-    funcargs: dict[str, object]
-
-
-def get_metafunc_call_arg(call: _MetafuncCall, arg: str) -> object:
-    return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
 def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:

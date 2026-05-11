@@ -8,10 +8,8 @@ import ssl
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import suppress
 from enum import Enum
-from functools import reduce
 from itertools import filterfalse
-from operator import methodcaller, truediv
-from os.path import commonpath
+from operator import methodcaller
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Protocol, TypeAlias, cast, runtime_checkable
@@ -24,12 +22,12 @@ from cucumber_messages import (
     Source,
 )
 
+from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pathlib import GlobError
-from pytest_bdd.compatibility.pytest import Config, get_config_root_path
+from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
-from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
 from pytest_bdd.types.protocol import HasPytestStash
@@ -377,36 +375,18 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     """
 
     Defaults = FileScenarioLocatorDefaults
+    features_base_dir: Path = field()
     feature_paths: list[str | Path] = field(factory=list)
     encoding: str | None = field(default=None)
-    features_base_dir: str | Path | Callable[[Config | HasPytestStash], str | Path] | None = field(default=None)
     mimetype: Mimetype | str | Enum | None = field(default=None)
     parser_type: type[ParserProtocol] | None = field(default=None)
     parse_args: Args | None = field(default=None)
 
-    def _resolve_features_base_dir(self, config: Config | HasPytestStash) -> Path:
-        try:
-            # TODO: refactor, move out from class usage to initialization or higher
-            # TODO: add base dir command line option
-            base_dir: str | Path | Callable[[Config | HasPytestStash], str | Path]
-            if self.features_base_dir is None:
-                base_dir = cast("Config", config).getini(str(FeatureBaseLoad.Ini.DIR_OPTION))
-            else:
-                base_dir = self.features_base_dir
-        except (ValueError, KeyError):
-            base_dir = get_config_root_path(cast("Config", config))
-        else:
-            if callable(base_dir):
-                base_dir = cast("str | Path", base_dir(config))
-
-            base_dir = (get_config_root_path(cast("Config", config)) / Path(base_dir)).resolve()
-
-        return cast("Path", base_dir)
-
-    def _gen_feature_paths(self, features_base_dir: Path) -> Iterator[Path]:
+    @property
+    def _resolved_feature_paths(self) -> Iterator[Path]:
         for feature_pathlike in self.feature_paths:
             if isinstance(feature_pathlike, Path):
-                feature_path = features_base_dir / feature_pathlike
+                feature_path = self.features_base_dir / feature_pathlike
                 if feature_path.is_dir():
                     yield from filter(methodcaller("is_file"), feature_path.glob("**/*"))
                 else:
@@ -415,26 +395,10 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 try:
                     yield from filter(
                         methodcaller("is_file"),
-                        features_base_dir.glob(os.fspath(feature_pathlike)),
+                        self.features_base_dir.glob(os.fspath(feature_pathlike)),
                     )
                 except GlobError:
-                    yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
-
-    @staticmethod
-    def _build_file_uri(features_base_dir: Path, feature_path: Path) -> str:
-        if feature_path.is_absolute():
-            try:
-                common_path = Path(commonpath([feature_path, features_base_dir]))
-            except ValueError:
-                rel_feature_path = feature_path
-            else:
-                sub_levels = len(features_base_dir.relative_to(common_path).parts)
-                sub_path = reduce(truediv, [".."] * sub_levels, Path())
-                rel_feature_path = sub_path / feature_path.relative_to(common_path)
-        else:
-            rel_feature_path = feature_path
-
-        return "file:" + str(rel_feature_path.as_posix())
+                    yield from filter(methodcaller("is_file"), self.features_base_dir.glob("**/*"))
 
     def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[ParsedFeature, Source]]:
         """
@@ -447,21 +411,20 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             FeatureParseError: If a configured feature cannot be parsed.
 
         """
-        features_base_dir = self._resolve_features_base_dir(config)
         already_resolved_feature_paths: set[str] = set()
 
-        for feature_path in self._gen_feature_paths(features_base_dir=features_base_dir):
+        for feature_path in self._resolved_feature_paths:
             feature_path_key = str(feature_path)
             if feature_path_key in already_resolved_feature_paths:
-                break
+                continue
 
-            uri = self._build_file_uri(features_base_dir, feature_path)
             already_resolved_feature_paths.add(feature_path_key)
-            hook_handler = cast("Config", config).hook
+
+            hook_handler = config.hook
             encoding = self.encoding or "utf-8"
 
             if self.mimetype is None:
-                media_type = hook_handler.pytest_bdd_get_mimetype(config=cast("Config", config), path=feature_path)
+                media_type = hook_handler.pytest_bdd_get_mimetype(config=config, path=feature_path)
             elif isinstance(self.mimetype, (Enum,)):
                 media_type = self.mimetype.value
             else:
@@ -479,6 +442,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 break
 
             parser = parser_type(id_generator=IdGenerator.from_stash(config.stash))
+            rel_feature_path = Path(relpath(feature_path, self.features_base_dir))
+            uri = "file:" + rel_feature_path.as_posix()
 
             try:
                 parse_args = self.parse_args or Args((), {})
@@ -490,7 +455,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
-                if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     continue
                 else:
                     raise

@@ -62,8 +62,8 @@ from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
 from ordered_set import OrderedSet
 from typing_extensions import Protocol, runtime_checkable
 
-from pytest_bdd.compatibility.path import relpath
-from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, get_config_root_path
+from pytest_bdd.compatibility.path import resolvepath
+from pytest_bdd.compatibility.pytest import Config, FixtureLookupError
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser
 from pytest_bdd.plugin.pickle_runner.const import Steps
@@ -528,10 +528,7 @@ class StepDefinitionManager:
                     id=self.id,
                     pattern=pattern,
                     source_reference=SourceReference(  # type: ignore[call-arg] # migration to pydantic2
-                        uri=relpath(
-                            source_file,
-                            str(get_config_root_path(cast("Config", config))),
-                        ),
+                        uri=Path(resolvepath(source_file, config.rootpath)).as_uri(),
                         location=Location(line=source_line, column=1),
                         java_method=JavaMethod(
                             class_name="pytest_bdd.steps.StepDefinition",

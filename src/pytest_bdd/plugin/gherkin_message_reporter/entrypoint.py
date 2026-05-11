@@ -230,7 +230,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--messages-jsonl",
         action="store",
         dest="messages_ndjson_path",
-        metavar="path",
+        metavar="PATH",
         default=None,
         help="messages ndjson report file at given path.",
     )
@@ -240,7 +240,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--cucumberhtml",
         action="store",
         dest="cucumber_html_path",
-        metavar="path",
+        metavar="PATH",
         default=None,
         help="cucumber html report at given path.",
     )

@@ -40,8 +40,8 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
 
-from pytest_bdd.compatibility.path import relpath
-from pytest_bdd.compatibility.pytest import Config, get_config_root_path, is_testrun_success
+from pytest_bdd.compatibility.path import resolvepath
+from pytest_bdd.compatibility.pytest import Config, is_testrun_success
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
@@ -449,7 +449,7 @@ class LifecycleService(ReporterServiceBase):
                     name=hook_name,
                     type=hook_type,
                     source_reference=SourceReference(
-                        uri=relpath(source_file, str(get_config_root_path(config))),
+                        uri=Path(resolvepath(source_file, config.rootpath)).as_uri(),
                         location=Location(line=source_line, column=1),
                         java_method=JavaMethod(
                             class_name=type(self).__module__,

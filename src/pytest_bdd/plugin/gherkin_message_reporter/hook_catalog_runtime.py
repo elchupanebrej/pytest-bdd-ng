@@ -12,8 +12,7 @@ from _pytest.mark import Mark  # noqa: PLC2701
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Hook, HookType, JavaMethod, JavaStackTraceElement, Location, SourceReference
 
-from pytest_bdd.compatibility.path import relpath
-from pytest_bdd.compatibility.pytest import Config, FixtureDef, FixtureRequest, get_config_root_path
+from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import HookRegistration
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
@@ -23,6 +22,7 @@ from pytest_bdd.util.other import IdGenerator
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pytest_bdd.compatibility.pytest import Config, FixtureDef, FixtureRequest
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
@@ -95,10 +95,7 @@ class HookCatalogService(ReporterServiceBase):
                 id=hook_message_id,
                 **({"name": hook_name} if hook_name is not None else {}),
                 source_reference=SourceReference(
-                    uri=relpath(
-                        source_file,
-                        str(get_config_root_path(cast("Config", config))),
-                    ),
+                    uri=Path(resolvepath(source_file, config.rootpath)).as_uri(),
                     location=Location(line=source_line, column=1),
                     java_method=JavaMethod(
                         class_name=str(getattr(func, "__module__", "pytest_bdd.hook")),

@@ -395,6 +395,7 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001 + RUF100 circular issue prevents inlining
 "tests/*" = ["ANN", "D", "DOC201", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
 "tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
+"tests/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

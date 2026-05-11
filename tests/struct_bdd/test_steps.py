@@ -72,10 +72,7 @@ pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is 
             # language=json
             r"""{
               "Name": "Steps are executed one by one",
-              "Description": (
-                  "Steps are executed one by one. Given and When sections\n"
-                  "are not mandatory in some cases.\n"
-              ),
+              "Description": "Steps are executed one by one. Given and When sections\nare not mandatory in some cases.\n",
               "Steps": [
                 {
                   "Step": {

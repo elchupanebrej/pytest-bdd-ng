@@ -83,7 +83,7 @@ class TestAlpineWsl2Available:
 
     def test_returns_false_when_wsl_not_found(self):  # noqa: PLR6301 -- pytest test method
         """Verify returns false when wsl not found."""
-        with patch("tests.support.docker.shutil.which", return_value=None):
+        with patch("tests.support.docker._resolve_tool_path", return_value=None):
             assert _alpine_wsl2_available() is False
 
     def test_returns_false_when_wsl_command_fails(self):  # noqa: PLR6301 -- pytest test method

@@ -9,11 +9,6 @@ from typing import TYPE_CHECKING, ClassVar, Protocol, cast
 
 from attrs import define, field
 
-from pytest_bdd.compatibility.pytest import (
-    Config,
-    PytestPluginManager,
-    get_config_root_path,
-)
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly import (
     assemble_reporter_runtime,
     finalize_reporter_runtime,
@@ -37,6 +32,7 @@ if TYPE_CHECKING:
 
     from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
 
+    from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
     from pytest_bdd.model.cucumber_formatter_adapter import CucumberFormatterEnvelopeAdapter
     from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule
     from pytest_bdd.model.message_transport import ReportingTransportClient, ReportingTransportSession
@@ -139,7 +135,7 @@ class GherkinMessageReporter:
     def _resolve_output_path(self, output_path: str) -> Path:
         path = Path(output_path)
         if not path.is_absolute():
-            path = get_config_root_path(self.config) / path
+            path = Path(self.config.rootpath) / path
         return path.resolve()
 
     @classmethod

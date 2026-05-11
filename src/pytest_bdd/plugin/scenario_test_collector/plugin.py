@@ -35,7 +35,7 @@ from pytest_bdd.plugin.pickle_runner.run_access import (
     require_step_object,
     resolve_previous_step_object,
 )
-from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, FeatureAutoLoad
+from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, FeatureAutoLoad
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
 
@@ -167,7 +167,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         marks: Sequence[Mark] = metafunc.definition.own_markers
         mark_names = [mark.name for mark in marks]
         if PYTEST_BDD_MARK in mark_names:
-            scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
+            scenario_marks = filter(lambda mark: mark.name == PYTEST_BDD_SCENARIOS_MARK, marks)
             locator_builder = ScenarioLocatorBuilder(config=config)
             locators = cast(
                 "Collection[_ScenarioLocatorProtocol]",

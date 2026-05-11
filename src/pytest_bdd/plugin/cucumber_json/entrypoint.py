@@ -33,7 +33,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--cucumberjson",
         action="store",
         dest=str(CucumberJson.Cli.PATH_OPTION),
-        metavar="path",
+        metavar="PATH",
         default=None,
         help=f"{help_} Legacy alias; use --cucumber-json for the message-reporter-backed formatter.",
     )

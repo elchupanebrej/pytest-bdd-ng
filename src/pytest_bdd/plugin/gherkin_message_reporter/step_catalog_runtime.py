@@ -24,8 +24,8 @@ from cucumber_messages import (
     TestStep,
 )
 
-from pytest_bdd.compatibility.path import relpath
-from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest, get_config_root_path
+from pytest_bdd.compatibility.path import resolvepath
+from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest
 from pytest_bdd.model.scenario_run import Run
 from pytest_bdd.parsers import _CucumberExpression
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
@@ -264,10 +264,7 @@ class StepCatalogService(ReporterServiceBase):
             source_line = get_first_source_line(transformer)
             parameter_types = list(signature(transformer).parameters.keys())
             return SourceReference(
-                uri=relpath(
-                    source_file,
-                    str(get_config_root_path(cast("Config", config))),
-                ),
+                uri=Path(resolvepath(source_file, config.rootpath)).as_uri(),
                 location=Location(line=source_line, column=1),
                 java_method=JavaMethod(
                     class_name=str(getattr(transformer, "__module__", "pytest_bdd.parameter_type")),

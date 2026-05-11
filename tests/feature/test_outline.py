@@ -4,8 +4,6 @@ from textwrap import dedent
 
 import pytest
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
-
 
 @pytest.fixture
 def steps_conftest(testdir):
@@ -67,5 +65,5 @@ def test_invalid_feature_parsing(
     )
 
     result = testdir.runpytest()
-    assert_outcomes(result, errors=1)
+    result.assert_outcomes(errors=1)
     result.stdout.fnmatch_lines("*FeatureConcreteParseError*")

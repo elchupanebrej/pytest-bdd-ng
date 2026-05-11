@@ -10,6 +10,7 @@ import pytest
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import compose
 
@@ -253,9 +254,9 @@ def scenarios(  # noqa: PLR0913
     decorator = cast(
         "ScenarioDecorator",
         compose(
-            pytest.mark.pytest_bdd_scenario,
+            cast("Callable", getattr(pytest.mark, PYTEST_BDD_MARK)),
             pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),
-            pytest.mark.scenarios(
+            cast("Callable", getattr(pytest.mark, PYTEST_BDD_SCENARIOS_MARK))(
                 *feature_paths,
                 filter_=filter_,
                 encoding=encoding,

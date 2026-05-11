@@ -68,11 +68,16 @@ def _alpine_wsl2_available() -> bool:
         [wsl_bin, "-l", "-v"],
         check=False,
         capture_output=True,
-        text=True,
     )
     if result.returncode != 0:
         return False
-    return any("Alpine" in line and "2" in line.split()[-1] for line in result.stdout.splitlines())
+    stdout = result.stdout
+    if isinstance(stdout, bytes):
+        try:
+            stdout = stdout.decode("utf-16-le")
+        except UnicodeDecodeError:
+            stdout = stdout.decode(errors="replace")
+    return any("Alpine" in line and "2" in line.split()[-1] for line in stdout.splitlines())
 
 
 # ── T003: Docker Desktop auto-start ───────────────────────────────────────────

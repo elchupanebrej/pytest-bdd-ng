@@ -18,7 +18,6 @@ from cucumber_messages import Envelope  # type:ignore[attr-defined]
 from pytest_httpserver import HTTPServer
 
 from pytest_bdd import given, parsers, step, then, when
-from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
 from pytest_bdd.util.data_table import data_table_to_dicts
@@ -315,7 +314,7 @@ def check_pytest_test_statuses(pytest_result, step):
     outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values, strict=False))
 
     if hasattr(pytest_result, "assert_outcomes"):
-        assert_outcomes(pytest_result, **outcome_result)
+        pytest_result.assert_outcomes(**outcome_result)
         return
 
     parsed_counts = _parse_outcome_counts(pytest_result)

@@ -3,7 +3,6 @@
 import itertools
 import textwrap
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.scenario import get_python_name_generator
 
 
@@ -64,7 +63,7 @@ def test_generate_missing(testdir, tmp_path):
     )
 
     result = testdir.runpytest("--generate-missing", "--feature", str(tmp_path / "generation.feature"))
-    assert_outcomes(result, passed=0, failed=0, errors=0)
+    result.assert_outcomes(passed=0, failed=0, errors=0)
     assert not result.stderr.str()
     assert result.ret == 0
 
@@ -127,7 +126,7 @@ def test_generate_missing_with_step_parsers(testdir):
     )
 
     result = testdir.runpytest("--generate-missing", "--feature", "generation.feature")
-    assert_outcomes(result, passed=0, failed=0, errors=0)
+    result.assert_outcomes(passed=0, failed=0, errors=0)
     assert not result.stderr.str()
     assert result.ret == 0
 

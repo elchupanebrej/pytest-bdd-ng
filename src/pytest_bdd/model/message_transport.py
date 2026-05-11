@@ -13,8 +13,8 @@ from attrs import define, field, frozen
 from pytest_bdd.model.stash_access import StashBound
 
 if TYPE_CHECKING:
-    from pytest_bdd.compatibility.pytest import Stash
     from pytest_bdd.types.json import JSONObject
+    from pytest_bdd.types.protocol import HasPytestStash
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,7 @@ class ReportingEventSenderBinding(StashBound):
     gateway_mode: str | None = None
 
 
-class _ConfigWithStash(Protocol):
-    stash: Stash
-
-
-def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSender | None:
+def resolve_reporting_event_sender(config: HasPytestStash) -> ReportingEventSender | None:
     """
     Retrieve the configured reporting event sender from the pytest stash.
 
@@ -58,7 +54,7 @@ def resolve_reporting_event_sender(config: _ConfigWithStash) -> ReportingEventSe
     return sender if callable(sender) else None
 
 
-def resolve_reporting_gateway_mode(config: _ConfigWithStash) -> str | None:
+def resolve_reporting_gateway_mode(config: HasPytestStash) -> str | None:
     """
     Retrieve the gateway mode from the configured reporting event sender binding.
 
