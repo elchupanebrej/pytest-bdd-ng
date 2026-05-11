@@ -283,8 +283,8 @@ def test_hook_execution_on_feature_no_tag_using_mark_hook(testdir):
 
 def test_message_hook_signature_uses_event_envelope_annotation():
     """Verify message hook signature uses event envelope annotation."""
-    from pytest_bdd.model.message_extension import EventEnvelope  # noqa: PLC0415 -- test-specific import
-    from pytest_bdd.plugin.gherkin_message_reporter.hook import (  # noqa: PLC0415 -- test-specific import
+    from pytest_bdd.model.message_extension import EventEnvelope
+    from pytest_bdd.plugin.gherkin_message_reporter.hook import (
         GherkinMessageReporterHookSpec,
     )
 

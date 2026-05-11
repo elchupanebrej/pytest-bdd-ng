@@ -1,4 +1,4 @@
-# pytest-bdd-ng Development Guidelines
+﻿# pytest-bdd-ng Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-05-11
 
@@ -14,6 +14,8 @@ Auto-generated from all feature plans. Last updated: 2026-05-11
 - Documentation/generation stack: `Jinja2`, `pypandoc`, `pathlib2`, markdown/RST feature docs, and generated docs under `docs/features/`
 - Distributed/live-reporting stack: `pytest-xdist>=3.8.0`, `execnet`, `filelock`, Docker/Compose for non-native remote acceptance, Node.js on `PATH`, `@cucumber/cucumber`, and `@cucumber/pretty-formatter`
 - Runtime/storage model: in-memory `Run`/`ScenarioRun`/execution-context state plus file artifacts such as NDJSON, JSON, YAML, Markdown, and temporary rendered script/output files under repository and temp paths. 022 feature adds in-memory dict `{Path: GherkinDocument}` in `pytest.config.stash` (no persistent storage).
+- Python 3.10-3.14 (runtime), Go 1.21+ (build-time only, for cgo shared library compilation) + `gherkin-official>=33` (Python fallback, unchanged), `cucumber/gherkin/go/v28` (Go parser, vendored), `cucumber/messages/go/v28` (Go messages, vendored), `ctypes` (stdlib), `setuptools` (build) (023-go-gherkin-parser)
+- N/A — in-memory parsing only, no persistent storage (023-go-gherkin-parser)
 
 ## Project Structure
 

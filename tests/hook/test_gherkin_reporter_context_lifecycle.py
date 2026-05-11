@@ -258,7 +258,7 @@ def test_reporter_reports_each_step_definition_only_once() -> None:
     )
 
     class _FakeDefinition:
-        def as_message(self, config):  # noqa: ARG002, PLR6301 -- test helper
+        def as_message(self, config):  # noqa: ARG002 -- test helper
             return step_definition_message
 
     reporter.lifecycle_service._emit_envelope = lambda _config, message: emitted_messages.append(message)  # type: ignore[method-assign]
@@ -487,10 +487,10 @@ def test_entrypoint_uses_custom_remote_module_when_reporting_disabled() -> None:
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
-        def register(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def register(self, *_args, **_kwargs) -> None:
             return None
 
-        def unregister(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unregister(self, *_args, **_kwargs) -> None:
             return None
 
     config = SimpleNamespace(
@@ -513,10 +513,10 @@ def test_entrypoint_uses_custom_remote_module_when_reporting_enabled(tmp_path) -
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
-        def register(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def register(self, *_args, **_kwargs) -> None:
             return None
 
-        def unregister(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unregister(self, *_args, **_kwargs) -> None:
             return None
 
     config = SimpleNamespace(
@@ -540,10 +540,10 @@ def test_entrypoint_remote_module_selection_ignores_inherited_worker_environment
     pytest.importorskip("xdist.remote")
 
     class _PluginManager:
-        def register(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def register(self, *_args, **_kwargs) -> None:
             return None
 
-        def unregister(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unregister(self, *_args, **_kwargs) -> None:
             return None
 
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
@@ -588,10 +588,10 @@ def test_entrypoint_stores_reporter_state_in_config_stash(tmp_path) -> None:
     """Verify entrypoint stores reporter state in config stash."""
 
     class _PluginManager:
-        def register(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def register(self, *_args, **_kwargs) -> None:
             return None
 
-        def unregister(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unregister(self, *_args, **_kwargs) -> None:
             return None
 
     config = SimpleNamespace(
@@ -731,10 +731,10 @@ def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_start
         def register(self, plugin, name=None) -> None:
             self.registered.append((plugin, name))
 
-        def unregister(self, *_args, **_kwargs) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unregister(self, *_args, **_kwargs) -> None:
             return None
 
-        def getplugin(self, _name):  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def getplugin(self, _name):
             return None
 
     class _FakeReporter:
@@ -748,7 +748,7 @@ def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_start
             configure_calls.append((pluginmanager, quiet_terminal_replacer))
             self.configure_called = True
 
-        def unconfigure(self, *, pluginmanager) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def unconfigure(self, *, pluginmanager) -> None:
             unconfigure_calls.append(pluginmanager)
 
     config = SimpleNamespace(
@@ -911,11 +911,11 @@ def test_reporter_records_live_formatter_delivery_failures(capsys, tmp_path) -> 
     """Verify reporter records live formatter delivery failures."""
 
     class _BrokenStream:
-        def write(self, _value: str) -> int:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def write(self, _value: str) -> int:
             msg = "broken pipe"
             raise OSError(msg)
 
-        def flush(self) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+        def flush(self) -> None:
             return None
 
     config = _build_formatter_reporter(tmp_path, cucumber_summary=True).config
@@ -978,7 +978,7 @@ class _RecordingStdin:
     def flush(self) -> None:
         self.flush_count += 1
 
-    def close(self) -> None:  # noqa: PLR6301 -- test class, pytest requires instance methods
+    def close(self) -> None:
         return None
 
 

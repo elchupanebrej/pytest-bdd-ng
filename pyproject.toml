@@ -394,10 +394,15 @@ max-complexity = 10  # TODO target is 6
 "__init__.py" = ["F401"]  # F401: ~2 errors
 "docs/conf.py" = ["ERA001"]  # ERA001: ~40 errors (generated docs config)
 "docs/tutorial/tests/*" = ["S101"]  # S101: ~2 errors
+"src/pytest_bdd/_gherkin_go/__init__.py" = ["BLE001", "DOC201", "PLW0603", "RUF"]  # BLE001: blind except in version logging (non-critical); DOC201: internal functions; PLW0603: global flag for once-logging; RUF067: __init__.py contains parse() API (not just re-exports)
+"src/pytest_bdd/_gherkin_go/_bridge.py" = ["DOC201", "ANN401"]  # DOC201: internal ctypes helpers; ANN401: ctypes func type cannot be precisely typed
+"src/pytest_bdd/_gherkin_go/_build.py" = ["PLR6301", "S404", "S603", "S607"]  # PLR6301: setuptools Command.run override; S404/S603/S607: subprocess for go build is intentional
+"src/pytest_bdd/_gherkin_go/_types.py" = ["N818"]  # N818: GherkinGoNotAvailable is a domain-specific name, not a naming error
+"src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
 "src/pytest_bdd/compatibility/allure.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001 + RUF100 circular issue prevents inlining
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF067 preview rule not recognized by pre-commit ruff v0.12.0
 "src/pytest_bdd/plugin/allure_logger/entrypoint.py" = ["ERA001"]  # TODO re-implement Allure plugin - ERA001 + RUF100 circular issue prevents inlining
-"tests/*" = ["ANN", "D", "DOC201", "EM101", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "S101", "S506", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
+"tests/*" = ["ANN", "D", "DOC201", "EM101", "F841", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6301", "S101", "S506", "SIM117", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
 "tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
 "tests/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
 
@@ -409,9 +414,17 @@ keep-runtime-typing = true
 include-package-data = true
 package-dir = {"" = "src"}
 
+[tool.setuptools.cmdclass]
+build_go = "pytest_bdd._gherkin_go._build.BuildGoCommand"
+
 [tool.setuptools.package-data]
 pytest_bdd = [
   "markdown_parser.js"
+]
+"pytest_bdd._gherkin_go" = [
+  "*.so",
+  "*.dll",
+  "*.dylib"
 ]
 "pytest_bdd.model" = [
   "message_jsonschema/*.json"

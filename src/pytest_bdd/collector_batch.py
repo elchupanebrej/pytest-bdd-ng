@@ -242,8 +242,61 @@ def _parse_feature_file(path: Path, content: bytes) -> tuple[Path, GherkinDocume
 
     """
     text = content.decode("utf-8")
+
+    if _should_use_go_backend():
+        raw_dict = _try_go_parse(text, path)
+        if raw_dict is not None:
+            gherkin_document = message_converter.from_dict(raw_dict, GherkinDocument)
+            return (path, gherkin_document)
+
     parser = CucumberIOBaseParser(ast_builder=AstBuilder())
     raw_dict = parser.parse(text)
     del parser
     gherkin_document = message_converter.from_dict(raw_dict, GherkinDocument)
     return (path, gherkin_document)
+
+
+def _resolve_mimetype(path: Path) -> str:
+    """Resolve mimetype value from file extension for the Go parser."""
+    name = path.name.lower()
+    if name.endswith(".feature.md"):
+        return "text/x.cucumber.gherkin+markdown"
+    return "text/x.cucumber.gherkin+plain"
+
+
+def _try_go_parse(text: str, path: Path) -> dict | None:
+    """Attempt to parse via Go backend. Returns dict or None (for fallback)."""
+    try:
+        from pytest_bdd._gherkin_go import (
+            parse as go_parse,
+        )
+        from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable
+
+        mimetype_str = _resolve_mimetype(path)
+        from pytest_bdd.mimetype import Mimetype
+
+        mimetype = Mimetype(mimetype_str)
+        return go_parse(text, mimetype=mimetype)
+    except GherkinGoNotAvailable:
+        if _strict_go_mode():
+            raise
+        logger.debug("Go gherkin parser unavailable for %s, falling back to Python", path)
+        return None
+    except Exception:
+        if _strict_go_mode():
+            raise
+        logger.debug("Go gherkin parser failed for %s, falling back to Python", path, exc_info=True)
+        return None
+
+
+def _should_use_go_backend() -> bool:
+    """Check if Go backend should be attempted based on env var."""
+    backend = os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower()
+    if backend == "python":
+        return False
+    return True  # auto, go, or unknown all try Go
+
+
+def _strict_go_mode() -> bool:
+    """Check if Go backend is forced — no fallback to Python."""
+    return os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower() == "go"

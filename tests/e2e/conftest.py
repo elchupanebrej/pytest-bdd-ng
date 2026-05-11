@@ -244,7 +244,7 @@ def _require_docker():
     target_fixture="remote_xdist_result",
 )
 def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
-    from tests.e2e.test_xdist_remote_message_aggregation import (  # noqa: PLC0415 -- lazy import in test fixture
+    from tests.e2e.test_xdist_remote_message_aggregation import (
         _run_remote_xdist_compose,
     )
 
@@ -270,14 +270,14 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
 
 @then("the distributed run succeeds and a consolidated NDJSON report is produced")
 def _assert_remote_run_succeeds(remote_xdist_result):
-    from cucumber_messages import (  # noqa: PLC0415 -- lazy import for optional xdist test
+    from cucumber_messages import (
         TestCaseStarted as CucumberTestCaseStarted,  # type:ignore[attr-defined]
     )
 
-    from pytest_bdd.model.message_validation import (  # noqa: PLC0415 -- lazy import for optional xdist test
+    from pytest_bdd.model.message_validation import (
         validate_message_stream,
     )
-    from tests.messages.message_stream_assertions import (  # noqa: PLC0415 -- optional xdist dependency
+    from tests.messages.message_stream_assertions import (
         count_payload_kinds,
         gateway_modes_for_payloads,
         parse_ndjson_messages,

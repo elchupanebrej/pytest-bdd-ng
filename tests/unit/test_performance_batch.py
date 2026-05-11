@@ -1,7 +1,5 @@
 """Performance benchmark: measure collection time at huge scale (2000 features x 20 scenarios)."""
 
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 import logging
@@ -10,7 +8,7 @@ from pathlib import Path  # noqa: TC003
 
 import pytest
 
-from pytest_bdd.collector_batch import FeatureBatchParser, _parse_feature_file  # noqa: PLC2701
+from pytest_bdd.collector_batch import FeatureBatchParser, _parse_feature_file
 
 pytestmark = pytest.mark.slow
 

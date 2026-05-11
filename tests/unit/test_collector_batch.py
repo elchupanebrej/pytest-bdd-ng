@@ -1,7 +1,5 @@
 """Unit tests for FeatureBatchParser and _parse_feature_file."""
 
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +8,7 @@ import pytest
 from cucumber_messages import GherkinDocument
 from gherkin.errors import CompositeParserException
 
-from pytest_bdd.collector_batch import FeatureBatchParser, _parse_feature_file  # noqa: PLC2701
+from pytest_bdd.collector_batch import FeatureBatchParser, _parse_feature_file
 
 SAMPLE_FEATURE = b"""Feature: Test feature
   Scenario: Test scenario
