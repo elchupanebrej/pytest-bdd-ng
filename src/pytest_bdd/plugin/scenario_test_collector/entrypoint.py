@@ -1,5 +1,6 @@
 """Provide entrypoint helpers."""
 
+from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
 
 from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, FeatureAutoLoad, FeatureBaseLoad
@@ -52,6 +53,19 @@ def pytest_addoption(parser: Parser) -> None:
     )
     parser.addini(str(FeatureBaseLoad.Ini.URL_OPTION), base_feature_url_hlp)
 
+    batch_disable_hlp = "Disable lazy-batched async feature file collection"
+    group.addoption(
+        "--disable-batch-collection",
+        action="store_true",
+        dest="disable_batch_collection",
+        default=None,
+        help=batch_disable_hlp,
+    )
+    parser.addini("disable_batch_collection", default=False, type="bool", help=batch_disable_hlp)
+
+    batch_threshold_hlp = "Minimum feature file count to enable parallel collection (auto: 50 Linux, 1000 Windows)"
+    parser.addini("batch_threshold", default=-1, type="int", help=batch_threshold_hlp)
+
 
 def pytest_configure(config: Config) -> None:
     """Handle configure."""
@@ -59,3 +73,13 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", f"{PYTEST_BDD_SCENARIOS_MARK}: marker to provide scenarios locator")
 
     config.pluginmanager.register(ScenarioTestCollector())
+
+    if not config.getini("disable_batch_collection") and not config.getoption(
+        "disable_batch_collection",
+        default=False,
+    ):
+        parser = FeatureBatchParser()
+        ini_threshold = config.getini("batch_threshold")
+        if ini_threshold > 0:
+            parser.set_threshold(ini_threshold)
+        parser.initialize_in_stash(config.stash)

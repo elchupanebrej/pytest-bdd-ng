@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from _pytest.nodes import Collector
 
+from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import Item
 from pytest_bdd.compatibility.pytest import Module as PytestModule
 from pytest_bdd.scenario import FeaturePathType as PathType
@@ -38,6 +39,19 @@ class Module(PytestModule):
 
 class FeatureFileModule(Module):
     """Represent feature file module state."""
+
+    def collect(self) -> Iterable[Item | Collector]:
+        """
+        Collect tests, flushing the batch parser if pending.
+
+        Returns:
+            Iterable of pytest items and collectors.
+
+        """
+        batch_parser = FeatureBatchParser.find_in_stash(self.config.stash)
+        if batch_parser is not None and batch_parser.has_pending():
+            batch_parser.flush()
+        return super().collect()
 
     def _getobj(self) -> ModuleType:
         path: Path = self.get_path()

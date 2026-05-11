@@ -37,7 +37,8 @@ from pytest_bdd.util.url import is_local_url
 if TYPE_CHECKING:
     import aiohttp
 
-    from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
+from pytest_bdd.collector_batch import FeatureBatchParser
+from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 
 
 @runtime_checkable
@@ -382,6 +383,37 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     parser_type: type[ParserProtocol] | None = field(default=None)
     parse_args: Args | None = field(default=None)
 
+    @staticmethod
+    def _try_get_cached_feature(
+        config: Config | HasPytestStash,
+        feature_path: Path,
+        uri: str,
+        encoding: str,
+        media_type: str | None,
+    ) -> tuple[ParsedFeature, Source] | None:
+        """
+        Return (ParsedFeature, Source) from batch parser cache, or None.
+
+        Returns:
+            A tuple of (ParsedFeature, Source) if the feature is cached, or None.
+
+        """
+        batch_parser = FeatureBatchParser.find_in_stash(config.stash)
+        if batch_parser is None or not batch_parser.is_flushed:
+            return None
+        cached_doc = batch_parser.get(feature_path)
+        if cached_doc is None:
+            return None
+        cached_doc.uri = uri  # type: ignore[union-attr]
+        raw_data = feature_path.read_text(encoding=encoding)
+        parsed = ParsedFeature(
+            gherkin_document=cached_doc,
+            filename=str(feature_path),
+            raw_data=raw_data,
+        )
+        source_media_type = str(media_type) if media_type is not None else "text/plain;charset=UTF-8"
+        return parsed, Source(uri=uri, data=parsed.raw_data, media_type=source_media_type)
+
     @property
     def _resolved_feature_paths(self) -> Iterator[Path]:
         for feature_pathlike in self.feature_paths:
@@ -444,6 +476,12 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             parser = parser_type(id_generator=IdGenerator.from_stash(config.stash))
             rel_feature_path = Path(relpath(feature_path, self.features_base_dir))
             uri = "file:" + rel_feature_path.as_posix()
+
+            # Check batch parser cache for pre-parsed document
+            cached_result = self._try_get_cached_feature(config, feature_path, uri, encoding, media_type)
+            if cached_result is not None:
+                yield cached_result
+                continue
 
             try:
                 parse_args = self.parse_args or Args((), {})

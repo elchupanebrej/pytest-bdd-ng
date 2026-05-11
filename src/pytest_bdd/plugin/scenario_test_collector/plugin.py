@@ -17,6 +17,7 @@ from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[att
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
+from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import (
     Collector,
     Config,
@@ -51,6 +52,9 @@ def _pytest_collect_file(parent: Collector, file_path: Path | str | None = None)
     hook = parent.config.hook
 
     if hook.pytest_bdd_is_collectible(config=config, path=Path(file_path)):
+        batch_parser = FeatureBatchParser.find_in_stash(config.stash)
+        if batch_parser is not None:
+            batch_parser.register(Path(file_path))
         return FeatureFileCollector.build(parent=parent, file_path=file_path)
     return None
 

@@ -108,6 +108,9 @@ allure = [
   "allure-python-commons",
   "allure-pytest"
 ]
+async = [
+  "aiofiles"
+]
 doc-gen = [
   'docopt-ng',
   'pandoc',
@@ -117,6 +120,7 @@ doc-gen = [
 ]
 full = [
   "pytest-bdd-ng[allure]",
+  "pytest-bdd-ng[async]",
   "pytest-bdd-ng[doc-gen]",
   "pytest-bdd-ng[struct-bdd]",
   "pytest-bdd-ng[test]",
