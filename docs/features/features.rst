@@ -40,6 +40,7 @@ Load
     02 Feature/09 Load/05 Autoload.feature
     02 Feature/09 Load/06 Feature base directory resolution.feature
     02 Feature/09 Load/07 Scenario search from base directory.feature
+    02 Feature/09 Load/08 Batch collection.feature
 
 Scenario
 --------
