@@ -6,6 +6,21 @@ import ast
 from pathlib import Path
 
 SCENARIO_RUN_PATH = Path("src/pytest_bdd/model/scenario_run.py")
+MOVED_SCENARIO_RUN_SYMBOLS = {
+    "ActiveObjectSet",
+    "ContextErrorState",
+    "ExternalApiCompatibilityRecord",
+    "FeatureRuntimeBinding",
+    "HookPhase",
+    "LifecycleObjectRef",
+    "ReferenceResolverState",
+    "ReportingContextSnapshot",
+    "ReportingLifecycleState",
+    "Run",
+    "RunStage",
+    "RunStatus",
+}
+ALLOWED_SCENARIO_RUN_SYMBOLS = {"ScenarioRun", "RunNode", "StepRun"}
 
 
 def _module() -> ast.Module:
@@ -54,3 +69,23 @@ def test_scenario_run_has_no_bare_return_none() -> None:
         if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant) and node.value.value is None:
             message = f"bare return None at line {node.lineno}"
             raise AssertionError(message)
+
+
+def test_moved_symbols_are_not_imported_from_scenario_run_module() -> None:
+    """Verify moved runtime symbols use their direct owning modules."""
+    violations: list[str] = []
+    for path in [*Path("src").rglob("*.py"), *Path("tests").rglob("*.py")]:
+        if path == Path(__file__):
+            continue
+        module = ast.parse(path.read_text(encoding="utf-8-sig"))
+        for node in ast.walk(module):
+            if not isinstance(node, ast.ImportFrom) or node.module != "pytest_bdd.model.scenario_run":
+                continue
+            moved = {alias.name for alias in node.names} & MOVED_SCENARIO_RUN_SYMBOLS
+            allowed = {alias.name for alias in node.names} & ALLOWED_SCENARIO_RUN_SYMBOLS
+            if moved:
+                violations.append(f"{path}:{node.lineno}: moved imports {sorted(moved)}")
+            if not moved and not allowed:
+                violations.append(f"{path}:{node.lineno}: unexpected scenario_run import")
+
+    assert violations == []
