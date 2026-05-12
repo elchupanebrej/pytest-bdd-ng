@@ -338,6 +338,7 @@ class ReportingTransportClient:
             self.sender(REPORTING_BATCH_EVENT, batch=batch.as_dict(), gateway_mode=self.gateway_mode)
         except Exception as exc:
             self.last_publish_error = str(exc)
+            logger.warning("Failed to publish worker transport batch for %s", self.worker_id, exc_info=True)
             msg = f"Failed to publish worker transport batch for '{self.worker_id}'."
             raise RuntimeError(msg) from exc
         self.batch_sequence += 1

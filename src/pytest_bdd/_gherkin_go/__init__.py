@@ -39,7 +39,7 @@ def _log_version() -> None:
         from pytest_bdd._gherkin_go._bridge import gherkin_go_version  # noqa: PLC0415
 
         logger.info("Using Go gherkin parser %s", gherkin_go_version())
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.debug("Failed to retrieve Go parser version", exc_info=True)
 
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
 from contextlib import suppress
 from typing import TYPE_CHECKING, ClassVar, TextIO, cast
 
 import pytest
 from attrs import frozen
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager, Stash, TerminalReporter
 from pytest_bdd.model.stash_access import StashBound
@@ -26,6 +28,8 @@ from .plugin import (
     CucumberFormatterConfigurationError,
     GherkinMessageReporter,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -116,7 +120,7 @@ def _pytest_cache_already_configured(args: list[str]) -> bool:
 def _replace_terminal_reporter_with_quiet_variant(config: Config) -> Callable[[], None] | None:
     current_reporter = config.pluginmanager.getplugin("terminalreporter")
     if current_reporter is None or current_reporter.__class__ != TerminalReporter:
-        return None
+        return Nothing.value_or(None)
 
     quiet_stream = io.StringIO()
     quiet_reporter = _QuietTerminalReporter(config, quiet_stream=quiet_stream)
@@ -154,7 +158,7 @@ def _store_reporter_state(config: Config, reporter: object) -> None:
 
 def _resolve_reporter_state(config: Config) -> object | None:
     state = _ReporterStateEntry.find_in_stash(_config_stash(config)).value_or(None)
-    return None if state is None else state.reporter
+    return Nothing.value_or(None) if state is None else state.reporter
 
 
 def _clear_reporter_state(config: Config) -> None:
@@ -264,6 +268,7 @@ def pytest_configure(config: Config) -> None:
         _store_reporter_state(config, reporter)
         _configure_reporter_instance(reporter, config.pluginmanager)
     except Exception:
+        logger.warning("Reporter configuration failed", exc_info=True)
         if reporter is not None:
             _unconfigure_reporter_instance(reporter, config.pluginmanager)
         _clear_reporter_state(config)

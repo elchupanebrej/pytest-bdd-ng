@@ -158,6 +158,7 @@ class HookCatalogService(ReporterServiceBase):
                     scenario_tags.append(mark)
                 return bool(tag_expression.evaluate(scenario_tags))
         except Exception:  # noqa: BLE001
+            logger.warning("Failed to evaluate hook expression %r", expression, exc_info=True)
             return False
 
         return False

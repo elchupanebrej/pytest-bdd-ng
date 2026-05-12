@@ -5,6 +5,8 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+from returns.maybe import Nothing
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     ContextErrorState,
@@ -211,7 +213,7 @@ def resolve_active_object_or_error(
         hook_name=hook_name,
         requested_kind=requested_kind,
     )
-    return None, error
+    return Nothing.value_or(None), error
 
 
 def _fallback_reporting_snapshot(
@@ -313,7 +315,7 @@ def resolve_scenario_description(
     if not ast_node_ids:
         if scenario_run is not None:
             scenario_run.reference_resolver.add_missing_reference("Pickle has no ast_node_ids")
-        return None
+        return Nothing.value_or(None)
     ast_node_id = str(ast_node_ids[0])
     effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     node = resolve_registry_node(
@@ -322,7 +324,7 @@ def resolve_scenario_description(
         scenario_run=scenario_run,
     )
     if node is None:
-        return None
+        return Nothing.value_or(None)
     description = getattr(node, "description", None)
     return str(description) if description is not None else None
 

@@ -289,7 +289,7 @@ def _try_go_parse(text: str, path: Path) -> dict | None:
     except Exception:
         if _strict_go_mode():
             raise
-        logger.debug("Go gherkin parser failed for %s, falling back to Python", path, exc_info=True)
+        logger.warning("Go gherkin parser failed for %s, falling back to Python", path, exc_info=True)
         return Nothing.value_or(None)
 
 

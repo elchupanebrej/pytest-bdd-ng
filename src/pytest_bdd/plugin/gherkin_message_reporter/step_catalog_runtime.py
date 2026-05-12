@@ -23,6 +23,7 @@ from cucumber_messages import (
     TestCase,
     TestStep,
 )
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest
@@ -257,7 +258,7 @@ class StepCatalogService(ReporterServiceBase):
     def _build_parameter_type_source_reference(config: Config, parameter_type: object) -> SourceReference | None:
         transformer = getattr(parameter_type, "transformer", None)
         if transformer is None:
-            return None
+            return Nothing.value_or(None)
 
         with suppress(OSError, TypeError, ValueError):
             source_file = getfile(transformer)
@@ -277,7 +278,7 @@ class StepCatalogService(ReporterServiceBase):
                     method_name=str(getattr(transformer, "__name__", "transformer")),
                 ),
             )
-        return None
+        return Nothing.value_or(None)
 
     def _register_parameter_types(self, config: Config, request: FixtureRequest) -> None:
         try:

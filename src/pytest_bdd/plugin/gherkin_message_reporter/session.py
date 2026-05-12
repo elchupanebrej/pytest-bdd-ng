@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.plugin.cucumber_formatter_support.base import (
@@ -207,7 +208,7 @@ def _resolve_formatter_request_hook(config: Config) -> _FormatterRequestHook | N
                 "was not configured."
             )
             raise RuntimeError(msg)
-        return None
+        return Nothing.value_or(None)
     return cast("_FormatterRequestHook", hook)
 
 

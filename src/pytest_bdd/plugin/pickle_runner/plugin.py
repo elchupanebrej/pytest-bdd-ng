@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from functools import partial
 from itertools import zip_longest
@@ -35,6 +36,8 @@ from .run_access import (
     resolve_step_runtime_enrichment,
 )
 from .run_transitions import apply_transition
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections import deque
@@ -289,7 +292,7 @@ class PickleRunner:
 
         return dispatcher
 
-    def pytest_bdd_run_step(  # noqa: PLR0914
+    def pytest_bdd_run_step(  # noqa: PLR0914, PLR0915
         self,
         request: FixtureRequest,
         run: Run,
@@ -419,6 +422,7 @@ class PickleRunner:
                     step_definition=step_definition,
                 )
             except Exception as exception:
+                logger.warning("Step execution failed for %s", step.text, exc_info=True)
                 scenario_run.step_run.status = RunStatus.failed
 
                 self._invoke_bdd_hook(

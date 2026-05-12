@@ -34,3 +34,17 @@ class FeatureBaseLoad:
 
         DIR_OPTION = "features_base_dir"
         URL_OPTION = "features_base_url"
+
+
+class EmptyScenarios:
+    """Represent empty scenario handling state."""
+
+    class Ini(StrEnum):
+        """INI option names for empty scenario handling."""
+
+        ALLOW_OPTION = "bdd_allow_empty_scenarios"
+
+    class Cli(StrEnum):
+        """CLI option names for empty scenario handling."""
+
+        ALLOW_OPTION = "bdd_allow_empty_scenarios"

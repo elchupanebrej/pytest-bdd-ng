@@ -22,7 +22,7 @@ RETURN_NONE_MESSAGE = (
     "BLQ901: `return None` in non-hook function - use `Nothing` (Maybe) or `Failure(reason)` (Result) instead"
 )
 EXCEPT_EXCEPTION_MESSAGE = (
-    "BLQ902: bare `except Exception:` without logging - add `logger.warning(exc_info=True)` or `# noqa: BLQ902`"
+    "BLQ902: bare `except Exception:` without logging - add `logger.warning(exc_info=True)` or `# noqa: BLE001`"
 )
 
 
@@ -83,7 +83,15 @@ class QualityGateVisitor(ast.NodeVisitor):
     def _has_noqa(self, node: ast.ExceptHandler) -> bool:
         current_line = self._line_at(node.lineno)
         previous_line = self._line_at(node.lineno - 1)
-        return "noqa: BLQ902" in current_line or "noqa: BLQ902" in previous_line
+        return self._line_has_noqa(current_line) or self._line_has_noqa(previous_line)
+
+    @staticmethod
+    def _line_has_noqa(line: str) -> bool:
+        if "noqa" not in line:
+            return False
+        if "noqa:" not in line:
+            return True
+        return any(rule in line for rule in ("BLE001", "BLQ902"))
 
     def _line_at(self, line_number: int) -> str:
         if line_number < 1 or line_number > len(self.lines):

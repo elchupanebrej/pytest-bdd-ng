@@ -31,8 +31,8 @@ A pytest plugin that brings BDD (Behavior-Driven Development) to Python testing.
 ### Active
 
 - [ ] **STAB-01**: Remove or re-implement dead Allure logger plugin
-- [ ] **STAB-02**: Eliminate 96 `return None` antipattern instances in non-hook code
-- [ ] **STAB-03**: Replace 22 bare `except Exception:` catch-alls with specific types or logged warnings
+- [x] **STAB-02**: Eliminate 96 `return None` antipattern instances in non-hook code
+- [x] **STAB-03**: Replace 22 bare `except Exception:` catch-alls with specific types or logged warnings
 - [ ] **STAB-04**: Add deprecation warning to legacy `--cucumberjson` CLI flag
 - [ ] **REF-01**: Split `scenario_run.py` (1422 lines) into separate modules (Run, ScenarioRun, FeatureRuntimeBinding)
 - [ ] **REF-02**: Refactor code generator plugin into class-based pattern matching other plugins

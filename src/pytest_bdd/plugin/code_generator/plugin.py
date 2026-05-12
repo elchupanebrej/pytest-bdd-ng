@@ -1,6 +1,7 @@
 """pytest-bdd missing test code generation."""
 
 import argparse
+import logging
 import subprocess  # noqa: S404
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
@@ -30,6 +31,8 @@ from pytest_bdd.util.other import format_as_simplified_python_identifier
 
 if TYPE_CHECKING:
     from pytest_bdd.scenario_locator import ScenarioLocatorResolver
+
+logger = logging.getLogger(__name__)
 
 STEP_TYPE_TO_STEP_PREFIX = {
     PickleStepType.unknown: "*",
@@ -114,7 +117,7 @@ def _format_code(code: str) -> str:
 
         formatted_code = Path(tmp_path).read_text(encoding="utf-8")
     except Exception:  # noqa: BLE001
-        ...
+        logger.warning("Code generation formatting failed", exc_info=True)
     finally:
         if tmp_path is not None:
             with suppress(Exception):

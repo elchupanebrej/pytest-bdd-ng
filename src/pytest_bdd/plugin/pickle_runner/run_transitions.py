@@ -5,6 +5,8 @@ from __future__ import annotations
 from itertools import count
 from typing import TYPE_CHECKING
 
+from returns.maybe import Nothing
+
 from pytest_bdd.model.scenario_run import (
     ActiveObjectSet,
     HookPhase,
@@ -78,7 +80,7 @@ def runtime_object_name(obj: object) -> str | None:
 
     """
     if obj is None:
-        return None
+        return Nothing.value_or(None)
     name = getattr(obj, "name", None)
     return str(name) if name is not None else None
 
@@ -97,7 +99,7 @@ def build_lifecycle_ref(kind: LifecycleKind, value: object, *, is_active: bool) 
 
     """
     if value is None:
-        return None
+        return Nothing.value_or(None)
     return LifecycleObjectRef(
         kind=kind,
         object_id=runtime_object_id(value),

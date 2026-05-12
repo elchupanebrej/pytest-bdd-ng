@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from attrs import define, field
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
@@ -158,4 +159,4 @@ class StructBDDParser(ParserProtocol):
                 )
 
             return cast("Loader", load_hocon)
-        return None
+        return Nothing.value_or(None)

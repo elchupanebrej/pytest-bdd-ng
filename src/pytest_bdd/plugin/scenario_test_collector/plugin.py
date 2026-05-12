@@ -13,7 +13,13 @@ from unittest.mock import patch
 
 import pytest
 from attrs import define
-from cucumber_messages import GherkinDocument, Pickle, Source  # type:ignore[attr-defined, import-untyped]
+from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    GherkinDocument,
+    Pickle,
+    PickleStep,  # type:ignore[attr-defined]
+    Source,
+)
 
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
@@ -22,13 +28,14 @@ from pytest_bdd.compatibility.pytest import (
     Collector,
     Config,
     FixtureRequest,
+    Item,
     Mark,
     MarkDecorator,
     Metafunc,
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser, ParserProtocol
 from pytest_bdd.plugin.pickle_runner.run_access import (
     require_feature_object,
@@ -36,7 +43,12 @@ from pytest_bdd.plugin.pickle_runner.run_access import (
     require_step_object,
     resolve_previous_step_object,
 )
-from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, FeatureAutoLoad
+from pytest_bdd.plugin.scenario_test_collector.const import (
+    PYTEST_BDD_MARK,
+    PYTEST_BDD_SCENARIOS_MARK,
+    EmptyScenarios,
+    FeatureAutoLoad,
+)
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.toolz_extra import chain_map
 
@@ -124,6 +136,17 @@ class _ScenarioLocatorProtocol(Protocol):
     ) -> Iterator[tuple[GherkinDocument, Pickle, Source]]: ...
 
 
+class _CollectionFixtureRequest:
+    def __init__(self) -> None:
+        self.parameter_type_registry = ParameterTypeRegistry()
+
+    def getfixturevalue(self, name: str) -> object:
+        if name == "parameter_type_registry":
+            return self.parameter_type_registry
+        msg = f"Fixture {name!r} is not available during zero-match collection validation"
+        raise LookupError(msg)
+
+
 def _iter_resolved_feature_scenarios(
     config: Config,
     locators: Collection[_ScenarioLocatorProtocol],
@@ -131,6 +154,104 @@ def _iter_resolved_feature_scenarios(
     observer = _ScenarioCollectionReadObserver(config=config)
     for locator in locators:
         yield from locator.resolve(config, observer=observer)
+
+
+def _allow_empty_scenarios(config: Config) -> bool:
+    return bool(
+        config.getoption(str(EmptyScenarios.Cli.ALLOW_OPTION), default=False)
+        or config.getini(str(EmptyScenarios.Ini.ALLOW_OPTION)),
+    )
+
+
+def _iter_collection_step_definitions(
+    config: Config,
+    module: object,
+) -> Iterator[StepDefinitionManager.Definition]:
+    seen_registries: set[int] = set()
+    namespaces = (module, *config.pluginmanager.get_plugins())
+    for namespace in namespaces:
+        registry = getattr(namespace, "_step_registry", None)
+        if not isinstance(registry, StepDefinitionManager.Registry):
+            continue
+        registry_id = id(registry)
+        if registry_id in seen_registries:
+            continue
+        seen_registries.add(registry_id)
+        yield from registry
+
+
+def _build_collection_step_registry(
+    config: Config,
+    module: object,
+) -> StepDefinitionManager.Registry:
+    registry = StepDefinitionManager.Registry()
+    registry.registry.update(_iter_collection_step_definitions(config, module))
+    return registry
+
+
+def _scenario_has_step_match(
+    config: Config,
+    gherkin_document: GherkinDocument,
+    pickle: Pickle,
+    step_registry: StepDefinitionManager.Registry,
+) -> bool:
+    request = cast("FixtureRequest", _CollectionFixtureRequest())
+    matcher = StepDefinitionManager.Matcher(config)
+    previous_step: PickleStep | None = None
+    feature = gherkin_document.feature
+    for step in pickle.steps:
+        try:
+            matcher(request, feature, pickle, step, previous_step, step_registry)
+        except (LookupError, StepDefinitionManager.Matcher.MatchNotFoundError):
+            previous_step = step
+            continue
+        return True
+    return False
+
+
+def _format_zero_match_step(
+    binding: FeatureRuntimeBinding,
+    pickle: Pickle,
+    step: PickleStep,
+) -> str:
+    line = binding.step_line_number(step)
+    if line is None or line < 0:
+        line = binding.pickle_line_number(pickle)
+    return f'  File "{binding.filename}", line {line}: "{step.text}"'
+
+
+def _validate_zero_match_scenarios(config: Config, items: Sequence[Item]) -> None:
+    allow_empty = _allow_empty_scenarios(config)
+    failures: list[str] = []
+    run = Run.from_stash(config.stash)
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        params = getattr(callspec, "params", {})
+        gherkin_document = params.get("gherkin_document")
+        pickle = params.get("pickle")
+        feature_source = params.get("feature_source")
+        if not isinstance(gherkin_document, GherkinDocument) or not isinstance(pickle, Pickle):
+            continue
+
+        step_registry = _build_collection_step_registry(config, getattr(item, "module", None))
+        if pickle.steps and not _scenario_has_step_match(config, gherkin_document, pickle, step_registry):
+            if allow_empty:
+                item.add_marker(pytest.mark.skip(reason="No matching step definitions found"))
+                continue
+            binding = run.ensure_feature_binding(
+                gherkin_document=gherkin_document,
+                source=feature_source if isinstance(feature_source, Source) else None,
+            )
+            failures.extend(_format_zero_match_step(binding, pickle, step) for step in pickle.steps)
+
+    if failures:
+        details = "\n".join(failures)
+        msg = (
+            "Scenarios with zero matched step definitions found:\n"
+            f"{details}\n"
+            "Use --allow-empty-scenarios to skip these scenarios instead."
+        )
+        raise pytest.UsageError(msg)
 
 
 class _ModernTestCollector:
@@ -149,6 +270,15 @@ class _ModernTestCollector:
 
 class ScenarioTestCollector(_ModernTestCollector):
     """Collect scenario-backed pytest items from feature files."""
+
+    @pytest.hookimpl(trylast=True)
+    def pytest_collection_modifyitems(  # noqa: PLR6301 -- pytest hook, must be instance method
+        self,
+        config: Config,
+        items: list[Item],
+    ) -> None:
+        """Reject collected scenarios where no step definitions match."""
+        _validate_zero_match_scenarios(config, items)
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_plugin_registered(  # noqa: PLR6301 -- pytest hook, must be instance method

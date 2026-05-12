@@ -9,7 +9,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 ## Phases
 
 - [x] **Phase 1: Foundation Cleanup** — Remove dead Allure plugin; remove legacy --cucumberjson CLI flag
-- [ ] **Phase 2: Code Quality Gates** — Eliminate 96 return None instances; replace 22 bare except Exception
+- [x] **Phase 2: Code Quality Gates** — Eliminate 96 return None instances; replace 22 bare except Exception
 - [ ] **Phase 3: Core Runtime Refactor** — Split 1422-line scenario_run.py into 3 focused model modules
 - [ ] **Phase 4: Plugin Refactoring** — Code generator to class-based pattern; reduce other large files
 - [ ] **Phase 5: Unit Test Fortification** — Comprehensive unit test coverage for core modules
@@ -50,7 +50,7 @@ Plans:
 - [x] 02-01-PLAN.md — Foundation: returns library + StrEnum types + CI lint rule
 - [x] 02-02-PLAN.md — Core model migration: scenario_run.py, stash_access.py, feature_locator.py, etc.
 - [x] 02-03-PLAN.md — Plugin + utility migration: collectors, plugins, scripts, remaining model files
-- [ ] 02-04-PLAN.md — Exception fixes + parsers Result conversion + zero-matches UX
+- [x] 02-04-PLAN.md — Exception fixes + parsers Result conversion + zero-matches UX
 
 ### Phase 3: Core Runtime Refactor
 **Goal**: Split the 1422-line `scenario_run.py` god module into `model/run.py`, `model/scenario_run.py`, and `model/feature_binding.py` with zero behavior change
@@ -164,7 +164,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation Cleanup | 2/2 | Planned | - |
-| 2. Code Quality Gates | 0/TBD | Not started | - |
+| 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
 | 3. Core Runtime Refactor | 0/TBD | Not started | - |
 | 4. Plugin Refactoring | 0/TBD | Not started | - |
 | 5. Unit Test Fortification | 0/TBD | Not started | - |

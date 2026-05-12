@@ -3,7 +3,7 @@
 from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
 
-from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, FeatureAutoLoad, FeatureBaseLoad
+from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, EmptyScenarios, FeatureAutoLoad, FeatureBaseLoad
 from .hook import ScenarioTestCollectorHookSpec
 from .plugin import ScenarioTestCollector
 
@@ -65,6 +65,21 @@ def pytest_addoption(parser: Parser) -> None:
 
     batch_threshold_hlp = "Minimum feature file count to enable parallel collection (auto: 50 Linux, 1000 Windows)"
     parser.addini("batch_threshold", default=-1, type="int", help=batch_threshold_hlp)
+
+    empty_scenarios_hlp = "Allow scenarios with no matching step definitions"
+    group.addoption(
+        "--allow-empty-scenarios",
+        action="store_true",
+        dest=str(EmptyScenarios.Cli.ALLOW_OPTION),
+        default=False,
+        help=empty_scenarios_hlp,
+    )
+    parser.addini(
+        str(EmptyScenarios.Ini.ALLOW_OPTION),
+        default=False,
+        type="bool",
+        help=empty_scenarios_hlp,
+    )
 
 
 def pytest_configure(config: Config) -> None:

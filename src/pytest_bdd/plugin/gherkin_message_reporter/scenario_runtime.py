@@ -21,6 +21,7 @@ from cucumber_messages import (
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
+from returns.maybe import Nothing
 
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.pickle_runner.run_access import require_step_object
@@ -90,7 +91,7 @@ class ScenarioService(ReporterServiceBase):
             if matched_name:
                 return fallback_expression, matched_name.group(1)
 
-        return None
+        return Nothing.value_or(None)
 
     def pytest_bdd_step_func_lookup_error(
         self,

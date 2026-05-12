@@ -68,6 +68,83 @@ def test_steps(testdir):
     result.assert_outcomes(passed=1, failed=0)
 
 
+def test_zero_match_scenario_raises_usage_error(testdir):
+    """Verify scenarios with no matching step definitions fail during collection."""
+    testdir.makefile(
+        ".feature",
+        steps="""\
+            Feature: Missing steps
+                Scenario: No registered steps match
+                    Given nothing is registered for this step
+        """,
+    )
+    testdir.makepyfile(
+        """\
+        from pytest_bdd import scenarios
+
+        test_steps = scenarios("steps.feature")
+        """,
+    )
+
+    result = testdir.runpytest_subprocess("-s", "--disable-feature-autoload")
+
+    result.stderr.fnmatch_lines(["*Scenarios with zero matched step definitions found:*"])
+    result.stderr.fnmatch_lines(['*File "*steps.feature", line *: "nothing is registered for this step"*'])
+    result.stderr.fnmatch_lines(["*Use --allow-empty-scenarios to skip these scenarios instead.*"])
+
+
+def test_allow_empty_scenarios_cli_skips_zero_match_scenario(testdir):
+    """Verify CLI escape hatch skips scenarios with no matching step definitions."""
+    testdir.makefile(
+        ".feature",
+        steps="""\
+            Feature: Missing steps
+                Scenario: No registered steps match
+                    Given nothing is registered for this step
+        """,
+    )
+    testdir.makepyfile(
+        """\
+        from pytest_bdd import scenarios
+
+        test_steps = scenarios("steps.feature")
+        """,
+    )
+
+    result = testdir.runpytest_subprocess("-s", "--disable-feature-autoload", "--allow-empty-scenarios")
+
+    result.assert_outcomes(skipped=1)
+
+
+def test_allow_empty_scenarios_ini_skips_zero_match_scenario(testdir):
+    """Verify ini escape hatch skips scenarios with no matching step definitions."""
+    testdir.makeini(
+        """\
+        [pytest]
+        bdd_allow_empty_scenarios = true
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        steps="""\
+            Feature: Missing steps
+                Scenario: No registered steps match
+                    Given nothing is registered for this step
+        """,
+    )
+    testdir.makepyfile(
+        """\
+        from pytest_bdd import scenarios
+
+        test_steps = scenarios("steps.feature")
+        """,
+    )
+
+    result = testdir.runpytest_subprocess("-s", "--disable-feature-autoload")
+
+    result.assert_outcomes(skipped=1)
+
+
 def test_all_steps_can_provide_fixtures(testdir):
     """Test that given/when/then can all provide fixtures."""
     testdir.makefile(

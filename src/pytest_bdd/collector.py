@@ -1,5 +1,6 @@
 """Provide collector helpers."""
 
+import logging
 from collections.abc import Iterable
 from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
@@ -20,6 +21,8 @@ from pytest_bdd.scenario import scenarios
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_python_identifier
 from pytest_bdd.util.webloc import read as webloc_read
+
+logger = logging.getLogger(__name__)
 
 
 class Module(PytestModule):
@@ -104,7 +107,10 @@ class FeatureFileModule(Module):
         """
         try:
             parsed_url = urlparse(path)
-        except Exception:  # noqa: BLE001 intentional
+        except ValueError:
+            features_path_type = PathType.UNDEFINED
+        except Exception:  # noqa: BLE001
+            logger.warning("URL parsing failed for %r", path, exc_info=True)
             features_path_type = PathType.UNDEFINED
         else:
             if parsed_url.scheme == "file":

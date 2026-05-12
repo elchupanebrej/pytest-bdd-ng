@@ -1,7 +1,7 @@
 """Provide parsers helpers."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
 from enum import Enum
 from functools import partial, singledispatchmethod
 from itertools import chain, filterfalse
@@ -9,6 +9,7 @@ from operator import attrgetter, contains, methodcaller
 from re import Match
 from re import Pattern as _RePattern
 from re import compile as re_compile
+from re import error as regex_error
 from typing import Protocol, TypeAlias, cast, runtime_checkable
 
 import parse as base_parse
@@ -17,9 +18,11 @@ from cucumber_expressions.errors import CantEscape, UndefinedParameterTypeError
 from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 from cucumber_expressions.regular_expression import RegularExpression as CucumberRegularExpression
+from returns.result import Failure, Result, Success
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
+from pytest_bdd.types.failure_reasons import ParserFailure
 from pytest_bdd.util.other import StringRepresentable, normalize_to_string
 
 UNDEFINED_PARAMETER_TYPE_PATTERN = re_compile(
@@ -609,6 +612,25 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
         return [*re_compile(self.pattern).groupindex.keys()]
 
 
+_EXPECTED_PARSER_BUILD_ERRORS = (
+    AttributeError,
+    CantEscape,
+    KeyError,
+    ParserBuildValueError,
+    regex_error,
+    TypeError,
+    UndefinedParameterTypeError,
+    ValueError,
+)
+
+
+def _build_parser_result(builder: Callable[[], StepParser]) -> Result[StepParser, ParserFailure]:
+    try:
+        return Success(builder())
+    except _EXPECTED_PARSER_BUILD_ERRORS:
+        return Failure(ParserFailure.SYNTAX_ERROR)
+
+
 class heuristic(StepParser):  # noqa: N801 intentional API
     """
     Represent heuristic state.
@@ -645,37 +667,22 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         if self.parsers_are_built:
             return
 
-        # Rework to exception groups after python 3.10 end of support
-        e_cause = None
-        try:
-            self.string_parser: string | None = string(self.format)
-        except Exception as e:  # noqa: BLE001 intentional
-            e_cause = e
-            self.string_parser = None
-        try:
-            self.cucumber_expression_parser = cucumber_expression(
-                self.format,
-                parameter_type_registry=self.parameter_type_registry,
-            )
-        except Exception as e:  # noqa: BLE001 intentional
-            e.__cause__, e_cause = e_cause, e
-            self.cucumber_expression_parser = None
-
-        try:
-            self.cfparse_parser: cfparse | None = cfparse(self.format)
-        except Exception as e:  # noqa: BLE001 intentional
-            e.__cause__, e_cause = e_cause, e
-            self.cfparse_parser = None
-
-        try:
-            self.re_parser = re(self.format)
-        except Exception as e:  # noqa: BLE001 intentional
-            e.__cause__, e_cause = e_cause, e
-            self.re_parser = None
+        self.string_parser = cast("string | None", _build_parser_result(lambda: string(self.format)).value_or(None))
+        self.cucumber_expression_parser = cast(
+            "cucumber_expression | None",
+            _build_parser_result(
+                lambda: cucumber_expression(
+                    self.format,
+                    parameter_type_registry=self.parameter_type_registry,
+                ),
+            ).value_or(None),
+        )
+        self.cfparse_parser = cast("cfparse | None", _build_parser_result(lambda: cfparse(self.format)).value_or(None))
+        self.re_parser = cast("re | None", _build_parser_result(lambda: re(self.format)).value_or(None))
 
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
-            raise ParserBuildValueError(self.format) from e_cause  # pragma: no cover
+            raise ParserBuildValueError(self.format)  # pragma: no cover
 
     @property
     def parser_by_priorities(self) -> Sequence[StepParser | None]:

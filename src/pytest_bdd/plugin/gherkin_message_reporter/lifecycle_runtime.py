@@ -39,6 +39,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.compatibility.pytest import Config, is_testrun_success
@@ -199,6 +200,7 @@ class LifecycleService(ReporterServiceBase):
         try:
             message_json = json.dumps(schema_compatible_message)
         except Exception as exc:
+            logger.warning("Message emission failed while serializing envelope", exc_info=True)
             message_text = "Message emission failed while serializing envelope"
             raise RuntimeError(message_text) from exc
 
@@ -353,7 +355,7 @@ class LifecycleService(ReporterServiceBase):
     def _build_ci_message(env: Mapping[str, str]) -> Ci | None:
         ci_payload = detect_ci_environment(env)
         if ci_payload is None:
-            return None
+            return Nothing.value_or(None)
         enriched_payload = LifecycleService._enrich_ci_payload(ci_payload, env)
         return message_converter.from_dict(enriched_payload, Ci)
 
@@ -412,7 +414,7 @@ class LifecycleService(ReporterServiceBase):
             value = (env.get(name) or "").strip()
             if value:
                 return value.removeprefix("refs/heads/")
-        return None
+        return Nothing.value_or(None)
 
     @staticmethod
     def _require_run_started_id(*, config: Config) -> str:
@@ -429,7 +431,7 @@ class LifecycleService(ReporterServiceBase):
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
         scenario_run = run.active_scenario_run
         if scenario_run is None:
-            return None, None
+            return Nothing.value_or(None), None
         return scenario_run.gherkin_document, scenario_run.pickle
 
     def _emit_run_hook_definition(self, config: Config, *, hook_id: str, hook_type: HookType, hook_name: str) -> None:

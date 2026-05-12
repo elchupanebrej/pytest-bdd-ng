@@ -16,6 +16,7 @@ from typing import IO, TYPE_CHECKING, Protocol, cast
 
 import pytest
 from filelock import FileLock
+from returns.maybe import Nothing
 
 from pytest_bdd.model.cucumber_formatter_adapter import normalize_formatter_envelope_dicts
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
@@ -209,7 +210,7 @@ class LiveFormatterService(ReporterServiceBase):
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
-            return None
+            return Nothing.value_or(None)
         return Path(completed.stdout.strip()).resolve()
 
     @staticmethod
@@ -222,7 +223,7 @@ class LiveFormatterService(ReporterServiceBase):
         for index in range(len(resolved_parts) - len(package_parts) + 1):
             if resolved_parts[index : index + len(package_parts)] == package_parts:
                 return Path(*resolved_parts[:index])
-        return None
+        return Nothing.value_or(None)
 
     def _resolve_node_package_root(
         self,
@@ -240,7 +241,7 @@ class LiveFormatterService(ReporterServiceBase):
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
-            return None
+            return Nothing.value_or(None)
         return self._infer_node_modules_root_from_resolved_package_path(
             Path(completed.stdout.strip()).resolve(),
             package_name,
@@ -399,11 +400,11 @@ class LiveFormatterService(ReporterServiceBase):
             purpose=f"cucumber formatter rendering ({formatter_labels})",
         )
         if provision_result.missing_node:
-            return None, {}, [], {}, ()
+            return Nothing.value_or(None), {}, [], {}, ()
 
         node_executable = shutil.which("node") or shutil.which("nodejs")
         if node_executable is None:
-            return None, {}, [], {}, ()
+            return Nothing.value_or(None), {}, [], {}, ()
 
         node_env = provision_result.env or self._build_node_execution_env()
         runnable_requests: list[CucumberFormatterRequest] = []
