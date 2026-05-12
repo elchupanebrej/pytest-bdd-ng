@@ -18,7 +18,12 @@ from cucumber_messages import (
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model.scenario_run import HookPhase, Run, RunStatus, StepRun
+from pytest_bdd.model.run import (
+    HookPhase,
+    Run,
+    RunStatus,
+)
+from pytest_bdd.model.scenario_run import StepRun
 from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_args

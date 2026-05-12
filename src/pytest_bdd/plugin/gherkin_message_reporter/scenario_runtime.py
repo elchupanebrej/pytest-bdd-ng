@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest
-    from pytest_bdd.model.scenario_run import Run
+    from pytest_bdd.model.run import Run
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
     from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService

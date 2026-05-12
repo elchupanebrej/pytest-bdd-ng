@@ -56,7 +56,7 @@ from pytest_bdd.model.message_validation import (
     validate_message_stream,
     validate_xdist_reporting_compatibility,
 )
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_reporting_worker_identity
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.plugin.gherkin_message_reporter.session import format_requested_cucumber_formatter_labels

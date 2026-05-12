@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
     Run,
-    RunNode,
     RunStage,
     RunStatus,
+)
+from pytest_bdd.model.scenario_run import (
+    RunNode,
     ScenarioRun,
 )
 

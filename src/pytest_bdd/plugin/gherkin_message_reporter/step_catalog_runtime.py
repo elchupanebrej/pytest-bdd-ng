@@ -27,7 +27,7 @@ from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.parsers import _CucumberExpression
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.steps import StepDefinitionManager

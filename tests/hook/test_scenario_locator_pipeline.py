@@ -19,7 +19,7 @@ from cucumber_messages import (
 )
 
 from pytest_bdd.compatibility.parser import ParsedFeature
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_bdd.util.other import IdGenerator
 

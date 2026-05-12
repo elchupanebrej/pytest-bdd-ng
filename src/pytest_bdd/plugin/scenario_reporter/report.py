@@ -6,7 +6,8 @@ from typing import Literal, TypedDict
 from attrs import define, field
 from cucumber_messages import Pickle, PickleStep  # type:ignore[import-untyped]
 
-from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, ReportingContextSnapshot
+from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
+from pytest_bdd.model.run import ReportingContextSnapshot
 
 RuntimeStepStatus = Literal["passed", "failed"]
 

@@ -25,7 +25,8 @@ from jinja2.environment import Template
 from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Session, wrap_session
 from pytest_bdd.feature_locator import FeatureLocatorArgs, ScenarioLocatorBuilder
-from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
+from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
+from pytest_bdd.model.run import Run
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 

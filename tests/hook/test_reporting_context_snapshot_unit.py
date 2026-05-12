@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
     Run,
     RunStage,
     RunStatus,
-    ScenarioRun,
 )
+from pytest_bdd.model.scenario_run import ScenarioRun
 from pytest_bdd.plugin.pickle_runner.run_access import build_reporting_context_snapshot
 
 

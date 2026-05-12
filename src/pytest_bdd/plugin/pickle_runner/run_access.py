@@ -7,16 +7,14 @@ from typing import TYPE_CHECKING
 
 from returns.maybe import Nothing
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     ContextErrorState,
-    FeatureRuntimeBinding,
     LifecycleKind,
     LifecycleObjectRef,
     ReportingContextSnapshot,
     Run,
     RunStage,
-    ScenarioRun,
 )
 
 from .run_transitions import build_lifecycle_ref
@@ -25,6 +23,8 @@ if TYPE_CHECKING:
     from cucumber_messages import GherkinDocument, Pickle, PickleStep, Source
 
     from pytest_bdd.compatibility.pytest import FixtureRequest
+    from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
+    from pytest_bdd.model.scenario_run import ScenarioRun
     from pytest_bdd.types.protocol import Identifiable
 
 

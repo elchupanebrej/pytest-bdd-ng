@@ -16,7 +16,7 @@ from cucumber_messages import (
     Step,
 )
 
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 
 
 def _build_gherkin_document() -> GherkinDocument:

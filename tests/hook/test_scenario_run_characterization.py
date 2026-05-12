@@ -5,15 +5,17 @@ from __future__ import annotations
 import pytest
 from attrs import define
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
     ReportingContextSnapshot,
     Run,
-    RunNode,
     RunStage,
     RunStatus,
+)
+from pytest_bdd.model.scenario_run import (
+    RunNode,
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.run_transitions import PHASE_TO_STAGE, apply_transition
@@ -362,7 +364,6 @@ def test_target_split_modules_expose_runtime_symbols() -> None:
     from pytest_bdd.model.run import Run as SplitRun
     from pytest_bdd.model.run import RunStage as SplitRunStage
     from pytest_bdd.model.run import RunStatus as SplitRunStatus
-
     from pytest_bdd.model.scenario_run import RunNode, ScenarioRun, StepRun
 
     assert SplitRun is Run

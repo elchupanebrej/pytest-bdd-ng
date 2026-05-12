@@ -31,7 +31,7 @@ from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.const import PytestConfigParam
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
 from pytest_bdd.types.failure_reasons import FeatureLocatorFailure
@@ -43,6 +43,8 @@ ScenarioLocatorResult = Result[object, FeatureLocatorFailure]
 
 if TYPE_CHECKING:
     import aiohttp
+
+    from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
 
 
 @runtime_checkable

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     DataTable,
@@ -17,17 +18,19 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
 )
 from cucumber_messages import Feature as FeatureMessage
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
-    FeatureRuntimeBinding,
     HookPhase,
     LifecycleObjectRef,
     Run,
     RunStage,
     RunStatus,
-    ScenarioRun,
 )
+from pytest_bdd.model.scenario_run import ScenarioRun
 from pytest_bdd.plugin.pickle_runner.run_access import resolve_scenario_description, resolve_step_runtime_enrichment
+
+if TYPE_CHECKING:
+    from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
 
 
 def _build_scenario_run() -> ScenarioRun:

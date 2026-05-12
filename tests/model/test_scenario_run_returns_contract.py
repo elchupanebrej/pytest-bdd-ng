@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+RUN_PATH = Path("src/pytest_bdd/model/run.py")
 SCENARIO_RUN_PATH = Path("src/pytest_bdd/model/scenario_run.py")
 MOVED_SCENARIO_RUN_SYMBOLS = {
     "ActiveObjectSet",
@@ -23,8 +24,8 @@ MOVED_SCENARIO_RUN_SYMBOLS = {
 ALLOWED_SCENARIO_RUN_SYMBOLS = {"ScenarioRun", "RunNode", "StepRun"}
 
 
-def _module() -> ast.Module:
-    return ast.parse(SCENARIO_RUN_PATH.read_text(encoding="utf-8"))
+def _module(path: Path = SCENARIO_RUN_PATH) -> ast.Module:
+    return ast.parse(path.read_text(encoding="utf-8"))
 
 
 def _imports(module: ast.Module) -> set[str]:
@@ -45,16 +46,16 @@ def _return_annotation(module: ast.Module, function_name: str) -> str:
     raise AssertionError(message)
 
 
-def test_scenario_run_uses_direct_returns_imports() -> None:
-    module = _module()
+def test_run_uses_direct_returns_imports() -> None:
+    module = _module(RUN_PATH)
 
     assert "returns.maybe.Nothing" in _imports(module)
     assert "returns.result.Result" in _imports(module)
     assert "pytest_bdd.types.failure_reasons.ScenarioRunFailure" in _imports(module)
 
 
-def test_scenario_run_declares_result_contract_type() -> None:
-    module = _module()
+def test_run_declares_result_contract_type() -> None:
+    module = _module(RUN_PATH)
 
     assignments = {
         node.targets[0].id: ast.unparse(node.value)

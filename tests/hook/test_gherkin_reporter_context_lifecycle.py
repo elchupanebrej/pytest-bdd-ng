@@ -33,15 +33,15 @@ from cucumber_messages import TestRunStarted as CucumberTestRunStarted  # type:i
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.model.message_registry import EnvelopeRegistry
 from pytest_bdd.model.message_transport import ReportingTransportSession
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
     Run,
     RunStage,
     RunStatus,
-    ScenarioRun,
 )
+from pytest_bdd.model.scenario_run import ScenarioRun
 from pytest_bdd.plugin.gherkin_message_reporter import entrypoint, lifecycle_runtime, message_stream
 from pytest_bdd.plugin.gherkin_message_reporter.html_report import render_html_report_content
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter

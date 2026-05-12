@@ -7,15 +7,17 @@ from typing import TYPE_CHECKING
 
 from returns.maybe import Nothing
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleKind,
     LifecycleObjectRef,
     NoPreviousStep,
-    RunNode,
     RunStage,
     RunStatus,
+)
+from pytest_bdd.model.scenario_run import (
+    RunNode,
     ScenarioRun,
 )
 

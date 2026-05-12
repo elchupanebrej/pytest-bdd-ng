@@ -24,7 +24,7 @@ def test_run_context_is_available_via_fixture_and_stash(testdir):
 
     testdir.makeconftest(
         """
-        from pytest_bdd.model.scenario_run import Run
+        from pytest_bdd.model.run import Run
 
         def pytest_sessionstart(session):
             assert Run.STASH_KEY in session.config.stash

@@ -13,7 +13,7 @@ from _pytest.mark import Mark  # noqa: PLC2701
 from decopatch import function_decorator
 from makefun import wraps
 
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 
 if TYPE_CHECKING:

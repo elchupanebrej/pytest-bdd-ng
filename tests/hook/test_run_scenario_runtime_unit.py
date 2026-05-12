@@ -12,7 +12,12 @@ from cucumber_messages import TestStep as CucumberTestStep
 
 import pytest_bdd.types.exception as exceptions
 from pytest_bdd.model.message_registry import EnvelopeRegistry
-from pytest_bdd.model.scenario_run import LifecycleObjectRef, Run, RunNode, RunStatus
+from pytest_bdd.model.run import (
+    LifecycleObjectRef,
+    Run,
+    RunStatus,
+)
+from pytest_bdd.model.scenario_run import RunNode
 from pytest_bdd.util.other import IdGenerator
 
 

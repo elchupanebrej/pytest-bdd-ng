@@ -35,7 +35,8 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.feature_locator import ScenarioLocatorBuilder
 from pytest_bdd.mimetype import Mimetype, gherkin_suffixes, link_suffixes
-from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
+from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
+from pytest_bdd.model.run import Run
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser, ParserProtocol
 from pytest_bdd.plugin.pickle_runner.run_access import (
     require_feature_object,

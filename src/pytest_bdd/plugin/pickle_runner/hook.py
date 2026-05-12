@@ -6,7 +6,7 @@ from collections.abc import Callable
 import pytest
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.steps import Step, StepDefinitionManager, StepFunc
 
 

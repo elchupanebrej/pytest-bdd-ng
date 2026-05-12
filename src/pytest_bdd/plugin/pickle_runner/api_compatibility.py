@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from pytest_bdd.hook import after_mark, after_tag, around_mark, around_tag, before_mark, before_tag
-from pytest_bdd.model.scenario_run import ExternalApiCompatibilityRecord
+from pytest_bdd.model.run import ExternalApiCompatibilityRecord
 
 from .hook import PickleRunnerHookSpec
 

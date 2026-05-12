@@ -5,14 +5,16 @@ from __future__ import annotations
 import pytest
 from attrs import define
 
-from pytest_bdd.model.scenario_run import (
+from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
     LifecycleObjectRef,
     Run,
-    RunNode,
     RunStage,
     RunStatus,
+)
+from pytest_bdd.model.scenario_run import (
+    RunNode,
     ScenarioRun,
 )
 from pytest_bdd.plugin.pickle_runner.plugin import PickleRunner

@@ -24,7 +24,7 @@ from gherkin.token_scanner import TokenScanner
 from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.model.scenario_run import FeatureRuntimeBinding
+from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
 from pytest_bdd.types.exception import FeatureConcreteParseError
 from pytest_bdd.types.protocol import HasPytestStash
 

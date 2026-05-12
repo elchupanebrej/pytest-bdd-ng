@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from cucumber_messages import Attachment, AttachmentContentEncoding, ExternalAttachment, Source
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 
 if TYPE_CHECKING:

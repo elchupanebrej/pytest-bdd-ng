@@ -14,7 +14,7 @@ from pytest_bdd.compatibility.pytest import (
     Parser,
     PytestPluginManager,
 )
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator

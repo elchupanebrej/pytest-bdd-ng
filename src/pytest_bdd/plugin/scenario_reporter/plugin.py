@@ -12,7 +12,7 @@ import pytest
 from pluggy import Result
 
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item, TestReport
-from pytest_bdd.model.scenario_run import Run
+from pytest_bdd.model.run import Run
 from pytest_bdd.plugin.pickle_runner.run_access import (
     build_reporting_context_snapshot,
     require_feature_binding,

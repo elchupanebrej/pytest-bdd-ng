@@ -1,6 +1,7 @@
 """Provide src.pytest_bdd.model package helpers."""
 
 from .execution_message_adapter import ExecutionMessageAdapter, ExecutionProjection
+from .feature_binding import FeatureRuntimeBinding
 from .message_baseline_diff import (
     WEEKLY_CADENCE,
     BaselineComparisonSchedule,
@@ -66,7 +67,7 @@ from .message_validation import (
     validate_envelope_dict_against_schema,
     validate_message_stream,
 )
-from .scenario_run import (
+from .run import (
     ActiveObjectSet,
     ContextErrorState,
     ExternalApiCompatibilityRecord,
@@ -76,10 +77,13 @@ from .scenario_run import (
     ReportingContextSnapshot,
     ReportingLifecycleState,
     Run,
-    RunNode,
     RunStage,
     RunStatus,
+)
+from .scenario_run import (
+    RunNode,
     ScenarioRun,
+    StepRun,
 )
 
 __all__ = [
@@ -106,6 +110,7 @@ __all__ = [
     "ExecutionMessageAdapter",
     "ExecutionProjection",
     "ExternalApiCompatibilityRecord",
+    "FeatureRuntimeBinding",
     "GovernanceChecklist",
     "GovernanceChecklistEntry",
     "HookPhase",
@@ -126,6 +131,7 @@ __all__ = [
     "RunStatus",
     "ScenarioRun",
     "StatusUniquenessResult",
+    "StepRun",
     "build_baseline_diff",
     "build_governance_checklist",
     "capability_is_relevant",
