@@ -62,7 +62,11 @@ Plans:
   3. Full test suite passes including xdist parallel execution (`-n 2`)
   4. No circular imports between split modules; all imports resolve cleanly
   5. Characterization tests capturing all state transitions pass identically before and after split
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 03-01-PLAN.md — Characterization safety net and import/source contracts
+- [ ] 03-02-PLAN.md — Extract runtime modules and migrate direct imports
+- [ ] 03-03-PLAN.md — Final verification, xdist smoke, and execution summary
 
 ### Phase 4: Plugin Refactoring
 **Goal**: All 17 plugins follow canonical class-based pattern; large formatter files reduced to maintainable size
@@ -165,7 +169,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation Cleanup | 2/2 | Planned | - |
 | 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
-| 3. Core Runtime Refactor | 0/TBD | Not started | - |
+| 3. Core Runtime Refactor | 0/3 | Planned | - |
 | 4. Plugin Refactoring | 0/TBD | Not started | - |
 | 5. Unit Test Fortification | 0/TBD | Not started | - |
 | 6. Integration Testing | 0/TBD | Not started | - |
