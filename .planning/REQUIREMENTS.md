@@ -60,27 +60,27 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| STAB-01 | — | Pending |
-| STAB-02 | — | Pending |
-| STAB-03 | — | Pending |
-| STAB-04 | — | Pending |
-| REF-01 | — | Pending |
-| REF-02 | — | Pending |
-| REF-03 | — | Pending |
-| SIM-01 | — | Pending |
-| SIM-02 | — | Pending |
-| SIM-03 | — | Pending |
-| DOC-01 | — | Pending |
-| DOC-02 | — | Pending |
-| DOC-03 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
+| STAB-01 | Phase 1 — Foundation Cleanup | Pending |
+| STAB-02 | Phase 2 — Code Quality Gates | Pending |
+| STAB-03 | Phase 2 — Code Quality Gates | Pending |
+| STAB-04 | Phase 1 — Foundation Cleanup | Pending |
+| REF-01 | Phase 3 — Core Runtime Refactor | Pending |
+| REF-02 | Phase 4 — Plugin Refactoring | Pending |
+| REF-03 | Phase 4 — Plugin Refactoring | Pending |
+| SIM-01 | Phase 9 — Compatibility Streamlining | Pending |
+| SIM-02 | Phase 10 — Pattern Unification | Pending |
+| SIM-03 | Phase 11 — Audit & Prune | Pending |
+| DOC-01 | Phase 7 — Documentation | Pending |
+| DOC-02 | Phase 7 — Documentation | Pending |
+| DOC-03 | Phase 7 — Documentation | Pending |
+| TEST-01 | Phase 5 — Unit Test Fortification | Pending |
+| TEST-02 | Phase 8 — BDD Acceptance Testing | Pending |
+| TEST-03 | Phase 6 — Integration Testing | Pending |
 
 **Coverage:**
 - v1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-12*
