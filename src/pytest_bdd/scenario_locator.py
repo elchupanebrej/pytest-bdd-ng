@@ -21,7 +21,11 @@ from cucumber_messages import (
     Pickle,
     Source,
 )
+from returns.maybe import Nothing
+from returns.result import Result
 
+from pytest_bdd.collector_batch import FeatureBatchParser
+from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pathlib import GlobError
 from pytest_bdd.compatibility.pytest import Config
@@ -30,15 +34,15 @@ from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model.scenario_run import FeatureRuntimeBinding, Run
 from pytest_bdd.scenario import Args
 from pytest_bdd.types.exception import FeatureParseError
+from pytest_bdd.types.failure_reasons import FeatureLocatorFailure
 from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.url import is_local_url
 
+ScenarioLocatorResult = Result[object, FeatureLocatorFailure]
+
 if TYPE_CHECKING:
     import aiohttp
-
-from pytest_bdd.collector_batch import FeatureBatchParser
-from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 
 
 @runtime_checkable
@@ -400,10 +404,10 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         """
         batch_parser = FeatureBatchParser.find_in_stash(config.stash).value_or(None)
         if batch_parser is None or not batch_parser.is_flushed:
-            return None
+            return Nothing.value_or(None)
         cached_doc = batch_parser.get(feature_path)
         if cached_doc is None:
-            return None
+            return Nothing.value_or(None)
         cached_doc.uri = uri  # type: ignore[union-attr]
         raw_data = feature_path.read_text(encoding=encoding)
         parsed = ParsedFeature(

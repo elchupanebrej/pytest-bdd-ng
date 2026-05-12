@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -349,7 +350,7 @@ def _resolve_marker_group(item: pytest.Item, group_config: GroupConfig) -> tuple
         return _latest_group(test_markers, group_config), "test_marker"
     if conftest_markers:
         return _latest_group(conftest_markers, group_config), "conftest_marker"
-    return None
+    return Nothing.value_or(None)
 
 
 def _iter_markers_with_nodes(item: pytest.Item) -> Iterator[tuple[pytest.Item, Mark]]:

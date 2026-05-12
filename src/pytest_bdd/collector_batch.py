@@ -13,11 +13,15 @@ from attrs import define, field
 from cucumber_messages import GherkinDocument
 from gherkin.ast_builder import AstBuilder
 from gherkin.parser import Parser as CucumberIOBaseParser
+from returns.maybe import Nothing
+from returns.result import Result
 
 from pytest_bdd.model import message_converter
 from pytest_bdd.model.stash_access import StashBound
+from pytest_bdd.types.failure_reasons import CollectorFailure
 
 logger = logging.getLogger(__name__)
+CollectorParseResult = Result[object, CollectorFailure]
 
 try:
     import aiofiles
@@ -153,7 +157,7 @@ class FeatureBatchParser(StashBound):
                 return (p, p.read_bytes())
             except OSError:
                 logger.warning("Failed to read feature file: %s", p, exc_info=True)
-                return None
+                return Nothing.value_or(None)
 
         return [r for p in paths if (r := _read_one(p)) is not None]
 
@@ -200,7 +204,7 @@ class FeatureBatchParser(StashBound):
                     return _parse_feature_file(p, c)
                 except (OSError, RuntimeError, ValueError):
                     logger.exception("Failed to parse feature file: %s", p)
-                    return None
+                    return Nothing.value_or(None)
 
             parse_results = [r for p, c in contents if (r := _parse_safe(p, c)) is not None]
 
@@ -281,12 +285,12 @@ def _try_go_parse(text: str, path: Path) -> dict | None:
         if _strict_go_mode():
             raise
         logger.debug("Go gherkin parser unavailable for %s, falling back to Python", path)
-        return None
+        return Nothing.value_or(None)
     except Exception:
         if _strict_go_mode():
             raise
         logger.debug("Go gherkin parser failed for %s, falling back to Python", path, exc_info=True)
-        return None
+        return Nothing.value_or(None)
 
 
 def _should_use_go_backend() -> bool:

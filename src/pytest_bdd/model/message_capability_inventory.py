@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 from .message_capability import MessageCapability, capability_is_relevant
 
@@ -278,7 +279,7 @@ def _schema_dir_from_git_root() -> Path | None:
         candidate = (root / SCHEMA_RELATIVE_DIR).resolve()
         if _envelope_path(candidate).is_file():
             return candidate
-    return None
+    return Nothing.value_or(None)
 
 
 def resolve_messages_schema_dir(preferred: Path | None = None) -> Path:

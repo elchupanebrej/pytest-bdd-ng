@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
+from returns.maybe import Nothing
+
 from pytest_bdd.compatibility.jsonschema import build_validator
 from pytest_bdd.model.coverage.inventory import (
     SCHEMA_DIR,
@@ -88,7 +90,7 @@ def discover_governance_schema_path() -> Path | None:
     for root in _candidate_repo_roots():
         candidates.extend(sorted(root.glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB)))
     if not candidates:
-        return None
+        return Nothing.value_or(None)
     normalized_candidates = sorted({candidate.resolve() for candidate in candidates}, key=str)
     return normalized_candidates[0]
 

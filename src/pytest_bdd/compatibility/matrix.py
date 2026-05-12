@@ -7,6 +7,7 @@ from itertools import product
 from typing import TYPE_CHECKING
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -80,12 +81,12 @@ def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
 
     """
     if not python_factor.isdigit():
-        return None
+        return Nothing.value_or(None)
     if len(python_factor) == 2:  # noqa: PLR2004
         return (3, int(python_factor[1]))
     if len(python_factor) == 3:  # noqa: PLR2004
         return (int(python_factor[0]), int(python_factor[1:]))
-    return None
+    return Nothing.value_or(None)
 
 
 def _format_python_version(python_factor: str) -> str:
@@ -138,12 +139,12 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
         # Keep "latest" above current known floor.
         return (99, 0, 0)
     if not pytest_factor.isdigit():
-        return None
+        return Nothing.value_or(None)
     if len(pytest_factor) == 2:  # noqa: PLR2004
         return (int(pytest_factor[0]), int(pytest_factor[1]), 0)
     if len(pytest_factor) == 3:  # noqa: PLR2004
         return (int(pytest_factor[0]), int(pytest_factor[1]), int(pytest_factor[2]))
-    return None
+    return Nothing.value_or(None)
 
 
 def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:  # noqa: PLR0911

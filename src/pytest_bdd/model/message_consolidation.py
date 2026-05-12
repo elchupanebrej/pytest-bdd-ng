@@ -6,6 +6,7 @@ import json
 from typing import TYPE_CHECKING, Literal, cast
 
 from attrs import define, frozen
+from returns.maybe import Nothing
 
 from .execution_message_adapter import ExecutionMessageAdapter
 from .message_converter import envelope_from_dict
@@ -211,11 +212,11 @@ def _is_reference_key(key: str) -> bool:
 
 def _hook_name_from_identifier(identifier: object) -> str | None:
     if not isinstance(identifier, str):
-        return None
+        return Nothing.value_or(None)
     for candidate in (*_PRE_RUN_HOOK_NAMES, *_POST_RUN_HOOK_NAMES):
         if identifier == candidate or identifier.endswith(f":{candidate}"):
             return candidate
-    return None
+    return Nothing.value_or(None)
 
 
 def _resolve_hook_id_by_started_id(records: list[_EnvelopeRecord]) -> dict[str, str]:

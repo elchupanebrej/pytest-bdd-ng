@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 from .message_converter import envelope_from_dict, envelope_to_dict
 from .message_extension import EventEnvelope, PayloadKind, get_payload_kind
@@ -22,7 +23,7 @@ def _resolve_registry_index(
     registry: EnvelopeRegistry | IdentifiableObjectRegistry | None,
 ) -> IdentifiableObjectRegistry | None:
     if registry is None:
-        return None
+        return Nothing.value_or(None)
     if isinstance(registry, EnvelopeRegistry):
         return registry.identifiable
     return registry
@@ -48,7 +49,7 @@ class ExecutionProjection:
         """
         raw_id = getattr(self.payload, "id", None)
         if raw_id is None:
-            return None
+            return Nothing.value_or(None)
         return str(raw_id)
 
     def resolve(self, object_id: str) -> object | None:
@@ -60,7 +61,7 @@ class ExecutionProjection:
 
         """
         if self.registry is None:
-            return None
+            return Nothing.value_or(None)
         return self.registry.resolve(str(object_id))
 
 

@@ -7,6 +7,7 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, ClassVar, cast
 
 from attrs import define, field
+from returns.maybe import Nothing
 
 from pytest_bdd.model.stash_access import StashBound
 from pytest_bdd.types.protocol import Identifiable
@@ -54,11 +55,11 @@ def _iter_object_graph(root: object) -> Iterator[object]:
 
 def _resolve_identifiable_id(candidate: object) -> str | None:
     if not isinstance(candidate, Identifiable):
-        return None
+        return Nothing.value_or(None)
 
     raw_identifier = getattr(candidate, "id", None)
     if raw_identifier is None:
-        return None
+        return Nothing.value_or(None)
 
     identifier = str(raw_identifier).strip()
     return identifier or None

@@ -10,6 +10,7 @@ from cucumber_messages import *  # type:ignore[import-untyped]  # noqa: F403 Thi
 from cucumber_messages import Envelope as _BaseEnvelope
 from cucumber_messages import StepDefinitionPattern as _BaseStepDefinitionPattern
 from cucumber_messages import StepDefinitionPatternType as _BaseStepDefinitionPatternType
+from returns.maybe import Nothing
 
 StepDefinitionPatternType = Enum(  # type:ignore[misc]
     "StepDefinitionPatternType",
@@ -154,14 +155,14 @@ def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
 
     """
     if payload_kind is None:
-        return None
+        return Nothing.value_or(None)
     if payload_kind in CONTROLLER_SINGULAR_PAYLOAD_KINDS:
         return "controller_singular"
     if payload_kind in STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS:
         return "structural_deduplicated"
     if payload_kind in EXECUTION_PRESERVED_PAYLOAD_KINDS:
         return "execution_preserved"
-    return None
+    return Nothing.value_or(None)
 
 
 def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
@@ -176,7 +177,7 @@ def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
         payload_kind for payload_kind in PAYLOAD_KINDS if getattr(message, payload_kind, None) is not None
     ]
     if len(matched_payload_kinds) != 1:
-        return None
+        return Nothing.value_or(None)
     return matched_payload_kinds[0]
 
 

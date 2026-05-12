@@ -15,6 +15,7 @@ from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser
 from gherkin.token_matcher_markdown import GherkinInMarkdownTokenMatcher
 from gherkin.token_scanner import TokenScanner
+from returns.maybe import Nothing
 
 from pytest_bdd.model.heading_validation import (
     EMPTY_HEADING_TITLE_CODE,
@@ -315,7 +316,7 @@ def _heading_type_from_keyword(keyword: str | None) -> HeadingType | None:
         return HeadingType.SCENARIO_OUTLINE
     if normalized_keyword.startswith("scenario"):
         return HeadingType.SCENARIO
-    return None
+    return Nothing.value_or(None)
 
 
 def _extract_line(node: Mapping[str, object]) -> int:
@@ -333,12 +334,12 @@ def _extract_column(node: Mapping[str, object]) -> int | None:
         column = location.get("column")
         if isinstance(column, int):
             return column
-    return None
+    return Nothing.value_or(None)
 
 
 def _as_optional_string(value: object) -> str | None:
     if value is None:
-        return None
+        return Nothing.value_or(None)
     if isinstance(value, str):
         return value
     return str(value)

@@ -26,6 +26,7 @@ from attrs import frozen
 from docopt import docopt
 from jinja2 import Environment, Template
 from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.importlib.resources import files
 
@@ -126,7 +127,7 @@ def diff_folders(dcmp: _DirCmp) -> list[object] | None:
     subdiffs: list[object] = [result for child in dcmp.subdirs.values() if (result := diff_folders(child)) is not None]
     if any(subdiffs):
         return subdiffs
-    return None
+    return Nothing.value_or(None)
 
 
 def extract_existing_intro(

@@ -6,6 +6,8 @@ import plistlib
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+from returns.maybe import Nothing
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
     from os import PathLike
@@ -29,7 +31,7 @@ def read(path: str | PathLike[str]) -> str | None:
     read_plist = getattr(plistlib, "readPlist", None)
     if read_plist is not None:
         return cast("str | None", cast("Mapping[str, object]", read_plist(path)).get("URL"))
-    return None
+    return Nothing.value_or(None)
 
 
 def write(path: str | PathLike[str], url: object) -> None:
