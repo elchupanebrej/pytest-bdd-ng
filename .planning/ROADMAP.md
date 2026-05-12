@@ -32,7 +32,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
   3. Running pytest with `--cucumberjson` produces standard "unrecognized arguments" error (direct removal per user decision D-10)
   4. `--cucumber-json` flag continues to work via cucumber_json_formatter.py
 **Plans**: 2 plans
-  - [ ] 01-01-PLAN.md — Remove dead Allure plugin (entrypoint, source, deps, tests, config)
+  - [x] 01-01-PLAN.md — Remove dead Allure plugin (entrypoint, source, deps, tests, config)
   - [ ] 01-02-PLAN.md — Remove legacy --cucumberjson CLI flag from cucumber_json entrypoint
 
 ### Phase 2: Code Quality Gates
