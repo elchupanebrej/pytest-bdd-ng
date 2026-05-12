@@ -8,7 +8,7 @@
 ### Stabilization
 
 - [x] **STAB-01**: Remove or re-implement dead Allure logger plugin (entrypoint.py registers plugin but all implementation is commented out)
-- [ ] **STAB-02**: Eliminate 96 `return None` antipattern instances in non-hook code, replacing with sentinels or explicit exceptions
+- [x] **STAB-02**: Eliminate 96 `return None` antipattern instances in non-hook code, replacing with sentinels or explicit exceptions
 - [ ] **STAB-03**: Replace 22 bare `except Exception:` catch-alls with specific exception types or logged warnings with `exc_info=True`
 - [x] **STAB-04**: Add deprecation warning to legacy `--cucumberjson` CLI flag (TODO at cucumber_json/entrypoint.py:31)
 
@@ -61,7 +61,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | STAB-01 | Phase 1 — Foundation Cleanup | Complete |
-| STAB-02 | Phase 2 — Code Quality Gates | Pending |
+| STAB-02 | Phase 2 — Code Quality Gates | Complete |
 | STAB-03 | Phase 2 — Code Quality Gates | Pending |
 | STAB-04 | Phase 1 — Foundation Cleanup | Complete |
 | REF-01 | Phase 3 — Core Runtime Refactor | Pending |
