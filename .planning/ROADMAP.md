@@ -33,7 +33,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
   4. `--cucumber-json` flag continues to work via cucumber_json_formatter.py
 **Plans**: 2 plans
   - [x] 01-01-PLAN.md — Remove dead Allure plugin (entrypoint, source, deps, tests, config)
-  - [ ] 01-02-PLAN.md — Remove legacy --cucumberjson CLI flag from cucumber_json entrypoint
+  - [x] 01-02-PLAN.md — Remove legacy --cucumberjson CLI flag from cucumber_json entrypoint
 
 ### Phase 2: Code Quality Gates
 **Goal**: Zero `return None` antipatterns in non-hook code; all exception handlers are specific or explicitly logged — gates refactoring for all subsequent phases
