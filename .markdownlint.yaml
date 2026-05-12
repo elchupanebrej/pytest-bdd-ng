@@ -11,3 +11,9 @@ MD026: false
 MD032: false
 # MD033: Inline HTML
 MD033: false
+# MD041: First line in a file should be a top-level heading
+#   PLAN.md files use YAML frontmatter; first content line is <objective> XML
+MD041: false
+# MD007: Unordered list indentation
+#   Bold text + sub-lists trigger false positives in our document style
+MD007: false

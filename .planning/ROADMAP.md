@@ -8,7 +8,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 
 ## Phases
 
-- [ ] **Phase 1: Foundation Cleanup** — Remove dead Allure plugin; add deprecation path for legacy CLI
+- [x] **Phase 1: Foundation Cleanup** — Remove dead Allure plugin; remove legacy --cucumberjson CLI flag
 - [ ] **Phase 2: Code Quality Gates** — Eliminate 96 return None instances; replace 22 bare except Exception
 - [ ] **Phase 3: Core Runtime Refactor** — Split 1422-line scenario_run.py into 3 focused model modules
 - [ ] **Phase 4: Plugin Refactoring** — Code generator to class-based pattern; reduce other large files
@@ -23,15 +23,17 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 ## Phase Details
 
 ### Phase 1: Foundation Cleanup
-**Goal**: Remove user-facing confusion points; establish clear deprecation path before structural changes
+**Goal**: Remove user-facing confusion points — dead Allure plugin and legacy `--cucumberjson` CLI flag
 **Depends on**: Nothing (first phase)
 **Requirements**: STAB-01, STAB-04
 **Success Criteria** (what must be TRUE):
   1. Allure logger plugin entry point removed from pyproject.toml — no dead plugin registered at runtime
-  2. Users installing `[allure]` extra receive either a functional plugin or a clear error (not silent no-op)
-  3. Running pytest with `--cucumberjson` emits `DeprecationWarning` pointing to `--cucumber-json` replacement
-  4. DEPRECATIONS.md exists documenting `--cucumberjson` deprecation with timeline and migration path
-**Plans**: TBD
+  2. Users installing `[allure]` extra receive pip error (extra no longer defined — not silent no-op)
+  3. Running pytest with `--cucumberjson` produces standard "unrecognized arguments" error (direct removal per user decision D-10)
+  4. `--cucumber-json` flag continues to work via cucumber_json_formatter.py
+**Plans**: 2 plans
+  - [ ] 01-01-PLAN.md — Remove dead Allure plugin (entrypoint, source, deps, tests, config)
+  - [ ] 01-02-PLAN.md — Remove legacy --cucumberjson CLI flag from cucumber_json entrypoint
 
 ### Phase 2: Code Quality Gates
 **Goal**: Zero `return None` antipatterns in non-hook code; all exception handlers are specific or explicitly logged — gates refactoring for all subsequent phases
@@ -156,7 +158,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Cleanup | 0/TBD | Not started | - |
+| 1. Foundation Cleanup | 2/2 | Planned | - |
 | 2. Code Quality Gates | 0/TBD | Not started | - |
 | 3. Core Runtime Refactor | 0/TBD | Not started | - |
 | 4. Plugin Refactoring | 0/TBD | Not started | - |
