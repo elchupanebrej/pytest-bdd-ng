@@ -45,7 +45,12 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
   3. Scenarios with zero matched step definitions raise collection-time error (not silent green pass)
   4. CI lint gate added: new `return None` or bare `except` in non-hook code triggers CI failure
   5. Full test suite passes with zero regressions — behavior identical, no new failures
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 02-01-PLAN.md — Foundation: returns library + StrEnum types + CI lint rule
+- [ ] 02-02-PLAN.md — Core model migration: scenario_run.py, stash_access.py, feature_locator.py, etc.
+- [ ] 02-03-PLAN.md — Plugin + utility migration: collectors, plugins, scripts, remaining model files
+- [ ] 02-04-PLAN.md — Exception fixes + parsers Result conversion + zero-matches UX
 
 ### Phase 3: Core Runtime Refactor
 **Goal**: Split the 1422-line `scenario_run.py` god module into `model/run.py`, `model/scenario_run.py`, and `model/feature_binding.py` with zero behavior change
