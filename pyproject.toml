@@ -69,6 +69,7 @@ dependencies = [
   "py",
   "pydantic>=2.0.3",
   "pytest>=7.0.0",
+  "returns",
   "ruff",
   "StrEnum;python_version<'3.11.0'",
   "typing-extensions;python_version<'3.11.0'"
