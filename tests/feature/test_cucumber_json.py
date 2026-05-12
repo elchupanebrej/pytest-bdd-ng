@@ -22,7 +22,12 @@ MESSAGE_REPORTER_PLUGIN_NAME = "pytest-bdd-gherkin-message-reporter"
 def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, Any]]]:
     """Run tests in testdir and parse json output."""
     resultpath = testdir.tmpdir.join("cucumber.json")
-    result = testdir.runpytest(f"--cucumberjson={resultpath}", "-s", *args)
+    ini_path = testdir.tmpdir.join("pytest.ini")
+    if ini_path.check():
+        ini_path.write(ini_path.read() + "\n" + f"cucumber_json_path = {resultpath}\n")
+    else:
+        ini_path.write(f"[pytest]\ncucumber_json_path = {resultpath}\n")
+    result = testdir.runpytest("-s", *args)
     with resultpath.open() as f:
         jsonobject = json.load(f)
     return result, jsonobject
@@ -269,12 +274,13 @@ def test_cucumber_json_step_status_parity_with_canonical_messages(testdir, tmp_p
         """,
     )
 
+    testdir.tmpdir.join("pytest.ini").write(f"[pytest]\ncucumber_json_path = {resultpath}\n")
+
     result = testdir.runpytest(
         "-p",
         f"no:{MESSAGE_REPORTER_PLUGIN_NAME}",
         "-p",
         MESSAGE_REPORTER_PLUGIN,
-        f"--cucumberjson={resultpath}",
         "--messages-ndjson",
         str(ndjson_path),
         "-s",

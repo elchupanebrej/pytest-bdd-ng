@@ -38,7 +38,9 @@ def pytest_addoption(parser: Parser) -> None:
 
 def pytest_configure(config: Union[Config, "BaseConfig"]) -> None:
     """Handle configure."""
-    cucumber_json_path = getattr(config.option, str(CucumberJson.Cli.PATH_OPTION), None)
+    cucumber_json_path = getattr(config.option, str(CucumberJson.Cli.PATH_OPTION), None) or config.getini(
+        str(CucumberJson.Ini.PATH_OPTION),
+    )
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
         cast("Config", config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)  # noqa: SLF001
