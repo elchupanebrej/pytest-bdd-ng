@@ -265,6 +265,11 @@ test_group_paths = [
 ]
 testpaths = ["tests"]
 
+[tool.quality_gates]
+command = "uv run python -m pytest_bdd._ruff.rules.quality_gates src/pytest_bdd/"
+description = "Enforces no return None in non-hook code and logged bare except handlers"
+script = "pytest_bdd._ruff.rules.quality_gates"
+
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [
