@@ -26,17 +26,8 @@ else:
 
 def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
-    group = parser.getgroup("bdd", "Cucumber JSON")
+    parser.getgroup("bdd", "Cucumber JSON")
     help_ = "create cucumber json style report file at given path."
-    # TODO: we dont't need legacy support for this option anymore
-    group.addoption(
-        "--cucumberjson",
-        action="store",
-        dest=str(CucumberJson.Cli.PATH_OPTION),
-        metavar="PATH",
-        default=None,
-        help=f"{help_} Legacy alias; use --cucumber-json for the message-reporter-backed formatter.",
-    )
     parser.addini(
         str(CucumberJson.Ini.PATH_OPTION),
         default="",
