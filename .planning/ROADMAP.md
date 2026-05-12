@@ -64,8 +64,8 @@ Plans:
   5. Characterization tests capturing all state transitions pass identically before and after split
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md — Characterization safety net and import/source contracts
-- [ ] 03-02-PLAN.md — Extract runtime modules and migrate direct imports
+- [x] 03-01-PLAN.md — Characterization safety net and import/source contracts
+- [x] 03-02-PLAN.md — Extract runtime modules and migrate direct imports
 - [ ] 03-03-PLAN.md — Final verification, xdist smoke, and execution summary
 
 ### Phase 4: Plugin Refactoring
