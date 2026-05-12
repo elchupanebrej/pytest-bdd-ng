@@ -48,7 +48,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 **Plans**: 4 plans
 Plans:
 - [x] 02-01-PLAN.md — Foundation: returns library + StrEnum types + CI lint rule
-- [ ] 02-02-PLAN.md — Core model migration: scenario_run.py, stash_access.py, feature_locator.py, etc.
+- [x] 02-02-PLAN.md — Core model migration: scenario_run.py, stash_access.py, feature_locator.py, etc.
 - [ ] 02-03-PLAN.md — Plugin + utility migration: collectors, plugins, scripts, remaining model files
 - [ ] 02-04-PLAN.md — Exception fixes + parsers Result conversion + zero-matches UX
 
