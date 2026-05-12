@@ -9,6 +9,7 @@ from time import monotonic, sleep
 from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from attrs import define, field, frozen
+from returns.maybe import Nothing
 
 from pytest_bdd.model.stash_access import StashBound
 
@@ -47,11 +48,11 @@ def resolve_reporting_event_sender(config: HasPytestStash) -> ReportingEventSend
         The registered ReportingEventSender, or None if not found or not callable.
 
     """
-    binding = ReportingEventSenderBinding.find_in_stash(config.stash)
+    binding = ReportingEventSenderBinding.find_in_stash(config.stash).value_or(None)
     if binding is None:
-        return None
+        return Nothing.value_or(None)
     sender = binding.sender
-    return sender if callable(sender) else None
+    return sender if callable(sender) else Nothing.value_or(None)
 
 
 def resolve_reporting_gateway_mode(config: HasPytestStash) -> str | None:
@@ -62,11 +63,11 @@ def resolve_reporting_gateway_mode(config: HasPytestStash) -> str | None:
         The gateway mode as a string, or None if not configured.
 
     """
-    binding = ReportingEventSenderBinding.find_in_stash(config.stash)
+    binding = ReportingEventSenderBinding.find_in_stash(config.stash).value_or(None)
     if binding is None:
-        return None
+        return Nothing.value_or(None)
     gateway_mode = binding.gateway_mode
-    return gateway_mode if isinstance(gateway_mode, str) and gateway_mode else None
+    return gateway_mode if isinstance(gateway_mode, str) and gateway_mode else Nothing.value_or(None)
 
 
 def _payload_int(payload: JSONObject, key: str, default: int | None = None) -> int:

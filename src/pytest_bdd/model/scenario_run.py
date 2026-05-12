@@ -18,14 +18,19 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
 )
 from gherkin.pickles.compiler import Compiler as PicklesCompiler
+from returns.maybe import Nothing
+from returns.result import Result
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.model.stash_access import StashBound
+from pytest_bdd.types.failure_reasons import ScenarioRunFailure
 from pytest_bdd.types.protocol import Identifiable, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
+
+ScenarioRunResult = Result[object, ScenarioRunFailure]
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -522,7 +527,7 @@ class FeatureRuntimeBinding:
             keyword = getattr(model_step, "keyword", None)
             if isinstance(keyword, str):
                 return keyword.strip()
-        return None
+        return Nothing.value_or(None)
 
     def step_prefix(self, step: PickleStep) -> str | None:
         """
@@ -546,7 +551,7 @@ class FeatureRuntimeBinding:
         model_step = self.pickle_step_ast_step(step)
         if model_step is not None:
             return model_step.location.line if model_step.location is not None else -1
-        return None
+        return Nothing.value_or(None)
 
     def step_doc_string(self, step: PickleStep) -> object | None:
         """
@@ -579,7 +584,7 @@ class FeatureRuntimeBinding:
         """
         if self.uri.startswith("file:"):
             return self.uri[len("file:") :]
-        return None
+        return Nothing.value_or(None)
 
     @property
     def name(self) -> str | None:
@@ -619,7 +624,7 @@ class FeatureRuntimeBinding:
         feature_message = getattr(self.gherkin_document, "feature", None)
         description = getattr(feature_message, "description", None)
         if description is None:
-            return None
+            return Nothing.value_or(None)
         return dedent(str(description))
 
     @property
@@ -672,7 +677,7 @@ class Run(StashBound):
 
         """
         if self.active_scenario_run is None:
-            return None
+            return Nothing.value_or(None)
         return self.active_scenario_run.feature_binding
 
     @property
@@ -790,9 +795,9 @@ class Run(StashBound):
             The ScenarioRun instance linked to the request, or None if not found.
 
         """
-        run = cls.find_in_stash(request.config.stash)
+        run = cls.find_in_stash(request.config.stash).value_or(None)
         if run is None:
-            return None
+            return Nothing.value_or(None)
         key = cls._request_key(request)
         return run.scenario_runs_by_request.get(key)
 
@@ -818,13 +823,13 @@ class Run(StashBound):
         """
         config = getattr(request, "config", None)
         stash = getattr(config, "stash", None)
-        run = cls.find_in_stash(stash) if stash is not None else None
+        run = cls.find_in_stash(stash).value_or(None) if stash is not None else None
         if run is None:
-            return None
+            return Nothing.value_or(None)
         key = cls._request_key(request)
         scenario_run = run.scenario_runs_by_request.pop(key, None)
         if scenario_run is None:
-            return None
+            return Nothing.value_or(None)
 
         run_root = scenario_run.run
         if run_root is not None:
@@ -1000,7 +1005,7 @@ class Run(StashBound):
 
         """
         if uri is None:
-            return None
+            return Nothing.value_or(None)
         return self.feature_bindings_by_uri.get(str(uri))
 
     def feature_binding_for_document(self, gherkin_document: GherkinDocument | None) -> FeatureRuntimeBinding | None:
@@ -1013,7 +1018,7 @@ class Run(StashBound):
         """
         uri = getattr(gherkin_document, "uri", None) if gherkin_document is not None else None
         if uri is None:
-            return None
+            return Nothing.value_or(None)
         return self.feature_bindings_by_uri.get(str(uri))
 
     def resolve_test_step_id_for_runtime_step(self, *, pickle_step: PickleStep) -> str | None:
@@ -1209,7 +1214,7 @@ class ScenarioRun:
         """
         candidate = self._active_kind_index.get(kind)
         if candidate is None or not candidate.is_active:
-            return None
+            return Nothing.value_or(None)
         return candidate
 
     def require_feature_binding(self, *, hook_name: str) -> FeatureRuntimeBinding:

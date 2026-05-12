@@ -60,6 +60,7 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]  # 
 )
 from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
 from ordered_set import OrderedSet
+from returns.maybe import Maybe, Nothing, Some
 from typing_extensions import Protocol, runtime_checkable
 
 from pytest_bdd.compatibility.path import resolvepath
@@ -636,10 +637,14 @@ class StepDefinitionManager:
                             Fixture value or None if not found.
 
                         """
-                        try:
-                            return cast("object", request.getfixturevalue(fixture_name))
-                        except FixtureLookupError:
-                            return None
+
+                        def resolve_fixture_value() -> Maybe[object]:
+                            try:
+                                return Some(cast("object", request.getfixturevalue(fixture_name)))
+                            except FixtureLookupError:
+                                return Nothing
+
+                        return resolve_fixture_value().value_or(None)
 
                     return fixtures_mapped_from_step_definition
 

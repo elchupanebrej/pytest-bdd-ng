@@ -153,7 +153,7 @@ def _store_reporter_state(config: Config, reporter: object) -> None:
 
 
 def _resolve_reporter_state(config: Config) -> object | None:
-    state = _ReporterStateEntry.find_in_stash(_config_stash(config))
+    state = _ReporterStateEntry.find_in_stash(_config_stash(config)).value_or(None)
     return None if state is None else state.reporter
 
 

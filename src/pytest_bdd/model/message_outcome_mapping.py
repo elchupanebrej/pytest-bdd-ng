@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Final, Literal
 
 from attrs import frozen
+from returns.maybe import Nothing
 
 MatrixProfile = Literal["fixed_release_readiness_v1"]
 OutcomeScope = Literal["run", "scenario", "step", "hook", "attachment"]
@@ -91,10 +92,10 @@ def normalize_outcome_status(value: object) -> OutcomeStatus | None:
 
     """
     if value is None:
-        return None
+        return Nothing.value_or(None)
     normalized = str(value).strip().split(".")[-1].lower()
     if not normalized:
-        return None
+        return Nothing.value_or(None)
     return OUTCOME_STATUS_ALIASES.get(normalized)
 
 
@@ -107,10 +108,10 @@ def normalize_outcome_scope(value: object) -> OutcomeScope | None:
 
     """
     if value is None:
-        return None
+        return Nothing.value_or(None)
     normalized = str(value).strip().lower()
     if not normalized:
-        return None
+        return Nothing.value_or(None)
     return OUTCOME_SCOPE_ALIASES.get(normalized)
 
 
@@ -160,9 +161,9 @@ def resolve_outcome_mapping(
         key=lambda rule: rule.priority,
     )
     if not matches:
-        return None, False
+        return Nothing.value_or(None), False
     if len(matches) > 1 and matches[0].priority == matches[1].priority:
-        return None, True
+        return Nothing.value_or(None), True
     return matches[0], False
 
 

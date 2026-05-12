@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, Protocol, TypeVar, cast
 
+from returns.maybe import Maybe, Nothing, Some
 from typing_extensions import Self
 
 import pytest_bdd.types.exception as exceptions
@@ -37,12 +38,12 @@ class StashAccess:
         return string_stash[key] if key in string_stash else None  # noqa: SIM401
 
     @classmethod
-    def get_optional(cls, stash: Stash, stash_type: type[T]) -> T | None:
+    def get_optional(cls, stash: Stash, stash_type: type[T]) -> Maybe[T]:
         """
         Retrieve an instance of the specified type from the pytest stash if it exists.
 
         Returns:
-            The instance stored in the stash matching the requested type, or None if it has not been set.
+            The instance stored in the stash matching the requested type, or Nothing if it has not been set.
 
         Raises:
             PytestBDDStashTypeMismatchError: If the value's type doesn't match expected.
@@ -50,9 +51,9 @@ class StashAccess:
         """
         candidate = cls._stash_get(stash, stash_type.STASH_KEY)
         if candidate is None:
-            return None
+            return Nothing
         if isinstance(candidate, stash_type):
-            return candidate
+            return Some(candidate)
         raise exceptions.PytestBDDStashTypeMismatchError(
             stash_key=stash_type.STASH_KEY,
             actual_type=type(candidate).__name__,
@@ -72,8 +73,8 @@ class StashAccess:
 
         """
         candidate = cls.get_optional(stash, stash_type)
-        if candidate is not None:
-            return candidate
+        if (value := candidate.value_or(None)) is not None:
+            return value
         raise exceptions.PytestBDDStashLookupError(missing_message)
 
     @classmethod
@@ -108,7 +109,7 @@ class StashAccess:
 
         """
         existing = cls.get_optional(stash, stash_type)
-        if existing is not None:
+        if existing.value_or(None) is not None:
             raise exceptions.PytestBDDStashAlreadyInitializedError(duplicate_message)
         return cls.set(stash, value_factory())
 
@@ -141,12 +142,12 @@ class StashBound:
         return f"`{cls.__name__}` is already initialized in config.stash."
 
     @classmethod
-    def find_in_stash(cls, stash: Stash) -> Self | None:
+    def find_in_stash(cls, stash: Stash) -> Maybe[Self]:
         """
         Look up the bound type in the provided pytest stash.
 
         Returns:
-            The stored instance of the bound type, or None if not found.
+            The stored instance of the bound type, or Nothing if not found.
 
         """
         return StashAccess.get_optional(stash, cls)

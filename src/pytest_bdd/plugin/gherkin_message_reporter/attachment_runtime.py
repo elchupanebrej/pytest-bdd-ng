@@ -46,7 +46,7 @@ class AttachmentService(ReporterServiceBase):
         if self.reporter.is_disabled:
             return
         config = request.config
-        run = Run.find_in_stash(config.stash)
+        run = Run.find_in_stash(config.stash).value_or(None)
         reporting_state = run.reporting_state if run is not None else None
         test_case_started_id = reporting_state.active_test_case_started_id if reporting_state is not None else None
         active_test_step_id = reporting_state.active_test_step_id if reporting_state is not None else None

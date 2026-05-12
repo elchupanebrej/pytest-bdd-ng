@@ -398,7 +398,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             A tuple of (ParsedFeature, Source) if the feature is cached, or None.
 
         """
-        batch_parser = FeatureBatchParser.find_in_stash(config.stash)
+        batch_parser = FeatureBatchParser.find_in_stash(config.stash).value_or(None)
         if batch_parser is None or not batch_parser.is_flushed:
             return None
         cached_doc = batch_parser.get(feature_path)

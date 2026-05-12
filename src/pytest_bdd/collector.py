@@ -48,7 +48,7 @@ class FeatureFileModule(Module):
             Iterable of pytest items and collectors.
 
         """
-        batch_parser = FeatureBatchParser.find_in_stash(self.config.stash)
+        batch_parser = FeatureBatchParser.find_in_stash(self.config.stash).value_or(None)
         if batch_parser is not None and batch_parser.has_pending():
             batch_parser.flush()
         return super().collect()

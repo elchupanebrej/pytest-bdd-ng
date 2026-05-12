@@ -85,7 +85,7 @@ def test_resolve_features_phase_does_not_materialize_pickles() -> None:
     resolved_features = list(locator.resolve_features(config))
 
     assert len(resolved_features) == 1
-    assert Run.find_in_stash(config.stash) is None
+    assert Run.find_in_stash(config.stash).value_or(None) is None
 
 
 def test_resolve_pipeline_materializes_pickles_without_message_emission() -> None:

@@ -8,8 +8,11 @@ from typing import TYPE_CHECKING, Final, Literal, cast
 
 from attrs import frozen
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+from returns.maybe import Nothing
+from returns.result import Result
 
 from pytest_bdd.compatibility.jsonschema import SchemaValidator, ValidationError, build_validator
+from pytest_bdd.types.failure_reasons import MessageValidationFailure
 
 from .coverage.inventory import canonical_capability_id, canonical_payload_kind
 from .coverage.tracker import ObservedCoverage
@@ -37,6 +40,8 @@ from .message_status_governance import CAPABILITY_STATUSES, LEGACY_STATUS_ALIASE
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+SchemaValidationResult = Result[object, MessageValidationFailure]
+
 
 def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
     from referencing import Registry, Resource  # noqa: PLC0415 -- optional referencing dependency
@@ -44,7 +49,7 @@ def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
     try:
         schema_dir, envelope_schema = load_envelope_schema()
     except (FileNotFoundError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        return None, f"Unable to load Envelope.json schema: {exc}"
+        return Nothing.value_or(None), f"Unable to load Envelope.json schema: {exc}"
 
     registry = Registry()
     for schema_path in sorted(schema_dir.glob("*.json")):
@@ -226,7 +231,7 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
         return "passed" if outcome_status is None else outcome_status
     if payload_kind in {"attachment", "external_attachment"}:
         return "passed"
-    return None
+    return Nothing.value_or(None)
 
 
 def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome | None:
@@ -239,14 +244,14 @@ def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome |
     """
     payload_kind = get_payload_kind(envelope)
     if payload_kind is None:
-        return None
+        return Nothing.value_or(None)
     outcome_scope = OUTCOME_SCOPE_BY_PAYLOAD_KIND.get(payload_kind)
     if outcome_scope is None:
-        return None
+        return Nothing.value_or(None)
     payload = getattr(envelope, payload_kind)
     outcome_status = _derive_outcome_status(payload_kind, payload)
     if outcome_status is None:
-        return None
+        return Nothing.value_or(None)
     return ObservedOutcome(
         outcome_scope=outcome_scope,
         outcome_status=outcome_status,

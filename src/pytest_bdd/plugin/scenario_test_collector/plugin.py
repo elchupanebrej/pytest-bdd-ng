@@ -52,7 +52,7 @@ def _pytest_collect_file(parent: Collector, file_path: Path | str | None = None)
     hook = parent.config.hook
 
     if hook.pytest_bdd_is_collectible(config=config, path=Path(file_path)):
-        batch_parser = FeatureBatchParser.find_in_stash(config.stash)
+        batch_parser = FeatureBatchParser.find_in_stash(config.stash).value_or(None)
         if batch_parser is not None:
             batch_parser.register(Path(file_path))
         return FeatureFileCollector.build(parent=parent, file_path=file_path)

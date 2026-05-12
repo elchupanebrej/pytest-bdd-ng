@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal, NamedTuple, Protocol, TypeAlias, cast, overload
 
 import pytest
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
@@ -276,7 +277,7 @@ def scenarios(  # noqa: PLR0913
 
     @decorator
     def test() -> None:
-        return None
+        return Nothing.value_or(None)
 
     test.__name__ = next(iter(test_names))
 
