@@ -22,6 +22,7 @@ from returns.maybe import Nothing
 
 from pytest_bdd.const import TAG_PREFIX
 from pytest_bdd.model.message_converter import message_converter
+from pytest_bdd.model.message_registry import IdentifiableObjectRegistry
 from pytest_bdd.types.protocol import Identifiable, MultiLinkedAST
 from pytest_bdd.util.toolz_extra import deepattrgetter
 
@@ -51,6 +52,7 @@ class FeatureRuntimeBinding:
     run: Run = field(repr=False, eq=False)
     source: Source | None = None
     pickles: tuple[Pickle, ...] = ()
+    ast_registry: IdentifiableObjectRegistry = field(factory=IdentifiableObjectRegistry, repr=False, eq=False)
 
     @staticmethod
     def _feature_filename_from_uri(uri: str | None) -> str:
@@ -139,7 +141,9 @@ class FeatureRuntimeBinding:
     def index_runtime_objects(self) -> None:
         """Index the Gherkin document and its associated pickles into the run's identifiable registry."""
         feature_message = getattr(self.gherkin_document, "feature", None)
+        self.ast_registry = IdentifiableObjectRegistry()
         if feature_message is not None:
+            self.ast_registry.index_tree(feature_message)
             self.run.index_identifiable_tree(feature_message)
         if self.pickles:
             self.run.index_identifiable_tree(self.pickles)
@@ -152,7 +156,10 @@ class FeatureRuntimeBinding:
             The resolved Identifiable object instance.
 
         """
-        return self.run.identifiable_registry.resolve(object_id)
+        try:
+            return self.ast_registry.resolve(object_id)
+        except KeyError:
+            return self.run.identifiable_registry.resolve(object_id)
 
     def linked_ast_nodes_for(self, obj: object) -> Generator[Identifiable]:
         """

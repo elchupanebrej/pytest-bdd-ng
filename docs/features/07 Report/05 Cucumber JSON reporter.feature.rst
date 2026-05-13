@@ -40,10 +40,16 @@ Scenario: Generate cucumber JSON with mixed pass/fail scenarios
 
      test_report = scenarios("test.feature")
 
+- And Set pytest.ini content to:
+
+  .. code:: ini
+
+     [pytest]
+     cucumber_json_path = out.json
+
 - When run pytest
 
-  \| cli_args \| -k \| test_report.py \| --cucumberjson=out.json \| -s
-  \|
+  \| cli_args \| -k \| test_report.py \| -s \|
 
 - Then pytest outcome must contain tests with statuses:
 

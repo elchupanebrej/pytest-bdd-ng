@@ -141,6 +141,7 @@ test = [
   "pytest-order",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
+  "pytest-bdd-ng[struct-bdd]",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'"
 ]
 test-playwright = [

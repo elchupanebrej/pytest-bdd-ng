@@ -8,6 +8,7 @@ from pathlib import Path  # noqa: TC003
 
 import pytest
 
+from pytest_bdd._gherkin_go._bridge import gherkin_go_available
 from pytest_bdd.collector_batch import FeatureBatchParser, _parse_feature_file
 
 pytestmark = pytest.mark.slow
@@ -52,6 +53,9 @@ def test_performance_huge_suite(tmp_path: Path) -> None:
 
     Reports speedup factor (target >= 1.5x on multi-core machines).
     """
+    if not gherkin_go_available():
+        pytest.skip("Go gherkin parser shared library unavailable; speedup threshold requires accelerator")
+
     total_scenarios = FEATURE_COUNT * SCENARIOS_PER_FEATURE
 
     logger.info("Generating %d feature files (%d total scenarios)...", FEATURE_COUNT, total_scenarios)

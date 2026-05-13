@@ -1,6 +1,7 @@
 """Provide plugin helpers."""
 
 import mimetypes
+import warnings
 from collections.abc import Collection, Iterator, Sequence
 from contextlib import suppress
 from functools import partial
@@ -51,6 +52,7 @@ from pytest_bdd.plugin.scenario_test_collector.const import (
     FeatureAutoLoad,
 )
 from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.toolz_extra import chain_map
 
 
@@ -202,7 +204,9 @@ def _scenario_has_step_match(
     feature = gherkin_document.feature
     for step in pickle.steps:
         try:
-            matcher(request, feature, pickle, step, previous_step, step_registry)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", PytestBDDStepDefinitionWarning)
+                matcher(request, feature, pickle, step, previous_step, step_registry)
         except (LookupError, StepDefinitionManager.Matcher.MatchNotFoundError):
             previous_step = step
             continue
@@ -221,11 +225,28 @@ def _format_zero_match_step(
     return f'  File "{binding.filename}", line {line}: "{step.text}"'
 
 
+def _is_feature_autoload_item(item: Item) -> bool:
+    parent = item.parent
+    while parent is not None:
+        if isinstance(parent, FeatureFileCollector):
+            return True
+        parent = parent.parent
+    return False
+
+
 def _validate_zero_match_scenarios(config: Config, items: Sequence[Item]) -> None:
+    if getattr(config.option, "generate_missing", False) or getattr(config.option, "generate", False):
+        return
+    if getattr(config.option, "keyword", "") or getattr(config.option, "markexpr", ""):
+        return
+
     allow_empty = _allow_empty_scenarios(config)
     failures: list[str] = []
     run = Run.from_stash(config.stash)
     for item in items:
+        if _is_feature_autoload_item(item):
+            continue
+
         callspec = getattr(item, "callspec", None)
         params = getattr(callspec, "params", {})
         gherkin_document = params.get("gherkin_document")

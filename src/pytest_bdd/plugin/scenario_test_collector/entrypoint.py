@@ -2,6 +2,7 @@
 
 from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
+from pytest_bdd.util.temp_root import prefer_posix_temp_root
 
 from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, EmptyScenarios, FeatureAutoLoad, FeatureBaseLoad
 from .hook import ScenarioTestCollectorHookSpec
@@ -80,6 +81,14 @@ def pytest_addoption(parser: Parser) -> None:
         type="bool",
         help=empty_scenarios_hlp,
     )
+
+
+def pytest_load_initial_conftests(early_config: Config, parser: Parser, args: list[str]) -> None:
+    """Normalize WSL temp roots before pytest capture opens temp files."""
+    _ = early_config
+    _ = parser
+    _ = args
+    prefer_posix_temp_root()
 
 
 def pytest_configure(config: Config) -> None:
