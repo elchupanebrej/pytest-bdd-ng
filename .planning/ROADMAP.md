@@ -80,8 +80,8 @@ Plans:
   5. Full test suite passes; all formatter output identical to pre-refactor
 **Plans**: 6 plans
 Plans:
-- [ ] 04-01-PLAN.md — Verification environment unblocker
-- [ ] 04-02-PLAN.md — Source contracts and formatter golden baselines
+- [x] 04-01-PLAN.md — Verification environment unblocker
+- [x] 04-02-PLAN.md — Source contracts and formatter golden baselines
 - [ ] 04-03-PLAN.md — Code generator class-based plugin refactor
 - [ ] 04-04-PLAN.md — Plugin package normalization and boundary contracts
 - [ ] 04-05-PLAN.md — Live formatter runtime responsibility split
