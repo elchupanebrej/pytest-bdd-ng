@@ -14,11 +14,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypedDict, cast
 
-import xdist.remote as upstream_remote
 from _pytest.config import _prepareconfig  # noqa: PLC2701
-from xdist.remote import WorkerInteractor as XdistWorkerInteractor
-
-from pytest_bdd.model.message_transport import ReportingEventSenderBinding
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -105,6 +101,8 @@ def _prepare_worker_config(
     option_dict: _WorkerOptionDict,
 ) -> tuple[_PreparedConfig, _XdistRemoteModule]:
     config = _prepareconfig(args, None)
+    import xdist.remote as upstream_remote  # noqa: PLC0415
+
     prepared_config = cast("_PreparedConfig", config)
     typed_remote = cast("_XdistRemoteModule", upstream_remote)
     typed_remote.setup_config(config, option_dict.get("basetemp"))
@@ -138,6 +136,9 @@ def channel_main(reporting_channel: _ReportingChannel) -> None:
     gateway_mode = reporting_env.get("PYTEST_BDD_REPORTING_GATEWAY_MODE", "")
 
     config, upstream_remote = _prepare_worker_config(workerinput, args, option_dict)
+    from xdist.remote import WorkerInteractor as XdistWorkerInteractor  # noqa: PLC0415
+
+    from pytest_bdd.model.message_transport import ReportingEventSenderBinding  # noqa: PLC0415
 
     class ReportingWorkerInteractor(XdistWorkerInteractor):
         def sendevent(self, name: str, **kwargs: object) -> None:

@@ -104,6 +104,7 @@ Suspected owner file: `.pre-commit-config.yaml`, local hook environment/entry co
 ## Task Commits
 
 - Task 1: reproduction evidence - `116e1a20`
+- Task 2: pytester temp root fix - `a1bd1b45`
 
 ## Task 2 Fix Evidence
 
@@ -118,6 +119,20 @@ UV_PROJECT_ENVIRONMENT=.venv-linux uv run --extra test python -m pytest -s -o ad
 ```
 
 Result: `6 passed in 9.06s`.
+
+## Task 3 Fix Evidence
+
+Source change: `src/pytest_bdd_worker_bootstrap/xdist_remote.py` now defers `xdist.remote` and `pytest_bdd.model.message_transport` imports until after `_prepareconfig()` completes. This keeps the remote module import selected by `pytest_xdist_getremotemodule()` from pre-importing rewrite-sensitive modules before pytest marks plugins for assertion rewriting.
+
+Contract test: `tests/contract/test_xdist_worker_controller_boundary_contract.py` verifies importing `pytest_bdd_worker_bootstrap.xdist_remote` with warnings treated as errors does not eagerly import `xdist.remote` or `pytest_bdd.model.message_transport`.
+
+Verification:
+
+```bash
+env UV_PROJECT_ENVIRONMENT=.venv-linux timeout 90s uv run --extra test python -m pytest -s -o addopts='' tests/contract/test_xdist_worker_controller_boundary_contract.py tests/messages/test_xdist_remote_transport.py -q -n 2
+```
+
+Result: `19 passed in 16.70s`.
 
 ## Deviations from Plan
 

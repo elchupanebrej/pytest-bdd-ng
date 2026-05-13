@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess  # noqa: S404
+import sys
 from pathlib import Path
 
 CONTRACT_PATH = (
@@ -40,6 +42,30 @@ def test_live_formatter_worker_controller_boundary_contract_exists() -> None:
 def test_live_reporting_plugin_boundary_contract_exists() -> None:
     """Verify live reporting plugin boundary contract exists."""
     assert PLUGIN_BOUNDARY_CONTRACT_PATH.exists()
+
+
+def test_xdist_remote_bootstrap_import_defers_rewrite_sensitive_modules() -> None:
+    """Verify xdist remote bootstrap import defers rewrite-sensitive modules."""
+    code = """
+import importlib
+import sys
+
+for module_name in ("xdist", "xdist.remote", "pytest_bdd.model.message_transport"):
+    sys.modules.pop(module_name, None)
+
+module = importlib.import_module("pytest_bdd_worker_bootstrap.xdist_remote")
+assert module.__name__ == "pytest_bdd_worker_bootstrap.xdist_remote"
+assert "xdist.remote" not in sys.modules
+assert "pytest_bdd.model.message_transport" not in sys.modules
+"""
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-W", "error", "-c", code],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_xdist_worker_controller_boundary_contract_assigns_transport_ownership() -> None:
