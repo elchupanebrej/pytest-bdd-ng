@@ -78,7 +78,14 @@ Plans:
   3. All plugins register via consistent `class + entrypoint + hook.py` structure
   4. No plugin directly imports another plugin's internals — all cross-plugin communication via hooks
   5. Full test suite passes; all formatter output identical to pre-refactor
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 04-01-PLAN.md — Verification environment unblocker
+- [ ] 04-02-PLAN.md — Source contracts and formatter golden baselines
+- [ ] 04-03-PLAN.md — Code generator class-based plugin refactor
+- [ ] 04-04-PLAN.md — Plugin package normalization and boundary contracts
+- [ ] 04-05-PLAN.md — Live formatter runtime responsibility split
+- [ ] 04-06-PLAN.md — Message validation split and final verification
 
 ### Phase 5: Unit Test Fortification
 **Goal**: Comprehensive unit test coverage for core runtime, step definition, and parser modules
@@ -170,7 +177,7 @@ Plans:
 | 1. Foundation Cleanup | 2/2 | Planned | - |
 | 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
 | 3. Core Runtime Refactor | 0/3 | Planned | - |
-| 4. Plugin Refactoring | 0/TBD | Not started | - |
+| 4. Plugin Refactoring | 0/6 | Planned | - |
 | 5. Unit Test Fortification | 0/TBD | Not started | - |
 | 6. Integration Testing | 0/TBD | Not started | - |
 | 7. Documentation | 0/TBD | Not started | - |
