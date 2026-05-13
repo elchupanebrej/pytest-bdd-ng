@@ -103,11 +103,26 @@ Suspected owner file: `.pre-commit-config.yaml`, local hook environment/entry co
 
 ## Task Commits
 
-Pending.
+- Task 1: reproduction evidence - `116e1a20`
+
+## Task 2 Fix Evidence
+
+Source change: `tests/conftest.py` now detects POSIX test runs whose Python temp root resolves under `/mnt` and rewrites `TMPDIR`, `TEMP`, and `TMP` to `/tmp` before pytester creates nested test directories.
+
+Root cause: WSL inherited Windows-backed temp storage under `/mnt/c/Users/bulky/AppData/Local/Temp`; pytest capture tmpfiles created there were removed or invalidated during nested pytester cleanup, causing `_pytest/capture.py` `FileNotFoundError` and zero-test nested runs.
+
+Verification:
+
+```bash
+UV_PROJECT_ENVIRONMENT=.venv-linux uv run --extra test python -m pytest -s -o addopts='' tests/feature/test_run_lifecycle.py tests/feature/test_run_hooks.py tests/hook/test_scenario_locator_pipeline.py tests/hook/test_scenario_collection_read_hooks.py -q
+```
+
+Result: `6 passed in 9.06s`.
 
 ## Deviations from Plan
 
 - RTK shell proxy required by AGENTS.md was not available on `PATH`; direct shell commands were used after `rtk: command not found`.
+- Pre-fix Task 1 commit used `SKIP=generate-feature-doc` because that known hook blocker was reproduced and not fixed until Task 4.
 
 ## Known Stubs
 

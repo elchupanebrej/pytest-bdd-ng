@@ -1,5 +1,9 @@
 """Provide conftest helpers."""
 
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 
 from pytest_bdd.util.tests_group_ordering import (
@@ -8,6 +12,31 @@ from pytest_bdd.util.tests_group_ordering import (
     register_group_config_options,
     wait_for_group_barrier,
 )
+
+
+def _prefer_posix_temp_root() -> bool:
+    """Use POSIX temp storage when WSL inherits a Windows temp root."""
+    if os.name != "posix":
+        return False
+
+    posix_temp_root = Path("/tmp")  # noqa: S108
+    if not posix_temp_root.is_dir():
+        return False
+
+    current_temp_root = Path(tempfile.gettempdir()).resolve()
+    try:
+        current_temp_root.relative_to("/mnt")
+    except ValueError:
+        return False
+
+    temp_root = str(posix_temp_root)
+    for env_name in ("TMPDIR", "TEMP", "TMP"):
+        os.environ[env_name] = temp_root
+    tempfile.tempdir = None
+    return True
+
+
+_POSIX_TEMP_ROOT_SELECTED = _prefer_posix_temp_root()
 
 
 def pytest_addoption(parser):
