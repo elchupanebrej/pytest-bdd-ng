@@ -8,6 +8,8 @@ requires:
     provides: runtime split blocker evidence
 provides:
   - Phase 4 environment blocker reproduction evidence
+  - Linux pre-commit hook environment fix
+  - Phase 4 verification gate failure evidence
 affects: [phase-04, verification, plugin-refactoring]
 tech-stack:
   added: []
@@ -15,12 +17,17 @@ tech-stack:
 key-files:
   created:
     - .planning/phases/04-plugin-refactoring/04-01-SUMMARY.md
-  modified: []
+  modified:
+    - tests/conftest.py
+    - src/pytest_bdd_worker_bootstrap/xdist_remote.py
+    - tests/contract/test_xdist_worker_controller_boundary_contract.py
+    - .pre-commit-config.yaml
 key-decisions: []
 patterns-established: []
-requirements-completed: [REF-02, REF-03]
-duration: pending
-completed: pending
+requirements-completed: []
+duration: blocked during final verification
+completed: blocked
+status: blocked
 ---
 
 # Phase 04 Plan 01: Environment Unblocker Summary
@@ -105,6 +112,8 @@ Suspected owner file: `.pre-commit-config.yaml`, local hook environment/entry co
 
 - Task 1: reproduction evidence - `116e1a20`
 - Task 2: pytester temp root fix - `a1bd1b45`
+- Task 3: xdist worker bootstrap import deferral - `a67e1d68`
+- Task 4: pre-commit hook Linux environment fix - this commit
 
 ## Task 2 Fix Evidence
 
@@ -134,10 +143,64 @@ env UV_PROJECT_ENVIRONMENT=.venv-linux timeout 90s uv run --extra test python -m
 
 Result: `19 passed in 16.70s`.
 
+## Task 4 Fix Evidence
+
+Source change: `.pre-commit-config.yaml` now prefixes the local `generate-feature-doc` and `validate-feature-headings` hooks with `env UV_PROJECT_ENVIRONMENT=.venv-linux`.
+
+Root cause: the local hooks could resolve the Windows-backed `.venv` and attempt cleanup under `.venv/Scripts`, which failed with WSL I/O errors. Pinning the hook process to the Linux uv environment keeps hook execution inside `.venv-linux`.
+
+Focused verification:
+
+```bash
+uvx pre-commit run generate-feature-doc --all-files && uvx pre-commit run validate-feature-headings --all-files
+```
+
+Result: both hooks passed.
+
+Full pre-commit verification:
+
+```bash
+uvx pre-commit run --all-files
+```
+
+Result: all hooks passed.
+
+## Final Verification Gate
+
+Full suite command:
+
+```bash
+UV_PROJECT_ENVIRONMENT=.venv-linux uv run --extra test python -m pytest -s -o addopts='' tests/ -q
+```
+
+Result: failed with `29 failed, 820 passed, 13 skipped in 2091.60s`.
+
+The original pytester temp cleanup blocker did not recur. Remaining failures are now runtime/test expectation failures, including:
+
+- cucumber expression parameter matching failures
+- terminal reporter and missing-step output mismatches
+- expected failing scenarios propagating as failed nested pytester runs in formatter/message coverage tests
+- optional structured BDD dependency failures for `pyhocon`, `hjson`, and `json5`
+- stale generated Cucumber message schema evidence: `Envelope.schema.json`
+- e2e feature outcome mismatches under `tests/e2e/test_e2e.py`
+
+xdist smoke command:
+
+```bash
+env UV_PROJECT_ENVIRONMENT=.venv-linux timeout 120s uv run --extra test python -m pytest -s -o addopts='' tests/ -q -n 2
+```
+
+Result: timed out with exit code `124` during normal test execution. The xdist assert-rewrite bootstrap failure did not recur.
+
+Self-Check: FAILED.
+
+Plan 04-01 is blocked because the required final verification gate is not green. Wave 2 should not start until these remaining failures are triaged or the phase acceptance criteria are narrowed.
+
 ## Deviations from Plan
 
 - RTK shell proxy required by AGENTS.md was not available on `PATH`; direct shell commands were used after `rtk: command not found`.
 - Pre-fix Task 1 commit used `SKIP=generate-feature-doc` because that known hook blocker was reproduced and not fixed until Task 4.
+- Codex subagents disconnected during Plan 04-01 execution; Task 4 was completed inline in the shared working tree.
 
 ## Known Stubs
 
