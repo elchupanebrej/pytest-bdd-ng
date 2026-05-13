@@ -12,7 +12,7 @@ from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterP
 from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
 
 if TYPE_CHECKING:
-    from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
+    from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest
 
 FORMATTER_PLUGIN_ENTRYPOINT_PREFIX = "pytest-bdd-cucumber-formatter-"
 

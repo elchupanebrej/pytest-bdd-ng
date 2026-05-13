@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
-from attrs import frozen
 from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.importlib.resources import files
-from pytest_bdd.plugin.cucumber_formatter_support.base import (
+from pytest_bdd.model.cucumber_formatter_contract import (
+    CucumberFormatterRenderResult,
+    CucumberFormatterRequest,
     FormatterRuntimeKind,
+    NodePackageProvisionResult,
+    ResolveOutputPath,
 )
 from pytest_bdd.plugin.cucumber_formatter_support.base import (
     load_formatter_adapter_support_template as _load_formatter_adapter_support_template,
@@ -26,8 +28,15 @@ if TYPE_CHECKING:
 
     from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
 
-
-ResolveOutputPath = Callable[[str], Path]
+# Re-export contract types for backward compatibility within the same plugin package.
+__all__ = [
+    "CucumberFormatterConfigurationError",
+    "CucumberFormatterRenderResult",
+    "CucumberFormatterRequest",
+    "FormatterRuntimeKind",
+    "NodePackageProvisionResult",
+    "ResolveOutputPath",
+]
 
 
 class _FormatterRequestHook(Protocol):
@@ -46,24 +55,6 @@ class _FormatterRuntimeAssetsHook(Protocol):
         formatter_request: CucumberFormatterRequest,
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> tuple[dict[str, str] | None, ...]: ...
-
-
-@frozen
-class CucumberFormatterRequest:
-    """Represent cucumber formatter request state."""
-
-    option_attr: str
-    cli_flag: str
-    formatter: str
-    package_name: str
-    output_path: Path | None
-    plugin_module: str
-    runtime_kind: FormatterRuntimeKind
-    runtime_specifier: str | None = None
-    runtime_module_path: str | None = None
-    runtime_export_name: str | None = None
-    runtime_template_name: str | None = None
-    discovery_order: int = 0
 
 
 class CucumberFormatterConfigurationError(ValueError):
@@ -118,29 +109,6 @@ class CucumberFormatterConfigurationError(ValueError):
         """
         message = f"Only one terminal-output formatter may be active per run: {formatter_labels}"
         return cls(message)
-
-
-@frozen
-class CucumberFormatterRenderResult:
-    """Represent cucumber formatter render result state."""
-
-    success: bool
-    rendered_formatters: tuple[CucumberFormatterRequest, ...]
-    missing_node: bool = False
-    missing_packages: tuple[str, ...] = ()
-    process_exit_code: int | None = None
-
-
-@frozen
-class NodePackageProvisionResult:
-    """Represent node package provision result state."""
-
-    env: dict[str, str]
-    missing_packages: tuple[str, ...] = ()
-    installed_packages: tuple[str, ...] = ()
-    node_modules_roots: tuple[Path, ...] = ()
-    missing_node: bool = False
-    missing_npm: bool = False
 
 
 def format_requested_cucumber_formatter_labels(
@@ -330,8 +298,7 @@ def load_formatter_adapter_support_template() -> str:
         Template content.
 
     """
-    loader = cast("Callable[[], str]", _load_formatter_adapter_support_template)
-    return loader()
+    return _load_formatter_adapter_support_template()
 
 
 def load_formatter_adapter_template(template_name: str) -> str:
@@ -342,8 +309,7 @@ def load_formatter_adapter_template(template_name: str) -> str:
         Template content.
 
     """
-    loader = cast("Callable[[str], str]", _load_formatter_adapter_template)
-    return loader(template_name)
+    return _load_formatter_adapter_template(template_name)
 
 
 def render_live_formatter_bridge() -> str:

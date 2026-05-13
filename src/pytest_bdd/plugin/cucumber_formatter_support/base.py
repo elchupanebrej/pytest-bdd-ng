@@ -11,14 +11,11 @@ from attrs import frozen
 
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.importlib.resources import files
+from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest, FormatterRuntimeKind
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from pytest_bdd.compatibility.pytest import Config, Parser
-    from pytest_bdd.plugin.gherkin_message_reporter.session import CucumberFormatterRequest
-
-    ResolveOutputPath = Callable[[str], Path]
+    from pytest_bdd.model.cucumber_formatter_contract import ResolveOutputPath
 
 
 def _load_template_asset(package: str, template_name: str) -> str:
@@ -100,11 +97,7 @@ class FormatterOutputMode(StrEnum):
     optional_path = "optional_path"
 
 
-class FormatterRuntimeKind(StrEnum):
-    """Represent formatter runtime kind state."""
-
-    builtin = "builtin"
-    module = "module"
+# FormatterRuntimeKind is imported from pytest_bdd.model.cucumber_formatter_contract above.
 
 
 @frozen  # noqa: PLR0904
@@ -259,10 +252,6 @@ class FormatterReporterPlugin(ABC):
         runtime_kind: FormatterRuntimeKind,
         runtime_template_name: str | None = None,
     ) -> CucumberFormatterRequest:
-        from pytest_bdd.plugin.gherkin_message_reporter.session import (  # noqa: PLC0415 -- circular import with session.py
-            CucumberFormatterRequest,
-        )
-
         runtime_specifier = self.runtime_specifier or self.formatter
         runtime_module_path = None
         if runtime_kind == FormatterRuntimeKind.module:
