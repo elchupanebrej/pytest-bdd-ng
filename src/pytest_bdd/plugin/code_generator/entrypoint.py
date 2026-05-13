@@ -3,7 +3,10 @@
 from pytest_bdd.compatibility.pytest import Config, ExitCode, Parser
 
 from .const import CodeGeneration
-from .plugin import check_existence, generate_and_print_code, generate_and_print_missing_code
+from .plugin import CodeGeneratorPlugin
+from .request import check_existence
+
+_PLUGIN = CodeGeneratorPlugin()
 
 
 def pytest_addoption(parser: Parser) -> None:
@@ -44,8 +47,4 @@ def pytest_cmdline_main(config: Config) -> int | ExitCode | None:
         Exit code or None.
 
     """
-    if config.option.generate_missing:
-        return generate_and_print_missing_code(config)
-    if config.option.generate:
-        return generate_and_print_code(config)
-    return None
+    return _PLUGIN.pytest_cmdline_main(config)

@@ -136,3 +136,11 @@ def test_generate_missing_with_step_parsers(testdir):
     assert "I use parsers.parse" not in output
     assert "I use parsers.re" not in output
     assert "I use parsers.cfparse" not in output
+
+
+def test_generate_missing_without_feature_returns_100(testdir):
+    """Verify missing feature option preserves code-generation exit status."""
+    result = testdir.runpytest("--generate-missing")
+
+    assert result.ret == 100
+    result.stdout.fnmatch_lines(["*The --feature parameter is required.*"])
