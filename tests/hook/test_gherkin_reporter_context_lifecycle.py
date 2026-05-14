@@ -768,7 +768,7 @@ def test_entrypoint_does_not_quiet_terminal_reporter_before_live_formatter_start
         pluginmanager=_PluginManager(),
     )
 
-    monkeypatch.setattr(entrypoint, "GherkinMessageReporter", _FakeReporter)
+    monkeypatch.setattr(entrypoint, "GherkinMessageReporterPlugin", _FakeReporter)
 
     def remember_quiet_replacement_config(replacement_config) -> None:
         quiet_replacement_calls.append(replacement_config)
@@ -897,7 +897,7 @@ def test_reporter_warns_when_node_is_missing_for_requested_cucumber_formatter(
     reporter = _build_formatter_reporter(tmp_path, cucumber_summary=True)
 
     monkeypatch.setattr(
-        "pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime.shutil.which",
+        "pytest_bdd.plugin.gherkin_message_reporter.live_formatter_node.shutil.which",
         lambda _name: None,
     )
 
