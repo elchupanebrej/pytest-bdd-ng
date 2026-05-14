@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from attrs import frozen
 
 from pytest_bdd.model.cucumber_formatter_adapter import CucumberFormatterEnvelopeAdapter
-from pytest_bdd.model.message_validation import default_outcome_mapping_rules
+from pytest_bdd.model.message_stream_validation import default_outcome_mapping_rules
 from pytest_bdd.plugin.gherkin_message_reporter.attachment_runtime import AttachmentService
 from pytest_bdd.plugin.gherkin_message_reporter.hook_catalog_runtime import HookCatalogService
 from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService

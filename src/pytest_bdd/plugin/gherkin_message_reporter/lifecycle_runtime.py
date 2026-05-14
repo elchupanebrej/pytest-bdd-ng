@@ -48,14 +48,11 @@ from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
 from pytest_bdd.model.message_outcome_mapping import resolve_outcome_mapping
 from pytest_bdd.model.message_registry import EnvelopeRegistry
+from pytest_bdd.model.message_schema_validation import validate_envelope_dict_against_schema
 from pytest_bdd.model.message_serialization import MessageSerializationProfile
+from pytest_bdd.model.message_stream_validation import observed_outcome_from_envelope, validate_message_stream
 from pytest_bdd.model.message_transport import WorkerCompletionManifest
-from pytest_bdd.model.message_validation import (
-    observed_outcome_from_envelope,
-    validate_envelope_dict_against_schema,
-    validate_message_stream,
-    validate_xdist_reporting_compatibility,
-)
+from pytest_bdd.model.message_validation_xdist import validate_xdist_reporting_compatibility
 from pytest_bdd.model.run import Run
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import _resolve_reporting_worker_identity
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase

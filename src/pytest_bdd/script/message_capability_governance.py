@@ -39,7 +39,7 @@ from pytest_bdd.model.message_status_governance import (
     validate_capability_decision,
     validate_mandatory_scope_decision,
 )
-from pytest_bdd.model.message_validation import collect_observed_capability_ids, validate_message_stream
+from pytest_bdd.model.message_stream_validation import collect_observed_capability_ids, validate_message_stream
 
 if TYPE_CHECKING:
     from pytest_bdd.types.json import JSONObject
