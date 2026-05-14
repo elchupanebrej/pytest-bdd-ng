@@ -82,7 +82,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Verification environment unblocker
 - [x] 04-02-PLAN.md — Source contracts and formatter golden baselines
-- [ ] 04-03-PLAN.md — Code generator class-based plugin refactor
+- [x] 04-03-PLAN.md — Code generator class-based plugin refactor
 - [ ] 04-04-PLAN.md — Plugin package normalization and boundary contracts
 - [ ] 04-05-PLAN.md — Live formatter runtime responsibility split
 - [ ] 04-06-PLAN.md — Message validation split and final verification
