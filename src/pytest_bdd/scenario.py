@@ -11,7 +11,7 @@ from returns.maybe import Nothing
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK
+from pytest_bdd.model.scenario_collection import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK
 from pytest_bdd.util.other import format_as_simplified_python_identifier
 from pytest_bdd.util.toolz_extra import compose
 

@@ -2,9 +2,15 @@
 
 from pytest_bdd.collector_batch import FeatureBatchParser
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager
+from pytest_bdd.model.scenario_collection import (
+    PYTEST_BDD_MARK,
+    PYTEST_BDD_SCENARIOS_MARK,
+    EmptyScenarios,
+    FeatureAutoLoad,
+    FeatureBaseLoad,
+)
 from pytest_bdd.util.temp_root import prefer_posix_temp_root
 
-from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, EmptyScenarios, FeatureAutoLoad, FeatureBaseLoad
 from .hook import ScenarioTestCollectorHookSpec
 from .plugin import ScenarioTestCollectorPlugin
 

@@ -13,13 +13,13 @@ from pluggy import Result
 
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item, TestReport
 from pytest_bdd.model.run import Run
-from pytest_bdd.plugin.pickle_runner.run_access import (
+from pytest_bdd.model.run_access import (
     build_reporting_context_snapshot,
     require_feature_binding,
     require_pickle_object,
     require_step_object,
 )
-from pytest_bdd.plugin.scenario_reporter.report import ScenarioReport, ScenarioReportData, StepReport
+from pytest_bdd.model.scenario_report import ScenarioReport, ScenarioReportData, StepReport
 
 
 class _ScenarioReportTestReport(Protocol):

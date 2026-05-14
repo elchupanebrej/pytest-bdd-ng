@@ -6,8 +6,8 @@ from pathlib import Path
 import execnet.gateway_base
 import pytest
 
+from pytest_bdd.model.scenario_report import normalize_runtime_step_status
 from pytest_bdd.plugin.gherkin_terminal_reporter.plugin import canonical_terminal_step_status
-from pytest_bdd.plugin.scenario_reporter.report import normalize_runtime_step_status
 from pytest_bdd.util.toolz_test import InstanceOfType
 
 pytestmark = [pytest.mark.technical_nonconvertible]

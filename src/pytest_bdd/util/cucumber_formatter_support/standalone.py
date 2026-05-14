@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterRequest,
     validate_requested_cucumber_formatters,
 )
+from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 
 
 def resolve_standalone_formatter_catalog(

@@ -50,8 +50,8 @@ def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
 
 def register_cucumber_formatter_options(parser: Parser) -> None:
     """Register cucumber formatter options with pytest."""
-    from pytest_bdd.plugin.cucumber_formatter_support.base import _coerce_cli_aliases  # noqa: PLC0415
-    from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog  # noqa: PLC0415
+    from pytest_bdd.util.cucumber_formatter_support.base import _coerce_cli_aliases  # noqa: PLC0415
+    from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog  # noqa: PLC0415
 
     catalog = FormatterPluginCatalog.discover()
     group = parser.getgroup("bdd", "Cucumber Formatters")

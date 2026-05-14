@@ -6,10 +6,6 @@ from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
 
-from pytest_bdd.plugin.cucumber_formatter_support.standalone import (
-    resolve_standalone_formatter_catalog,
-    resolve_standalone_formatter_requests,
-)
 from pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runtime import LiveFormatterService
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterConfigurationError,
@@ -17,13 +13,17 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterRequest,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
+from pytest_bdd.util.cucumber_formatter_support.standalone import (
+    resolve_standalone_formatter_catalog,
+    resolve_standalone_formatter_requests,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+    from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 
 
 @frozen

@@ -26,8 +26,8 @@ from pytest_bdd.model.run import (
     RunStage,
     RunStatus,
 )
+from pytest_bdd.model.run_access import resolve_scenario_description, resolve_step_runtime_enrichment
 from pytest_bdd.model.scenario_run import ScenarioRun
-from pytest_bdd.plugin.pickle_runner.run_access import resolve_scenario_description, resolve_step_runtime_enrichment
 
 if TYPE_CHECKING:
     from pytest_bdd.model.feature_binding import FeatureRuntimeBinding

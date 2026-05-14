@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.script.render_cucumber_formatters import main
+from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 from tests.support.cucumber_formatters import install_fake_node
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

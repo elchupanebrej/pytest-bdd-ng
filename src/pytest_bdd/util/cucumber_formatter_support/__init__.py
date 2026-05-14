@@ -1,6 +1,6 @@
-"""Provide src.pytest_bdd.plugin.cucumber_formatter_support package helpers."""
+"""Provide src.pytest_bdd.util.cucumber_formatter_support package helpers."""
 
-from pytest_bdd.plugin.cucumber_formatter_support.base import (
+from pytest_bdd.util.cucumber_formatter_support.base import (
     FormatterReporterPlugin,
     load_formatter_adapter_support_template,
     load_formatter_adapter_template,

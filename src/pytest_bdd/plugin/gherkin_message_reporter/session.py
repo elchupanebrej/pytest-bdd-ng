@@ -16,10 +16,10 @@ from pytest_bdd.model.cucumber_formatter_contract import (
     NodePackageProvisionResult,
     ResolveOutputPath,
 )
-from pytest_bdd.plugin.cucumber_formatter_support.base import (
+from pytest_bdd.util.cucumber_formatter_support.base import (
     load_formatter_adapter_support_template as _load_formatter_adapter_support_template,
 )
-from pytest_bdd.plugin.cucumber_formatter_support.base import (
+from pytest_bdd.util.cucumber_formatter_support.base import (
     load_formatter_adapter_template as _load_formatter_adapter_template,
 )
 

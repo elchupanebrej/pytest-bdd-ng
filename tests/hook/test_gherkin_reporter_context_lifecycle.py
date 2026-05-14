@@ -625,11 +625,11 @@ def test_entrypoint_detects_terminal_formatter_flags_in_raw_args() -> None:
 def test_cucumber_formatter_util_import_does_not_eagerly_load_formatter_registry() -> None:
     """Verify cucumber formatter util import does not eagerly load formatter registry."""
     sys.modules.pop("pytest_bdd.util.cucumber_formatters", None)
-    sys.modules.pop("pytest_bdd.plugin.cucumber_formatter_support.registry", None)
+    sys.modules.pop("pytest_bdd.util.cucumber_formatter_support.registry", None)
 
     import_module("pytest_bdd.util.cucumber_formatters")
 
-    assert "pytest_bdd.plugin.cucumber_formatter_support.registry" not in sys.modules
+    assert "pytest_bdd.util.cucumber_formatter_support.registry" not in sys.modules
 
 
 def test_entrypoint_auto_disables_capture_for_terminal_formatter_args(monkeypatch) -> None:

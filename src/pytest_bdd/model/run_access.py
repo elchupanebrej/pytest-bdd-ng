@@ -16,8 +16,7 @@ from pytest_bdd.model.run import (
     Run,
     RunStage,
 )
-
-from .run_transitions import build_lifecycle_ref
+from pytest_bdd.plugin.pickle_runner.run_transitions import build_lifecycle_ref
 
 if TYPE_CHECKING:
     from cucumber_messages import GherkinDocument, Pickle, PickleStep, Source

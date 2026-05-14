@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterOutputMode, FormatterReporterPlugin
+from pytest_bdd.util.cucumber_formatter_support.base import FormatterOutputMode, FormatterReporterPlugin
 
 if TYPE_CHECKING:
     from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest, ResolveOutputPath

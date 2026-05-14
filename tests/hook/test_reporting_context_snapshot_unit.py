@@ -12,8 +12,8 @@ from pytest_bdd.model.run import (
     RunStage,
     RunStatus,
 )
+from pytest_bdd.model.run_access import build_reporting_context_snapshot
 from pytest_bdd.model.scenario_run import ScenarioRun
-from pytest_bdd.plugin.pickle_runner.run_access import build_reporting_context_snapshot
 
 
 def _build_scenario_run(*, stage: RunStage) -> ScenarioRun:

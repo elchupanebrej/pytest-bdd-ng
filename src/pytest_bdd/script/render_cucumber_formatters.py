@@ -6,12 +6,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterPlugin, _coerce_cli_aliases
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.gherkin_message_reporter.standalone_renderer import (
     CucumberFormatterConfigurationError,
     StandaloneCucumberFormatterRenderer,
 )
+from pytest_bdd.util.cucumber_formatter_support.base import FormatterReporterPlugin, _coerce_cli_aliases
+from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.util.cucumber_formatters import any_cucumber_formatter_requested
 
 

@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import pytest
 
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterRequest,
 )
+from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.util.cucumber_formatters import (
     pytest_capture_already_configured,
     terminal_formatter_flags_requested,

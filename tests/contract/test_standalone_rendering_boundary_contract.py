@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pytest_bdd.plugin.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.plugin.gherkin_message_reporter.standalone_renderer import StandaloneCucumberFormatterRenderer
+from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 
 CONTRACT_PATH = (
     Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "standalone_rendering_boundary.md"

@@ -3,7 +3,7 @@
 from typing import cast
 
 from pytest_bdd.compatibility.pytest import Config, TerminalReporter, TestReport
-from pytest_bdd.plugin.scenario_reporter.report import ScenarioReportData, StepReportData, normalize_runtime_step_status
+from pytest_bdd.model.scenario_report import ScenarioReportData, StepReportData, normalize_runtime_step_status
 
 
 def canonical_terminal_step_status(step: StepReportData) -> str:

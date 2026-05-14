@@ -23,8 +23,8 @@ from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
 from returns.maybe import Nothing
 
+from pytest_bdd.model.run_access import require_step_object
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
-from pytest_bdd.plugin.pickle_runner.run_access import require_step_object
 from pytest_bdd.util.other import IdGenerator
 
 if TYPE_CHECKING:

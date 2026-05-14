@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from attrs import frozen
 
 from pytest_bdd.compatibility.importlib.metadata import entry_points
-from pytest_bdd.plugin.cucumber_formatter_support.base import FormatterReporterPlugin
 from pytest_bdd.plugin.gherkin_message_reporter.session import render_live_formatter_bridge
+from pytest_bdd.util.cucumber_formatter_support.base import FormatterReporterPlugin
 
 if TYPE_CHECKING:
     from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest

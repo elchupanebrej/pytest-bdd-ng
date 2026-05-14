@@ -19,7 +19,7 @@ from typing_extensions import TypedDict
 from pytest_bdd.compatibility.parser import ParserProtocol
 from pytest_bdd.compatibility.pytest import Config, Mark
 from pytest_bdd.mimetype import Mimetype
-from pytest_bdd.plugin.scenario_test_collector.const import FeatureBaseLoad
+from pytest_bdd.model.scenario_collection import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
 from pytest_bdd.types.failure_reasons import FeatureLocatorFailure

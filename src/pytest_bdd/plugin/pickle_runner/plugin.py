@@ -23,15 +23,7 @@ from pytest_bdd.model.run import (
     Run,
     RunStatus,
 )
-from pytest_bdd.model.scenario_run import StepRun
-from pytest_bdd.plugin.scenario_test_collector.const import PYTEST_BDD_MARK
-from pytest_bdd.steps import StepDefinitionManager
-from pytest_bdd.util.inspect_extra import get_args
-from pytest_bdd.util.other import IdGenerator
-from pytest_bdd.util.pytest_extra import inject_fixture
-from pytest_bdd.util.toolz_extra import DefaultMapping, ObjectCallable
-
-from .run_access import (
+from pytest_bdd.model.run_access import (
     require_feature_binding,
     require_feature_object,
     require_pickle_object,
@@ -40,6 +32,14 @@ from .run_access import (
     resolve_scenario_description,
     resolve_step_runtime_enrichment,
 )
+from pytest_bdd.model.scenario_collection import PYTEST_BDD_MARK
+from pytest_bdd.model.scenario_run import StepRun
+from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.util.inspect_extra import get_args
+from pytest_bdd.util.other import IdGenerator
+from pytest_bdd.util.pytest_extra import inject_fixture
+from pytest_bdd.util.toolz_extra import DefaultMapping, ObjectCallable
+
 from .run_transitions import apply_transition
 
 logger = logging.getLogger(__name__)
