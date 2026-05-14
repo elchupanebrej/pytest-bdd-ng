@@ -464,3 +464,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         if is_enabled is None:
             is_enabled = not config.getini(str(FeatureAutoLoad.Ini.DISABLE_OPTION))
         return bool(is_enabled)
+
+
+class ScenarioTestCollectorPlugin(ScenarioTestCollector):
+    """Represent scenario test collector plugin state."""

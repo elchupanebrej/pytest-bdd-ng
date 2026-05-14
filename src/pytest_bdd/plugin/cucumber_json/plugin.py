@@ -140,3 +140,7 @@ class LogBDDCucumberJSON:
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """Handle the pytest terminal summary pytest hook."""
         terminalreporter.write_sep("-", f"generated json file: {self.logfile}")
+
+
+class CucumberJsonPlugin(LogBDDCucumberJSON):
+    """Represent cucumber json plugin state."""

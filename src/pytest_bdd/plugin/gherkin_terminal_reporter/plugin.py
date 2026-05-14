@@ -68,3 +68,7 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
         self._tw.write(f"    {word}\n", **word_markup)
         self.stats.setdefault(cat, []).append(report)
         return None
+
+
+class GherkinTerminalReporterPlugin(GherkinTerminalReporter):
+    """Represent gherkin terminal reporter plugin state."""

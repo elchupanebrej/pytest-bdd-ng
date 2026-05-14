@@ -6,7 +6,7 @@ from pytest_bdd.util.temp_root import prefer_posix_temp_root
 
 from .const import PYTEST_BDD_MARK, PYTEST_BDD_SCENARIOS_MARK, EmptyScenarios, FeatureAutoLoad, FeatureBaseLoad
 from .hook import ScenarioTestCollectorHookSpec
-from .plugin import ScenarioTestCollector
+from .plugin import ScenarioTestCollectorPlugin
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
@@ -96,7 +96,7 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", f"{PYTEST_BDD_MARK}: marker to identify pytest_bdd tests")
     config.addinivalue_line("markers", f"{PYTEST_BDD_SCENARIOS_MARK}: marker to provide scenarios locator")
 
-    config.pluginmanager.register(ScenarioTestCollector())
+    config.pluginmanager.register(ScenarioTestCollectorPlugin())
 
     if not config.getini("disable_batch_collection") and not config.getoption(
         "disable_batch_collection",

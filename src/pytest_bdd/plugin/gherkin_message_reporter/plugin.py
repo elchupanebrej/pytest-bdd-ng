@@ -262,3 +262,7 @@ class GherkinMessageReporter:
         """Handle unconfigure."""
         self.restore_terminal_output()
         self.unregister_hook_plugins(pluginmanager)
+
+
+class GherkinMessageReporterPlugin(GherkinMessageReporter):
+    """Represent gherkin message reporter plugin state."""

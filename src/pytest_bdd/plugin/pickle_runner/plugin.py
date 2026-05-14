@@ -552,3 +552,7 @@ class PickleRunner:
                 if undefined_info is not None:
                     step_lookup_exception.undefined_parameter_type = undefined_info
             raise step_lookup_exception from exception
+
+
+class PickleRunnerPlugin(PickleRunner):
+    """Represent pickle runner plugin state."""

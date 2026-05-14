@@ -26,7 +26,7 @@ from pytest_bdd.util.cucumber_formatters import (
 from .hook import GherkinMessageReporterHookSpec
 from .plugin import (
     CucumberFormatterConfigurationError,
-    GherkinMessageReporter,
+    GherkinMessageReporterPlugin,
 )
 
 logger = logging.getLogger(__name__)
@@ -261,7 +261,7 @@ def pytest_configure(config: Config) -> None:
     """
     reporter = None
     try:
-        reporter = GherkinMessageReporter(config=config)
+        reporter = GherkinMessageReporterPlugin(config=config)
     except CucumberFormatterConfigurationError as exc:
         raise pytest.UsageError(str(exc)) from exc
     try:

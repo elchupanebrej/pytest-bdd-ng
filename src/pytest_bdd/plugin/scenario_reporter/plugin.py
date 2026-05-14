@@ -153,3 +153,7 @@ class ScenarioReporter:
     ) -> None:
         """Handle the pytest bdd after scenario pytest hook."""
         self._store_context_snapshot(request=request, fallback_reason="after_scenario_hierarchy_not_available")
+
+
+class ScenarioReporterPlugin(ScenarioReporter):
+    """Represent scenario reporter plugin state."""

@@ -21,7 +21,7 @@ from pytest_bdd.util.other import IdGenerator
 
 from .const import Steps
 from .hook import PickleRunnerHookSpec
-from .plugin import PickleRunner
+from .plugin import PickleRunnerPlugin
 
 if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
@@ -75,7 +75,7 @@ def pytest_addoption(parser: Parser) -> None:
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
-    runner = PickleRunner()
+    runner = PickleRunnerPlugin()
     config.pluginmanager.register(runner, runner.plugin_name)
     Run.initialize_for_config(stash=config.stash, config=config)
     IdGenerator().initialize_in_stash(config.stash)
