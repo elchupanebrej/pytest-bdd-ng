@@ -16,7 +16,7 @@
 
 - [ ] **REF-01**: Split `scenario_run.py` (1422 lines) into `model/run.py`, `model/scenario_run.py`, `model/feature_binding.py` with characterization tests first
 - [x] **REF-02**: Refactor `code_generator` plugin into class-based pattern matching other plugins (entrypoint.py + plugin.py class)
-- [ ] **REF-03**: Reduce other large files (>400 lines) where practical (target: live_formatter_runtime.py 823L, message_validation.py 672L, steps.py 627L)
+- [x] **REF-03**: Reduce other large files (>400 lines) where practical (target: live_formatter_runtime.py 823L, message_validation.py 672L, steps.py 627L)
 
 ### Simplification
 
@@ -66,7 +66,7 @@
 | STAB-04 | Phase 1 — Foundation Cleanup | Complete |
 | REF-01 | Phase 3 — Core Runtime Refactor | Pending |
 | REF-02 | Phase 4 — Plugin Refactoring | Complete |
-| REF-03 | Phase 4 — Plugin Refactoring | Pending |
+| REF-03 | Phase 4 — Plugin Refactoring | Complete |
 | SIM-01 | Phase 9 — Compatibility Streamlining | Pending |
 | SIM-02 | Phase 10 — Pattern Unification | Pending |
 | SIM-03 | Phase 11 — Audit & Prune | Pending |

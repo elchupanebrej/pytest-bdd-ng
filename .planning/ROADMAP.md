@@ -11,7 +11,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [x] **Phase 1: Foundation Cleanup** — Remove dead Allure plugin; remove legacy --cucumberjson CLI flag
 - [x] **Phase 2: Code Quality Gates** — Eliminate 96 return None instances; replace 22 bare except Exception
 - [ ] **Phase 3: Core Runtime Refactor** — Split 1422-line scenario_run.py into 3 focused model modules
-- [ ] **Phase 4: Plugin Refactoring** — Code generator to class-based pattern; reduce other large files
+- [x] **Phase 4: Plugin Refactoring** — Code generator to class-based pattern; reduce other large files
 - [ ] **Phase 5: Unit Test Fortification** — Comprehensive unit test coverage for core modules
 - [ ] **Phase 6: Integration Testing** — Edge case coverage for step matching and execution lifecycle
 - [ ] **Phase 7: Documentation** — Public API docstrings, developer guide, migration guide
@@ -85,7 +85,7 @@ Plans:
 - [x] 04-03-PLAN.md — Code generator class-based plugin refactor
 - [x] 04-04-PLAN.md — Plugin package normalization and boundary contracts
 - [x] 04-05-PLAN.md — Live formatter runtime responsibility split
-- [ ] 04-06-PLAN.md — Message validation split and final verification
+- [x] 04-06-PLAN.md — Message validation split and final verification
 
 ### Phase 5: Unit Test Fortification
 **Goal**: Comprehensive unit test coverage for core runtime, step definition, and parser modules
@@ -177,7 +177,7 @@ Plans:
 | 1. Foundation Cleanup | 2/2 | Planned | - |
 | 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
 | 3. Core Runtime Refactor | 0/3 | Planned | - |
-| 4. Plugin Refactoring | 0/6 | Planned | - |
+| 4. Plugin Refactoring | 6/6 | Complete | 2026-05-14 |
 | 5. Unit Test Fortification | 0/TBD | Not started | - |
 | 6. Integration Testing | 0/TBD | Not started | - |
 | 7. Documentation | 0/TBD | Not started | - |
