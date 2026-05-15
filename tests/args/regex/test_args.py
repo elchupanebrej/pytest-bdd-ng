@@ -103,3 +103,98 @@ def test_argument_in_when(testdir, parser_import_string):
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_re_parser_no_match(testdir):
+    """Re parser raises when step text does not match."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: NoMatch
+                Scenario: Test
+                    Given I have no match here
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd.parsers import re
+
+        @given(re(r"I have (?P<item>\\w+) Euro"))
+        def have_item(item):
+            pass
+        """,
+    )
+    result = testdir.runpytest()
+    assert result.ret != 0
+
+
+def test_re_parser_escaped_characters(testdir):
+    """Re parser handles escaped regex characters."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: Escaped
+                Scenario: Test
+                    Given I have a (special) item
+            """,
+    )
+    testdir.makeconftest(
+        r"""
+        from pytest_bdd import given
+        from pytest_bdd.parsers import re
+
+        @given(re(r"I have a \(special\) item"))
+        def have_special():
+            pass
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_re_parser_no_groups(testdir):
+    """Re parser returns empty dict for no capture groups."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: NoGroups
+                Scenario: Test
+                    Given I have a simple step
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+        from pytest_bdd.parsers import re
+
+        @given(re(r"I have a simple step"), target_fixture="result")
+        def simple_step():
+            return "done"
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_re_parser_anonymous_groups(testdir):
+    """Re parser matches with anonymous groups."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: AnonymousGroups
+                Scenario: Test
+                    Given I have 42 items
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+        from pytest_bdd.parsers import re
+
+        @given(re(r"I have (\\d+) items"), anonymous_group_names=['count'], converters={'count': int})
+        def have_items(count):
+            assert count == 42
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)

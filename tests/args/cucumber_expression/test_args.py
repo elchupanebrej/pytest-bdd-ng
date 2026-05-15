@@ -221,3 +221,90 @@ def test_cucumber_regular_expression(
 
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_cucumber_expression_no_params(testdir):
+    """Cucumber expression with no parameters matches plain text."""
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given, then
+        from pytest_bdd.parsers import cucumber_expression
+
+        @given(cucumber_expression("I have a plain step"))
+        def plain_step():
+            pass
+
+        @then("it works")
+        def check():
+            assert True
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: NoParams
+                Scenario: Test
+                    Given I have a plain step
+                    Then it works
+            """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_cucumber_expression_float_type(testdir):
+    """Cucumber expression handles int parameter types."""
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given, then
+        from pytest_bdd.parsers import cucumber_expression
+
+        @given(cucumber_expression("I have {int} dollars"), anonymous_group_names=['count'], converters={'count': int})
+        def have_dollars(count):
+            assert count == 10
+
+        @then("amount is set")
+        def check():
+            assert True
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: Int
+                Scenario: Test
+                    Given I have 10 dollars
+                    Then amount is set
+            """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_cucumber_expression_simple(testdir):
+    """Cucumber expression matches simple patterns."""
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given, then
+        from pytest_bdd.parsers import cucumber_expression
+
+        @given(cucumber_expression("I have an item"))
+        def have_item():
+            pass
+
+        @then("it works")
+        def check():
+            assert True
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: Simple
+                Scenario: Test
+                    Given I have an item
+                    Then it works
+            """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)

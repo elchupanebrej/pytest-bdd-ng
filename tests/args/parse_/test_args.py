@@ -107,3 +107,51 @@ def test_argument_in_when_step_1(testdir, parser_import_string):
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_parse_parser_no_match(testdir):
+    """Parse parser returns None on parse failure."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: NoMatch
+                Scenario: Test
+                    Given I have something else
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd.parsers import parse
+
+        @given(parse("I have an argument {arg:d}"))
+        def have_arg(arg):
+            pass
+        """,
+    )
+    result = testdir.runpytest()
+    assert result.ret != 0
+
+
+def test_parse_parser_mixed_types(testdir):
+    """Parse parser handles format strings with mixed type converters."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: MixedTypes
+                Scenario: Test
+                    Given I have 5 widgets named test
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+        from pytest_bdd.parsers import parse
+
+        @given(parse("I have {count:d} widgets named {name}"))
+        def have_items(count, name):
+            assert count == 5
+            assert name == "test"
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)

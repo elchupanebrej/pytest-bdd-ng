@@ -58,3 +58,72 @@ def test_heuristic_parser(
 
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_heuristic_parser_fallback_to_re(testdir):
+    """Heuristic parser falls back to re when other parsers fail."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: Fallback
+                Scenario: Test
+                    Given I have 42 digits here
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+
+        @given("I have {count:d} digits here")
+        def have_pattern(count):
+            assert count == 42
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_heuristic_parser_plain_string(testdir):
+    """Heuristic parser matches plain strings."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: PlainString
+                Scenario: Test
+                    Given I have a plain string step
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+
+        @given("I have a plain string step")
+        def plain_step():
+            pass
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_heuristic_parser_with_param_defaults(testdir):
+    """Heuristic parser uses param_defaults when no params matched."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: ParamDefaults
+                Scenario: Test
+                    Given I have a default param
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+
+        @given("I have a default param", param_defaults={"value": "default"})
+        def have_default(value):
+            assert value == "default"
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)

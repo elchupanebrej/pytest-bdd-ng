@@ -106,3 +106,51 @@ def test_argument_in_when(testdir, parser_import_string):
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_cfparse_comma_separated(testdir):
+    """Cfparse parser handles comma-separated values."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: CommaSeparated
+                Scenario: Test
+                    Given I have 5 items
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+        from parse_type.cfparse import Parser as cfparse
+
+        @given(cfparse("I have {count:d} items"))
+        def have_items(count):
+            assert count == 5
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_cfparse_optional_values(testdir):
+    """Cfparse parser handles integer type expressions."""
+    testdir.makefile(
+        ".feature",
+        arguments="""\
+            Feature: Integer
+                Scenario: Test
+                    Given I have 100 items
+            """,
+    )
+    testdir.makeconftest(
+        """\
+        from pytest_bdd import given
+        from parse_type.cfparse import Parser as cfparse
+
+        @given(cfparse("I have {count:d} items"))
+        def have_items(count):
+            assert count == 100
+        """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
