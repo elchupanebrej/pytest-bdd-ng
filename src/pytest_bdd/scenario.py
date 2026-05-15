@@ -63,7 +63,8 @@ test_names = get_python_name_generator("")
 
 
 class FeaturePathType(Enum):
-    """Controls how non-absolute feature paths are resolved during loading.
+    """
+    Controls how non-absolute feature paths are resolved during loading.
 
     This enum determines whether relative paths are treated as filesystem
     paths or HTTP/HTTPS URLs when loading Gherkin feature files.
@@ -106,6 +107,7 @@ class FeaturePathType(Enum):
     Returns:
         A ``FeaturePathType`` enum member (``PATH``, ``URL``, or
         ``UNDEFINED``) representing the path resolution mode.
+
     """
 
     PATH = "path"
@@ -161,7 +163,8 @@ def scenario(  # noqa: PLR0913, PLR0917
     *,
     return_test_decorator: bool = True,
 ) -> ScenarioDecorator | ScenarioTest:
-    """Load and bind a single Gherkin scenario to a pytest test function.
+    """
+    Load and bind a single Gherkin scenario to a pytest test function.
 
     Supports file-based and URL-based feature loading, custom parsers,
     and MIME type detection. Returns either a decorator (default) or
@@ -212,9 +215,9 @@ def scenario(  # noqa: PLR0913, PLR0917
         The overload signatures provide precise return types based on
         the ``Literal`` value of ``return_test_decorator``.
 
-    Raises:
-        ValueError: If both ``features_base_dir`` and
-            ``features_base_url`` are specified.
+    Note:
+        A ``ValueError`` is raised if both ``features_base_dir`` and
+        ``features_base_url`` are specified (delegated to :func:`scenarios`).
 
     Example:
         Basic usage with a feature file::
@@ -248,6 +251,7 @@ def scenario(  # noqa: PLR0913, PLR0917
     See Also:
         :func:`scenarios`: Bulk-load all scenarios from feature files.
         :class:`FeaturePathType`: Enum for path resolution modes.
+
     """
     feature_paths = [feature_name] if feature_name is not None else []
     if return_test_decorator:
@@ -330,7 +334,8 @@ def scenarios(  # noqa: PLR0913
     parse_args: Args | None = None,
     locators: Iterable[object] = (),
 ) -> ScenarioDecorator | ScenarioTest:
-    """Bulk-load scenarios from feature files and bind them to pytest test functions.
+    """
+    Bulk-load scenarios from feature files and bind them to pytest test functions.
 
     Unlike :func:`scenario`, which loads a single scenario, this function
     can load multiple scenarios from one or more feature files. It
@@ -412,6 +417,7 @@ def scenarios(  # noqa: PLR0913
     See Also:
         :func:`scenario`: Load and bind a single scenario.
         :class:`FeaturePathType`: Enum for path resolution modes.
+
     """
     if parse_args is None:
         parse_args = Args((), {})

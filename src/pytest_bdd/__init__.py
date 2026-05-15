@@ -1,4 +1,5 @@
-"""pytest-bdd-ng — BDD testing plugin for pytest.
+"""
+pytest-bdd-ng — BDD testing plugin for pytest.
 
 pytest-bdd-ng brings Behavior-Driven Development to Python testing.
 Users write Gherkin feature files (``.feature`` or ``.feature.md``),

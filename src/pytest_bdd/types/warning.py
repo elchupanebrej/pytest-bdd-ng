@@ -4,7 +4,8 @@ import pytest
 
 
 class PytestBDDStepDefinitionWarning(pytest.PytestWarning):
-    """Warning emitted when multiple step definitions match the same Gherkin step.
+    """
+    Warning emitted when multiple step definitions match the same Gherkin step.
 
     This warning is triggered during scenario execution when the step
     matcher finds more than one registered step definition that matches
@@ -39,6 +40,7 @@ class PytestBDDStepDefinitionWarning(pytest.PytestWarning):
     Returns:
         A ``PytestBDDStepDefinitionWarning`` instance containing the
         description of ambiguous step definitions.
+
     """
 
     __module__ = "pytest_bdd"

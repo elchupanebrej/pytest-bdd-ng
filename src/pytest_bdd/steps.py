@@ -111,7 +111,8 @@ def given(  # noqa: PLR0913, PLR0917
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Define a Given step that sets up preconditions for a scenario.
+    """
+    Define a Given step that sets up preconditions for a scenario.
 
     Given steps establish the initial context or state required before
     the action under test is performed. They typically create test
@@ -200,6 +201,7 @@ def given(  # noqa: PLR0913, PLR0917
         :func:`when`: Define action steps.
         :func:`then`: Define assertion steps.
         :func:`step`: Define liberal steps matching any keyword.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.context,
@@ -227,7 +229,8 @@ def when(  # noqa: PLR0913, PLR0917
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Define a When step that describes an action or event in a scenario.
+    """
+    Define a When step that describes an action or event in a scenario.
 
     When steps represent the action or event that triggers the behavior
     being tested. They typically interact with the system under test —
@@ -285,6 +288,7 @@ def when(  # noqa: PLR0913, PLR0917
         :func:`given`: Define precondition steps.
         :func:`then`: Define assertion steps.
         :func:`step`: Define liberal steps matching any keyword.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.action,
@@ -312,7 +316,8 @@ def then(  # noqa: PLR0913, PLR0917
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Define a Then step that asserts expected outcomes in a scenario.
+    """
+    Define a Then step that asserts expected outcomes in a scenario.
 
     Then steps verify the results of the action performed in When steps.
     They contain assertions about system state, UI elements, API
@@ -368,6 +373,7 @@ def then(  # noqa: PLR0913, PLR0917
         :func:`given`: Define precondition steps.
         :func:`when`: Define action steps.
         :func:`step`: Define liberal steps matching any keyword.
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.outcome,
@@ -395,7 +401,8 @@ def step(  # noqa: PLR0913, PLR0917
     liberal: bool | None = None,
     stacklevel: int = 1,
 ) -> StepDecorator:
-    """Define a liberal step that can match any Gherkin keyword (Given/When/Then).
+    """
+    Define a liberal step that can match any Gherkin keyword (Given/When/Then).
 
     Liberal steps are registered with ``PickleStepType.unknown`` and
     can match scenario steps regardless of their keyword. This is
@@ -471,6 +478,7 @@ def step(  # noqa: PLR0913, PLR0917
         :func:`given`: Define precondition steps (PickleStepType.context).
         :func:`when`: Define action steps (PickleStepType.action).
         :func:`then`: Define assertion steps (PickleStepType.outcome).
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.unknown,
