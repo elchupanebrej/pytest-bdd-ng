@@ -97,7 +97,7 @@ Plans:
   3. Parser edge cases tested (parsers not modified — tests only, behavior freeze respected)
   4. All `# pragma: no cover` instances in production code are either justified or removed
   5. No test uses pickle-based patterns in production code paths
-**Plans**: TBD
+**Plans**: 4 plans
 
 ### Phase 6: Integration Testing
 **Goal**: Contract-level integration tests for step matching priority and scenario execution lifecycle edge cases
@@ -109,7 +109,11 @@ Plans:
   3. Edge cases covered: empty scenarios, malformed Gherkin, unicode, data tables, docstrings
   4. Gherkin keyword edge case tests pass: escaped pipes, table escaping, comments in tables
   5. xdist parallel execution tests pass for all integration scenarios (`-n 2` minimum)
-**Plans**: TBD
+**Plans**: 6 plans
+  - [x] 06-01-PLAN.md — Step matching priority contract tests
+  - [x] 06-02-PLAN.md — Scenario execution lifecycle & edge cases
+  - [x] 06-03-PLAN.md — Run access, error reporting & failure paths
+  - [x] 06-04-PLAN.md — Parallel execution (xdist) integration
 
 ### Phase 7: Documentation
 **Goal**: Complete public API reference, developer guide, and user migration path
@@ -121,7 +125,12 @@ Plans:
   3. Migration guide documents all breaking differences from pytest-bdd (original): fixture injection, hooks, configuration, CLI flags
   4. `DEPRECATIONS.md` lists all deprecated features with replacement paths and timeline
   5. No undocumented public function remains in `__all__` export list
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 07-01-PLAN.md — Sphinx setup + docstring verification test scaffolds
+- [ ] 07-02-PLAN.md — Comprehensive Google-style docstrings for all 8 public API exports
+- [ ] 07-03-PLAN.md — Comprehensive DEVELOPMENT.rst rewrite with architecture, patterns, testing
+- [ ] 07-04-PLAN.md — Migration guide + DEPRECATIONS.md + docs toctree wiring
 
 ### Phase 8: BDD Acceptance Testing
 **Goal**: Executable BDD feature tests cover previously undocumented behaviors and edge cases
@@ -178,8 +187,8 @@ Plans:
 | 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
 | 3. Core Runtime Refactor | 0/3 | Planned | - |
 | 4. Plugin Refactoring | 6/6 | Complete | 2026-05-14 |
-| 5. Unit Test Fortification | 0/TBD | Not started | - |
-| 6. Integration Testing | 0/TBD | Not started | - |
+| 5. Unit Test Fortification | 4/4 | Planned | - |
+| 6. Integration Testing | 0/4 | Planned | - |
 | 7. Documentation | 0/TBD | Not started | - |
 | 8. BDD Acceptance Testing | 0/TBD | Not started | - |
 | 9. Compatibility Streamlining | 0/TBD | Not started | - |
