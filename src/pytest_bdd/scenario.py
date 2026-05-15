@@ -63,7 +63,50 @@ test_names = get_python_name_generator("")
 
 
 class FeaturePathType(Enum):
-    """Represent feature path type state."""
+    """Controls how non-absolute feature paths are resolved during loading.
+
+    This enum determines whether relative paths are treated as filesystem
+    paths or HTTP/HTTPS URLs when loading Gherkin feature files.
+
+    Args:
+        value: The string value of the enum member. One of ``"path"``,
+            ``"url"``, or ``"undefined"``.
+
+    Attributes:
+        PATH: Resolve relative paths against the filesystem. Paths are
+            resolved relative to ``features_base_dir`` or the current
+            working directory. This is the default behavior.
+        URL: Treat relative paths as URLs. Features are fetched over
+            HTTP/HTTPS relative to ``features_base_url``.
+        UNDEFINED: Path resolution mode is not explicitly set. The
+            system attempts to auto-detect based on whether
+            ``features_base_dir`` or ``features_base_url`` is provided.
+
+    Example:
+        Using PATH (default)::
+
+            @scenario("features/login.feature", "Successful login")
+            def test_login():
+                pass
+
+        Using URL::
+
+            @scenario(
+                "https://example.com/features/login.feature",
+                "Successful login",
+                features_path_type=FeaturePathType.URL,
+            )
+            def test_login_remote():
+                pass
+
+    See Also:
+        :func:`scenario`: Single scenario loader that uses this enum.
+        :func:`scenarios`: Bulk scenario loader that uses this enum.
+
+    Returns:
+        A ``FeaturePathType`` enum member (``PATH``, ``URL``, or
+        ``UNDEFINED``) representing the path resolution mode.
+    """
 
     PATH = "path"
     URL = "url"
@@ -118,24 +161,93 @@ def scenario(  # noqa: PLR0913, PLR0917
     *,
     return_test_decorator: bool = True,
 ) -> ScenarioDecorator | ScenarioTest:
-    """
-    Scenario decorator.
+    """Load and bind a single Gherkin scenario to a pytest test function.
 
-    :param feature_name: Feature file name. Absolute or relative to the configured feature base path.
-    :param scenario_name: Scenario name.
-    :param encoding: Feature file encoding.
-    :param features_base_dir: Feature base directory from where features will be searched
-    :param features_base_url: Feature base url from where features will be loaded
-    :param features_path_type: If feature path is not absolute helps to select if filepath or url will be used
-    :param features_mimetype: Helps to select appropriate parser if non-standard file extension is used
-    :param parser_type: Parser used to parse feature-like file
-    :param parse_args: args consumed by parser during parsing
-    :param locators: Feature locators to load Features; Could be custom
-    :param return_test_decorator; Return test decorator or generated test
+    Supports file-based and URL-based feature loading, custom parsers,
+    and MIME type detection. Returns either a decorator (default) or
+    a generated test function depending on ``return_test_decorator``.
+
+    When ``return_test_decorator=True`` (default), the result is a
+    decorator that must be applied to a test function. When
+    ``return_test_decorator=False``, a test function is generated
+    directly without requiring a decorator.
+
+    Feature files can be loaded from the filesystem or over HTTP/HTTPS
+    by setting ``features_path_type`` to ``FeaturePathType.PATH`` or
+    ``FeaturePathType.URL`` respectively. Custom parsers can be
+    supplied via ``parser_type`` for non-standard feature file formats.
+
+    Args:
+        feature_name: Absolute or relative path to the feature file.
+            If ``None``, scenarios are loaded from ``feature_paths``
+            via the :func:`scenarios` bulk loader. Accepts ``Path``
+            objects or strings.
+        scenario_name: Exact scenario name to match from the feature
+            file. If ``None``, all scenarios in the feature are bound.
+        encoding: Feature file encoding. Defaults to ``"utf-8"``.
+        features_base_dir: Base directory for resolving relative
+            feature paths. Mutually exclusive with ``features_base_url``.
+        features_base_url: Base URL for loading features over HTTP/HTTPS.
+            Mutually exclusive with ``features_base_dir``.
+        features_path_type: Controls how non-absolute paths are
+            resolved. Use ``FeaturePathType.PATH`` (default) for
+            filesystem paths or ``FeaturePathType.URL`` for HTTP URLs.
+            Can also be passed as a string (``"path"`` or ``"url"``).
+        features_mimetype: Override MIME type detection to select
+            a specific parser. Useful for non-standard file extensions.
+        parser_type: Custom parser class implementing ``ParserProtocol``.
+            Allows loading feature files in custom formats.
+        parse_args: Arguments passed to the parser during feature
+            parsing. An ``Args`` named tuple with ``args`` and
+            ``kwargs`` fields.
+        locators: Custom feature locators for loading features from
+            non-standard sources. An iterable of locator objects.
+        return_test_decorator: If ``True`` (default), returns a
+            decorator to apply to a test function. If ``False``,
+            returns a generated test function directly.
 
     Returns:
-        Scenario decorator or test function.
+        A ``ScenarioDecorator`` when ``return_test_decorator=True``,
+        or a ``ScenarioTest`` function when ``return_test_decorator=False``.
+        The overload signatures provide precise return types based on
+        the ``Literal`` value of ``return_test_decorator``.
 
+    Raises:
+        ValueError: If both ``features_base_dir`` and
+            ``features_base_url`` are specified.
+
+    Example:
+        Basic usage with a feature file::
+
+            from pytest_bdd import scenario
+
+            @scenario("features/login.feature", "Successful login")
+            def test_login():
+                pass
+
+        Loading from a URL::
+
+            from pytest_bdd import scenario, FeaturePathType
+
+            @scenario(
+                "https://example.com/features/login.feature",
+                "Successful login",
+                features_path_type=FeaturePathType.URL,
+            )
+            def test_login_remote():
+                pass
+
+        Generating test function directly::
+
+            test_login = scenario(
+                "features/login.feature",
+                "Successful login",
+                return_test_decorator=False,
+            )
+
+    See Also:
+        :func:`scenarios`: Bulk-load all scenarios from feature files.
+        :class:`FeaturePathType`: Enum for path resolution modes.
     """
     feature_paths = [feature_name] if feature_name is not None else []
     if return_test_decorator:
@@ -218,28 +330,88 @@ def scenarios(  # noqa: PLR0913
     parse_args: Args | None = None,
     locators: Iterable[object] = (),
 ) -> ScenarioDecorator | ScenarioTest:
-    """
-    Bind feature files to pytest runtime.
+    """Bulk-load scenarios from feature files and bind them to pytest test functions.
 
-    :param feature_paths: Features file names. Absolute or relative to the configured feature base path.
-    :param filter_: Callable to filter scenarios
-    :param encoding: Feature file encoding.
-    :param features_base_dir: Feature base directory from where features will be searched
-    :param features_base_url: Feature base url from where features will be loaded
-    :param features_path_type: If feature path is not absolute helps to select if filepath or url will be used
-    :param features_mimetype: Helps to select appropriate parser if non-standard file extension is used
-    :param return_test_decorator; Return test decorator or generated test
-    :param parser_type: Parser used to parse feature-like file
-    :param parse_args: args consumed by parser during parsing
-    :param return_test_decorator; Return test decorator or generated test
-    :param locators: Feature locators to load Features; Could be custom
+    Unlike :func:`scenario`, which loads a single scenario, this function
+    can load multiple scenarios from one or more feature files. It
+    composes a chain of pytest markers (``pytest.mark.pytest_bdd`` and
+    ``pytest.mark.pytest_bdd_scenarios``) that integrate with pytest's
+    collection and execution lifecycle.
+
+    Scenarios can be filtered by name (string) or by a custom callable
+    that receives the pytest config, feature, and scenario objects.
+    The ``filter_`` parameter enables selective scenario binding
+    without modifying feature files.
+
+    When ``return_test_decorator=True``, the result is a decorator to
+    apply to a test function. When ``False`` (default), a generated
+    test function is returned directly.
+
+    Args:
+        feature_paths: Variable number of feature file paths (absolute
+            or relative to ``features_base_dir``). Each path can be a
+            ``Path`` object or a string.
+        filter_: Scenario filter. Can be a string (exact scenario name
+            match), a callable with signature
+            ``(Config, feature, scenario) -> bool``, or ``None`` to
+            include all scenarios.
+        return_test_decorator: If ``True``, returns a decorator to
+            apply to a test function. If ``False`` (default), returns
+            a generated test function directly.
+        encoding: Feature file encoding. Defaults to ``"utf-8"``.
+        features_base_dir: Base directory for resolving relative
+            feature paths. Mutually exclusive with ``features_base_url``.
+        features_base_url: Base URL for loading features over HTTP/HTTPS.
+            Mutually exclusive with ``features_base_dir``.
+        features_path_type: Controls how non-absolute paths are
+            resolved. Use ``FeaturePathType.PATH`` (default) for
+            filesystem paths or ``FeaturePathType.URL`` for HTTP URLs.
+        features_mimetype: Override MIME type detection to select
+            a specific parser. Useful for non-standard file extensions.
+        parser_type: Custom parser class implementing ``ParserProtocol``.
+        parse_args: Arguments passed to the parser during feature
+            parsing. An ``Args`` named tuple with ``args`` and
+            ``kwargs`` fields.
+        locators: Custom feature locators for loading features from
+            non-standard sources. An iterable of locator objects.
 
     Returns:
-        Scenario decorator or test function.
+        A ``ScenarioDecorator`` when ``return_test_decorator=True``,
+        or a ``ScenarioTest`` function when ``return_test_decorator=False``.
+        The overload signatures provide precise return types based on
+        the ``Literal`` value of ``return_test_decorator``.
 
     Raises:
-        ValueError: If both features_base_dir and features_base_url are specified.
+        ValueError: If both ``features_base_dir`` and
+            ``features_base_url`` are specified.
 
+    Example:
+        Bulk-load all scenarios from a feature file::
+
+            from pytest_bdd import scenarios
+
+            @scenarios("features/login.feature")
+            def test_login():
+                pass
+
+        Filter by scenario name::
+
+            @scenarios("features/login.feature", filter_="Successful login")
+            def test_login():
+                pass
+
+        Load from multiple feature files::
+
+            @scenarios(
+                "features/login.feature",
+                "features/logout.feature",
+            )
+            def test_auth():
+                pass
+
+    See Also:
+        :func:`scenario`: Load and bind a single scenario.
+        :class:`FeaturePathType`: Enum for path resolution modes.
     """
     if parse_args is None:
         parse_args = Args((), {})

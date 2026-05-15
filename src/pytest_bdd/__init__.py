@@ -1,4 +1,37 @@
-"""pytest-bdd public API."""
+"""pytest-bdd-ng — BDD testing plugin for pytest.
+
+pytest-bdd-ng brings Behavior-Driven Development to Python testing.
+Users write Gherkin feature files (``.feature`` or ``.feature.md``),
+define step implementations with ``@given``/``@when``/``@then``
+decorators, and get full Cucumber-compatible reporting.
+
+Public API exports (8 items):
+
+- ``scenario``: Load and bind a single Gherkin scenario to a test function.
+- ``scenarios``: Bulk-load scenarios from feature files and bind to test functions.
+- ``given``: Define a Given step (precondition). Lazy-loaded from ``steps``.
+- ``when``: Define a When step (action). Lazy-loaded from ``steps``.
+- ``then``: Define a Then step (assertion). Lazy-loaded from ``steps``.
+- ``step``: Define a liberal step matching any keyword. Lazy-loaded from ``steps``.
+- ``FeaturePathType``: Enum controlling feature path resolution (PATH/URL/UNDEFINED).
+- ``PytestBDDStepDefinitionWarning``: Warning for ambiguous step definitions.
+
+For Sphinx autodoc::
+
+    .. autofunction:: pytest_bdd.scenario
+    .. autofunction:: pytest_bdd.scenarios
+    .. autoclass:: pytest_bdd.FeaturePathType
+    .. autofunction:: pytest_bdd.steps.given
+    .. autofunction:: pytest_bdd.steps.when
+    .. autofunction:: pytest_bdd.steps.then
+    .. autofunction:: pytest_bdd.steps.step
+    .. autoclass:: pytest_bdd.PytestBDDStepDefinitionWarning
+
+Note: ``given``, ``when``, ``then``, ``step``, and
+``PytestBDDStepDefinitionWarning`` are lazy-loaded via ``__getattr__``
+(PEP 562) to avoid import overhead. Their docstrings are defined in
+the source modules (``steps.py``, ``types/warning.py``).
+"""
 
 from __future__ import annotations
 
