@@ -344,22 +344,13 @@ doc-gen = [
 | A3 | `help(pytest_bdd.given)` may not resolve docstring due to lazy loading | Pitfall 3 | MEDIUM — if it does resolve, less concern needed |
 | A4 | Original pytest-bdd hook signatures use `(request, feature, scenario)` | Migration context | LOW — verified against pytest-bdd 8.1.0 docs |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should MIGRATION.md be RST or Markdown?**
-   - What we know: D-13 says "Manual RST for guides". D-14 says "Existing docs/ structure preserved — new docs added alongside generated feature docs."
-   - What's unclear: DEPRECATIONS.md is explicitly `.md` (Markdown). Should migration guide also be `.md` at repo root, or `.rst` under `docs/`?
-   - Recommendation: Use `MIGRATION.md` at repo root (consistent with DEPRECATIONS.md), add to `docs/include.rst` toctree via `.. include:: ../MIGRATION.md` or convert to RST.
+1. **Should MIGRATION.md be RST or Markdown?** RESOLVED: Use `MIGRATION.md` at repo root (consistent with DEPRECATIONS.md). D-13's "RST for guides" refers to DEVELOPMENT.rst; migration and deprecation docs are standalone references better served by Markdown. Add to `docs/include.rst` toctree via `.. include:: ../MIGRATION.md`.
 
-2. **Should `__init__.py` docstrings be module-level or on individual exports?**
-   - What we know: Exports are re-exported from `scenario.py` and `steps.py`. `__init__.py` currently has only `"""pytest-bdd public API."""`
-   - What's unclear: Should docstrings be duplicated in `__init__.py` or should Sphinx autodoc reference the source modules?
-   - Recommendation: Docstrings live on actual definitions in `scenario.py`/`steps.py`. `__init__.py` gets a module-level docstring listing all exports with brief descriptions and `.. autofunction::` directives for Sphinx.
+2. **Should `__init__.py` docstrings be module-level or on individual exports?** RESOLVED: Docstrings live on actual definitions in `scenario.py`/`steps.py`. `__init__.py` gets a module-level docstring listing all exports with brief descriptions. Sphinx autodoc follows the import chain to source modules.
 
-3. **Does the `doc-gen` extra need `sphinx-autodoc2` or similar for better autodoc?**
-   - What we know: Standard `sphinx.ext.autodoc` works for this use case.
-   - What's unclear: Whether the project needs advanced autodoc features.
-   - Recommendation: Start with standard autodoc + napoleon. Add extensions only if needed.
+3. **Does the `doc-gen` extra need `sphinx-autodoc2` or similar for better autodoc?** RESOLVED: Start with standard `sphinx.ext.autodoc` + `sphinx.ext.napoleon`. No advanced autodoc extensions needed for this phase.
 
 ## Environment Availability
 
