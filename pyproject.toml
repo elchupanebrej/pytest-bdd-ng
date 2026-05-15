@@ -239,6 +239,7 @@ markers = [
   "deficient: mark test with non-full coverage",
   "docker: mark tests that require Docker-backed environments",
   "instant: smallest in-process tests",
+  "doc: documentation verification tests",
   "unit: fast in-memory unit tests for core modules",
   "fast: normal fast tests",
   "medium: moderate integration tests",
