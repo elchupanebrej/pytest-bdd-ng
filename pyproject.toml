@@ -2,6 +2,11 @@
 build-backend = "setuptools.build_meta"
 requires = ["setuptools", "wheel"]
 
+[dependency-groups]
+dev = [
+  "pytest-cov>=7.1.0"
+]
+
 [project]
 authors = [
   {name = "Oleg Pidsadnyi", email = "oleg.pidsadnyi@gmail.com"},
@@ -112,7 +117,8 @@ doc-gen = [
   'pandoc',
   'panflute',
   'pathlib2',
-  'pypandoc'
+  'pypandoc',
+  'sphinx>=7.0'
 ]
 full = [
   "pytest-bdd-ng[async]",
@@ -233,6 +239,7 @@ markers = [
   "deficient: mark test with non-full coverage",
   "docker: mark tests that require Docker-backed environments",
   "instant: smallest in-process tests",
+  "unit: fast in-memory unit tests for core modules",
   "fast: normal fast tests",
   "medium: moderate integration tests",
   "slow: expensive local tests",
