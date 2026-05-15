@@ -11,3 +11,5 @@
 .. include:: ../AUTHORS.rst
 .. include:: ../LICENSE.rst
 .. include:: ../CHANGES.rst
+.. include:: ../DEPRECATIONS.md
+.. include:: ../MIGRATION.md
