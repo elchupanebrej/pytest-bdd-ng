@@ -142,7 +142,16 @@ Plans:
   3. Step definitions in `tests/e2e/conftest.py` cover all new feature scenarios
   4. BDD test suite runs via `python -m pytest tests/e2e/` with zero failures
   5. Generated documentation from `.feature.md` files (`docs/features/`) is up to date
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+- [ ] 08-01-PLAN.md — Audit 47 existing feature files + propose gap list (D-02, D-11)
+- [ ] 08-02-PLAN.md — Create step definition stubs for 8a core topics (Go parser, tags, heading, mimetype, struct_bdd)
+- [ ] 08-03-PLAN.md — Create .feature.md files for 8a core topics
+- [ ] 08-04-PLAN.md — Create step definition stubs for 8b formatters (junit, progress, snippets, summary, usage)
+- [ ] 08-05-PLAN.md — Create .feature.md files for 8b formatters
+- [ ] 08-06-PLAN.md — Create step definition stubs for 8c plugins (code_generator, scenario_reporter, compatibility, batch)
+- [ ] 08-07-PLAN.md — Create .feature.md files for 8c plugins
+- [ ] 08-08-PLAN.md — Full test suite run, ensure zero failures (D-15)
 
 ### Phase 9: Compatibility Streamlining
 **Goal**: Remove dead Python 2 shims and legacy dependencies; consolidate remaining compatibility layer
