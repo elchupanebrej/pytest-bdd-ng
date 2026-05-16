@@ -164,7 +164,7 @@ Plans:
   4. Full test suite passes across Python 3.10-3.14 matrix after dependency removal
 **Plans**: 2 plans
 Plans:
-- [ ] 09-01-PLAN.md — Remove pathlib2/docopt-ng deps, delete git.py/jsonschema.py, update consumers
+- [x] 09-01-PLAN.md — Remove pathlib2/docopt-ng deps, delete git.py/jsonschema.py, update consumers
 - [ ] 09-02-PLAN.md — Split matrix.py into runtime_compat.py + util/matrix.py, update all imports
 
 ### Phase 10: Pattern Unification

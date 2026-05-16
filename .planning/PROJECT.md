@@ -37,7 +37,7 @@ A pytest plugin that brings BDD (Behavior-Driven Development) to Python testing.
 - [ ] **REF-01**: Split `scenario_run.py` (1422 lines) into separate modules (Run, ScenarioRun, FeatureRuntimeBinding)
 - [ ] **REF-02**: Refactor code generator plugin into class-based pattern matching other plugins
 - [ ] **REF-03**: Reduce other large files (>400 lines) where practical
-- [ ] **SIM-01**: Streamline compatibility layer — remove dead shims, consolidate
+- [x] **SIM-01**: Streamline compatibility layer — remove dead shims, consolidate (09-01: pathlib2/docopt-ng/git.py/jsonschema.py removed)
 - [ ] **SIM-02**: Unify programming approaches across plugins (consistent patterns)
 - [ ] **SIM-03**: Audit and prune underused plugin/utility modules
 - [ ] **TEST-01**: Improve unit test coverage for core modules (scenario_run, steps, parsers)
