@@ -1,15 +1,8 @@
-"""
-Converts directory tree containing Gherkin files into a tree which would be included into rst files.
-
-Usage:
-    bdd_tree_to_rst.py [--snapshot=<snapshot_path>] <features_dir> <output_dir>
-
-Options:
-    --snapshot=<snapshot_path> Path to save snapshot on found diff between old and new documentation
-"""
+"""Converts directory tree containing Gherkin files into a tree which would be included into rst files."""
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from collections import deque
@@ -17,15 +10,14 @@ from filecmp import dircmp
 from functools import lru_cache, reduce
 from operator import truediv
 from os.path import commonpath
+from pathlib import Path
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pypandoc  # type: ignore[import-not-found, import-untyped]
 from attrs import frozen
-from docopt import docopt
 from jinja2 import Environment, Template
-from pathlib2 import Path  # type: ignore[import-not-found, import-untyped]
 from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.importlib.resources import files
@@ -313,7 +305,7 @@ def format_scope_path(scope_rel_path: Path) -> Path:
 
     """
     if scope_rel_path.as_posix() == ".":
-        return Path(".")
+        return Path()
     return scope_rel_path
 
 
@@ -537,15 +529,22 @@ def main() -> None:  # pragma: no cover
         ValueError: If the operation cannot be completed.
 
     """
-    arguments = docopt(__doc__)
+    parser = argparse.ArgumentParser(
+        description="Convert Gherkin feature file directory tree to RST.",
+    )
+    parser.add_argument("features_dir", help="Path to features directory")
+    parser.add_argument("output_dir", help="Output directory for RST files")
+    parser.add_argument("--snapshot", help="Path to save snapshot on found diff between old and new documentation")
+    args = parser.parse_args()
+
     ensure_pandoc_installed()
-    features_dir = Path(arguments["<features_dir>"]).resolve()
+    features_dir = Path(args.features_dir).resolve()
     if not features_dir.exists() or not features_dir.is_dir():
         msg = f"Wrong input features directory {features_dir} is provided"
         raise ValueError(msg)
-    output_dir = Path(arguments["<output_dir>"]).resolve()
+    output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_dir = Path(p) if (p := arguments.get("--snapshot")) else None
+    snapshot_dir = Path(p) if (p := args.snapshot) else None
 
     with TemporaryDirectory() as temp_dirname:
         temp_dir = Path(temp_dirname)
