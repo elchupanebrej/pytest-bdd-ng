@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, NamedTuple
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+from .plugin_patterns import check_plugin_patterns as _check_plugin_patterns
+
 DEFAULT_PATH = Path("src/pytest_bdd")
 RETURN_NONE_MESSAGE = (
     "BLQ901: `return None` in non-hook function - use `Nothing` (Maybe) or `Failure(reason)` (Result) instead"
@@ -180,6 +182,11 @@ def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     paths = [Path(arg) for arg in args] if args else [DEFAULT_PATH]
     violations = check_paths(paths)
+
+    plugin_root = Path("src/pytest_bdd/plugin")
+    if plugin_root.is_dir():
+        violations.extend(_check_plugin_patterns(plugin_root))
+
     for violation in violations:
         sys.stdout.write(f"{violation.path}:{violation.line}: {violation.message}\n")
     return 1 if violations else 0
