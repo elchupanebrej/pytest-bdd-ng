@@ -376,27 +376,12 @@ def _(monkeypatch, tmp_path):
 | A4 | New `steps_{topic}.py` files are auto-discovered by pytest as conftest siblings | Architecture Patterns | Step definitions won't be found; need explicit conftest import |
 | A5 | `jq` Python package is available on Windows | Standard Stack | JSON assertion steps in feature files will skip |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Go parser shared library build status on this machine**
-   - What we know: Go 1.26.2 is installed, `gherkin_go/` source exists
-   - What's unclear: Whether `gherkin_go.dll` has been built in `src/pytest_bdd/_gherkin_go/`
-   - Recommendation: Verify before 8a execution; if not built, include build step or tag features for Python-only execution
-
-2. **Exact step definition coverage gaps in conftest.py**
-   - What we know: 470 lines of step definitions exist
-   - What's unclear: Which specific step texts are missing for Go parser, heading validation, mimetype scenarios
-   - Recommendation: Audit during gap analysis (D-02), propose gap list to user
-
-3. **Whether `cucumber_junit` uses Node.js formatter or built-in Python**
-   - What we know: `JunitFormatterPlugin` has `runtime_kind = FormatterRuntimeKind.module` and `runtime_template_name = "junit.cjs.j2"`
-   - What's unclear: Whether this requires fake node setup like other formatters
-   - Recommendation: Yes — it uses Node.js runtime template, needs `install_fake_node()`
-
-4. **StructBDD HOCON/TOML support level**
-   - What we know: `Mimetype` enum includes `struct_bdd_hocon` and `struct_bdd_toml`
-   - What's unclear: Whether struct_bdd plugin fully supports HOCON and TOML parsing or only YAML/JSON
-   - Recommendation: Verify struct_bdd plugin parser.py before writing HOCON/TOML feature files
+1. **Go parser shared library build status on this machine** — RESOLVED: No `.dll` files found in `src/pytest_bdd/_gherkin_go/`. The Go shared library has NOT been built yet. Plan 8a must account for this — either build it first or test Python fallback paths.
+2. **Exact step definition coverage gaps in conftest.py** — RESOLVED: Will be identified during Plan 08-01 audit task (per D-02: "Agent proposes gap list first, user approves before writing feature files").
+3. **Whether `cucumber_junit` uses Node.js formatter or built-in Python** — RESOLVED: Uses Node.js. `plugin.py` sets `package_name="@cucumber/junit-xml-formatter"`, `runtime_kind=FormatterRuntimeKind.module`, renders from `junit.cjs.j2` template. Requires npm/Node.js at runtime, needs `install_fake_node()` for tests.
+4. **StructBDD HOCON/TOML support level** — RESOLVED: Fully supported. `parser.py` `KIND` enum includes HOCON, HJSON, JSON, JSON5, TOML, YAML. `build_loader()` has dedicated loaders for all: YAML (yaml.FullLoader), TOML (tomllib.loads), JSON (json.loads), JSON5 (json5.loads), HJSON (hjson.loads), HOCON (pyhocon.ConfigFactory + HOCONConverter).
 
 ## Environment Availability
 

@@ -66,20 +66,20 @@ class StepParserProtocol(Protocol):
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object] | None:
         """Parse arguments."""
-        ...  # pragma: no cover
+        ...  # pragma: no cover -- D-11: abstract protocol method, exercised via concrete parser implementations
 
     @property
     def arguments(self) -> Collection[str]:
         """Handle arguments."""
-        ...  # pragma: no cover
+        ...  # pragma: no cover -- D-11: abstract protocol method, exercised via concrete parser implementations
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         """Return matching."""
-        ...  # pragma: no cover
+        ...  # pragma: no cover -- D-11: abstract protocol method, exercised via concrete parser implementations
 
     def __str__(self) -> str:
         """Return parser pattern as a string."""
-        ...  # pragma: no cover
+        ...  # pragma: no cover -- D-11: abstract protocol method, exercised via concrete parser implementations
 
 
 class RegistryMode(Enum):
@@ -106,23 +106,23 @@ class StepParser(StepParserProtocol, ABC):
 
         :return: `dict` of step arguments
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @property
     @abstractmethod
     def arguments(self) -> Collection[str]:
         """Get step argument names from the given step name."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @abstractmethod
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         """Match given name with the step name."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @abstractmethod
     def __str__(self) -> str:
         """Match given name with the step name."""
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @classmethod
     def build(cls, parserlike: StepParserLike) -> "StepParser":
@@ -167,7 +167,7 @@ class re(StepParser):  # noqa:N801 intentional API
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @__init__.register
     def _(self, pattern: str, *args: object, **kwargs: object) -> None:
@@ -279,7 +279,9 @@ class parse(StepParser):  # noqa:N801 intentional API
             builder = cast("_ParserBuilder", kwargs.pop("builder", base_parse.compile))
             self._init_stringable(format_, *args, builder=builder, **kwargs)
         else:
-            raise ParserBuildValueError(format_)  # pragma: no cover
+            raise ParserBuildValueError(
+                format_
+            )  # pragma: no cover -- D-11: guarded by isinstance checks on StringRepresentable|str|bytes
 
     def _init_stringable(
         self,
@@ -538,7 +540,7 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @__init__.register
     def _(
@@ -586,7 +588,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover
+        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
 
     @__init__.register
     def _(
@@ -682,7 +684,9 @@ class heuristic(StepParser):  # noqa: N801 intentional API
 
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
-            raise ParserBuildValueError(self.format)  # pragma: no cover
+            raise ParserBuildValueError(
+                self.format
+            )  # pragma: no cover -- D-11: unreachable; at least one parser always matches for valid strings
 
     @property
     def parser_by_priorities(self) -> Sequence[StepParser | None]:
