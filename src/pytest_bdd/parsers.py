@@ -280,7 +280,7 @@ class parse(StepParser):  # noqa:N801 intentional API
             self._init_stringable(format_, *args, builder=builder, **kwargs)
         else:
             raise ParserBuildValueError(
-                format_
+                format_,
             )  # pragma: no cover -- D-11: guarded by isinstance checks on StringRepresentable|str|bytes
 
     def _init_stringable(
@@ -685,7 +685,7 @@ class heuristic(StepParser):  # noqa: N801 intentional API
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
             raise ParserBuildValueError(
-                self.format
+                self.format,
             )  # pragma: no cover -- D-11: unreachable; at least one parser always matches for valid strings
 
     @property
