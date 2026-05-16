@@ -165,7 +165,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 09-01-PLAN.md — Remove pathlib2/docopt-ng deps, delete git.py/jsonschema.py, update consumers
-- [ ] 09-02-PLAN.md — Split matrix.py into runtime_compat.py + util/matrix.py, update all imports
+- [x] 09-02-PLAN.md — Split matrix.py into runtime_compat.py + util/matrix.py, update all imports
 
 ### Phase 10: Pattern Unification
 **Goal**: Consistent programming patterns across all plugins and core modules — no cross-plugin imports, uniform StashBound usage
