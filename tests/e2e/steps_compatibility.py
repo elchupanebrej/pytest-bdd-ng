@@ -1,8 +1,8 @@
 import sys
 
 import pytest
-from pytest_bdd import given, parsers, then
 
+from pytest_bdd import given, parsers, then
 from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.pytest import Expression
 
@@ -15,14 +15,15 @@ def python_version_is(version):
 
 
 @then("Pytest version compatibility holds")
-def pytest_version_compatibility_holds():
+def _pytest_version_compatibility_holds():
     import pytest as pt
+
     major = int(pt.__version__.split(".")[0])
     assert major >= 7
 
 
 @given(parsers.parse("Pytest mark expression is {expression}"))
-def pytest_mark_expression_is(expression):
+def _pytest_mark_expression_is(expression):
     return Expression.compile(expression)
 
 
@@ -30,6 +31,7 @@ def pytest_mark_expression_is(expression):
 def strenum_behavior_is_consistent():
     class TestEnum(StrEnum):
         A = "a"
+
     assert TestEnum.A == "a"
     assert TestEnum.A.value == "a"
     assert isinstance(TestEnum.A, str)

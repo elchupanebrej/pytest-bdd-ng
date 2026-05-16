@@ -22,8 +22,8 @@
 
 ## Scenario: Parse HOCON StructBDD file
 * Given StructBDD format is hocon
-* When run pytest with StructBDD feature
-    | cli_args | -k | test_hocon.py |
+* When run pytest
+    | cli_args | test_hocon.py |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
@@ -31,8 +31,8 @@
 
 ## Scenario: Parse TOML StructBDD file
 * Given StructBDD format is toml
-* When run pytest with StructBDD feature
-    | cli_args | -k | test_toml.py |
+* When run pytest
+    | cli_args | test_toml.py |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|

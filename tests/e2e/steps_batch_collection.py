@@ -1,10 +1,12 @@
 from pytest_bdd import given, parsers, step, then
+from tests.e2e.conftest import data_table_to_dicts
 
 
 @step("run pytest with batch collection", target_fixture="pytest_result")
-def run_pytest_with_batch_collection(testdir, cli_args):
-    # Expect cli_args to be passed from the feature file via a data table or similar,
-    # or just use default
+def run_pytest_with_batch_collection(testdir, step):
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    options_dict = data_table_to_dicts(data_table)
+    cli_args = list(options_dict.get("cli_args", []))
     return testdir.runpytest_inprocess(*cli_args)
 
 

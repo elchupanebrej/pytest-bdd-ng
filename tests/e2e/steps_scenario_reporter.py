@@ -1,11 +1,16 @@
-import pytest
 from pytest_bdd import given, step, then
 
 
 @step("run pytest with scenario reporter", target_fixture="pytest_result")
-def run_pytest_scenario_reporter(testdir, feature_file):
-    # Depending on how the scenario reporter is enabled
-    return testdir.runpytest_inprocess("-v", str(feature_file))
+def run_pytest_scenario_reporter(testdir, request):
+    try:
+        feature_file = request.getfixturevalue("feature_file")
+        return testdir.runpytest_inprocess("-v", str(feature_file))
+    except LookupError:
+        feature_files = list(testdir.tmpdir.join("*.feature.md").listdir())
+        if feature_files:
+            return testdir.runpytest_inprocess("-v", str(feature_files[0]))
+        return testdir.runpytest_inprocess("-v")
 
 
 @then("Scenario reporter outputs scenario name")
@@ -28,7 +33,10 @@ def attach_data(request):
     # Mock attachment if necessary, or call actual attach
     pass
 """)
-    return testdir.makefile(".feature.md", attachment="""# Feature: Attach
+    return testdir.makefile(
+        ".feature.md",
+        attachment="""# Feature: Attach
 ## Scenario: With attach
 Given I attach data
-""")
+""",
+    )

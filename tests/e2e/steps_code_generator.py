@@ -3,9 +3,14 @@ from pytest_bdd import given, parsers, step, then
 
 @step("run pytest with code generator", target_fixture="pytest_result")
 def run_pytest_code_generator(testdir, request):
-    # the task action asks for --generate pointing to feature file
-    feature_file = request.getfixturevalue("feature_file")
-    return testdir.runpytest_inprocess("--generate", "--features", str(feature_file))
+    try:
+        feature_file = request.getfixturevalue("feature_file")
+        return testdir.runpytest_inprocess("--generate", "--features", str(feature_file))
+    except LookupError:
+        feature_files = list(testdir.tmpdir.join("*.feature.md").listdir())
+        if feature_files:
+            return testdir.runpytest_inprocess("--generate", "--features", str(feature_files[0]))
+        return testdir.runpytest_inprocess("--generate")
 
 
 @then(parsers.parse("Generated code contains {pattern}"))
@@ -21,7 +26,10 @@ def generated_code_is_printed(pytest_result):
 
 @given("Feature file with undefined steps", target_fixture="feature_file")
 def feature_file_with_undefined_steps(testdir):
-    return testdir.makefile(".feature.md", undefined="""# Feature: Undefined
+    return testdir.makefile(
+        ".feature.md",
+        undefined="""# Feature: Undefined
 ## Scenario: Missing steps
 Given this step does not exist
-""")
+""",
+    )

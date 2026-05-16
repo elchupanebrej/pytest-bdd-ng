@@ -99,6 +99,7 @@ StructBDD
     :maxdepth: 2
 
     06 StructBDD/01 Steps.feature
+    06 StructBDD/02 StructBDD edge cases.feature
 
 Report
 ------
@@ -121,5 +122,72 @@ Allure
 
     07 Report/06 Allure/01 scenario
     07 Report/06 Allure/02 outline
+
+Go Parser
+---------
+.. toctree::
+    :maxdepth: 2
+
+    08 Go Parser/01 Go parser backend.feature
+
+Tag Expressions
+---------------
+.. toctree::
+    :maxdepth: 2
+
+    09 Tag Expressions/01 Tag expression evaluation.feature
+
+Heading Validation
+------------------
+.. toctree::
+    :maxdepth: 2
+
+    10 Heading Validation/01 Heading validation.feature
+
+Mimetype
+--------
+.. toctree::
+    :maxdepth: 2
+
+    11 Mimetype/01 Mimetype detection.feature
+
+Formatters
+----------
+.. toctree::
+    :maxdepth: 2
+
+    12 Formatters/01 JUnit XML reporter.feature
+    12 Formatters/02 Progress formatters.feature
+    12 Formatters/03 Snippets formatter.feature
+    12 Formatters/04 Summary formatter.feature
+    12 Formatters/05 Usage statistics.feature
+
+Code Generator
+--------------
+.. toctree::
+    :maxdepth: 2
+
+    13 Code Generator/01 Code generation.feature
+
+Scenario Reporter
+-----------------
+.. toctree::
+    :maxdepth: 2
+
+    14 Scenario Reporter/01 Scenario reporting.feature
+
+Compatibility
+-------------
+.. toctree::
+    :maxdepth: 2
+
+    15 Compatibility/01 Python version compatibility.feature
+
+Batch Collection
+----------------
+.. toctree::
+    :maxdepth: 2
+
+    16 Batch Collection/01 Batch collection edge cases.feature
 
 .. END AUTO-GENERATED FEATURES TREE

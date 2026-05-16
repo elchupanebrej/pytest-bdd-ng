@@ -80,11 +80,26 @@ class StructBDDPlugin:
 
     @staticmethod
     def _get_mimetype(path: Path) -> Mimetype:
+        suffixes = path.suffixes
+        if any(map(partial(contains, struct_bdd_suffixes), suffixes)):
+            last = suffixes[-1].lower()
+            ext_to_mime = {
+                ".yaml": Mimetype.struct_bdd_yaml,
+                ".yml": Mimetype.struct_bdd_yaml,
+                ".hocon": Mimetype.struct_bdd_hocon,
+                ".json5": Mimetype.struct_bdd_json5,
+                ".json": Mimetype.struct_bdd_json,
+                ".hjson": Mimetype.struct_bdd_hjson,
+                ".toml": Mimetype.struct_bdd_toml,
+                ".bdd": Mimetype.struct_bdd_yaml,
+            }
+            if last in ext_to_mime:
+                return ext_to_mime[last]
         mimetype_string, _encoding = mimetypes.guess_type(path)
         if mimetype_string is None:
             raise ValueError
         mimetype = Mimetype(mimetype_string)
-        if any(map(partial(contains, struct_bdd_suffixes), path.suffixes)):
+        if any(map(partial(contains, struct_bdd_suffixes), suffixes)):
             try:
                 return {
                     Mimetype.yaml: Mimetype.struct_bdd_yaml,

@@ -134,6 +134,15 @@ def run_pytest_via_real_entrypoint(
     """Run pytest via real entrypoint."""
     repo_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
+    # Strip fake node environment from previous test steps (#3213)
+    capture_dir = env.pop("PYTEST_BDD_FAKE_NODE_CAPTURE_DIR", None)
+    if capture_dir:
+        fake_bin = Path(capture_dir).parent / "fake-node-bin"
+        env["PATH"] = os.pathsep.join(
+            p for p in env["PATH"].split(os.pathsep) if Path(p).resolve() != fake_bin.resolve()
+        )
+    env.pop("NODE_PATH", None)
+    env.pop("FAKE_GLOBAL_NODE_MODULES_ROOT", None)
     for key in tuple(env):
         if key.startswith("PYTEST_") and not key.startswith("PYTEST_BDD_"):
             env.pop(key, None)

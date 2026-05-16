@@ -1,6 +1,6 @@
 import pytest
-from pytest_bdd import given, step, then
 
+from pytest_bdd import given, step, then
 from pytest_bdd._gherkin_go._bridge import gherkin_go_available, gherkin_go_version
 
 
