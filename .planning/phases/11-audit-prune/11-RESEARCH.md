@@ -272,20 +272,14 @@ Select-String -Path "src/pytest_bdd/**/*.py","tests/**/*.py" -Pattern "from.*mod
 
 ## Open Questions
 
-1. **Should `feature_locator.py` be removed or kept for future use?**
-   - What we know: Zero imports in src or tests. 292 lines. Defines `FeatureLocatorArgs`, `FileLocatorResult`.
-   - What's unclear: Was this module created for a planned feature that was deferred? Is there external documentation referencing it?
-   - Recommendation: Remove with git commit that can be reverted if needed. Document removal in audit report.
+1. **Should `feature_locator.py` be removed or kept for future use?** (RESOLVED)
+   - Decision: Remove — zero imports, 292 lines, no consumers. Plan 01 covers removal.
 
-2. **Should `util/toolz_test.py` be moved to `tests/`?**
-   - What we know: Used by 4 test files. Lives in `src/` but is a test utility.
-   - What's unclear: Is there a reason it's in `src/` rather than `tests/`? (Perhaps for testdir-based tests that install the package?)
-   - Recommendation: Keep in `src/` for now — testdir-based tests need it importable from installed package. Document justification.
+2. **Should `util/toolz_test.py` be moved to `tests/`?** (RESOLVED)
+   - Decision: Keep in `src/` — testdir-based tests need it importable from installed package.
 
-3. **CI matrix: which environments are expected to fail on Windows?**
-   - What we know: tox.ini has platform filters (`lin: linux`, `mac: darwin`, `win: win32`). Some envs are linux/mac only.
-   - What's unclear: Exact subset of envs that run on Windows vs. all platforms.
-   - Recommendation: Run `tox --listenvs` and filter by platform to determine Windows-specific matrix.
+3. **CI matrix: which environments are expected to fail on Windows?** (RESOLVED)
+   - Decision: Plan 05 validates CI matrix config; executor runs `tox --listenvs` to determine Windows-specific subset.
 
 ## Environment Availability
 
