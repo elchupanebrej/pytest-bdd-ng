@@ -144,14 +144,14 @@ Plans:
   5. Generated documentation from `.feature.md` files (`docs/features/`) is up to date
 **Plans**: 8 plans
 Plans:
-- [ ] 08-01-PLAN.md — Audit 47 existing feature files + propose gap list (D-02, D-11)
-- [ ] 08-02-PLAN.md — Create step definition stubs for 8a core topics (Go parser, tags, heading, mimetype, struct_bdd)
-- [ ] 08-03-PLAN.md — Create .feature.md files for 8a core topics
-- [ ] 08-04-PLAN.md — Create step definition stubs for 8b formatters (junit, progress, snippets, summary, usage)
-- [ ] 08-05-PLAN.md — Create .feature.md files for 8b formatters
-- [ ] 08-06-PLAN.md — Create step definition stubs for 8c plugins (code_generator, scenario_reporter, compatibility, batch)
-- [ ] 08-07-PLAN.md — Create .feature.md files for 8c plugins
-- [ ] 08-08-PLAN.md — Full test suite run, ensure zero failures (D-15)
+- [x] 08-01-PLAN.md — Audit 47 existing feature files + propose gap list (D-02, D-11)
+- [x] 08-02-PLAN.md — Create step definition stubs for 8a core topics (Go parser, tags, heading, mimetype, struct_bdd)
+- [x] 08-03-PLAN.md — Create .feature.md files for 8a core topics
+- [x] 08-04-PLAN.md — Create step definition stubs for 8b formatters (junit, progress, snippets, summary, usage)
+- [x] 08-05-PLAN.md — Create .feature.md files for 8b formatters
+- [x] 08-06-PLAN.md — Create step definition stubs for 8c plugins (code_generator, scenario_reporter, compatibility, batch)
+- [x] 08-07-PLAN.md — Create .feature.md files for 8c plugins
+- [x] 08-08-PLAN.md — Full test suite run, ensure zero failures (D-15)
 
 ### Phase 9: Compatibility Streamlining
 **Goal**: Remove dead Python 2 shims and legacy dependencies; consolidate remaining compatibility layer
@@ -162,7 +162,10 @@ Plans:
   2. `docopt-ng` dependency removed (replaced with stdlib `argparse` or removed if unused)
   3. All legacy Python 2 compatibility shims and conditional imports removed
   4. Full test suite passes across Python 3.10-3.14 matrix after dependency removal
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — Remove pathlib2/docopt-ng deps, delete git.py/jsonschema.py, update consumers
+- [ ] 09-02-PLAN.md — Split matrix.py into runtime_compat.py + util/matrix.py, update all imports
 
 ### Phase 10: Pattern Unification
 **Goal**: Consistent programming patterns across all plugins and core modules — no cross-plugin imports, uniform StashBound usage
