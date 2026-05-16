@@ -1,6 +1,6 @@
 """Provide test matrix expansion helpers."""
 
-from pytest_bdd.compatibility.matrix import build_matrix, expand_tox_env_names
+from pytest_bdd.util.matrix import build_matrix, expand_tox_env_names
 
 
 def test_expand_tox_env_names_returns_compatible_entries_only():

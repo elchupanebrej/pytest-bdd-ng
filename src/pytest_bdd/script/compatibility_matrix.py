@@ -7,16 +7,18 @@ import json
 import sys
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import (
+from pytest_bdd.compatibility.runtime_compat import (
     REASON_COMPATIBLE,
     CompatibilityMatrixEntry,
+    is_pair_compatible,
+)
+from pytest_bdd.util.matrix import (
     build_matrix,
     build_migration_coverage_summary,
     discover_feature_scenario_ids,
     discover_user_facing_test_scenario_ids,
     expand_tox_env_names,
     extract_factors_from_tox_ini,
-    is_pair_compatible,
 )
 
 

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import discover_user_facing_test_scenario_ids
+from pytest_bdd.util.matrix import discover_user_facing_test_scenario_ids
 
 
 def test_only_selected_migration_candidates_are_user_facing(tmp_path: Path):

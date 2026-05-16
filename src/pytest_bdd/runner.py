@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pytest_bdd.compatibility.matrix import is_pair_compatible
+from pytest_bdd.compatibility.runtime_compat import is_pair_compatible
 
 
 def validate_requested_pair(python_factor: str, pytest_factor: str) -> tuple[bool, str]:

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import build_matrix, extract_factors_from_tox_ini
+from pytest_bdd.util.matrix import build_matrix, extract_factors_from_tox_ini
 
 
 def test_each_compatible_pair_has_tox_env_name():

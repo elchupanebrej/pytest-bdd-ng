@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import extract_factors_from_tox_ini
+from pytest_bdd.util.matrix import extract_factors_from_tox_ini
 
 
 def test_eol_py39_and_pre70_pytest_factors_are_removed():

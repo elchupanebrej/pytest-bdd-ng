@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import build_migration_coverage_summary
+from pytest_bdd.util.matrix import build_migration_coverage_summary
 
 
 def test_migration_threshold_met_when_features_cover_user_facing_ids(tmp_path: Path):

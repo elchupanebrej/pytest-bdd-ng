@@ -1,6 +1,6 @@
 """Provide test tox env stability helpers."""
 
-from pytest_bdd.compatibility.matrix import build_matrix, expand_tox_env_names
+from pytest_bdd.util.matrix import build_matrix, expand_tox_env_names
 
 
 def test_tox_env_name_format_is_stable():

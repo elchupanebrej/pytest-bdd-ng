@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import (
+from pytest_bdd.util.matrix import (
     discover_feature_scenario_ids,
     discover_user_facing_test_scenario_ids,
 )

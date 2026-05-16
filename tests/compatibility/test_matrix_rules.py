@@ -1,6 +1,6 @@
 """Provide test matrix rules helpers."""
 
-from pytest_bdd.compatibility.matrix import (
+from pytest_bdd.compatibility.runtime_compat import (
     REASON_COMPATIBLE,
     REASON_EOL_PYTEST,
     REASON_EOL_PYTHON,

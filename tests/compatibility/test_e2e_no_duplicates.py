@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import build_migration_coverage_summary
+from pytest_bdd.util.matrix import build_migration_coverage_summary
 
 
 def test_duplicate_user_facing_scenarios_are_detected(tmp_path: Path):
