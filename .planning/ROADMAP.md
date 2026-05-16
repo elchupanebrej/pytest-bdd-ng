@@ -17,7 +17,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [x] **Phase 7: Documentation** — Public API docstrings, developer guide, migration guide
 - [ ] **Phase 8: BDD Acceptance Testing** — Expand feature tests for undocumented behaviors
 - [ ] **Phase 9: Compatibility Streamlining** — Remove dead shims; consolidate legacy compat layer
-- [ ] **Phase 10: Pattern Unification** — Consistent plugin patterns; eliminate cross-plugin imports
+- [x] **Phase 10: Pattern Unification** — Consistent plugin patterns; eliminate cross-plugin imports (completed 2026-05-16)
 - [ ] **Phase 11: Audit & Prune** — Dead code removal; stale module evaluation; final CI validation
 
 ## Phase Details
@@ -189,7 +189,13 @@ Plans:
   3. No commented-out code blocks remain (except deprecation-path documentation)
   4. Full CI matrix passes: Python 3.10-3.14 × pytest 8.x-9.x, all platforms
   5. Project size metrics measurably reduced: total lines, import count, module count
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 11-01-PLAN.md — Remove confirmed dead code (feature_locator.py, util/temp_root.py, validate_requested_pair)
+- [ ] 11-02-PLAN.md — Split steps.py (971L) into steps/ package: Registry, Matcher, Definition, decorators
+- [ ] 11-03-PLAN.md — Split message_capability_governance.py (853L) into schema/capabilities/decisions/cli
+- [ ] 11-04-PLAN.md — Split run.py (783L) into model/run/ package: stages, lifecycle, refs
+- [ ] 11-05-PLAN.md — Plugin audit docs (17 plugins), decopatch health, CI matrix validation
 
 ## Progress
 
@@ -204,5 +210,5 @@ Plans:
 | 7. Documentation | 4/4 | Complete | 2026-05-15 |
 | 8. BDD Acceptance Testing | 0/TBD | Not started | - |
 | 9. Compatibility Streamlining | 0/TBD | Not started | - |
-| 10. Pattern Unification | 0/TBD | Not started | - |
+| 10. Pattern Unification | 1/1 | Complete   | 2026-05-16 |
 | 11. Audit & Prune | 0/TBD | Not started | - |
