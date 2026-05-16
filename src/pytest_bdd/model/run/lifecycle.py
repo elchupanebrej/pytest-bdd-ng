@@ -1,4 +1,4 @@
-"""Provide run-level runtime model helpers."""
+"""Run class and lifecycle state management for the run model."""
 
 from __future__ import annotations
 
@@ -8,9 +8,17 @@ from attrs import define, field
 from returns.maybe import Nothing
 from returns.result import Result
 
-from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
+from pytest_bdd.model.run.refs import (
+    LifecycleObjectRef,
+    NoPreviousStep,
+    _inactive_feature_ref,
+    _inactive_scenario_ref,
+    _inactive_step_ref,
+    _no_previous_step_ref,
+)
+from pytest_bdd.model.run.stages import HookPhase, RunStage, RunStatus
 from pytest_bdd.model.stash_access import StashBound
 from pytest_bdd.types.failure_reasons import ScenarioRunFailure
 from pytest_bdd.types.protocol import Identifiable
@@ -24,140 +32,7 @@ if TYPE_CHECKING:
 
 ScenarioRunResult = Result[object, ScenarioRunFailure]
 
-LifecycleKind = Literal["run", "feature", "scenario", "step"]
 NodeKind = Literal["feature", "scenario", "step"]
-
-
-class HookPhase(StrEnum):
-    """Represent hook phase state."""
-
-    before_scenario = "pytest_bdd_before_scenario"
-    run_scenario = "pytest_bdd_run_scenario"
-    after_scenario = "pytest_bdd_after_scenario"
-    run_step = "pytest_bdd_run_step"
-    before_step = "pytest_bdd_before_step"
-    before_step_call = "pytest_bdd_before_step_call"
-    after_step = "pytest_bdd_after_step"
-    step_error = "pytest_bdd_step_error"
-    step_lookup_error = "pytest_bdd_step_lookup_error"
-
-
-class RunStage(StrEnum):
-    """Represent run stage state."""
-
-    idle = "idle"
-    scenario_setup = "scenario_setup"
-    scenario_running = "scenario_running"
-    step_running = "step_running"
-    scenario_teardown = "scenario_teardown"
-    finished = "finished"
-
-
-class RunStatus(StrEnum):
-    """Contain state changes related to a scenario run's execution progression."""
-
-    ok = "ok"
-    failed = "failed"
-    interrupted = "interrupted"
-
-
-@define(slots=True)
-class LifecycleObjectRef:
-    """Represent lifecycle object ref state."""
-
-    kind: LifecycleKind
-    object_id: str
-    name: str | None = None
-    source: str | None = None
-    is_active: bool = True
-    empty_state_reason: str | None = None
-    fail_fast_code: str | None = None
-
-    @classmethod
-    def inactive(
-        cls,
-        kind: LifecycleKind,
-        *,
-        reason: str,
-        name: str | None = None,
-        source: str | None = "lifecycle-slot",
-        fail_fast_code: str | None = None,
-    ) -> Self:
-        """
-        Create a LifecycleObjectRef representing an inactive state, indicating the object is not currently executing.
-
-        Returns:
-            A new LifecycleObjectRef instance marked as inactive.
-
-        """
-        return cls(
-            kind=kind,
-            object_id=f"{kind}:{reason}",
-            name=name or kind,
-            source=source,
-            is_active=False,
-            empty_state_reason=reason,
-            fail_fast_code=fail_fast_code,
-        )
-
-    def as_dict(self) -> JSONObject:
-        """
-        Serialize the lifecycle object reference state into a dictionary representation.
-
-        Returns:
-            A dictionary containing the reference details.
-
-        """
-        return {
-            "kind": self.kind,
-            "object_id": self.object_id,
-            "name": self.name,
-            "source": self.source,
-            "is_active": self.is_active,
-            "empty_state_reason": self.empty_state_reason,
-            "fail_fast_code": self.fail_fast_code,
-        }
-
-
-@define(slots=True)
-class NoPreviousStep:
-    """Represent no previous step state."""
-
-    id: str = "step:no_previous_step"
-    text: str = ""
-    keyword: str = ""
-
-
-def _inactive_feature_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("feature", reason="idle")
-
-
-def _inactive_scenario_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("scenario", reason="idle")
-
-
-def _inactive_step_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("step", reason="idle", fail_fast_code="object_inactive")
-
-
-def _no_previous_step_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("step", reason="no_previous_step")
-
-
-def _finished_feature_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("feature", reason="finished")
-
-
-def _finished_scenario_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("scenario", reason="finished")
-
-
-def _finished_step_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("step", reason="finished", fail_fast_code="object_inactive")
-
-
-def _finished_previous_step_ref() -> LifecycleObjectRef:
-    return LifecycleObjectRef.inactive("step", reason="finished")
 
 
 @define(slots=True)
@@ -273,7 +148,7 @@ class ContextErrorState:
     message: str
     hook_name: str
     stage: RunStage
-    requested_kind: LifecycleKind | None = None
+    requested_kind: LifecycleObjectRef.kind | None = None
 
     def as_dict(self) -> JSONObject:
         """
