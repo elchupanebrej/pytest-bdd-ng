@@ -58,7 +58,6 @@ dependencies = [
   "cucumber-messages",
   "cucumber-tag-expressions",
   "decopatch",
-  "docopt-ng",
   "filelock",
   "gherkin-official>=33",
   "importlib-metadata;python_version<'3.10.0'",
@@ -113,10 +112,8 @@ async = [
   "aiofiles"
 ]
 doc-gen = [
-  'docopt-ng',
   'pandoc',
   'panflute',
-  'pathlib2',
   'pypandoc',
   'sphinx>=7.0'
 ]
@@ -162,10 +159,8 @@ testtypes = [
   "mypy",
   "types-certifi",
   "types-chevron",
-  "types-docopt",
   "types-gunicorn",
   "types-jsonschema",
-  "types-pathlib2",
   "types-pexpect",
   "types-Pygments",
   "types-setuptools"
