@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, cast
 
 from returns.maybe import Nothing
 
-from pytest_bdd.compatibility.jsonschema import SchemaValidator, ValidationError, build_validator
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_capability_inventory import load_envelope_schema
 from pytest_bdd.model.message_serialization import MessageSerializationProfile
@@ -17,10 +16,13 @@ from pytest_bdd.model.message_validation_result import MessageValidationViolatio
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from jsonschema import ValidationError
+
     from pytest_bdd.model.message_extension import EventEnvelope
 
 
-def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
+def _build_schema_validator() -> tuple[object | None, str | None]:
+    from jsonschema.validators import validator_for  # noqa: PLC0415
     from referencing import Registry, Resource  # noqa: PLC0415 -- optional referencing dependency
 
     try:
@@ -37,11 +39,14 @@ def _build_schema_validator() -> tuple[SchemaValidator | None, str | None]:
         registry = registry.with_resource(schema_path.name, resource)
         registry = registry.with_resource(f"./{schema_path.name}", resource)
 
-    return build_validator(envelope_schema, registry=registry), None
+    validator_class = validator_for(envelope_schema)
+    validator_class.check_schema(envelope_schema)
+    validator = validator_class(envelope_schema, registry=registry)
+    return validator, None
 
 
 @cache
-def _schema_validator_state() -> tuple[SchemaValidator | None, str | None]:
+def _schema_validator_state() -> tuple[object | None, str | None]:
     return _build_schema_validator()
 
 

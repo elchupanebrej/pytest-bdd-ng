@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
+from jsonschema.validators import validator_for
 from returns.maybe import Nothing
 
-from pytest_bdd.compatibility.jsonschema import build_validator
 from pytest_bdd.model.coverage.inventory import (
     SCHEMA_DIR,
     canonical_capability_id,
@@ -125,7 +125,9 @@ def validate_governance_report_payload(payload: JSONObject, schema_path: Path | 
 
     """
     schema = load_governance_report_schema(schema_path)
-    validator = build_validator(schema)
+    validator_class = validator_for(schema)
+    validator_class.check_schema(schema)
+    validator = validator_class(schema)
     errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
     if errors:
         error = errors[0]
