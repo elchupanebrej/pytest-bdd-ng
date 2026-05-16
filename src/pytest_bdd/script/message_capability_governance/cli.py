@@ -1,4 +1,4 @@
-"""Provide message capability governance helpers."""
+"""CLI entry point for message capability governance."""
 
 from __future__ import annotations
 
@@ -7,393 +7,42 @@ import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, cast
-
-from jsonschema.validators import validator_for
-from returns.maybe import Nothing
+from typing import TYPE_CHECKING, cast
 
 from pytest_bdd.model.coverage.inventory import (
     SCHEMA_DIR,
     canonical_capability_id,
     canonical_capability_key,
-    generate_inventory,
 )
-from pytest_bdd.model.message_baseline_diff import WEEKLY_CADENCE, BaselineDiffRecord, build_baseline_diff
-from pytest_bdd.model.message_capability import (
-    CapabilityCategory,
-    CapabilityImpact,
-    CapabilityRelevance,
-    MessageCapability,
-)
+from pytest_bdd.model.message_baseline_diff import WEEKLY_CADENCE, build_baseline_diff
 from pytest_bdd.model.message_capability_inventory import (
-    reconcile_inventory_with_mandatory_scope,
     reconcile_runtime_scope_coverage,
     sync_capability_inventory,
 )
 from pytest_bdd.model.message_converter import envelope_from_dict, governance_value_to_dict
 from pytest_bdd.model.message_governance_checklist import build_governance_checklist, render_checklist_markdown
-from pytest_bdd.model.message_status_governance import (
-    CapabilityDecision,
-    ensure_single_status_per_capability,
-    normalize_capability_status,
-    validate_capability_decision,
-    validate_mandatory_scope_decision,
-)
+from pytest_bdd.model.message_status_governance import normalize_capability_status
 from pytest_bdd.model.message_stream_validation import collect_observed_capability_ids, validate_message_stream
+from pytest_bdd.script.message_capability_governance.capabilities import (
+    _load_capabilities,
+    _load_capabilities_from_governance_report,
+    _load_capability_ids,
+    _validate_runtime_required_scope,
+    _validate_scope_capability_ids,
+)
+from pytest_bdd.script.message_capability_governance.decisions import (
+    _load_baseline_diff,
+    _load_decisions,
+    _select_active_decisions,
+    _validate_decisions,
+)
+from pytest_bdd.script.message_capability_governance.schema import (
+    validate_governance_report_payload,
+)
 
 if TYPE_CHECKING:
+    from pytest_bdd.model.message_status_governance import CapabilityDecision
     from pytest_bdd.types.json import JSONObject
-
-ALLOWED_CATEGORIES: Final[set[str]] = {"core", "lifecycle", "hook", "attachment", "parameter", "metadata"}
-ALLOWED_IMPACTS: Final[set[str]] = {
-    "emitted_envelope_payload",
-    "lifecycle_linkage",
-    "status_mapping",
-    "governance_checklist_output",
-}
-ALLOWED_RELEVANCE: Final[set[str]] = {"relevant", "out_of_scope"}
-DEFAULT_GOVERNANCE_SCHEMA_GLOB: Final[str] = "specs/*/contracts/governance-report.schema.json"
-DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH: Final[Path] = Path(
-    "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json",
-)
-
-
-def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
-
-
-def _candidate_repo_roots() -> tuple[Path, ...]:
-    cwd = Path.cwd().resolve()
-    repo_root = _repo_root().resolve()
-    candidates: list[Path] = []
-    seen: set[Path] = set()
-    for base in (cwd, repo_root):
-        for candidate in (base, *base.parents):
-            if candidate not in seen:
-                seen.add(candidate)
-                candidates.append(candidate)
-    return tuple(candidates)
-
-
-def discover_governance_schema_path() -> Path | None:
-    """
-    Discover the governance schema path.
-
-    Returns:
-        Path to governance schema or None if not found.
-
-    """
-    canonical_path = (_repo_root().resolve() / DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH).resolve()
-    if canonical_path.exists():
-        return canonical_path
-    candidates: list[Path] = []
-    for root in _candidate_repo_roots():
-        candidates.extend(sorted(root.glob(DEFAULT_GOVERNANCE_SCHEMA_GLOB)))
-    if not candidates:
-        return Nothing.value_or(None)
-    normalized_candidates = sorted({candidate.resolve() for candidate in candidates}, key=str)
-    return normalized_candidates[0]
-
-
-def load_governance_report_schema(schema_path: Path | None = None) -> JSONObject:
-    """
-    Load governance report schema from file.
-
-    Args:
-        schema_path: Optional explicit schema path.
-
-    Returns:
-        Loaded schema as JSON object.
-
-    Raises:
-        FileNotFoundError: If the operation cannot be completed.
-
-    """
-    effective_path = schema_path or discover_governance_schema_path()
-    if effective_path is None:
-        msg = "Unable to locate governance report schema."
-        raise FileNotFoundError(msg)
-    return cast("JSONObject", _load_json(effective_path))
-
-
-def validate_governance_report_payload(payload: JSONObject, schema_path: Path | None = None) -> None:
-    """
-    Validate governance report payload.
-
-    Raises:
-        ValueError: If the operation cannot be completed.
-
-    """
-    schema = load_governance_report_schema(schema_path)
-    validator_class = validator_for(schema)
-    validator_class.check_schema(schema)
-    validator = validator_class(schema)
-    errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
-    if errors:
-        error = errors[0]
-        path = ".".join(str(part) for part in error.absolute_path)
-        msg = f"Governance report validation failed at '{path}': {error.message}"
-        raise ValueError(msg)
-
-
-def _load_json(path: Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _load_capabilities(path: Path) -> list[MessageCapability]:
-    payload = _load_json(path)
-    if not isinstance(payload, list):
-        msg = f"Expected capability list in {path}"
-        raise TypeError(msg)
-
-    result: list[MessageCapability] = []
-    for item in payload:
-        if not isinstance(item, dict):
-            continue
-        affects = item.get("affects") or []
-        category_raw = str(item.get("category", "core"))
-        category: CapabilityCategory = cast(
-            "CapabilityCategory",
-            category_raw if category_raw in ALLOWED_CATEGORIES else "core",
-        )
-        explicit_relevance_raw = item.get("explicit_relevance")
-        explicit_relevance: CapabilityRelevance | None = (
-            cast("CapabilityRelevance", explicit_relevance_raw)
-            if isinstance(explicit_relevance_raw, str) and explicit_relevance_raw in ALLOWED_RELEVANCE
-            else None
-        )
-        validated_affects = frozenset(
-            cast("CapabilityImpact", effect_text)
-            for effect in affects
-            for effect_text in (str(effect),)
-            if effect_text in ALLOWED_IMPACTS
-        )
-        result.append(
-            MessageCapability(
-                capability_id=str(item["capability_id"]),
-                baseline_release=str(item.get("baseline_release", "")),
-                name=str(item.get("name", "")),
-                description=str(item.get("description", "")),
-                category=category,
-                affects=validated_affects,
-                source_reference=str(item.get("source_reference", "")),
-                explicit_relevance=explicit_relevance,
-            ),
-        )
-    return result
-
-
-def _load_capabilities_from_governance_report(path: Path) -> list[MessageCapability]:
-    payload = _load_json(path)
-    if not isinstance(payload, dict):
-        msg = f"Expected governance report object in {path}"
-        raise TypeError(msg)
-    capabilities_payload = payload.get("capabilities")
-    if not isinstance(capabilities_payload, list):
-        msg = f"Expected governance report capability list in {path}"
-        raise TypeError(msg)
-
-    baseline_release = str(payload.get("baseline_release", "unknown"))
-    capabilities: list[MessageCapability] = []
-    for item in capabilities_payload:
-        if not isinstance(item, dict):
-            continue
-        capability_id = str(item.get("capability_id", ""))
-        if not capability_id:
-            continue
-        capabilities.append(
-            MessageCapability(
-                capability_id=capability_id,
-                baseline_release=baseline_release,
-                name=capability_id,
-                description=str(item.get("rationale") or capability_id),
-                category="core",
-                affects=frozenset({"emitted_envelope_payload"}),
-                source_reference="generated-governance-report",
-                explicit_relevance="relevant",
-            ),
-        )
-    return capabilities
-
-
-def _load_decisions(path: Path) -> list[CapabilityDecision]:
-    payload = _load_json(path)
-    if isinstance(payload, dict):
-        payload = [payload]
-    if not isinstance(payload, list):
-        msg = f"Expected decision list in {path}"
-        raise TypeError(msg)
-
-    result: list[CapabilityDecision] = []
-    for item in payload:
-        if not isinstance(item, dict):
-            continue
-        reviewed_at_raw = item.get("reviewed_at")
-        reviewed_at = None
-        if isinstance(reviewed_at_raw, str) and reviewed_at_raw:
-            reviewed_at = datetime.fromisoformat(reviewed_at_raw)
-        normalized_status = normalize_capability_status(str(item["status"]))
-        if normalized_status is None:
-            msg = f"Unknown capability status '{item['status']}' in {path}"
-            raise ValueError(msg)
-        result.append(
-            CapabilityDecision(
-                capability_id=str(item["capability_id"]),
-                status=normalized_status,
-                rationale=item.get("rationale"),
-                hard_limitation=item.get("hard_limitation"),
-                decision_owner=item.get("decision_owner"),
-                evidence_refs=tuple(item.get("evidence_refs") or []),
-                reviewed_at=reviewed_at,
-                release_target=str(item.get("release_target", "next-release")),
-                recheck_trigger=item.get("recheck_trigger"),
-            ),
-        )
-    return result
-
-
-def _validate_decisions(
-    decisions: list[CapabilityDecision],
-    *,
-    mandatory_capability_ids: set[str] | None = None,
-) -> list[CapabilityDecision]:
-    canonical_decisions = [
-        CapabilityDecision(
-            capability_id=canonical_capability_id(decision.capability_id),
-            status=decision.status,
-            release_target=decision.release_target,
-            rationale=decision.rationale,
-            hard_limitation=decision.hard_limitation,
-            decision_owner=decision.decision_owner,
-            evidence_refs=decision.evidence_refs,
-            reviewed_at=decision.reviewed_at,
-            recheck_trigger=decision.recheck_trigger,
-        )
-        for decision in decisions
-    ]
-
-    uniqueness = ensure_single_status_per_capability(canonical_decisions)
-    if not uniqueness.is_unique:
-        msg = f"Duplicate capability decisions found for: {', '.join(uniqueness.duplicates)}"
-        raise ValueError(msg)
-
-    mandatory_ids = mandatory_capability_ids or set()
-    validated: list[CapabilityDecision] = []
-    for decision in canonical_decisions:
-        validation = validate_capability_decision(decision)
-        if not validation.accepted:
-            parts: list[str] = []
-            if validation.violations:
-                parts.append("; ".join(validation.violations))
-            if validation.missing_required_evidence_fields:
-                parts.append(
-                    "missing required evidence fields: " + ", ".join(validation.missing_required_evidence_fields),
-                )
-            details = "; ".join(parts) if parts else "invalid decision"
-            msg = f"Invalid decision for '{decision.capability_id}': {details}"
-            raise ValueError(msg)
-        mandatory_violations = validate_mandatory_scope_decision(
-            decision,
-            mandatory_capability_ids=mandatory_ids,
-        )
-        if mandatory_violations:
-            msg = "; ".join(mandatory_violations)
-            raise ValueError(msg)
-        validated.append(decision)
-
-    return validated
-
-
-def _select_active_decisions(
-    decisions: list[CapabilityDecision],
-    *,
-    release_target: str,
-) -> dict[str, CapabilityDecision]:
-    grouped: dict[str, list[CapabilityDecision]] = {}
-    for decision in decisions:
-        grouped.setdefault(decision.capability_id, []).append(decision)
-
-    active: dict[str, CapabilityDecision] = {}
-    for capability_id, candidates in grouped.items():
-        exact = [decision for decision in candidates if decision.release_target == release_target]
-        if exact:
-            active[capability_id] = exact[0]
-            continue
-
-        next_release = [decision for decision in candidates if decision.release_target == "next-release"]
-        if next_release:
-            active[capability_id] = next_release[0]
-            continue
-
-        active[capability_id] = max(
-            candidates,
-            key=lambda decision: (
-                decision.reviewed_at.isoformat() if decision.reviewed_at is not None else "",
-                decision.release_target,
-            ),
-        )
-    return active
-
-
-def _load_capability_ids(path: Path) -> set[str]:
-    capability_ids: set[str] = set()
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        capability_ids.add(canonical_capability_id(line))
-    return capability_ids
-
-
-def _validate_scope_capability_ids(
-    capability_ids: set[str],
-    inventory_capability_ids: set[str],
-    *,
-    scope_name: str,
-) -> None:
-    reconciliation = reconcile_inventory_with_mandatory_scope(
-        inventory_capability_ids=inventory_capability_ids,
-        mandatory_capability_ids=capability_ids,
-    )
-    unknown_ids = list(reconciliation.missing_mandatory_capability_ids)
-    if unknown_ids:
-        sample = ", ".join(unknown_ids[:10])
-        msg = f"{scope_name} file contains unknown capability IDs (first 10): {sample}"
-        raise ValueError(msg)
-
-
-def _validate_runtime_required_scope(
-    *,
-    runtime_required_capability_ids: set[str],
-    mandatory_capability_ids: set[str],
-) -> None:
-    if not mandatory_capability_ids:
-        return
-    out_of_scope = sorted(set(runtime_required_capability_ids).difference(mandatory_capability_ids))
-    if out_of_scope:
-        sample = ", ".join(out_of_scope[:10])
-        msg = f"runtime-required capability file contains IDs outside mandatory scope (first 10): {sample}"
-        raise ValueError(msg)
-
-
-def _load_baseline_diff(path: Path) -> BaselineDiffRecord:
-    payload = _load_json(path)
-    if not isinstance(payload, dict):
-        msg = f"Expected baseline diff object in {path}"
-        raise TypeError(msg)
-    generated_at_raw = payload.get("generated_at")
-    generated_at = (
-        datetime.fromisoformat(generated_at_raw) if isinstance(generated_at_raw, str) else datetime.now(timezone.utc)
-    )
-    return BaselineDiffRecord(
-        diff_run_id=str(payload["diff_run_id"]),
-        previous_baseline=str(payload["previous_baseline"]),
-        current_baseline=str(payload["current_baseline"]),
-        added_capability_ids=tuple(payload.get("added_capability_ids") or []),
-        changed_capability_ids=tuple(payload.get("changed_capability_ids") or []),
-        removed_capability_ids=tuple(payload.get("removed_capability_ids") or []),
-        generated_at=generated_at,
-    )
 
 
 def _emit_text(text: str, *, output_path: Path | None = None) -> None:
@@ -520,6 +169,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0911, PLR0912,
         return 0
 
     if args.command == "validate-decision":
+        from pytest_bdd.model.message_status_governance import (
+            validate_capability_decision,
+        )
+
         decisions = _load_decisions(args.input)
         if len(decisions) != 1:
             msg = "validate-decision expects a single decision object in the JSON array"
@@ -578,7 +231,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901, PLR0911, PLR0912,
 
         validation_result = validate_message_stream(envelopes, track_coverage=True)
         observed_capability_ids = set(collect_observed_capability_ids(envelopes))
-        inventory = generate_inventory(SCHEMA_DIR)
+        # Runtime lookup to respect monkeypatching on the package namespace
+        import pytest_bdd.script.message_capability_governance as _pkg
+
+        inventory = _pkg.generate_inventory(SCHEMA_DIR)
         mandatory_capability_ids: set[str] = set()
         if args.mandatory_capabilities_file is not None:
             mandatory_capability_ids = _load_capability_ids(args.mandatory_capabilities_file)
