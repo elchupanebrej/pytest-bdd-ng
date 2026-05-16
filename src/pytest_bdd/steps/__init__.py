@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
+
+from pytest_bdd.steps.decorators import given, step, then, when
 from pytest_bdd.steps.definition import (
     ConverterT,
     Definition,
@@ -21,9 +24,14 @@ __all__ = [
     "NamespaceStepRegistryProtocol",
     "ParamsFixturesMapping",
     "Registry",
+    "Step",
     "StepDecorator",
     "StepDefinitionManager",
     "StepFunc",
     "StepProtocol",
     "_resolve_callable_source_location",
+    "given",
+    "step",
+    "then",
+    "when",
 ]

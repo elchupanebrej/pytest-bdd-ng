@@ -28,9 +28,9 @@ class Matcher:
     class MatchNotFoundError(RuntimeError):
         """Raised when no step definition matches a scenario step."""
 
-    def __init__(self) -> None:
-        """Initialize matcher with unset fields (populated via __call__)."""
-        self.config: Config = field()  # type: ignore[assignment]
+    def __init__(self, config: Config) -> None:
+        """Initialize matcher with config and unset fields (populated via __call__)."""
+        self.config: Config = config
         self.request: FixtureRequest = field(init=False)  # type: ignore[assignment]
         self.feature: Feature = field(init=False)  # type: ignore[assignment]
         self.pickle: Pickle = field(init=False)  # type: ignore[assignment]
