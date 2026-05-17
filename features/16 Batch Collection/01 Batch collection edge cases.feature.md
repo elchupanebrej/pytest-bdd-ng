@@ -73,6 +73,7 @@
     scenarios("malformed.feature.md")
     ```
 * When run pytest with batch collection
+    | cli_args | test_malformed.py |
 * Then pytest outcome must contain tests with statuses:
     | failed |
     |--------|

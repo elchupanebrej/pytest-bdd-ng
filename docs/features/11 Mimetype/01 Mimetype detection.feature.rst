@@ -31,4 +31,5 @@ Scenario: Mimetype hook override routes correctly
 '''''''''''''''''''''''''''''''''''''''''''''''''
 
 - Given Mimetype hook override is set
+- When run pytest \| cli_args \| --collect-only \|
 - Then custom mimetype is used

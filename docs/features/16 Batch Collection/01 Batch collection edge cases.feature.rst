@@ -98,6 +98,7 @@ Scenario: Batch collection handles malformed feature file
      from pytest_bdd import scenarios
      scenarios("malformed.feature.md")
 
-- When run pytest with batch collection
+- When run pytest with batch collection \| cli_args \| test_malformed.py
+  \|
 - Then pytest outcome must contain tests with statuses: \| failed \|
   \|--------\| \| 0 \|
