@@ -6,9 +6,23 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/gofrs/uuid"
 	gherkin "github.com/cucumber/gherkin/go/v28"
 )
+
+type source struct {
+	URI      string   `json:"uri"`
+	Location location `json:"location"`
+}
+
+type location struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+
+type parseError struct {
+	Source  source `json:"source"`
+	Message string `json:"message"`
+}
 
 //export ParseGherkinDocument
 func ParseGherkinDocument(text *C.char) *C.char {
@@ -24,6 +38,9 @@ func ParseGherkinMarkdown(text *C.char) *C.char {
 
 //export FreeCString
 func FreeCString(s *C.char) {
+	if s == nil {
+		return
+	}
 	C.free(unsafe.Pointer(s))
 }
 
@@ -60,11 +77,9 @@ func extractGherkinFromMarkdown(markdown string) string {
 }
 
 func parseAndSerialize(input string) *C.char {
-	newId := func() string {
-		return uuid.Must(uuid.NewV4()).String()
-	}
+	idGenerator := gherkin.NewIdGenerator()
 
-	doc, err := gherkin.ParseGherkinDocument(strings.NewReader(input), newId)
+	doc, err := gherkin.ParseGherkinDocument(strings.NewReader(input), idGenerator.NewId)
 	if err != nil {
 		return serializeError(err)
 	}
@@ -83,19 +98,6 @@ func parseAndSerialize(input string) *C.char {
 }
 
 func serializeError(err error) *C.char {
-	type source struct {
-		URI      string   `json:"uri"`
-		Location location `json:"location"`
-	}
-	type location struct {
-		Line   int `json:"line"`
-		Column int `json:"column"`
-	}
-	type parseError struct {
-		Source  source `json:"source"`
-		Message string `json:"message"`
-	}
-
 	errs := []parseError{{
 		Source: source{
 			URI:      "",

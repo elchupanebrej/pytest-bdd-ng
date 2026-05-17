@@ -20,6 +20,11 @@
     from pytest_bdd import scenarios
     scenarios("test.feature.md")
     ```
+* And File "pytest.ini" with content:
+    ```ini
+    [pytest]
+    bdd_features_base_dir = .
+    ```
 
 ## Scenario: Scenario reporter outputs scenario name
 * When run pytest with scenario reporter

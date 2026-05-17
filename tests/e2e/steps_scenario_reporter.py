@@ -7,10 +7,8 @@ def run_pytest_scenario_reporter(testdir, request):
         feature_file = request.getfixturevalue("feature_file")
         return testdir.runpytest_inprocess("-v", str(feature_file))
     except LookupError:
-        feature_files = [f for f in testdir.tmpdir.listdir() if f.check(file=1) and f.basename.endswith(".feature.md")]
-        if feature_files:
-            return testdir.runpytest_inprocess("-v", str(feature_files[0]))
-        return testdir.runpytest_inprocess("-v")
+        # Run pytest with test_sample.py explicitly
+        return testdir.runpytest_inprocess("-v", "test_sample.py")
 
 
 @then("Scenario reporter outputs scenario name")

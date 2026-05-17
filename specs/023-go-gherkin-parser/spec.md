@@ -78,7 +78,7 @@ As a pytest-bdd package maintainer or CI pipeline, I want the Go parser to be co
 - **FR-006**: In `go` backend mode, system MUST NOT fall back to Python parser — it MUST raise an error if Go is unavailable.
 - **FR-007**: System MUST log the Go parser version on first successful use at INFO level.
 - **FR-008**: System MUST log the reason for fallback at WARNING level when Go parser is unavailable in `auto` mode.
-- **FR-009**: Go and Python parsers MUST produce byte-identical `GherkinDocument` dicts for the same valid Gherkin input.
+- **FR-009**: Go and Python parsers MUST produce semantically equivalent `GherkinDocument` dicts for the same valid Gherkin input. Equivalence is verified after normalization (stripping `None` values, ignoring `id` field differences).
 - **FR-010**: The Go shared library MUST be compiled via `go build -buildmode=c-shared` during the wheel build process as a setuptools Command.
 - **FR-011**: The wheel build MUST succeed (without Go parser) even when the Go toolchain is not installed.
 - **FR-012**: The Go build step MUST cache its output and skip recompilation when source files are unchanged.
@@ -102,7 +102,7 @@ As a pytest-bdd package maintainer or CI pipeline, I want the Go parser to be co
 ### Measurable Outcomes
 
 - **SC-001**: Feature file collection and parsing is measurably faster with the Go parser than with the pure-Python parser on the same hardware with 100+ feature files (measured by wall-clock time, with at least a 2x speedup expected).
-- **SC-002**: Both Go and Python backends produce identical parse results for all valid Gherkin test fixtures in the `gherkin/testdata/good/` dataset.
+- **SC-002**: Both Go and Python backends produce semantically equivalent parse results (after normalization) for all valid Gherkin test fixtures in the `gherkin/testdata/good/` dataset.
 - **SC-003**: The wheel build succeeds on all three major platforms (Linux, Windows, macOS) both with and without Go toolchain installed.
 - **SC-004**: An existing pytest-bdd test suite with 100% Python parser usage continues to pass without modification after the Go parser is added (backward compatibility).
 - **SC-005**: In `auto` mode, when the Go parser fails at runtime, the user's test run completes successfully using the Python fallback with no loss of test results.

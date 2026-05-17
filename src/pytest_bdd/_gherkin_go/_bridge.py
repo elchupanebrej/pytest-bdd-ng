@@ -159,3 +159,10 @@ def gherkin_go_version() -> str:
         return raw.decode("utf-8")
     finally:
         lib.FreeCString(result)
+
+
+def _reset() -> None:
+    """Reset library state for testing. Not for production use."""
+    global _lib, _lib_error  # noqa: PLW0603
+    _lib = None
+    _lib_error = None

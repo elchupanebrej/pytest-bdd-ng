@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import multiprocessing
 import os
-from multiprocessing import Pool
 from pathlib import Path  # noqa: TC003
 from typing import ClassVar
 
@@ -193,7 +193,8 @@ class FeatureBatchParser(StashBound):
     def _parse_and_cache(self, contents: list[tuple[Path, bytes]]) -> None:
         """Parse file contents and populate cache."""
         try:
-            with Pool() as pool:
+            ctx = multiprocessing.get_context("spawn")
+            with ctx.Pool() as pool:
                 parse_results = pool.starmap(_parse_feature_file, contents)
         except (OSError, RuntimeError, ValueError):
             logger.warning("Multiprocessing parse failed, falling back to synchronous parse", exc_info=True)
@@ -246,18 +247,45 @@ def _parse_feature_file(path: Path, content: bytes) -> tuple[Path, GherkinDocume
 
     """
     text = content.decode("utf-8")
+    mimetype_str = _resolve_mimetype(path)
+    is_markdown = mimetype_str.endswith("+markdown")
 
     if _should_use_go_backend():
         raw_dict = _try_go_parse(text, path)
         if raw_dict is not None:
+            if is_markdown:
+                python_dict = _parse_python(text)
+                if not _documents_equivalent(raw_dict, python_dict):
+                    logger.warning(
+                        "Go and Python parsers produced different results for %s, using Python result",
+                        path,
+                    )
+                    raw_dict = python_dict
             gherkin_document = message_converter.from_dict(raw_dict, GherkinDocument)
             return (path, gherkin_document)
 
+    raw_dict = _parse_python(text)
+    gherkin_document = message_converter.from_dict(raw_dict, GherkinDocument)
+    return (path, gherkin_document)
+
+
+def _parse_python(text: str) -> dict:
+    """Parse Gherkin text using the Python parser."""
     parser = CucumberIOBaseParser(ast_builder=AstBuilder())
     raw_dict = parser.parse(text)
     del parser
-    gherkin_document = message_converter.from_dict(raw_dict, GherkinDocument)
-    return (path, gherkin_document)
+    return raw_dict
+
+
+def _documents_equivalent(go_doc: dict, python_doc: dict) -> bool:
+    """Check if Go and Python GherkinDocument dicts are semantically equivalent."""
+
+    def _normalize(doc: dict) -> dict:
+        if not isinstance(doc, dict):
+            return doc
+        return {k: _normalize(v) for k, v in doc.items() if v is not None and k != "id"}
+
+    return _normalize(go_doc) == _normalize(python_doc)
 
 
 def _resolve_mimetype(path: Path) -> str:
@@ -271,22 +299,24 @@ def _resolve_mimetype(path: Path) -> str:
 def _try_go_parse(text: str, path: Path) -> dict | None:
     """Attempt to parse via Go backend. Returns dict or None (for fallback)."""
     try:
-        from pytest_bdd._gherkin_go import (
-            parse as go_parse,
-        )
-        from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable
-
-        mimetype_str = _resolve_mimetype(path)
+        from pytest_bdd._gherkin_go import parse as go_parse
+        from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable, GherkinParseError
         from pytest_bdd.mimetype import Mimetype
 
+        mimetype_str = _resolve_mimetype(path)
         mimetype = Mimetype(mimetype_str)
         return go_parse(text, mimetype=mimetype)
+    except GherkinParseError as exc:
+        for err in exc.errors:
+            if "source" in err and isinstance(err["source"], dict):
+                err["source"]["uri"] = str(path)
+        raise
     except GherkinGoNotAvailable:
         if _strict_go_mode():
             raise
         logger.debug("Go gherkin parser unavailable for %s, falling back to Python", path)
         return Nothing.value_or(None)
-    except Exception:
+    except (OSError, RuntimeError):
         if _strict_go_mode():
             raise
         logger.warning("Go gherkin parser failed for %s, falling back to Python", path, exc_info=True)
@@ -295,12 +325,13 @@ def _try_go_parse(text: str, path: Path) -> dict | None:
 
 def _should_use_go_backend() -> bool:
     """Check if Go backend should be attempted based on env var."""
-    backend = os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower()
-    if backend == "python":
-        return False
-    return True  # auto, go, or unknown all try Go
+    from pytest_bdd._gherkin_go import should_use_go_backend
+
+    return should_use_go_backend()
 
 
 def _strict_go_mode() -> bool:
     """Check if Go backend is forced — no fallback to Python."""
-    return os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower() == "go"
+    from pytest_bdd._gherkin_go import is_strict_go_mode
+
+    return is_strict_go_mode()

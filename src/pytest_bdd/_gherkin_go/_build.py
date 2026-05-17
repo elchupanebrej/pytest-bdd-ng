@@ -60,9 +60,13 @@ class BuildGoCommand(Command):
             return
 
         logger.info("Building Go gherkin parser shared library...")
+        cmd = ["go", "build", "-buildmode=c-shared"]
+        if sys.platform == "win32":
+            cmd.extend(["-ldflags", "-extldflags=-static"])
+        cmd.extend(["-o", str(output_path), "."])
         try:
             subprocess.run(
-                ["go", "build", "-buildmode=c-shared", "-o", str(output_path), "."],
+                cmd,
                 cwd=str(go_dir),
                 check=True,
                 env={**os.environ, "CGO_ENABLED": "1"},

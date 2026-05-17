@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _go_version_logged = False
 
 
-def _should_use_go_backend() -> bool:
+def should_use_go_backend() -> bool:
     """Check if Go backend should be attempted based on env var (single source of truth)."""
     backend = os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower()
     if backend == "python":
@@ -27,6 +27,11 @@ def _should_use_go_backend() -> bool:
     if backend not in {"auto", "go"}:
         logger.warning("Unknown PYTEST_BDD_GHERKIN_BACKEND value '%s', treating as 'auto'", backend)
     return True
+
+
+def is_strict_go_mode() -> bool:
+    """Check if Go backend is forced — no fallback to Python."""
+    return os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower() == "go"
 
 
 def _log_version() -> None:

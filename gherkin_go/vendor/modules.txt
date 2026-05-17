@@ -7,5 +7,3 @@ github.com/cucumber/messages/go/v24
 # github.com/gofrs/uuid v4.4.0+incompatible
 ## explicit
 github.com/gofrs/uuid
-# github.com/stretchr/testify v1.10.0
-## explicit; go 1.17
