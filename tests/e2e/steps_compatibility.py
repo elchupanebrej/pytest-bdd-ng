@@ -16,14 +16,13 @@ def python_version_is(version):
 
 @then("Pytest version compatibility holds")
 def _pytest_version_compatibility_holds():
-    import pytest as pt
-
-    major = int(pt.__version__.split(".")[0])
+    major = int(pytest.__version__.split(".")[0])
     assert major >= 7
 
 
 @given(parsers.parse("Pytest mark expression is {expression}"))
 def _pytest_mark_expression_is(expression):
+    expression = expression.strip('"').strip("'")
     return Expression.compile(expression)
 
 
