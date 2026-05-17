@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-RUN_PATH = Path("src/pytest_bdd/model/run.py")
+RUN_PATH = Path("src/pytest_bdd/model/run/lifecycle.py")
 SCENARIO_RUN_PATH = Path("src/pytest_bdd/model/scenario_run.py")
 MOVED_SCENARIO_RUN_SYMBOLS = {
     "ActiveObjectSet",

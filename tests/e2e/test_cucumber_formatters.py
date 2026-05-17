@@ -285,5 +285,5 @@ def test_console_formatter_emits_output_via_real_entrypoint(
     result = run_pytest_via_real_entrypoint(testdir, "--cucumber-summary")
 
     assert result.returncode == pytest.ExitCode.TESTS_FAILED
-    assert "Summary: 2 scenarios (1 passed, 1 failed)" in result.stdout
+    assert "2 scenarios (1 failed, 1 passed)" in result.stdout
     assert_pytest_terminal_reporter_suppressed(result.stdout)

@@ -414,7 +414,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         raw_data = feature_path.read_text(encoding=encoding)
         parsed = ParsedFeature(
             gherkin_document=cached_doc,
-            filename=str(feature_path),
+            filename=str(feature_path.as_posix()),
             raw_data=raw_data,
         )
         source_media_type = str(media_type) if media_type is not None else "text/plain;charset=UTF-8"

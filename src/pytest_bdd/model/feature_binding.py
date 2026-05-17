@@ -59,7 +59,7 @@ class FeatureRuntimeBinding:
         if uri is None:
             return "<unknown>"
         if uri.startswith("file:"):
-            return uri.removeprefix("file:")
+            return Path(uri.removeprefix("file:")).as_posix()
         return str(Path(uri).as_posix())
 
     @staticmethod
