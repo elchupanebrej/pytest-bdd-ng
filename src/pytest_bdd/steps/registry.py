@@ -9,6 +9,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest  # noqa: TC002
 from attrs import define, field
 from ordered_set import OrderedSet
+from returns.maybe import Maybe, Nothing, Some
 from typing_extensions import Protocol, runtime_checkable
 
 from pytest_bdd.compatibility.pytest import FixtureLookupError
@@ -93,13 +94,13 @@ class Registry:
 
                     """
 
-                    def resolve_fixture_value() -> object | None:
+                    def resolve_fixture_value() -> Maybe[object]:
                         try:
-                            return request.getfixturevalue(fixture_name)
+                            return Some(request.getfixturevalue(fixture_name))
                         except FixtureLookupError:
-                            return None
+                            return Nothing
 
-                    return resolve_fixture_value()
+                    return resolve_fixture_value().value_or(None)
 
                 return fixtures_mapped_from_step_definition
 
