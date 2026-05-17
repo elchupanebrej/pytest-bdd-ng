@@ -31,3 +31,7 @@ def file_with_content_heading(testdir, filename, step):
     doc_string = getattr(step.argument, "doc_string", None) if getattr(step, "argument", None) else None
     content = doc_string.content if doc_string else ""
     testdir.makefile("", **{filename.rsplit(".", 1)[0]: content})
+    testdir.makeini("""
+[pytest]
+bdd_features_base_dir = .
+    """)

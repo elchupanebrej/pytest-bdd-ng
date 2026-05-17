@@ -14,7 +14,7 @@ def run_pytest_with_batch_collection(testdir, step):
 def batch_collection_cache_enabled(testdir):
     testdir.makeini("""
 [pytest]
-pytest_bdd_features_base_dir = .
+bdd_features_base_dir = .
     """)
 
 

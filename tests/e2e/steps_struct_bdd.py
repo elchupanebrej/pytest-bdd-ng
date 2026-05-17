@@ -7,28 +7,35 @@ if not STRUCT_BDD_INSTALLED:
     pytest.skip("StructBDD not installed", allow_module_level=True)
 
 
-@given(parsers.parse("StructBDD format is {format}"), target_fixture="struct_bdd_file")
-def struct_bdd_format(testdir, format):
+@given(parsers.parse("StructBDD format is {fmt}"), target_fixture="struct_bdd_file")
+def struct_bdd_format(testdir, fmt):
     testdir.makeini("""
 [pytest]
-pytest_bdd_features_base_dir = .
+bdd_features_base_dir = .
     """)
     content = ""
-    if format == "yaml":
+    if fmt == "yaml":
         content = (
             "Name: StructBDD Feature\nSteps:\n  - Step:\n      Name: Scenario\n      Steps:\n        - Given: a step"
         )
         return testdir.makefile(".bdd.yaml", test=content)
-    if format == "json":
+    if fmt == "json":
         content = (
             '{"Name": "StructBDD Feature", "Steps": [{"Step": {"Name": "Scenario", "Steps": [{"Given": "a step"}]}}]}'
         )
         return testdir.makefile(".bdd.json", test=content)
-    if format == "hocon":
+    if fmt == "hocon":
         content = 'Name = "StructBDD Feature"\nSteps = [{Step = {Name = "Scenario", Steps = [{"Given": "a step"}]}}]'
         return testdir.makefile(".bdd.hocon", test=content)
-    if format == "toml":
-        content = 'Name = "StructBDD Feature"\n[[Steps]]\n[Steps.Step]\nName = "Scenario"\n[[Steps.Step.Steps]]\nGiven = "a step"'
+    if fmt == "toml":
+        content = (
+            'Name = "StructBDD Feature"\n'
+            "[[Steps]]\n"
+            "[Steps.Step]\n"
+            'Name = "Scenario"\n'
+            "[[Steps.Step.Steps]]\n"
+            'Given = "a step"'
+        )
         return testdir.makefile(".bdd.toml", test=content)
     return testdir.makefile(
         ".bdd.yaml",
@@ -68,5 +75,5 @@ def run_pytest_struct_bdd(testdir, struct_bdd_file):
 
 @then("print pytest output")
 def print_pytest_output(pytest_result):
-    print("STDOUT:", pytest_result.stdout.str())
-    print("STDERR:", pytest_result.stderr.str())
+    print("STDOUT:", pytest_result.stdout.str())  # noqa: T201
+    print("STDERR:", pytest_result.stderr.str())  # noqa: T201
