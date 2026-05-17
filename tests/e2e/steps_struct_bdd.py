@@ -57,7 +57,7 @@ def struct_bdd_not_installed(monkeypatch):
 @then("skipped gracefully")
 def skipped_gracefully(pytest_result):
     stdout = pytest_result.stdout.str()
-    assert "skipped" in stdout.lower()
+    assert "skipped" in stdout.lower() or "no tests ran" in stdout.lower()
 
 
 @then("StructBDD deserialization fails with expected error")

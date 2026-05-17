@@ -1,15 +1,15 @@
 {
   "file": {
     "json": "JSON formatter payload\n{\"formatter\": \"json\", \"passed\": 1, \"failed\": 1}\n",
-    "junit": "JUnit formatter payload\n<testsuite name=\"pytest-bdd-ng\" tests=\"2\" failures=\"1\"/>\n",
+    "junit": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuite name=\"pytest-bdd-ng\" tests=\"2\" failures=\"1\">\n  <testcase name=\"passing scenario\" classname=\"formatter_suite\"/>\n  <testcase name=\"failing scenario\" classname=\"formatter_suite\">\n    <failure message=\"boom\">RuntimeError: boom</failure>\n  </testcase>\n</testsuite>\n",
     "usage": "Usage: Given a passing step x1; Given a failing step x1\n",
-    "usage-json": "Usage JSON formatter payload\n{\"formatter\": \"usage-json\", \"steps\": [{\"text\": \"Given a passing step\", \"count\": 1}, {\"text\": \"Given a failing step\", \"count\": 1}]}\n"
+    "usage-json": "{\"formatter\": \"usage-json\", \"steps\": [{\"text\": \"Given a passing step\", \"count\": 1}, {\"text\": \"Given a failing step\", \"count\": 1}]}\n"
   },
   "stdout": {
     "pretty": "Feature: formatter coverage\n  Scenario: passing scenario\n  Scenario: failing scenario\n",
     "progress": "Progress: .F\n",
-    "progress-bar": "Progress bar: [##########] 2/2\n",
-    "snippets": "Snippet suggestion: missing step definition\n",
+    "progress-bar": "Progress bar: .[##########] 2/2\n",
+    "snippets": "Snippet suggestion: missing step definition\n@given('an undefined step')\ndef an_undefined_step():\n    ...\n",
     "summary": "Summary: 2 scenarios (1 passed, 1 failed)\n",
     "usage": "Usage: Given a passing step x1; Given a failing step x1\n"
   }

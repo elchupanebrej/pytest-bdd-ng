@@ -12,12 +12,12 @@
 * And File "test_hocon.py" with content:
     ```python
     from pytest_bdd import scenarios
-    scenarios("test.bdd.hocon")
+    test_scenarios = scenarios("test.bdd.hocon")
     ```
 * And File "test_toml.py" with content:
     ```python
     from pytest_bdd import scenarios
-    scenarios("test.bdd.toml")
+    test_scenarios = scenarios("test.bdd.toml")
     ```
 
 ## Scenario: Parse HOCON StructBDD file
@@ -39,10 +39,24 @@
     | 1      |
 
 ## Scenario: StructBDD deserialization error on malformed input
-* Given StructBDD parse error occurs
+* Given File "test_malformed.py" with content:
+    ```python
+    from pytest_bdd import scenarios
+    test_scenarios = scenarios("struct.bdd.yaml")
+    ```
+* And StructBDD parse error occurs
+* When run pytest
+    | cli_args | test_malformed.py |
 * Then StructBDD deserialization fails with expected error
 
 @struct-bdd
 ## Scenario: StructBDD skipped when not installed
-* Given StructBDD is not installed
+* Given File "test_skip.py" with content:
+    ```python
+    from pytest_bdd import scenarios
+    test_scenarios = scenarios("test.bdd.yaml")
+    ```
+* And StructBDD format is yaml
+* When run pytest
+    | cli_args | test_skip.py -p no:pytest-bdd-struct-bdd |
 * Then skipped gracefully

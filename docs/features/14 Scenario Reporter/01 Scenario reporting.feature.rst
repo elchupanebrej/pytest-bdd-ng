@@ -28,7 +28,14 @@ Background:
   .. code:: python
 
      from pytest_bdd import scenarios
-     scenarios("test.feature.md")
+     test_scenarios = scenarios("test.feature.md")
+
+- And File "pytest.ini" with content:
+
+  .. code:: ini
+
+     [pytest]
+     bdd_features_base_dir = .
 
 Scenario: Scenario reporter outputs scenario name
 '''''''''''''''''''''''''''''''''''''''''''''''''

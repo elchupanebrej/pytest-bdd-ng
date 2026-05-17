@@ -74,42 +74,65 @@ class TestParseMarkdownGherkin:
 class TestBackendSelection:
     def test_should_use_go_backend_auto(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
-            from pytest_bdd._gherkin_go import _should_use_go_backend
+            from pytest_bdd._gherkin_go import should_use_go_backend
 
-            assert _should_use_go_backend() is True
+            assert should_use_go_backend() is True
 
     def test_should_use_go_backend_go(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "go"}):
-            from pytest_bdd._gherkin_go import _should_use_go_backend
+            from pytest_bdd._gherkin_go import should_use_go_backend
 
-            assert _should_use_go_backend() is True
+            assert should_use_go_backend() is True
 
     def test_should_use_go_backend_python(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "python"}):
-            from pytest_bdd._gherkin_go import _should_use_go_backend
+            from pytest_bdd._gherkin_go import should_use_go_backend
 
-            assert _should_use_go_backend() is False
+            assert should_use_go_backend() is False
 
     def test_strict_go_mode_true(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "go"}):
-            from pytest_bdd.collector_batch import _strict_go_mode
+            from pytest_bdd._gherkin_go import is_strict_go_mode
 
-            assert _strict_go_mode() is True
+            assert is_strict_go_mode() is True
 
     def test_strict_go_mode_false_for_auto(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "auto"}):
-            from pytest_bdd.collector_batch import _strict_go_mode
+            from pytest_bdd._gherkin_go import is_strict_go_mode
 
-            assert _strict_go_mode() is False
+            assert is_strict_go_mode() is False
 
     def test_strict_go_mode_false_for_python(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "python"}):
-            from pytest_bdd.collector_batch import _strict_go_mode
+            from pytest_bdd._gherkin_go import is_strict_go_mode
 
-            assert _strict_go_mode() is False
+            assert is_strict_go_mode() is False
 
     def test_unknown_value_defaults_to_auto(self) -> None:
         with patch.dict("os.environ", {"PYTEST_BDD_GHERKIN_BACKEND": "invalid"}):
-            from pytest_bdd._gherkin_go import _should_use_go_backend
+            from pytest_bdd._gherkin_go import should_use_go_backend
 
-            assert _should_use_go_backend() is True
+            assert should_use_go_backend() is True
+
+
+class TestCrossBackendEquivalence:
+    def test_documents_equivalent_strips_none(self) -> None:
+        from pytest_bdd.collector_batch import _documents_equivalent
+
+        go_doc = {"type": "GherkinDocument", "feature": None, "comments": []}
+        python_doc = {"type": "GherkinDocument", "feature": None, "comments": [], "extra": None}
+        assert _documents_equivalent(go_doc, python_doc) is True
+
+    def test_documents_equivalent_ignores_ids(self) -> None:
+        from pytest_bdd.collector_batch import _documents_equivalent
+
+        go_doc = {"type": "GherkinDocument", "id": "go-123", "feature": {"name": "Test"}}
+        python_doc = {"type": "GherkinDocument", "id": "py-456", "feature": {"name": "Test"}}
+        assert _documents_equivalent(go_doc, python_doc) is True
+
+    def test_documents_not_equivalent_different_content(self) -> None:
+        from pytest_bdd.collector_batch import _documents_equivalent
+
+        go_doc = {"type": "GherkinDocument", "feature": {"name": "Go"}}
+        python_doc = {"type": "GherkinDocument", "feature": {"name": "Python"}}
+        assert _documents_equivalent(go_doc, python_doc) is False

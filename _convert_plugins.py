@@ -20,7 +20,7 @@ for pkg_name, class_name, instance_name in plugins:
     old_file = os.path.join(base, f"{pkg_name}.py")
     pkg_dir = os.path.join(base, pkg_name)
 
-    with open(old_file, "r") as f:
+    with open(old_file) as f:
         old_content = f.read()
 
     os.makedirs(pkg_dir, exist_ok=True)

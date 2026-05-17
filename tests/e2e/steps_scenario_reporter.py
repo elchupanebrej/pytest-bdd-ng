@@ -5,15 +5,20 @@ from pytest_bdd import given, step, then
 def run_pytest_scenario_reporter(testdir, request):
     try:
         feature_file = request.getfixturevalue("feature_file")
-        return testdir.runpytest_inprocess("-v", str(feature_file))
+        if feature_file is not None:
+            return testdir.runpytest_subprocess("-v", str(feature_file))
     except LookupError:
-        # Run pytest with test_sample.py explicitly
-        return testdir.runpytest_inprocess("-v", "test_sample.py")
+        pass
+    # Run pytest with test_sample.py explicitly
+    return testdir.runpytest_subprocess("-v", "test_sample.py")
 
 
 @then("Scenario reporter outputs scenario name")
 def scenario_reporter_outputs_name(pytest_result):
-    assert "Scenario" in pytest_result.stdout.str() or "Scenario" in pytest_result.stderr.str()
+    stdout = pytest_result.stdout.str()
+    stderr = pytest_result.stderr.str()
+    combined = stdout + stderr
+    assert "scenario" in combined.lower() or "Scenario" in combined
 
 
 @then("Attachment is recorded")

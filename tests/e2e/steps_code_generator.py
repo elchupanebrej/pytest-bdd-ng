@@ -7,10 +7,7 @@ def run_pytest_code_generator(testdir, request):
         feature_file = request.getfixturevalue("feature_file")
         return testdir.runpytest_inprocess("--generate-missing", "--feature", str(feature_file))
     except LookupError:
-        feature_files = [
-            f for f in testdir.tmpdir.listdir()
-            if f.check(file=1) and f.basename.endswith(".feature.md")
-        ]
+        feature_files = [f for f in testdir.tmpdir.listdir() if f.check(file=1) and f.basename.endswith(".feature.md")]
         if feature_files:
             return testdir.runpytest_inprocess("--generate-missing", "--feature", str(feature_files[0]))
         return testdir.runpytest_inprocess("--generate-missing")

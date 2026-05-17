@@ -148,7 +148,8 @@ def run_pytest(testdir: "Testdir", step, attach):
     # child sessions as captured subprocesses keeps the outer live formatter as the
     # only terminal writer while still exposing stdout/stderr through attachments.
     if run_mode == "subprocess" and requests_terminal_formatter_output(*cli_args):
-        outcome = run_pytest_via_real_entrypoint(testdir, *cli_args)
+        preserve_fake = "PYTEST_BDD_FAKE_NODE_CAPTURE_DIR" in os.environ
+        outcome = run_pytest_via_real_entrypoint(testdir, *cli_args, preserve_fake_node=preserve_fake)
         harness_stdout = ""
         harness_stderr = ""
     else:

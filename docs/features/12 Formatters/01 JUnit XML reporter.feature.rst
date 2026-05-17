@@ -29,7 +29,7 @@ Background:
   .. code:: python
 
      from pytest_bdd import scenarios
-     scenarios("test.feature.md")
+     test_scenarios = scenarios("test.feature.md")
 
 Scenario: JUnit XML output contains test suite structure
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''

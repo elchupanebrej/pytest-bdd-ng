@@ -29,14 +29,23 @@ from pytest_bdd.util.cucumber_formatters import (
 _FAKE_FORMATTER_OUTPUTS = {
     "summary": "Summary: 2 scenarios (1 passed, 1 failed)\n",
     "progress": "Progress: .F\n",
-    "progress-bar": "Progress bar: [##########] 2/2\n",
-    "snippets": "Snippet suggestion: missing step definition\n",
+    "progress-bar": "Progress bar: .[##########] 2/2\n",
+    "snippets": (
+        "Snippet suggestion: missing step definition\n@given('an undefined step')\ndef an_undefined_step():\n    ...\n"
+    ),
     "pretty": "Feature: formatter coverage\n  Scenario: passing scenario\n  Scenario: failing scenario\n",
     "usage": "Usage: Given a passing step x1; Given a failing step x1\n",
     "json": 'JSON formatter payload\n{"formatter": "json", "passed": 1, "failed": 1}\n',
-    "junit": 'JUnit formatter payload\n<testsuite name="pytest-bdd-ng" tests="2" failures="1"/>\n',
+    "junit": (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<testsuite name="pytest-bdd-ng" tests="2" failures="1">\n'
+        '  <testcase name="passing scenario" classname="formatter_suite"/>\n'
+        '  <testcase name="failing scenario" classname="formatter_suite">\n'
+        '    <failure message="boom">RuntimeError: boom</failure>\n'
+        "  </testcase>\n"
+        "</testsuite>\n"
+    ),
     "usage-json": (
-        "Usage JSON formatter payload\n"
         '{"formatter": "usage-json", "steps": [{"text": "Given a passing step", "count": 1}, '
         '{"text": "Given a failing step", "count": 1}]}\n'
     ),
@@ -130,19 +139,21 @@ def run_pytest_via_real_entrypoint(
     testdir: Any,
     *cli_args: str,
     extra_env: dict[str, str] | None = None,
+    preserve_fake_node: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run pytest via real entrypoint."""
     repo_root = Path(__file__).resolve().parents[2]
     env = os.environ.copy()
-    # Strip fake node environment from previous test steps (#3213)
-    capture_dir = env.pop("PYTEST_BDD_FAKE_NODE_CAPTURE_DIR", None)
-    if capture_dir:
-        fake_bin = Path(capture_dir).parent / "fake-node-bin"
-        env["PATH"] = os.pathsep.join(
-            p for p in env["PATH"].split(os.pathsep) if Path(p).resolve() != fake_bin.resolve()
-        )
-    env.pop("NODE_PATH", None)
-    env.pop("FAKE_GLOBAL_NODE_MODULES_ROOT", None)
+    if not preserve_fake_node:
+        # Strip fake node environment from previous test steps (#3213)
+        capture_dir = env.pop("PYTEST_BDD_FAKE_NODE_CAPTURE_DIR", None)
+        if capture_dir:
+            fake_bin = Path(capture_dir).parent / "fake-node-bin"
+            env["PATH"] = os.pathsep.join(
+                p for p in env["PATH"].split(os.pathsep) if Path(p).resolve() != fake_bin.resolve()
+            )
+        env.pop("NODE_PATH", None)
+        env.pop("FAKE_GLOBAL_NODE_MODULES_ROOT", None)
     for key in tuple(env):
         if key.startswith("PYTEST_") and not key.startswith("PYTEST_BDD_"):
             env.pop(key, None)

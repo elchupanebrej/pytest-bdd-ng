@@ -3,35 +3,35 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable
+from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable, GherkinParseError
 
 
 class TestBackendAuto:
     def test_env_var_defaults_to_auto(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
-            from pytest_bdd._gherkin_go import _should_use_go_backend
+            from pytest_bdd._gherkin_go import should_use_go_backend
 
-            assert _should_use_go_backend() is True
+            assert should_use_go_backend() is True
 
     def test_env_var_case_insensitive(self) -> None:
-        from pytest_bdd._gherkin_go import _should_use_go_backend
+        from pytest_bdd._gherkin_go import should_use_go_backend
 
         with patch.dict(os.environ, {"PYTEST_BDD_GHERKIN_BACKEND": "Auto"}):
-            assert _should_use_go_backend() is True
+            assert should_use_go_backend() is True
 
 
 class TestBackendGo:
     def test_env_var_go_selects_go(self) -> None:
-        from pytest_bdd._gherkin_go import _should_use_go_backend
-        from pytest_bdd.collector_batch import _strict_go_mode
+        from pytest_bdd._gherkin_go import is_strict_go_mode, should_use_go_backend
 
         with patch.dict(os.environ, {"PYTEST_BDD_GHERKIN_BACKEND": "go"}):
-            assert _should_use_go_backend() is True
-            assert _strict_go_mode() is True
+            assert should_use_go_backend() is True
+            assert is_strict_go_mode() is True
 
     def test_go_mode_raises_on_unavailable(self) -> None:
         import pytest_bdd._gherkin_go as go_mod
@@ -49,10 +49,10 @@ class TestBackendGo:
 
 class TestBackendPython:
     def test_env_var_python_selects_python(self) -> None:
-        from pytest_bdd._gherkin_go import _should_use_go_backend
+        from pytest_bdd._gherkin_go import should_use_go_backend
 
         with patch.dict(os.environ, {"PYTEST_BDD_GHERKIN_BACKEND": "python"}):
-            assert _should_use_go_backend() is False
+            assert should_use_go_backend() is False
 
     def test_python_mode_skips_go_import(self) -> None:
         with patch.dict(os.environ, {"PYTEST_BDD_GHERKIN_BACKEND": "python"}):
@@ -81,22 +81,16 @@ class TestCollectorBatchIntegration:
             assert _should_use_go_backend() is False
 
     def test_resolve_mimetype_plain(self) -> None:
-        from pathlib import Path
-
         from pytest_bdd.collector_batch import _resolve_mimetype
 
         assert _resolve_mimetype(Path("/x/test.feature")) == "text/x.cucumber.gherkin+plain"
 
     def test_resolve_mimetype_markdown(self) -> None:
-        from pathlib import Path
-
         from pytest_bdd.collector_batch import _resolve_mimetype
 
         assert _resolve_mimetype(Path("/x/test.feature.md")) == "text/x.cucumber.gherkin+markdown"
 
     def test_try_go_parse_returns_none_when_unavailable(self) -> None:
-        from pathlib import Path
-
         import pytest_bdd._gherkin_go as go_mod
 
         with (
@@ -110,6 +104,40 @@ class TestCollectorBatchIntegration:
 
     def test_strict_go_mode_raises(self) -> None:
         with patch.dict(os.environ, {"PYTEST_BDD_GHERKIN_BACKEND": "go"}):
-            from pytest_bdd.collector_batch import _strict_go_mode
+            from pytest_bdd._gherkin_go import is_strict_go_mode
 
-            assert _strict_go_mode() is True
+            assert is_strict_go_mode() is True
+
+
+class TestTryGoParseExceptionHandling:
+    def test_gherkin_parse_error_injects_uri_and_reraises(self) -> None:
+        import pytest_bdd._gherkin_go as go_mod
+
+        with patch.object(go_mod, "parse") as mock_parse:
+            mock_parse.side_effect = GherkinParseError(
+                [{"source": {"uri": "", "location": {"line": 3, "column": 1}}, "message": "bad syntax"}],
+            )
+            from pytest_bdd.collector_batch import _try_go_parse
+
+            with pytest.raises(GherkinParseError) as exc_info:
+                _try_go_parse("Feature: Test", Path("/x/test.feature"))
+
+            assert exc_info.value.errors[0]["source"]["uri"] == str(Path("/x/test.feature"))
+
+    def test_runtime_error_falls_back_in_auto_mode(self) -> None:
+        import pytest_bdd._gherkin_go as go_mod
+
+        with patch.object(go_mod, "parse", side_effect=RuntimeError("Go crashed")):
+            from pytest_bdd.collector_batch import _try_go_parse
+
+            result = _try_go_parse("Feature: Test", Path("/x/test.feature"))
+            assert result is None
+
+    def test_os_error_falls_back_in_auto_mode(self) -> None:
+        import pytest_bdd._gherkin_go as go_mod
+
+        with patch.object(go_mod, "parse", side_effect=OSError("library missing")):
+            from pytest_bdd.collector_batch import _try_go_parse
+
+            result = _try_go_parse("Feature: Test", Path("/x/test.feature"))
+            assert result is None

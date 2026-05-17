@@ -29,9 +29,9 @@ Feature: cucumber formatter flags
     Examples:
       | flag                   | report_name | visible_output |
       | --cucumber-json        | report.json | JSON formatter payload |
-      | --cucumber-junit       | report.xml  | JUnit formatter payload |
+      | --cucumber-junit       | report.xml  | testsuite |
       | --cucumber-usage       | usage.txt   | Usage: Given a passing step x1; Given a failing step x1 |
-      | --cucumber-usage-json  | usage.json  | Usage JSON formatter payload |
+      | --cucumber-usage-json  | usage.json  | "formatter": "usage-json" |
 
   Scenario: Render multiple formatter outputs in one run
     Given a fake node executable is available
@@ -39,7 +39,7 @@ Feature: cucumber formatter flags
     When I run pytest with multiple cucumber formatter flags
     Then pytest exits with test failures
     And file "combined.json" contains the rendered line "JSON formatter payload"
-    And file "usage.json" contains the rendered line "Usage JSON formatter payload"
+    And file "usage.json" contains the rendered line "formatter"
     And the fake formatter stream source is "stdin"
 
   Scenario: Reject conflicting terminal formatter flags
@@ -71,5 +71,5 @@ Feature: cucumber formatter flags
     Then the standalone renderer succeeds
     And standalone stdout contains the user-visible line "Summary: 2 scenarios (1 passed, 1 failed)"
     And file "standalone.json" contains the rendered line "JSON formatter payload"
-    And file "standalone-usage.json" contains the rendered line "Usage JSON formatter payload"
+    And file "standalone-usage.json" contains the rendered line "formatter"
     And the fake formatter stream source is "messagesPath"

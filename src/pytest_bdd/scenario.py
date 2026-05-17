@@ -51,7 +51,9 @@ def get_python_name_generator(name: str) -> Iterator[str]:
     index = 0
 
     def get_name() -> str:
-        return "_".join(filter(bool, ["test", python_name, suffix]))
+        result = "_".join(filter(bool, ["test", python_name, suffix]))
+        # Ensure pytest collection pattern (test_*) matches when name is bare "test"
+        return result if result != "test" else "test_"
 
     while True:
         yield get_name()

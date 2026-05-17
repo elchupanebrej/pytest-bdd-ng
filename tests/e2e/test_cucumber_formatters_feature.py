@@ -44,7 +44,7 @@ def test_e2e_formatter_support_module_is_only_a_thin_reexport() -> None:
 
 def _run_pytest_subprocess_with_attachments(testdir, attach, *cli_args: str):
     if requests_terminal_formatter_output(*cli_args):
-        result = run_pytest_via_real_entrypoint(testdir, *cli_args)
+        result = run_pytest_via_real_entrypoint(testdir, *cli_args, preserve_fake_node=True)
     else:
         result = testdir.runpytest_subprocess(*cli_args)
     attach_command_result_outputs(

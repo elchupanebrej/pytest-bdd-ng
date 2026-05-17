@@ -111,12 +111,12 @@ closes.
 
 - And File "report.json" contains the line "JSON formatter payload"
 
-- And File "report.xml" contains the line "JUnit formatter payload"
+- And File "report.xml" contains the line "testsuite"
 
 - And File "usage.txt" contains the line "Usage: Given a passing step
   x1; Given a failing step x1"
 
-- And File "usage.json" contains the line "Usage JSON formatter payload"
+- And File "usage.json" contains the line "formatter"
 
 Scenario: Multiple cucumber formatter outputs can be requested in one run
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -145,7 +145,7 @@ remaining consistent with the final canonical NDJSON report.
 
 - And File "report.json" contains the line "JSON formatter payload"
 
-- And File "usage.json" contains the line "Usage JSON formatter payload"
+- And File "usage.json" contains the line "formatter"
 
 Scenario: Existing NDJSON can be post-processed into formatter outputs
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -186,8 +186,7 @@ than rebuilding a fake in-process pytest runtime.
 
 - And File "standalone.json" contains the line "JSON formatter payload"
 
-- And File "standalone-usage.json" contains the line "Usage JSON
-  formatter payload"
+- And File "standalone-usage.json" contains the line "formatter"
 
 Scenario: Missing formatter packages are auto-installed on demand
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''

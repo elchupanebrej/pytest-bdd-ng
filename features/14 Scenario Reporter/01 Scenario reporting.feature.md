@@ -18,7 +18,7 @@
 * And File "test_sample.py" with content:
     ```python
     from pytest_bdd import scenarios
-    scenarios("test.feature.md")
+    test_scenarios = scenarios("test.feature.md")
     ```
 * And File "pytest.ini" with content:
     ```ini

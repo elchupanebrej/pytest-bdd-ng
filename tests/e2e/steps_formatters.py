@@ -11,37 +11,39 @@ def cucumber_formatters_available(monkeypatch, tmp_path):
 
 @step("run pytest with JUnit reporter", target_fixture="pytest_result")
 def run_pytest_junit(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-junit=report.xml")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-junit=report.xml", preserve_fake_node=True)
 
 
 @step("run pytest with progress formatter", target_fixture="pytest_result")
 def run_pytest_progress(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-progress")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-progress", preserve_fake_node=True)
 
 
 @step("run pytest with progress bar formatter", target_fixture="pytest_result")
 def run_pytest_progress_bar(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-progress-bar")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-progress-bar", preserve_fake_node=True)
 
 
 @step("run pytest with snippets formatter", target_fixture="pytest_result")
 def run_pytest_snippets(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-snippets")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-snippets", preserve_fake_node=True)
 
 
 @step("run pytest with summary formatter", target_fixture="pytest_result")
 def run_pytest_summary(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-summary")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-summary", preserve_fake_node=True)
 
 
 @step("run pytest with usage formatter", target_fixture="pytest_result")
 def run_pytest_usage(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-usage")
+    return run_pytest_via_real_entrypoint(testdir, "--cucumber-usage", preserve_fake_node=True)
 
 
 @step("run pytest with usage JSON formatter", target_fixture="pytest_result")
 def run_pytest_usage_json(testdir):
-    return run_pytest_via_real_entrypoint(testdir, "--cucumber-usage-json=standalone-usage.json")
+    return run_pytest_via_real_entrypoint(
+        testdir, "--cucumber-usage-json=standalone-usage.json", preserve_fake_node=True
+    )
 
 
 @then(parsers.parse("Progress output shows {state}"))
