@@ -20,6 +20,8 @@ from pytest_bdd.model.scenario_run import (
 )
 from pytest_bdd.plugin.pickle_runner.run_transitions import PHASE_TO_STAGE, apply_transition
 
+pytestmark = [pytest.mark.unit]
+
 
 @define
 class _RuntimeObject:

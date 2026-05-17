@@ -1,5 +1,9 @@
 """Given tests."""
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_given_injection(testdir):
     """Verify given injection."""

@@ -96,7 +96,7 @@ class TestRunAdvanceTransition:
     def test_advance_transition_multiple_times(self) -> None:
         """advance_transition can be called multiple times."""
         run = _build_run()
-        for i in range(5):
+        for _ in range(5):
             run.advance_transition()
         assert run.transition_index == 5
 
@@ -372,6 +372,127 @@ class TestRunIndexing:
         obj = SimpleNamespace()
         # Should not raise — registry accepts any object
         run.index_identifiable_tree(obj)
+
+
+class TestRunEnsureFeatureBindingUpdate:
+    """Tests for ensure_feature_binding update path."""
+
+    def test_ensure_feature_binding_updates_existing(self) -> None:
+        """ensure_feature_binding updates existing binding with new source/pickles."""
+        run = _build_run()
+        doc = _make_gherkin_document()
+        source1 = Source(
+            uri="file:features/example.feature",
+            data="Feature: Original",
+            media_type="text/x.cucumber.gherkin+plain",
+        )
+        first = run.ensure_feature_binding(gherkin_document=doc, source=source1)
+        # Call again with updated source
+        source2 = Source(
+            uri="file:features/example.feature",
+            data="Feature: Updated",
+            media_type="text/x.cucumber.gherkin+plain",
+        )
+        second = run.ensure_feature_binding(gherkin_document=doc, source=source2)
+        assert first is second
+        assert second.source.data == "Feature: Updated"
+
+    def test_ensure_feature_binding_updates_filename_when_empty(self) -> None:
+        """ensure_feature_binding sets filename when it was empty."""
+        run = _build_run()
+        doc = _make_gherkin_document(uri="file:features/test.feature")
+        binding = FeatureRuntimeBinding(
+            uri="file:features/test.feature",
+            filename="",
+            gherkin_document=doc,
+            run=run,
+        )
+        run.feature_bindings_by_uri["file:features/test.feature"] = binding
+        # Call ensure_feature_binding which should update the existing binding
+        result = run.ensure_feature_binding(gherkin_document=doc)
+        # The binding should be the same object (reused)
+        assert result is binding
+        # filename should be updated from URI
+        assert result.filename == "features/test.feature"
+
+
+class TestRunFeatureBindingForDocument:
+    """Tests for feature_binding_for_document."""
+
+    def test_feature_binding_for_document_finds_by_uri(self) -> None:
+        """feature_binding_for_document looks up binding via document URI."""
+        run = _build_run()
+        doc = _make_gherkin_document()
+        source = Source(
+            uri="file:features/example.feature",
+            data="Feature: Feature",
+            media_type="text/x.cucumber.gherkin+plain",
+        )
+        run.ensure_feature_binding(gherkin_document=doc, source=source)
+        result = run.feature_binding_for_document(doc)
+        assert result is not None
+        assert result.uri == "file:features/example.feature"
+
+    def test_feature_binding_for_document_returns_none_for_no_uri(self) -> None:
+        """feature_binding_for_document returns None when document has no URI."""
+        run = _build_run()
+        doc = GherkinDocument(comments=[], uri=None)
+        assert run.feature_binding_for_document(doc) is None
+
+
+class TestRunResolveTestStepIdWithIdentifiable:
+    """Tests for resolve_test_step_id with Identifiable step."""
+
+    def test_resolve_by_identifiable_id_match(self) -> None:
+        """resolve_test_step_id falls back to checking Identifiable.id."""
+
+        run = _build_run()
+        run.reporting_state.active_test_step_id = "fallback-step"
+        # Register a mapping with a different id text
+        run.reporting_state.runtime_step_to_pickle_step_id[999] = "mapped-step-42"
+        # Create an Identifiable step with matching id text
+        step = SimpleNamespace(id="mapped-step-42")
+        # Should find the candidate match
+        result = run.resolve_test_step_id_for_runtime_step(pickle_step=step)
+        assert result == "mapped-step-42"
+
+
+class TestRunAsDictWithActiveScenario:
+    """Tests for Run.as_dict() with active scenario."""
+
+    def test_as_dict_with_active_scenario(self) -> None:
+        """as_dict includes active_scenario_id and active_step_id when present."""
+        run = _build_run()
+        scenario_run = _build_scenario_run(run=run)
+        run.active_scenario_run = scenario_run
+        d = run.as_dict()
+        assert d["active_scenario_id"] == "scenario-node-1"
+        assert d["active_step_id"] is None
+
+
+class TestRunGetScenarioRunWithRegistered:
+    """Tests for get_scenario_run with registered scenario."""
+
+    def test_get_scenario_run_returns_registered(self) -> None:
+        """get_scenario_run returns the registered ScenarioRun."""
+        stash: dict = {}
+        session = SimpleNamespace(name="session")
+        run = Run.initialize_for_session(stash=stash, session=session)
+        scenario_run = _build_scenario_run(run=run)
+        request = SimpleNamespace(config=SimpleNamespace(stash=stash), node=SimpleNamespace(nodeid="test-1"))
+        Run.set_scenario_run(request, scenario_run)
+        result = Run.get_scenario_run(request)
+        assert result is scenario_run
+
+
+class TestRunRequestKeyWithoutNodeid:
+    """Tests for _request_key edge cases."""
+
+    def test_request_key_without_nodeid(self) -> None:
+        """_request_key falls back to request id when no nodeid."""
+        request = SimpleNamespace(config=SimpleNamespace(stash={}))
+        key = Run._request_key(request)
+        assert key.startswith("request-")
 
 
 def _build_feature_binding(run: Run) -> FeatureRuntimeBinding:

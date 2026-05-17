@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.model.run import (
     ActiveObjectSet,
     HookPhase,
@@ -14,6 +16,8 @@ from pytest_bdd.model.scenario_run import (
     RunNode,
     ScenarioRun,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 def _build_context() -> ScenarioRun:

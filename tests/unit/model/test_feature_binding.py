@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from cucumber_messages import (
     GherkinDocument,
@@ -253,7 +255,7 @@ class TestFeatureRuntimeBindingProperties:
         result = binding.description
         # dedent of empty string is empty string, but property returns Nothing.value_or(None)
         # which is None. Let's check the actual behavior.
-        assert result == "" or result is None
+        assert not result or result is None
 
     def test_tag_names_returns_sorted_tags(self) -> None:
         """tag_names returns sorted list of tags with prefix stripped."""
@@ -293,15 +295,15 @@ class TestPickleMethods:
     def _make_pickle(**kwargs):
         from cucumber_messages import Pickle as PickleMsg
 
-        defaults = dict(
-            id="p1",
-            uri="file:test.feature",
-            ast_node_ids=[],
-            language="en",
-            name="Test Feature",
-            steps=[],
-            tags=[],
-        )
+        defaults = {
+            "id": "p1",
+            "uri": "file:test.feature",
+            "ast_node_ids": [],
+            "language": "en",
+            "name": "Test Feature",
+            "steps": [],
+            "tags": [],
+        }
         defaults.update(kwargs)
         return PickleMsg(**defaults)
 
@@ -321,7 +323,7 @@ class TestPickleMethods:
         doc = _make_gherkin_document()
         binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
         pickle = self._make_pickle()
-        assert binding.pickle_table_rows_breadcrumb(pickle) == ""
+        assert not binding.pickle_table_rows_breadcrumb(pickle)
 
     def test_pickle_ast_scenario_returns_none_when_no_link(self) -> None:
         """pickle_ast_scenario returns None when no linked scenario."""
@@ -429,3 +431,284 @@ class TestFeatureRuntimeBindingFilename:
         source = Source(uri="custom://test.feature", data="", media_type="")
         binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc, source=source)
         assert "test.feature" in binding.filename
+
+
+class TestFeatureRuntimeBindingFeatureFilenameFromUri:
+    """Tests for _feature_filename_from_uri static method."""
+
+    def test_with_none_uri(self) -> None:
+        """Returns '<unknown>' for None URI."""
+        assert FeatureRuntimeBinding._feature_filename_from_uri(None) == "<unknown>"
+
+    def test_with_file_uri(self) -> None:
+        """Extracts path from file: URI."""
+        result = FeatureRuntimeBinding._feature_filename_from_uri("file:features/test.feature")
+        assert result == "features/test.feature"
+
+    def test_with_plain_path(self) -> None:
+        """Converts plain path to POSIX style."""
+        result = FeatureRuntimeBinding._feature_filename_from_uri("features/test.feature")
+        assert "test.feature" in result
+
+
+class TestFeatureRuntimeBindingStepKeywordWithLinkedStep:
+    """Tests for step_keyword when AST step is linked."""
+
+    def test_step_keyword_with_linked_step(self) -> None:
+        """step_keyword extracts keyword from linked AST step."""
+        from cucumber_messages import PickleStep as PickleStepMsg
+        from cucumber_messages import Step
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        # Index a Step into the registry
+        ast_step = Step(
+            id="ast-step-1",
+            keyword="Given ",
+            location=None,
+            text="a step",
+        )
+        binding.ast_registry.index_tree(ast_step)
+        pickle_step = PickleStepMsg(
+            id="pickle-step-1",
+            type=1,
+            text="a step",
+            ast_node_ids=["ast-step-1"],
+        )
+        result = binding.step_keyword(pickle_step)
+        assert result == "Given"
+
+    def test_step_prefix_with_linked_step(self) -> None:
+        """step_prefix returns lowercase keyword."""
+        from cucumber_messages import PickleStep as PickleStepMsg
+        from cucumber_messages import Step
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        ast_step = Step(id="ast-step-2", keyword="When ", location=None, text="something")
+        binding.ast_registry.index_tree(ast_step)
+        pickle_step = PickleStepMsg(
+            id="pickle-step-2",
+            type=1,
+            text="something",
+            ast_node_ids=["ast-step-2"],
+        )
+        result = binding.step_prefix(pickle_step)
+        assert result == "when"
+
+    def test_step_line_number_with_linked_step(self) -> None:
+        """step_line_number returns line from linked AST step."""
+        from cucumber_messages import Location, Step
+        from cucumber_messages import PickleStep as PickleStepMsg
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        ast_step = Step(
+            id="ast-step-3",
+            keyword="Then ",
+            location=Location(line=10, column=1),
+            text="verify",
+        )
+        binding.ast_registry.index_tree(ast_step)
+        pickle_step = PickleStepMsg(
+            id="pickle-step-3",
+            type=1,
+            text="verify",
+            ast_node_ids=["ast-step-3"],
+        )
+        result = binding.step_line_number(pickle_step)
+        assert result == 10
+
+    def test_step_doc_string_with_linked_step(self) -> None:
+        """step_doc_string returns doc_string from linked AST step."""
+        from cucumber_messages import PickleStep as PickleStepMsg
+        from cucumber_messages import Step
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        doc_string_obj = SimpleNamespace(content="doc content")
+        ast_step = Step(
+            id="ast-step-4",
+            keyword="Given ",
+            location=None,
+            text="a step",
+            doc_string=doc_string_obj,
+        )
+        binding.ast_registry.index_tree(ast_step)
+        pickle_step = PickleStepMsg(
+            id="pickle-step-4",
+            type=1,
+            text="a step",
+            ast_node_ids=["ast-step-4"],
+        )
+        result = binding.step_doc_string(pickle_step)
+        assert result is doc_string_obj
+
+    def test_step_data_table_with_linked_step(self) -> None:
+        """step_data_table returns data_table from linked AST step."""
+        from cucumber_messages import PickleStep as PickleStepMsg
+        from cucumber_messages import Step
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        data_table_obj = SimpleNamespace(rows=[])
+        ast_step = Step(
+            id="ast-step-5",
+            keyword="Given ",
+            location=None,
+            text="a step",
+            data_table=data_table_obj,
+        )
+        binding.ast_registry.index_tree(ast_step)
+        pickle_step = PickleStepMsg(
+            id="pickle-step-5",
+            type=1,
+            text="a step",
+            ast_node_ids=["ast-step-5"],
+        )
+        result = binding.step_data_table(pickle_step)
+        assert result is data_table_obj
+
+
+class TestFeatureRuntimeBindingPickleAstScenario:
+    """Tests for pickle_ast_scenario with linked scenario."""
+
+    def test_pickle_ast_scenario_returns_scenario(self) -> None:
+        """pickle_ast_scenario returns Scenario when linked."""
+        from cucumber_messages import Location
+        from cucumber_messages import Pickle as PickleMsg
+        from cucumber_messages import Scenario as ScenarioMsg
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        scenario = ScenarioMsg(
+            id="ast-scenario-1",
+            keyword="Scenario",
+            name="Test Scenario",
+            location=Location(line=5, column=1),
+            description="",
+            steps=[],
+            tags=[],
+            examples=[],
+        )
+        binding.ast_registry.index_tree(scenario)
+        pickle = PickleMsg(
+            id="p1",
+            uri="file:test.feature",
+            ast_node_ids=["ast-scenario-1"],
+            language="en",
+            name="Test",
+            steps=[],
+            tags=[],
+        )
+        result = binding.pickle_ast_scenario(pickle)
+        assert result is scenario
+
+    def test_pickle_line_number_with_linked_scenario(self) -> None:
+        """pickle_line_number returns line from linked scenario."""
+        from cucumber_messages import Location
+        from cucumber_messages import Pickle as PickleMsg
+        from cucumber_messages import Scenario as ScenarioMsg
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        scenario = ScenarioMsg(
+            id="ast-scenario-2",
+            keyword="Scenario",
+            name="Test",
+            location=Location(line=42, column=1),
+            description="",
+            steps=[],
+            tags=[],
+            examples=[],
+        )
+        binding.ast_registry.index_tree(scenario)
+        pickle = PickleMsg(
+            id="p2",
+            uri="file:test.feature",
+            ast_node_ids=["ast-scenario-2"],
+            language="en",
+            name="Test",
+            steps=[],
+            tags=[],
+        )
+        result = binding.pickle_line_number(pickle)
+        assert result == 42
+
+
+class TestFeatureRuntimeBindingPickleAstTableRows:
+    """Tests for pickle_ast_table_rows with linked table rows."""
+
+    def test_pickle_ast_table_rows_with_linked_rows(self) -> None:
+        """pickle_ast_table_rows returns TableRow nodes when linked."""
+        from cucumber_messages import Location, TableRow
+        from cucumber_messages import Pickle as PickleMsg
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        row = TableRow(id="ast-row-1", cells=[], location=Location(line=10, column=1))
+        binding.ast_registry.index_tree(row)
+        pickle = PickleMsg(
+            id="p3",
+            uri="file:test.feature",
+            ast_node_ids=["ast-row-1"],
+            language="en",
+            name="Test",
+            steps=[],
+            tags=[],
+        )
+        result = binding.pickle_ast_table_rows(pickle)
+        assert len(result) == 1
+        assert isinstance(result[0], TableRow)
+
+    def test_pickle_table_rows_breadcrumb_with_rows(self) -> None:
+        """pickle_table_rows_breadcrumb generates breadcrumb string."""
+        from cucumber_messages import Location, TableRow
+        from cucumber_messages import Pickle as PickleMsg
+
+        run = _make_run()
+        doc = _make_gherkin_document()
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        row = TableRow(id="ast-row-2", cells=[], location=Location(line=15, column=1))
+        binding.ast_registry.index_tree(row)
+        pickle = PickleMsg(
+            id="p4",
+            uri="file:test.feature",
+            ast_node_ids=["ast-row-2"],
+            language="en",
+            name="Test",
+            steps=[],
+            tags=[],
+        )
+        result = binding.pickle_table_rows_breadcrumb(pickle)
+        assert "line: 15" in result
+
+
+class TestFeatureRuntimeBindingDescriptionEdgeCases:
+    """Tests for description property edge cases."""
+
+    def test_description_with_no_feature_message(self) -> None:
+        """description returns None when no feature message."""
+        run = _make_run()
+        doc = GherkinDocument(comments=[], uri="file:test.feature")
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        assert binding.description is None
+
+
+class TestFeatureRuntimeBindingRelFilenameNonFile:
+    """Tests for rel_filename with non-file URIs."""
+
+    def test_rel_filename_with_http_uri(self) -> None:
+        """rel_filename returns None for http URIs."""
+        run = _make_run()
+        doc = _make_gherkin_document(uri="http://example.com/test.feature")
+        binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+        assert binding.rel_filename is None

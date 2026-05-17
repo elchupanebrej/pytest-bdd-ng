@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     Feature as FeatureMessage,
 )
@@ -17,6 +18,8 @@ from cucumber_messages import (
 )
 
 from pytest_bdd.model.run import Run
+
+pytestmark = [pytest.mark.unit]
 
 
 def _build_gherkin_document() -> GherkinDocument:

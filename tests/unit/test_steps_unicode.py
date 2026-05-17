@@ -1,5 +1,9 @@
 """Tests for testing cases when we have unicode in feature file."""
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 def test_steps_in_feature_file_have_unicode(testdir):
     """Verify steps in feature file have unicode."""
