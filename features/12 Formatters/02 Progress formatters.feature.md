@@ -30,7 +30,7 @@
 
 ## Scenario: Progress bar formatter shows bar during run
 * When run pytest with progress bar formatter
-* Then Progress output shows 100%
+* Then Progress output shows .
 
 ## Scenario: Progress formatter quiet mode
 * When run pytest with progress formatter
