@@ -5,7 +5,7 @@ status: complete
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-05-16
-updated: 2026-05-17
+updated: 2026-05-18
 ---
 
 # Phase 8 — Validation Strategy
@@ -48,7 +48,7 @@ updated: 2026-05-17
 | 8-05-01 | 05 | 3 | TEST-02 | Formatter feature files execute through fake-node-backed tests | BDD/e2e | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test python -m pytest tests/e2e/test_e2e.py -q` | `features/12 Formatters/*.feature.md`; 153 passed, 2 skipped | ✅ green |
 | 8-06-01 | 06 | 2 | TEST-02 | Code generator, scenario reporter, compatibility, and batch collection step definitions | BDD/e2e | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test python -m pytest tests/e2e/test_e2e.py -q` | `tests/e2e/steps_code_generator.py`, `steps_scenario_reporter.py`, `steps_compatibility.py`, `steps_batch_collection.py`; 153 passed, 2 skipped | ✅ green |
 | 8-07-01 | 07 | 3 | TEST-02 | 8c plugin feature files execute through `scenarios()` | BDD/e2e | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test python -m pytest tests/e2e/test_e2e.py -q` | `features/13 Code Generator/`, `features/14 Scenario Reporter/`, `features/15 Compatibility/`, `features/16 Batch Collection/`; 153 passed, 2 skipped | ✅ green |
-| 8-08-01 | 08 | 4 | TEST-02 | Full BDD scenario suite reaches zero failures | BDD/e2e | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test python -m pytest tests/e2e/test_e2e.py -q` | 153 passed, 2 skipped in 2266.03s | ✅ green |
+| 8-08-01 | 08 | 4 | TEST-02 | Full BDD scenario suite reaches zero failures | BDD/e2e | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test python -m pytest tests/e2e/test_e2e.py -q` | 153 passed, 2 skipped in 2448.68s | ✅ green |
 | 8-08-02 | 08 | 4 | TEST-02 | Generated `docs/features/` matches `features/` | Docs generation | `UV_PROJECT_ENVIRONMENT=.venv-wsl uv run --extra test bdd_tree_to_rst features docs/features` | 61 feature files and 61 generated docs; second generation run exited 0 | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -123,3 +123,22 @@ Resolved:
 All category-specific BDD scenarios pass: StructBDD (8), Tag Expressions, Heading Validation, Mimetype, Formatters, Code Generator, Scenario Reporter, Compatibility, Batch Collection, Go Parser — 29/29 BDD scenarios green.
 
 **Approval:** validated 2026-05-18
+
+## Validation Audit 2026-05-18 (rerun)
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+Verified:
+- Nyquist coverage map remains complete for all 8 phase plans and TEST-02.
+- BDD scenario suite: `153 passed, 2 skipped in 2448.68s (0:40:48)`.
+- Collection audit: `155 tests collected in 5.13s`.
+- Feature/docs parity: 61 `.feature.md` files and 61 generated `.feature.rst` files.
+- Docs generation command completed successfully.
+
+Manual-only items remain unchanged:
+- Qualitative review of feature wording.
+- Docker-backed remote xdist e2e tests on a Docker-capable host.
