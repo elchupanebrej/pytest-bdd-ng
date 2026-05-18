@@ -29,6 +29,7 @@ created: 2026-05-17
 
 - **After every task commit:** Run `uv run python -m ruff check src/pytest_bdd/ --select F401,F811,ERA001`
 - **After every plan wave:** Run `uv run python -m pytest tests/unit/ tests/messages/ tests/model/ -q --tb=no`
+- **Dead-code gate:** Run `uv run python -m pytest tests/unit/test_dead_code.py tests/unit/test_no_commented_code.py -v --tb=short`
 - **Before `/gsd-verify-work`:** Full suite must be green
 - **Max feedback latency:** ~120 seconds
 
@@ -48,6 +49,8 @@ created: 2026-05-17
 | 11-04-02 | 04 | 2 | SIM-03 | T-11-11 | Run class StashBound inheritance preserved | unit | `uv run python -c "from pytest_bdd.model.run import Run; from pytest_bdd.model.stash_access import StashBound; assert issubclass(Run, StashBound)"` | ✅ | ✅ green |
 | 11-05-01 | 05 | 3 | SIM-03 | T-11-12 | Plugin audit document exists with all 17 entries | documentation | `Test-Path .planning/phases/11-audit-prune/11-PLUGIN-AUDIT.md` | ✅ | ✅ green |
 | 11-05-02 | 05 | 3 | SIM-03 | T-11-13 | Decopatch health + CI matrix documented | documentation | `Test-Path .planning/phases/11-audit-prune/11-DECOPATCH-HEALTH.md` | ✅ | ✅ green |
+| 11-SIM-03-vulture | 00 | 0 | SIM-03 | T-11-V0 | No dead code at vulture 80%+ confidence (known false positives allowlisted) | unit | `uv run python -m pytest tests/unit/test_dead_code.py -v --tb=short` | ✅ | ✅ green |
+| 11-SIM-03-era001 | 00 | 0 | SIM-03 | T-11-V1 | No commented-out code (ruff ERA001 clean) | unit | `uv run python -m pytest tests/unit/test_no_commented_code.py -v --tb=short` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -55,7 +58,9 @@ created: 2026-05-17
 
 ## Wave 0 Requirements
 
-Existing infrastructure covers all phase requirements:
+Existing + new test infrastructure covers all phase requirements:
+- `tests/unit/test_dead_code.py` — vulture dead-code behavioral test (NEW)
+- `tests/unit/test_no_commented_code.py` — ruff ERA001 behavioral test (NEW)
 - `tests/unit/test_steps.py` — steps module unit tests
 - `tests/unit/model/test_run.py` — model/run unit tests
 - `tests/messages/test_governance.py` — governance tests
@@ -94,8 +99,13 @@ Existing infrastructure covers all phase requirements:
 
 | Metric | Count |
 |--------|-------|
-| Gaps found | 0 |
-| Resolved | 0 |
+| Gaps found | 3 |
+| Resolved | 3 |
 | Escalated | 0 |
 
-All 10 tasks across 5 sub-plans have automated verification. Existing test suite (447 tests) covers all requirement behaviors. Phase is Nyquist-compliant.
+All 3 gaps resolved:
+- Gap 1: `tests/unit/test_dead_code.py` created — 21 tests pass (vulture 80%+ scan with known false-positive allowlist)
+- Gap 2: `tests/unit/test_no_commented_code.py` created — 2 tests pass (ruff ERA001 verification)
+- Gap 3: VALIDATION.md updated — vulture + ERA001 behavioral tests added to per-task verification map
+
+All 12 tasks across 5 sub-plans + 2 wave-0 tests have automated verification. Phase is Nyquist-compliant.
