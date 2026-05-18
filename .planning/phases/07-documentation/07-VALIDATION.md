@@ -88,6 +88,24 @@ audited: 2026-05-17
 
 ---
 
+## Validation Audit 2026-05-18
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+**Verification results:**
+- Nyquist validation config enabled: PASS
+- Existing validation file detected: PASS
+- Sphinx 9.1.0 installed, napoleon importable: PASS
+- Public API docstring probes for `scenario`, `given`, `FeaturePathType`, and `PytestBDDStepDefinitionWarning`: PASS
+- Documentation content probes for DEVELOPMENT.rst, MIGRATION.md, DEPRECATIONS.md, and docs/include.rst: PASS
+- `tests/doc/` test suite: 6 passed, 7 skipped, 0 failed
+
+---
+
 ## Validation Sign-Off
 
 - [x] All tasks have `<automated>` verify or Wave 0 dependencies
