@@ -166,8 +166,6 @@ class ExecutionMessageAdapter:
         """
         envelope_dict = envelope_to_dict(envelope)
         return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
-        envelope_dict = envelope_to_dict(envelope)
-        return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
 
     @classmethod
     def deserialize(
