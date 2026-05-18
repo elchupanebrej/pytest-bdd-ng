@@ -1,4 +1,4 @@
-"""Quality gate behavioral tests for BLQ901 and BLQ902 rules."""
+"""Quality gate behavioral tests for BLQ901, BLQ902, and plugin_patterns integration."""
 
 from __future__ import annotations
 
@@ -207,3 +207,21 @@ class TestBLQ902BareExcept:
         violations = _check_source(source)
         blq902 = [v for v in violations if "BLQ902" in v.message]
         assert len(blq902) == 0
+
+
+class TestPluginPatternsIntegration:
+    """Tests that quality_gates includes plugin_patterns validation."""
+
+    def test_quality_gates_main_run_includes_plugin_patterns(self) -> None:
+        """quality_gates.main checks plugin dir when at default location."""
+        violations = check_file(SRC_ROOT / "_ruff" / "rules" / "quality_gates.py")
+        plugin_violations = [v for v in violations if "BLQ1001" in v.message]
+        assert len(plugin_violations) == 0, "BLQ1001 should not fire on quality_gates.py itself"
+
+    def test_plugin_patterns_pass_on_real_codebase(self) -> None:
+        """Plugin patterns check passes clean on the actual codebase."""
+        from pytest_bdd._ruff.rules.plugin_patterns import check_plugin_patterns
+
+        plugin_root = SRC_ROOT / "plugin"
+        violations = check_plugin_patterns(plugin_root)
+        assert violations == [], f"Expected zero plugin pattern violations, got {len(violations)}"
