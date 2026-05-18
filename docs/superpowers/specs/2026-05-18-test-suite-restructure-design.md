@@ -71,6 +71,8 @@ Migration mapping:
 - Docker-backed xdist remote work moves under `tests/cases/external/docker_xdist`
 - long benchmark-style tests move to `tests/cases/perf`
 
+E2E collection must be split per file, not by collecting a full directory through one scenario loader. Each E2E test module should bind only the feature file or files it owns, so failures, selection, and ownership stay file-local.
+
 ## Selection Model
 
 Pytest keeps path-based semantic group resolution through `test_group_paths`:
@@ -177,6 +179,17 @@ Validation for the restructure:
 - preserve behavior by running representative old commands and new Make targets against equivalent slices
 
 No marker hygiene test suite is required by this design.
+
+## Development Guide
+
+`DEVELOPMENT.rst` must gain a section that explains how to use the new test configuration. It should cover:
+
+- semantic test groups and their directories
+- speed and environment facets
+- Makefile targets for normal, full, slow, Docker, Windows, POSIX, and browser runs
+- environment validation versus explicit provisioning
+- how to add a new test in the correct directory with the correct markers
+- the E2E rule that scenario collection is per file, not through a whole feature directory
 
 ## Out of Scope
 
