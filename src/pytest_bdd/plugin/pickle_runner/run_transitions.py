@@ -191,21 +191,32 @@ def _sync_step_node(
     step_ref: LifecycleObjectRef,
     step_is_active: bool,
 ) -> None:
+    next_transition = scenario_run.transition_index + 1
+    current_step_node = scenario_run.step_node
     if step_ref.is_active and step_is_active:
+        if current_step_node is not None and current_step_node.is_active:
+            if current_step_node.object_ref.object_id == step_ref.object_id:
+                current_step_node.object_ref = step_ref
+                return
+            current_step_node.close(next_transition)
         parent_id = scenario_run.scenario_node.id if scenario_run.scenario_node is not None else scenario_run.id
         scenario_run.step_node = RunNode(
-            id=f"step-{step_ref.object_id}-{scenario_run.transition_index + 1}",
+            id=f"step-{step_ref.object_id}-{next_transition}",
             parent_id=parent_id,
             kind="step",
             object_ref=step_ref,
             is_active=True,
-            opened_at_transition=scenario_run.transition_index + 1,
+            opened_at_transition=next_transition,
         )
         return
+    if current_step_node is not None and current_step_node.is_active:
+        current_step_node.close(next_transition)
     scenario_run.step_node = None
 
 
 def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObjectRef) -> None:
+    if scenario_run.step_node is not None:
+        scenario_run.step_node.close(scenario_run.transition_index)
     if scenario_run.scenario_node is not None:
         scenario_run.scenario_node.close(scenario_run.transition_index)
     if scenario_run.feature_node is not None:
@@ -214,13 +225,17 @@ def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObj
     scenario_run.stage = RunStage.finished
     scenario_run.step_object = None
     scenario_run.previous_step_object = NoPreviousStep()
+    scenario_run.feature_ref = _inactive_ref("feature", reason="finished")
+    scenario_run.scenario_ref = _inactive_ref("scenario", reason="finished")
+    scenario_run.step_ref = _inactive_ref("step", reason="finished", fail_fast_code="object_inactive")
+    scenario_run.previous_step_ref = _inactive_ref("step", reason="finished")
     scenario_run.set_active_set(
         ActiveObjectSet(
             run=run_ref,
-            feature=_inactive_ref("feature", reason="finished"),
-            scenario=_inactive_ref("scenario", reason="finished"),
-            step=_inactive_ref("step", reason="finished", fail_fast_code="object_inactive"),
-            previous_step=_inactive_ref("step", reason="finished"),
+            feature=scenario_run.feature_ref,
+            scenario=scenario_run.scenario_ref,
+            step=scenario_run.step_ref,
+            previous_step=scenario_run.previous_step_ref,
             captured_at_stage=RunStage.finished,
         ),
     )
@@ -296,17 +311,20 @@ def apply_transition(  # noqa: PLR0913
         ),
     )
     scenario_run.advance_transition()
+    if hook_phase is HookPhase.after_scenario:
+        _finalize_after_scenario(scenario_run, run_ref=run_ref)
+
     if run is not None:
         run.active_scenario_run = scenario_run
         run.advance_transition()
         run.status = scenario_run.status
-        run.active_feature_id = (
-            scenario_run.feature_node.id
-            if scenario_run.feature_node is not None and scenario_run.feature_node.is_active
-            else None
-        )
-
-    if hook_phase is HookPhase.after_scenario:
-        _finalize_after_scenario(scenario_run, run_ref=run_ref)
+        if hook_phase is HookPhase.after_scenario:
+            run.active_feature_id = None
+        else:
+            run.active_feature_id = (
+                scenario_run.feature_node.id
+                if scenario_run.feature_node is not None and scenario_run.feature_node.is_active
+                else None
+            )
 
     return scenario_run

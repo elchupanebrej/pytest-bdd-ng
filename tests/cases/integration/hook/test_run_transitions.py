@@ -108,10 +108,40 @@ def test_transition_marks_failed_status_on_step_error() -> None:
     assert context.run.status == RunStatus.failed
 
 
+def test_lookup_error_hook_name_maps_to_failed_transition() -> None:
+    """Verify lookup-error pytest hook name transitions scenario run state."""
+    context = _build_context()
+    inputs = _build_transition_inputs()
+
+    apply_transition(
+        context,
+        hook_phase=HookPhase("pytest_bdd_step_func_lookup_error"),
+        gherkin_document=inputs.feature,
+        pickle=inputs.scenario,
+        step=inputs.step,
+        previous_step=None,
+    )
+
+    assert context.active_hook == HookPhase.step_lookup_error
+    assert context.stage == RunStage.scenario_running
+    assert context.status == RunStatus.failed
+    assert context.run.status == RunStatus.failed
+
+
 def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     """Verify transition clears scenario objects after after scenario."""
     context = _build_context()
     inputs = _build_transition_inputs()
+    feature_node = RunNode(
+        id="feature-node-1",
+        parent_id=context.run.id,
+        kind="feature",
+        object_ref=LifecycleObjectRef(kind="feature", object_id="f-1", is_active=True),
+        is_active=True,
+        opened_at_transition=0,
+    )
+    context.feature_node = feature_node
+    context.run.active_feature_id = feature_node.id
     context.run.reporting_state.active_test_case_started_id = "case-started-1"
     context.run.reporting_state.active_test_step_id = "step-1"
     context.reference_resolver.add_missing_reference("missing-ast-node")
@@ -131,11 +161,79 @@ def test_transition_clears_scenario_objects_after_after_scenario() -> None:
     assert context.active_set.scenario.empty_state_reason == "finished"
     assert context.active_set.step.is_active is False
     assert context.active_set.step.empty_state_reason == "finished"
+    assert context.feature_ref == context.active_set.feature
+    assert context.scenario_ref == context.active_set.scenario
+    assert context.step_ref == context.active_set.step
+    assert context.previous_step_ref == context.active_set.previous_step
+    assert context.run.active_feature_id is None
     with pytest.raises(AttributeError, match="No active scenario"):
         _ = context.run.active_scenario_id
     assert context.run.reporting_state.active_test_case_started_id == "case-started-1"
     assert context.run.reporting_state.active_test_step_id == "step-1"
     assert context.reference_resolver.missing_reference_diagnostics == ["missing-ast-node"]
+
+
+def test_transition_reuses_active_step_node_for_same_step() -> None:
+    """Verify repeated active hook phases preserve the current step node."""
+    context = _build_context()
+    inputs = _build_transition_inputs()
+
+    apply_transition(
+        context,
+        hook_phase=HookPhase.before_step,
+        gherkin_document=inputs.feature,
+        pickle=inputs.scenario,
+        step=inputs.step,
+        previous_step=None,
+    )
+    first_step_node = context.step_node
+
+    apply_transition(
+        context,
+        hook_phase=HookPhase.before_step_call,
+        gherkin_document=inputs.feature,
+        pickle=inputs.scenario,
+        step=inputs.step,
+        previous_step=None,
+    )
+
+    assert context.step_node is first_step_node
+    assert context.step_node is not None
+    assert context.step_node.is_active is True
+    assert context.step_node.closed_at_transition is None
+
+
+def test_transition_closes_active_step_node_when_step_changes() -> None:
+    """Verify replacing active step nodes closes the old node."""
+    context = _build_context()
+    inputs = _build_transition_inputs()
+    next_step = _Dummy("next-step", "st-2")
+
+    apply_transition(
+        context,
+        hook_phase=HookPhase.before_step,
+        gherkin_document=inputs.feature,
+        pickle=inputs.scenario,
+        step=inputs.step,
+        previous_step=None,
+    )
+    first_step_node = context.step_node
+
+    apply_transition(
+        context,
+        hook_phase=HookPhase.before_step,
+        gherkin_document=inputs.feature,
+        pickle=inputs.scenario,
+        step=next_step,
+        previous_step=inputs.step,
+    )
+
+    assert first_step_node is not None
+    assert first_step_node.is_active is False
+    assert first_step_node.closed_at_transition == 2
+    assert context.step_node is not None
+    assert context.step_node.object_ref.object_id == "st-2"
+    assert context.step_node.is_active is True
 
 
 def test_pickle_runner_raises_when_lifecycle_hook_has_no_active_scenario_run() -> None:

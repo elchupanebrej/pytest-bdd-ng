@@ -16,7 +16,7 @@ class HookPhase(StrEnum):
     before_step_call = "pytest_bdd_before_step_call"
     after_step = "pytest_bdd_after_step"
     step_error = "pytest_bdd_step_error"
-    step_lookup_error = "pytest_bdd_step_lookup_error"
+    step_lookup_error = "pytest_bdd_step_func_lookup_error"
 
 
 class RunStage(StrEnum):
