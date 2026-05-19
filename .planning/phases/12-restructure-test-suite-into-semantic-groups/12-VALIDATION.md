@@ -19,7 +19,7 @@ Per-phase validation contract for feedback sampling during execution.
 | Config file | `pyproject.toml`, `tox.ini`, `Makefile` |
 | Quick run command | `uv run python -m pytest tests/cases/unit tests/cases/integration -q` |
 | Full suite command | `make test-all` |
-| Estimated runtime | TBD after Make target split |
+| Estimated runtime | Measured during Plan 12-06 after Make target split |
 
 ## Sampling Rate
 
@@ -32,10 +32,10 @@ Per-phase validation contract for feedback sampling during execution.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 12-W0-01 | TBD | 0 | TBD-01/TBD-02 | T-12-01 | N/A | unit/config | `uv run python -m pytest tests/cases/unit/test_test_suite_classification.py -q` | no W0 | pending |
-| 12-W0-02 | TBD | 0 | TBD-03 | T-12-02 | env checks remain read-only | contract | `uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | no W0 | pending |
-| 12-W0-03 | TBD | 0 | TBD-05 | T-12-03 | N/A | unit/static | `uv run python -m pytest tests/cases/unit/test_e2e_loader_shape.py -q` | no W0 | pending |
-| 12-MIG-01 | TBD | TBD | TBD-04 | T-12-04 | moved tests remain equivalent | integration/smoke | `make test-unit && make test-integration && make test-contract` | after rewrite | pending |
+| 12-W0-01 | 12-01 | 0 | P12-01/P12-05 | T-12-01 | N/A | unit/config | `uv run python -m pytest tests/cases/unit/test_test_suite_classification.py -q` | no W0 | pending |
+| 12-W0-02 | 12-01 | 0 | P12-02/P12-03 | T-12-02 | env checks remain read-only | contract | `uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | no W0 | pending |
+| 12-W0-03 | 12-01 | 0 | P12-05 | T-12-03 | N/A | unit/static | `uv run python -m pytest tests/cases/unit/test_e2e_loader_shape.py -q` | no W0 | pending |
+| 12-MIG-01 | 12-02/12-03/12-04 | 1/2/3 | P12-01/P12-04/P12-06/P12-07 | T-12-04 | moved tests remain equivalent | integration/smoke | `make test-unit && make test-integration && make test-contract` | after rewrite | pending |
 
 ## Wave 0 Requirements
 
@@ -48,7 +48,7 @@ Per-phase validation contract for feedback sampling during execution.
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Docker/external target policy | TBD-03/TBD-04 | Docker absent locally; explicit target must fail actionable or be skipped intentionally | Run `make env-check-docker` and confirm failure is read-only and actionable when Docker is absent |
+| Docker/external target policy | P12-03/P12-07 | Docker absent locally; explicit target must fail actionable or be skipped intentionally | Run `make env-check-docker` and confirm failure is read-only and actionable when Docker is absent |
 
 ## Validation Sign-Off
 
