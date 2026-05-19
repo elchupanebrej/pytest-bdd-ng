@@ -6,7 +6,7 @@ import ast
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-E2E_ROOTS = (REPO_ROOT / "tests" / "cases" / "e2e", REPO_ROOT / "tests" / "e2e")
+E2E_ROOTS = (REPO_ROOT / "tests" / "cases" / "e2e",)
 
 
 def _iter_e2e_test_modules() -> list[Path]:

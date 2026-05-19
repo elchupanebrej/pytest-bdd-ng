@@ -235,16 +235,16 @@ test_feature_061 = scenarios(
 )
 
 pytest_plugins = [
-    "tests.e2e.steps_go_parser",
-    "tests.e2e.steps_tag_expressions",
-    "tests.e2e.steps_heading_validation",
-    "tests.e2e.steps_mimetype",
-    "tests.e2e.steps_struct_bdd",
-    "tests.e2e.steps_formatters",
-    "tests.e2e.steps_code_generator",
-    "tests.e2e.steps_scenario_reporter",
-    "tests.e2e.steps_compatibility",
-    "tests.e2e.steps_batch_collection",
+    "tests.cases.e2e.steps_go_parser",
+    "tests.cases.e2e.steps_tag_expressions",
+    "tests.cases.e2e.steps_heading_validation",
+    "tests.cases.e2e.steps_mimetype",
+    "tests.cases.e2e.steps_struct_bdd",
+    "tests.cases.e2e.steps_formatters",
+    "tests.cases.e2e.steps_code_generator",
+    "tests.cases.e2e.steps_scenario_reporter",
+    "tests.cases.e2e.steps_compatibility",
+    "tests.cases.e2e.steps_batch_collection",
 ]
 
 
