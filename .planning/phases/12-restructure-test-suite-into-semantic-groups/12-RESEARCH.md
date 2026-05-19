@@ -348,17 +348,17 @@ Source: pytest docs. [CITED: https://docs.pytest.org/en/stable/how-to/mark.html]
 | A2 | `tests.support.pytest_results` should move to `src/pytest_bdd/testing/pytest_results.py` even though design doc's proposed module list omits it. [ASSUMED] | Architecture Patterns | Helper may stay group-local if only e2e uses it; planner should classify by reuse. |
 | A3 | GitHub workflow path references may need updates. [ASSUMED] | Runtime State Inventory | CI may fail if `.github/` has hardcoded old test paths. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should source helper filename be renamed from `tests_group_ordering.py` to `test_group_ordering.py`?**
    - What we know: AGENTS/context mention singular; current code uses plural. [VERIFIED: codebase grep]
-   - What's unclear: whether singular is intended future cleanup or typo. [ASSUMED]
-   - Recommendation: planner should avoid renaming unless it includes import updates and compatibility rationale.
+   - Resolution: keep existing `src/pytest_bdd/util/tests_group_ordering.py` filename in Phase 12. Treat singular references as stale prose unless a later dedicated cleanup phase renames the module with import updates and compatibility rationale.
+   - Plan impact: plans must reference the plural filename and must not add a rename task.
 
 2. **How granular should E2E split be for 47 feature files?**
    - What we know: whole-directory loader forbidden; per-file split required where practical. [CITED: CONTEXT.md]
-   - What's unclear: exact module grouping for related feature docs. [ASSUMED]
-   - Recommendation: generate modules per feature area or per feature file, with no `scenarios(".")`.
+   - Resolution: create owned e2e modules per feature file where practical; when related feature files share one step/fixture boundary, one module may bind a small explicit list of `.feature`/`.feature.md` files.
+   - Plan impact: every `scenarios(...)` call must name explicit feature file path(s); no directory target, `scenarios(".")`, or full-tree filter wrapper remains.
 
 ## Environment Availability
 
