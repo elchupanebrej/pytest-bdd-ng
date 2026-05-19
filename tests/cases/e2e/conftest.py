@@ -20,8 +20,6 @@ from pytest_httpserver import HTTPServer
 from pytest_bdd import given, parsers, step, then, when
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
-from pytest_bdd.util.data_table import data_table_to_dicts
-from pytest_bdd.util.toolz_extra import compose, deepattrgetter
 from pytest_bdd.testing.cucumber_formatters import (
     install_fake_node,
     requests_terminal_formatter_output,
@@ -34,6 +32,8 @@ from pytest_bdd.testing.pytest_results import (
     resolve_pytester_run_mode,
     run_quietly,
 )
+from pytest_bdd.util.data_table import data_table_to_dicts
+from pytest_bdd.util.toolz_extra import compose, deepattrgetter
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
@@ -226,7 +226,7 @@ def _require_xdist():
     pytest.importorskip("xdist")
 
 
-_REMOTE_XDIST_FIXTURE_DIR = Path(__file__).resolve().parents[3] / "tests" / "e2e" / "fixtures" / "remote_xdist"
+_REMOTE_XDIST_FIXTURE_DIR = Path(__file__).resolve().parents[4] / "tests" / "assets" / "docker" / "remote_xdist"
 _REMOTE_XDIST_REPORT_NAME = "remote-xdist.ndjson"
 # Human-friendly aliases for execnet gateway mode names.
 # The feature files use the alias; docker-compose receives the canonical execnet keyword.
@@ -271,18 +271,18 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
 
 @then("the distributed run succeeds and a consolidated NDJSON report is produced")
 def _assert_remote_run_succeeds(remote_xdist_result):
+    from contract.messages.message_stream_assertions import (
+        count_payload_kinds,
+        gateway_modes_for_payloads,
+        parse_ndjson_messages,
+        worker_ids_for_payloads,
+    )
     from cucumber_messages import (
         TestCaseStarted as CucumberTestCaseStarted,  # type:ignore[attr-defined]
     )
 
     from pytest_bdd.model.message_validation import (
         validate_message_stream,
-    )
-    from contract.messages.message_stream_assertions import (
-        count_payload_kinds,
-        gateway_modes_for_payloads,
-        parse_ndjson_messages,
-        worker_ids_for_payloads,
     )
 
     result = remote_xdist_result["result"]
@@ -356,7 +356,7 @@ def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[st
     if command_args and command_args[0] == "python":
         command_args[0] = sys.executable
     env = dict(os.environ)
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[4]
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo_root / "src"), env.get("PYTHONPATH", "")]))
     result = subprocess.run(  # noqa: S603
         command_args,

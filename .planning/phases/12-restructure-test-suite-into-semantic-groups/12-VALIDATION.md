@@ -1,10 +1,11 @@
 ---
 phase: 12
 slug: restructure-test-suite-into-semantic-groups
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-05-19
+validated: 2026-05-19
 ---
 
 # Phase 12 - Validation Strategy
@@ -19,7 +20,7 @@ Per-phase validation contract for feedback sampling during execution.
 | Config file | `pyproject.toml`, `tox.ini`, `Makefile` |
 | Quick run command | `uv run python -m pytest tests/cases/unit tests/cases/integration -q` |
 | Full suite command | `make test-all` |
-| Estimated runtime | Measured during Plan 12-06 after Make target split |
+| Estimated runtime | ~10 min (unit: 32s, integration: 262s, contract: 243s, e2e: 79s, compat: 3s, perf: 9s, slow: 99s) |
 
 ## Sampling Rate
 
@@ -32,17 +33,17 @@ Per-phase validation contract for feedback sampling during execution.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 12-W0-01 | 12-01 | 0 | P12-01/P12-05 | T-12-01 | N/A | unit/config | `uv run python -m pytest tests/cases/unit/test_test_suite_classification.py -q` | no W0 | pending |
-| 12-W0-02 | 12-01 | 0 | P12-02/P12-03 | T-12-02 | env checks remain read-only | contract | `uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | no W0 | pending |
-| 12-W0-03 | 12-01 | 0 | P12-05 | T-12-03 | N/A | unit/static | `uv run python -m pytest tests/cases/unit/test_e2e_loader_shape.py -q` | no W0 | pending |
-| 12-MIG-01 | 12-02/12-03/12-04 | 1/2/3 | P12-01/P12-04/P12-06/P12-07 | T-12-04 | moved tests remain equivalent | integration/smoke | `make test-unit && make test-integration && make test-contract` | after rewrite | pending |
+| 12-W0-01 | 12-01 | 0 | P12-01/P12-05 | T-12-01 | N/A | unit/config | `uv run python -m pytest tests/cases/unit/test_test_suite_classification.py -q` | no W0 | pass |
+| 12-W0-02 | 12-01 | 0 | P12-02/P12-03 | T-12-02 | env checks remain read-only | contract | `uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | no W0 | pass |
+| 12-W0-03 | 12-01 | 0 | P12-05 | T-12-03 | N/A | unit/static | `uv run python -m pytest tests/cases/unit/test_e2e_loader_shape.py -q` | no W0 | pass |
+| 12-MIG-01 | 12-02/12-03/12-04 | 1/2/3 | P12-01/P12-04/P12-06/P12-07 | T-12-04 | moved tests remain equivalent | integration/smoke | `make test-unit && make test-integration && make test-contract` | after rewrite | pass |
 
 ## Wave 0 Requirements
 
-- [ ] `tests/cases/unit/test_test_suite_classification.py` - validates semantic path mapping and no tests under assets.
-- [ ] `tests/cases/contract/test_makefile_test_api.py` - validates required Make targets and read-only env checks.
-- [ ] `tests/cases/unit/test_e2e_loader_shape.py` - forbids `scenarios(".")` and broad feature-directory loaders.
-- [ ] Update existing group helper tests after path change.
+- [x] `tests/cases/unit/test_test_suite_classification.py` - validates semantic path mapping and no tests under assets.
+- [x] `tests/cases/contract/test_makefile_test_api.py` - validates required Make targets and read-only env checks.
+- [x] `tests/cases/unit/test_e2e_loader_shape.py` - forbids `scenarios(".")` and broad feature-directory loaders.
+- [x] Update existing group helper tests after path change.
 
 ## Manual-Only Verifications
 
@@ -59,4 +60,4 @@ Per-phase validation contract for feedback sampling during execution.
 - [x] Feedback latency target documented.
 - [x] `nyquist_compliant: true` set in frontmatter.
 
-**Approval:** pending
+**Approval:** ✅ validated by Plan 12-06 — all Wave 0 guards pass, semantic slices pass, tox -l resolves, stale import audit clean, Docker/external targets correctly gated behind env-check failures per D-10.

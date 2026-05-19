@@ -10,7 +10,11 @@ from pathlib import Path
 from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
 from pytest_bdd.model.message_validation import validate_message_stream
-from tests.messages.message_stream_assertions import count_payload_kinds, parse_ndjson_messages, worker_ids_for_payloads
+from tests.cases.contract.messages.message_stream_assertions import (
+    count_payload_kinds,
+    parse_ndjson_messages,
+    worker_ids_for_payloads,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:

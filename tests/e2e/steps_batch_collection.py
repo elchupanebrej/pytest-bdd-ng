@@ -1,5 +1,5 @@
 from pytest_bdd import given, parsers, step, then
-from tests.e2e.conftest import data_table_to_dicts
+from tests.cases.e2e.conftest import data_table_to_dicts
 
 
 @step("run pytest with batch collection", target_fixture="pytest_result")

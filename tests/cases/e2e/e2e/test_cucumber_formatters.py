@@ -24,8 +24,10 @@ from pytest_bdd.testing.pytest_results import combined_result_output
 
 def test_fake_runtime_support_uses_template_assets_from_shared_support_module() -> None:
     """Verify fake runtime support uses template assets from shared support module."""
-    repo_root = Path(__file__).resolve().parents[2]
-    support_source = (repo_root / "tests" / "support" / "cucumber_formatters.py").read_text(encoding="utf-8")
+    repo_root = Path(__file__).resolve().parents[4]
+    support_source = (repo_root / "src" / "pytest_bdd" / "testing" / "cucumber_formatters.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "fake_node_runtime.py.j2" in support_source
     assert "fake_npm_runtime.py.j2" in support_source

@@ -205,7 +205,7 @@ def test_runtime_materialization_only_writes_requested_formatter_assets(tmp_path
 
 def test_pyproject_lists_live_formatter_bridge_template_as_package_data() -> None:
     """Verify pyproject lists live formatter bridge template as package data."""
-    pyproject = loads((Path(__file__).resolve().parents[2] / "pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = loads((Path(__file__).resolve().parents[4] / "pyproject.toml").read_text(encoding="utf-8"))
     package_data = pyproject["tool"]["setuptools"]["package-data"]
 
     assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" in package_data
