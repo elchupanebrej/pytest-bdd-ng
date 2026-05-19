@@ -22,16 +22,17 @@ mkdir -p "${AUDIT_DIR}"
 rm -f "${MESSAGES_FILE}" "${REPORT_FILE}"
 
 # Populate CI metadata fields from real runtime environment variables.
-export CI=true
-export GITHUB_ACTIONS=true
-export GITHUB_RUN_NUMBER=42
-export GITHUB_RUN_ID=4242
-export GITHUB_REF_NAME=coverage-audit
-export GITHUB_REF=refs/heads/coverage-audit
-export GITHUB_REF_TYPE=branch
-export GITHUB_SHA=deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-export GITHUB_SERVER_URL=https://github.com
-export GITHUB_REPOSITORY=pytest-dev/pytest-bdd-ng
+# Values below are fallbacks used for local developer runs; real CI sets these automatically.
+export CI="${CI:-true}"
+export GITHUB_ACTIONS="${GITHUB_ACTIONS:-true}"
+export GITHUB_RUN_NUMBER="${GITHUB_RUN_NUMBER:-42}"
+export GITHUB_RUN_ID="${GITHUB_RUN_ID:-4242}"
+export GITHUB_REF_NAME="${GITHUB_REF_NAME:-coverage-audit}"
+export GITHUB_REF="${GITHUB_REF:-refs/heads/coverage-audit}"
+export GITHUB_REF_TYPE="${GITHUB_REF_TYPE:-branch}"
+export GITHUB_SHA="${GITHUB_SHA:-deadbeefdeadbeefdeadbeefdeadbeefdeadbeef}"
+export GITHUB_SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
+export GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-pytest-dev/pytest-bdd-ng}"
 
 run_message_capture() {
   uv run --with pytest -m pytest \

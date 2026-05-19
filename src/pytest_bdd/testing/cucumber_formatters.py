@@ -410,7 +410,7 @@ def install_formatter_hook_registry(
     config: Any,
     *,
     catalog: FormatterPluginCatalog | None = None,
-):
+) -> Any:
     """Handle install formatter hook registry."""
     resolved_catalog = FormatterPluginCatalog.discover() if catalog is None else catalog
 

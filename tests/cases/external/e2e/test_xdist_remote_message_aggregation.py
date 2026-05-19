@@ -161,7 +161,7 @@ def _run_local_xdist(  # noqa: C901
             p.wait()
 
 
-def _run_remote_xdist_compose(
+def run_remote_xdist_compose(
     tmp_path: Path,
     *,
     remote_mode: str,
@@ -180,20 +180,21 @@ def _run_remote_xdist_compose(
         finally:
             os.chdir(original_cwd)
 
-    from pytest_bdd.testing.docker_cluster import cluster_manager
+    from pytest_bdd.testing.docker_cluster import get_cluster_manager
 
     try:
-        cluster_manager.set_backend(require_docker_daemon())
+        mgr = get_cluster_manager()
+        mgr.set_backend(require_docker_daemon())
         repo_root = Path(__file__).resolve().parents[2]
 
         if verify_mode == "success-live":
-            _, artifact_dir = cluster_manager.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
+            _, artifact_dir = mgr.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
             materialize_fake_node_runtime(
                 Path(artifact_dir) / "fake-node-runtime",
                 preinstalled_packages=("@cucumber/cucumber",),
             )
 
-        result, docker_artifact_dir = cluster_manager.run_in_controller(
+        result, docker_artifact_dir = mgr.run_in_controller(
             remote_mode,
             FIXTURE_DIR,
             repo_root,
@@ -217,7 +218,7 @@ def _run_remote_xdist_compose(
 @pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
 def test_remote_xdist_run_aggregates_into_one_ndjson(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist run aggregates into one ndjson."""
-    result = _run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success")
+    result = run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success")
 
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
 
@@ -239,7 +240,7 @@ def test_remote_xdist_run_aggregates_into_one_ndjson(tmp_path: Path, remote_mode
 @pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
 def test_remote_xdist_partial_worker_transport_still_emits_one_report(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist partial worker transport still emits one report."""
-    result = _run_remote_xdist_compose(
+    result = run_remote_xdist_compose(
         tmp_path,
         remote_mode=remote_mode,
         verify_mode="partial",
@@ -270,7 +271,7 @@ def test_remote_xdist_partial_worker_transport_still_emits_one_report(tmp_path: 
 @pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
 def test_remote_xdist_live_formatter_stream_is_rendered_once_by_controller(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist live formatter stream is rendered once by controller."""
-    result = _run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success-live")
+    result = run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success-live")
 
     assert result.returncode == 0, result.stdout + "\n" + result.stderr
 

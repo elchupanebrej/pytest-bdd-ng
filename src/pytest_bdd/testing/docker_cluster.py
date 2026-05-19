@@ -40,7 +40,11 @@ def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = Non
         raise FileNotFoundError(msg)
     command_args = list(args)
     if env is not None:
-        env_overrides = [f"{key}={value}" for key, value in env.items() if os.environ.get(key) != value]
+        # Build inline `env KEY=VALUE ...` overrides for values that differ from the
+        # caller's environment so that WSL sees them.  Compare against `env` itself
+        # (not `os.environ`) because that is what subprocess.run will expose to WSL.
+        caller_env = os.environ
+        env_overrides = [f"{key}={value}" for key, value in env.items() if caller_env.get(key) != value]
         if env_overrides:
             command_args = ["env", *env_overrides, *command_args]
     return subprocess.run(  # noqa: S603
@@ -49,7 +53,6 @@ def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = Non
         capture_output=True,
         text=True,
         timeout=timeout,
-        env=env,
     )
 
 
@@ -63,7 +66,7 @@ class DockerClusterManager:
 
     """
 
-    def __init__(self, backend: str = "native", timeouts: DockerTimeouts | None = None):
+    def __init__(self, backend: str = "native", timeouts: DockerTimeouts | None = None) -> None:
         """Initialize the docker cluster manager."""
         self.backend = backend
         self.timeouts = timeouts or DockerTimeouts()
@@ -71,7 +74,7 @@ class DockerClusterManager:
         self.artifact_dirs = {}
         self.compose_envs = {}
         self._session_start: float | None = None
-        atexit.register(self.cleanup)
+        self._atexit_registered = False
 
     def _run_docker_cmd(
         self,
@@ -145,7 +148,7 @@ class DockerClusterManager:
         if capture_dir.exists():
             shutil.rmtree(capture_dir, ignore_errors=True)
 
-    def _check_session_timeout(self):
+    def _check_session_timeout(self) -> None:
         """
         Raise RuntimeError if overall session timeout exceeded.
 
@@ -168,6 +171,10 @@ class DockerClusterManager:
             RuntimeError: If the operation cannot be completed.
 
         """
+        if not self._atexit_registered:
+            atexit.register(self.cleanup)
+            self._atexit_registered = True
+
         if remote_mode in self.active_clusters:
             return self.active_clusters[remote_mode], self.artifact_dirs[remote_mode]
 
@@ -268,7 +275,7 @@ class DockerClusterManager:
         result = self._run_docker_cmd(exec_cmd, timeout=self.timeouts.compose_exec, operation="compose_exec", env=env)
         return result, Path(docker_artifact_dir)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Handle cleanup."""
         for remote_mode, compose_cmd in self.active_clusters.items():
             with contextlib.suppress(FileNotFoundError, OSError):
@@ -289,4 +296,15 @@ class DockerClusterManager:
         self._session_start = None
 
 
-cluster_manager = DockerClusterManager()
+_cluster_manager_holder: list[DockerClusterManager] = []
+
+
+def get_cluster_manager() -> DockerClusterManager:
+    """Return the session-scoped DockerClusterManager singleton, lazily initialized."""
+    if not _cluster_manager_holder:
+        _cluster_manager_holder.append(DockerClusterManager())
+    return _cluster_manager_holder[0]
+
+
+# Backwards-compatible alias — prefer get_cluster_manager() for new code.
+cluster_manager = None  # type: ignore[assignment]  # see get_cluster_manager()

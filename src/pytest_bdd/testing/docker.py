@@ -215,10 +215,13 @@ def docker_daemon_available() -> tuple[bool, str | None]:
 
 
 def require_docker_daemon() -> str:
-    """Return backend name (``"native"`` or ``"wsl2"``).  Fail on missing prereqs."""
-    cache_clear = getattr(docker_daemon_available, "cache_clear", None)
-    if callable(cache_clear):
-        cache_clear()
+    """
+    Return backend name (``"native"`` or ``"wsl2"``).  Fail on missing prereqs.
+
+    Results are cached via :func:`docker_daemon_available`; call
+    ``docker_daemon_available.cache_clear()`` before this function if a fresh
+    probe is required.
+    """
     available, backend = docker_daemon_available()
     if available:
         return backend

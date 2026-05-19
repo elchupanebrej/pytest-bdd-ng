@@ -246,12 +246,12 @@ def _require_docker():
 )
 def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
     from tests.cases.external.e2e.test_xdist_remote_message_aggregation import (
-        _run_remote_xdist_compose,
+        run_remote_xdist_compose,
     )
 
     execnet_mode = _REMOTE_MODE_ALIASES.get(remote_mode, remote_mode)
 
-    result = _run_remote_xdist_compose(
+    result = run_remote_xdist_compose(
         tmp_path,
         remote_mode=execnet_mode,
         verify_mode="success",
