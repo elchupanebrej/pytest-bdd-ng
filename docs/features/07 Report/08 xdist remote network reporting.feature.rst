@@ -5,10 +5,10 @@ This feature documents that pytest-bdd-ng produces one consolidated
 NDJSON report when test workers communicate with the controller over
 real network transports: execnet socket, relay (chained proxy), and SSH.
 
-Each scenario uses Docker containers with independent filesystems вЂ” no
-shared volume between the controller and worker вЂ” intentionally
-testing that the xdist/execnet channel is the sole reporting transport.
-The same boundary also centralizes live formatter ownership on the
+Each scenario uses Docker containers with independent filesystems — no
+shared volume between the controller and worker — intentionally testing
+that the xdist/execnet channel is the sole reporting transport. The same
+boundary also centralizes live formatter ownership on the
 controller/main authority so worker processes never render competing
 formatter output. No manual ``-s`` or ``--capture=no`` override is
 required when the controller requests a terminal formatter, and
