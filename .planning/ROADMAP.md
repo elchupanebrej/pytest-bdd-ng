@@ -260,7 +260,7 @@ Plans:
 **Goal:** Restructure the test suite so `tests/cases/` communicates semantic purpose, `tests/assets/` holds passive data only, shared active harness code lives under internal `src/pytest_bdd/testing/`, and Makefile targets are the documented human API for local, full, semantic, slow, and environment-specific runs.
 **Requirements**: P12-01, P12-02, P12-03, P12-04, P12-05, P12-06, P12-07, P12-08, P12-09, P12-10
 **Depends on:** Phase 11
-**Plans:** 2/6 plans executed
+**Plans:** 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -270,7 +270,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 12-03-PLAN.md — Big-bang semantic test tree migration and per-file E2E loader split
+- [x] 12-03-PLAN.md — Big-bang semantic test tree migration and per-file E2E loader split
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
