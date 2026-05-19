@@ -51,6 +51,8 @@ repos:
           uv run --extra doc-gen --frozen python
           src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
         language: system
+        files: >-
+          ^(features/|src/pytest_bdd/script/bdd_tree_to_rst.py|src/pytest_bdd/template/)
         pass_filenames: false
       - id: validate-feature-headings
         name: validate-feature-headings

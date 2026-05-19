@@ -62,6 +62,18 @@ def test_main_workflow_checks_generated_message_schemas_without_pre_commit() -> 
     assert "sync_messages_contract_schemas" not in pre_commit_config
 
 
+def test_feature_doc_pre_commit_hook_is_scoped_to_feature_inputs() -> None:
+    """Verify feature doc hook does not run for unrelated commits."""
+    pre_commit_config = (PROJECT_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+    hook_start = pre_commit_config.index("      - id: generate-feature-doc")
+    hook_end = pre_commit_config.index("      - id: validate-feature-headings")
+    hook_config = pre_commit_config[hook_start:hook_end]
+
+    assert "files: >-" in hook_config
+    assert "^(features/|src/pytest_bdd/script/bdd_tree_to_rst.py|src/pytest_bdd/template/)" in hook_config
+
+
 def test_pyproject_declares_jinja2_and_removes_mako_runtime_dependency() -> None:
     """Verify pyproject declares jinja2 and removes mako runtime dependency."""
     pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
