@@ -193,64 +193,116 @@ silent failures that mask real bugs (STAB-03).
 Testing Strategy
 ----------------
 
-pytest-bdd-ng uses a four-tier testing approach:
+pytest-bdd-ng organizes tests into seven semantic groups under ``tests/cases/``.
+Each test belongs to exactly one group based on purpose, not legacy path.
 
-Unit Tests (``tests/unit/``)
+The ``tests/assets/`` directory holds passive test data only: fixtures, templates,
+golden files, Docker assets, and feature-document fixtures. It does not contain
+collected tests. Reusable active helper code lives in ``src/pytest_bdd/testing/``,
+which is internal project-owned test infrastructure --- not a public user API.
+
+.. _semantic-groups:
+
+Semantic Groups
+~~~~~~~~~~~~~~~
+
+Unit (``tests/cases/unit/``)
+    Pure in-process module tests. Fast, isolated, no external dependencies.
+    Marked with ``@pytest.mark.unit``. Target >80% coverage.
+
+Integration (``tests/cases/integration/``)
+    Local plugin, parser, runtime, pytester, and subprocess-light flows.
+    Marked with ``@pytest.mark.integration``. Uses testdir pattern to exercise
+    the full plugin lifecycle.
+
+Contract (``tests/cases/contract/``)
+    Golden files, boundary contracts, schema contracts, and formatter parity
+    contracts. Marked with ``@pytest.mark.contract``.
+
+E2E (``tests/cases/e2e/``)
+    Full executable user workflows and feature-doc driven acceptance tests.
+    Marked with ``@pytest.mark.e2e``. Each E2E test module binds only the
+    feature file or files it owns --- whole-directory scenario loaders are
+    forbidden. Step definitions for ``features/`` live in
+    ``tests/cases/e2e/conftest.py``.
+
+Compat (``tests/cases/compat/``)
+    Python, pytest, dependency, and platform compatibility checks.
+    Marked with ``@pytest.mark.compat``.
+
+Perf (``tests/cases/perf/``)
+    Benchmarks and intentionally expensive performance probes.
+    Marked with ``@pytest.mark.perf``.
+
+External (``tests/cases/external/``)
+    Docker, browser, and host-platform harnesses or acceptance wrappers.
+    Marked with ``@pytest.mark.external``.
+
+Speed and Environment Facets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Fast, isolated tests for core modules. Marked with ``@pytest.mark.unit``.
-Target >80% coverage. Test individual functions, classes, and methods without
-pytest plugin infrastructure.
+In addition to the semantic group marker, tests declare speed and environment
+requirements through optional markers:
+
+Speed:
+    - ``@pytest.mark.slow``: intentionally excluded from default runs
+
+Environment:
+    - ``@pytest.mark.docker``: requires Docker-backed environments
+    - ``@pytest.mark.windows``: requires Windows or Windows bridge behavior
+    - ``@pytest.mark.posix``: requires POSIX host behavior
+    - ``@pytest.mark.browser``: requires Playwright browser assets
+
+Environment Validation and Provisioning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Environment checks are read-only and report missing prerequisites without
+installing anything. Provisioning is explicit and separate:
 
 .. code-block:: bash
 
-   uv run pytest tests/unit/ -x --tb=short
+   # Read-only: verify prerequisites exist (exits nonzero if missing)
+   make env-check
+   make env-check-docker
+   make env-check-windows
+   make env-check-browser
 
-Feature Tests (``tests/feature/``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   # Explicit provisioning: install or prepare prerequisites
+   make env-install
+   make env-install-docker
+   make env-install-windows
+   make env-install-browser
 
-Integration tests using the testdir pattern. These tests create temporary pytest
-projects and verify plugin behavior end-to-end. They exercise the full plugin
-lifecycle without requiring external dependencies.
+Test targets depend on ``env-check-*``, not ``env-install-*``. Run
+``env-install-*`` once when setting up the machine for the first time.
 
-.. code-block:: bash
+Makefile Test API
+~~~~~~~~~~~~~~~~~
 
-   uv run pytest tests/feature/ -x --tb=short
-
-E2E/BDD Tests (``tests/e2e/`` + ``features/``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Executable BDD specifications written as ``.feature.md`` files in ``features/NN Topic/``.
-Step definitions live in ``tests/e2e/conftest.py``. The test entry point
-``tests/e2e/test_e2e.py`` runs ``scenarios(".", ...)`` against the entire
-``features/`` directory.
-
-.. code-block:: bash
-
-   uv run pytest tests/e2e/ -x --tb=short
-
-Message Tests (``tests/messages/``, ``tests/messages_coverage/``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Cucumber Messages protocol tests and coverage probes. Verify that emitted
-messages conform to the cucumber-messages schema and that all expected message
-types are produced during scenario execution.
+Make is the human entrypoint for running tests. Tox remains the matrix engine.
 
 .. code-block:: bash
 
-   uv run pytest tests/messages/ tests/messages_coverage/ -x --tb=short
+   # Default suite: all feasible tests for current machine (no surprise provisioning)
+   make test
 
-Quick run (all tests):
+   # Every feasible local, Docker, and platform bridge target, then render reports
+   make test-all
 
-.. code-block:: bash
+   # Individual semantic slices
+   make test-unit
+   make test-integration
+   make test-contract
+   make test-e2e
+   make test-compat
+   make test-perf
+   make test-external
 
-   uv run pytest tests/ -x
-
-Full matrix (all Python/pytest combinations):
-
-.. code-block:: bash
-
-   uvx --with tox-uv tox
+   # Speed and environment slices
+   make test-slow
+   make test-docker
+   make test-windows
+   make test-posix
 
 BDD Workflow
 ------------
@@ -261,19 +313,20 @@ The project uses ATDD/BDD: acceptance tests in ``features/`` before implementati
    directory following Gherkin syntax.
 
 2. **Implement step definitions**: Add step implementations to
-   ``tests/e2e/conftest.py`` using ``@given``, ``@when``, ``@then`` decorators.
+   ``tests/cases/e2e/conftest.py`` using ``@given``, ``@when``, ``@then``
+   decorators.
 
 3. **Generate documentation**: Render feature docs to RST:
 
    .. code-block:: bash
 
-      uv run bdd_tree_to_rst features docs/features
+      make features-docs
 
 4. **Run E2E tests**: Execute the BDD test suite:
 
    .. code-block:: bash
 
-      uv run pytest tests/e2e/ -x
+      make test-e2e
 
 5. **Plan with GSD**: For new features, use the GSD planning workflow.
    Specifications live in ``specs/NNN-feature-name/``. Phases are tracked in
@@ -339,8 +392,9 @@ To create a new plugin:
       [project.entry-points."pytest11"]
       your_plugin = "pytest_bdd.plugin.your_plugin.entrypoint"
 
-6. **Write tests**: Add unit tests in ``tests/unit/`` and feature tests in
-   ``tests/feature/`` following the testing strategy above.
+6. **Write tests**: Add unit tests in ``tests/cases/unit/`` and integration
+   tests in ``tests/cases/integration/`` following the
+   :ref:`semantic-groups` above.
 
 CI Matrix
 ---------
@@ -370,7 +424,10 @@ not by manual upload. Triggered when a GitHub Release is created.
 Running Tests
 -------------
 
-To list the supported tox environments using the canonical workflow:
+Make is the recommended human entrypoint for running tests. Tox remains the
+matrix engine for full Python/pytest version coverage.
+
+To list the supported tox environments:
 
 .. code-block:: bash
 
@@ -397,11 +454,11 @@ Render HTML reports from the collected tox NDJSON artifacts:
 By default, tox writes NDJSON artifacts as ``.tox/<envname>.messages.ndjson`` and the
 Makefile renders HTML reports to ``.tmp/tox-reports/<envname>.html``.
 
-For a quick test run:
+For a quick test run with pytest directly:
 
 .. code-block:: bash
 
-   uv run pytest tests/ -x
+   uv run python -m pytest tests/cases -m "not slow and not docker and not windows and not browser and not external"
 
 Development Workflow
 --------------------
@@ -418,13 +475,14 @@ Development Workflow
 
    .. code-block:: bash
 
-      uv run pytest tests/your_test_file.py
+      make test-unit
+      make test-integration
 
 4. Run the full validation suite before pushing:
 
    .. code-block:: bash
 
-      uvx --with tox-uv tox
+      make test-all
       uvx pre-commit run --all-files
 
 5. Commit and push:
@@ -570,7 +628,7 @@ Available Commands
 - ``uv run compatibility_matrix --list --compatible-only`` - Inspect the supported compatibility matrix
 - ``uv run bdd_tree_to_rst features docs/features`` - Regenerate feature RST documentation
 - ``uv run render_cucumber_formatters --messages-ndjson <path> ...`` - Replay formatter outputs from NDJSON
-- ``make test`` - Run tox and render one HTML report per pytest-based tox environment
+- ``make test`` - Run the default feasible test suite for the current machine
 - ``uvx --with tox-uv tox -l`` - List supported tox environments
 - ``uvx --with tox-uv tox`` - Run the full tox matrix using ``tox-uv``
 - ``make render-tox-reports`` - Render HTML reports from tox NDJSON artifacts
@@ -579,7 +637,7 @@ Available Commands
 - ``uv run python -m pytest_bdd.script.message_capability_governance report --help`` - Inspect message governance commands
 - ``uvx --with build python -m build`` - Build release artifacts
 - ``uvx --with twine twine check dist/*`` - Validate release artifacts before creating a GitHub Release
-- ``uv run pytest <test_path>`` - Run specific tests
+- ``uv run python -m pytest tests/cases/<group>/<file>`` - Run specific tests
 - ``uvx pre-commit run --all-files`` - Run all pre-commit checks
 - ``make local-pr-gate`` - Run the local PR gate checks
 - ``bash scripts/run_messages_coverage_audit.sh`` - Run the messages coverage audit workflow

@@ -36,7 +36,7 @@ Scenario: JUnit XML output contains test suite structure
 
 - When run pytest with JUnit reporter
 - Then pytest outcome must contain tests with statuses: \| passed \|
-  \|--------\| \| 1 \|
+  \|--------\| \| 2 \|
 - And File "report.xml" contains the line "<testsuite"
 
 Scenario: JUnit XML contains test case elements
