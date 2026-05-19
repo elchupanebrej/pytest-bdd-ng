@@ -290,11 +290,13 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     def _fetch_feature_responses(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         loop = asyncio.new_event_loop()
-        responses = loop.run_until_complete(self.fetch_all(urls))
-        # Wait 250 ms for the underlying SSL connections to close
-        loop.run_until_complete(asyncio.sleep(0.250))
-        loop.close()
-        return responses
+        try:
+            responses = loop.run_until_complete(self.fetch_all(urls))
+            # Wait 250 ms for the underlying SSL connections to close
+            loop.run_until_complete(asyncio.sleep(0.250))
+            return responses
+        finally:
+            loop.close()
 
     def _get_parser_type(
         self,
