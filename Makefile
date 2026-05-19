@@ -1,9 +1,11 @@
-.PHONY: develop sync tox-list test quick-test pre-commit coverage coveralls build dist-check release-check \
-	clean compat-list compat-check validate-headings features-docs render-formatters \
-	local-pr-gate messages-audit render-tox-reports render-tox-reports-run sync-message-schemas
+.PHONY: develop sync tox-list test test-all test-unit test-integration test-contract test-e2e \
+	test-compat test-perf test-external test-slow test-docker test-windows test-posix \
+	env-check env-check-docker env-check-windows env-check-browser env-install env-install-docker \
+	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
+	clean compat-list compat-check validate-headings features-docs render-formatters local-pr-gate \
+	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas
 
 UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
-TEST_PATH ?= tests/
 PYTHON_FACTOR ?= 314
 PYTEST_FACTOR ?= latest
 FEATURES_ROOT ?= features
@@ -12,6 +14,8 @@ MESSAGES_NDJSON ?= .tmp/messages.ndjson
 FORMATTER_ARGS ?= --cucumber-summary
 TOX_NDJSON_GLOB ?= .tox/*.messages.ndjson
 TOX_HTML_REPORT_DIR ?= .tmp/tox-reports
+PYTEST ?= uv run python -m pytest
+PYTEST_LOCAL_SELECTOR ?= not slow and not docker and not windows and not browser and not external
 
 develop:
 	uv python install 3.14
@@ -19,42 +23,111 @@ develop:
 
 sync: develop
 
-tox-list: develop
+tox-list: env-check
 	uvx --with tox-uv tox -l
 
-test: develop
-	uvx --with tox-uv tox
-	$(MAKE) --no-print-directory render-tox-reports-run
+test: env-check
+	$(PYTEST) tests/cases -m "$(PYTEST_LOCAL_SELECTOR)"
 
-quick-test: develop
-	uv run pytest $(TEST_PATH) -x
+test-all: env-check test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
+	-$(MAKE) --no-print-directory test-docker
+	-$(MAKE) --no-print-directory test-windows
+	-$(MAKE) --no-print-directory test-external
+	-$(MAKE) --no-print-directory render-tox-reports-run
 
-compat-list: develop
+test-unit: env-check
+	$(PYTEST) tests/cases/unit -m unit
+
+test-integration: env-check
+	$(PYTEST) tests/cases/integration -m integration
+
+test-contract: env-check
+	$(PYTEST) tests/cases/contract -m contract
+
+test-e2e: env-check
+	$(PYTEST) tests/cases/e2e -m "e2e and not browser"
+
+test-compat: env-check
+	$(PYTEST) tests/cases/compat -m compat
+
+test-perf: env-check
+	$(PYTEST) tests/cases/perf -m perf
+
+test-external: env-check-docker
+	$(PYTEST) tests/cases/external -m external
+
+test-slow: env-check
+	$(PYTEST) tests/cases -m slow
+
+test-docker: env-check-docker
+	$(PYTEST) tests/cases -m docker
+
+test-windows: env-check-windows
+	$(PYTEST) tests/cases -m windows
+
+test-posix: env-check
+	$(PYTEST) tests/cases -m posix
+
+env-check:
+	@command -v uv >/dev/null || { echo "ERROR: uv missing. Run make env-install."; exit 1; }
+	@uv run python -c "import pytest" >/dev/null || { echo "ERROR: pytest environment missing. Run make env-install."; exit 1; }
+
+env-check-docker:
+	@command -v docker >/dev/null || { echo "ERROR: docker missing. Run make env-install-docker."; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon unavailable. Start Docker, then retry."; exit 1; }
+	@docker compose version >/dev/null 2>&1 || { echo "ERROR: Docker Compose unavailable. Run make env-install-docker."; exit 1; }
+
+env-check-windows:
+	@if [ "$$(uname -s 2>/dev/null)" = "Linux" ]; then \
+		command -v wsl.exe >/dev/null || { echo "ERROR: Windows bridge missing. Run make env-install-windows."; exit 1; }; \
+	else \
+		python -c "import platform, sys; sys.exit(0 if platform.system() == 'Windows' else 1)" || { echo "ERROR: Windows target requires Windows host or WSL bridge."; exit 1; }; \
+	fi
+
+env-check-browser:
+	@uv run python -c "import playwright" >/dev/null 2>&1 || { echo "ERROR: Playwright package missing. Run make env-install-browser."; exit 1; }
+	@uv run python -m playwright --version >/dev/null 2>&1 || { echo "ERROR: Playwright CLI unavailable. Run make env-install-browser."; exit 1; }
+
+env-install:
+	uv python install 3.14
+	uv sync $(UV_SYNC_EXTRAS)
+
+env-install-docker:
+	docker compose build
+
+env-install-windows:
+	@echo "Install or enable WSL2/Windows bridge support, then run make env-check-windows."
+
+env-install-browser:
+	uv sync $(UV_SYNC_EXTRAS) --extra test-playwright
+	uv run python -m playwright install
+
+compat-list: env-check
 	uv run compatibility_matrix --list --compatible-only
 
-compat-check: develop
+compat-check: env-check
 	uv run compatibility_matrix --python $(PYTHON_FACTOR) --pytest $(PYTEST_FACTOR)
 
-pre-commit: develop
+pre-commit: env-check
 	uvx pre-commit run --all-files
 
-validate-headings: develop
+validate-headings: env-check
 	uv run python -m pytest_bdd.script.validate_feature_headings --root-path $(FEATURES_ROOT)
 
-features-docs: develop
+features-docs: env-check
 	uv run bdd_tree_to_rst $(FEATURES_ROOT) $(FEATURE_DOCS_OUTPUT)
 
-render-formatters: develop
+render-formatters: env-check
 	uv run render_cucumber_formatters --messages-ndjson $(MESSAGES_NDJSON) $(FORMATTER_ARGS)
 
-coverage: develop
-	uv run coverage run --source=pytest_bdd -m pytest tests
+coverage: env-check
+	uv run coverage run --source=pytest_bdd -m pytest tests/cases
 	uv run coverage report -m
 
 coveralls: coverage
 	uv run coveralls
 
-build: develop
+build: env-check
 	rm -rf ./dist
 	uvx --with build python -m build
 
@@ -63,11 +136,11 @@ dist-check: build
 
 release-check: dist-check
 
-local-pr-gate: develop
+local-pr-gate: env-check
 	@echo "[1/4] pre-commit"
 	uvx pre-commit run --all-files
 	@echo "[2/4] e2e tests"
-	uv run python -m pytest -q tests/e2e
+	uv run python -m pytest -q tests/cases/e2e
 	@echo "[3/4] workflow matrix sanity"
 	@if [ -f .github/workflows/tests.yml ]; then \
 		echo "ERROR: legacy workflow .github/workflows/tests.yml exists"; \
@@ -84,10 +157,10 @@ local-pr-gate: develop
 	fi
 	@echo "local_pr_gate: PASS"
 
-messages-audit: develop
+messages-audit: env-check
 	bash scripts/run_messages_coverage_audit.sh
 
-render-tox-reports: develop render-tox-reports-run
+render-tox-reports: env-check render-tox-reports-run
 
 render-tox-reports-run:
 	@mkdir -p $(TOX_HTML_REPORT_DIR)
@@ -102,7 +175,7 @@ render-tox-reports-run:
 		uv run render_cucumber_formatters --messages-ndjson "$$ndjson" --cucumber-html "$(TOX_HTML_REPORT_DIR)/$$envname.html"; \
 	done
 
-sync-message-schemas: develop
+sync-message-schemas: env-check
 	uv run python -m pytest_bdd.script.sync_messages_contract_schemas
 
 clean:
