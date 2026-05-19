@@ -18,7 +18,11 @@ DEFAULT_GOVERNANCE_SCHEMA_RELATIVE_PATH: Final[Path] = Path(
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    source_path = Path(__file__).resolve()
+    for candidate in (source_path.parent, *source_path.parents):
+        if (candidate / "pyproject.toml").is_file() and (candidate / "specs").is_dir():
+            return candidate
+    return source_path.parents[4]
 
 
 def _candidate_repo_roots() -> tuple[Path, ...]:

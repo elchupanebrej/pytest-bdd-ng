@@ -85,7 +85,7 @@ def _format_code(code: str) -> str:
         )
 
         formatted_code = Path(tmp_path).read_text(encoding="utf-8")
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, subprocess.SubprocessError):
         logger.warning("Code generation formatting failed", exc_info=True)
     finally:
         if tmp_path is not None:
@@ -131,7 +131,7 @@ def make_python_docstring(string: str) -> str:
         Python docstring literal.
 
     """
-    return '"""{}."""'.format(string.replace('"""', '\\"\\"\\"'))
+    return repr(string)
 
 
 def make_string_literal(string: str) -> str:
@@ -145,4 +145,4 @@ def make_string_literal(string: str) -> str:
         Python string literal.
 
     """
-    return "'{}'".format(string.replace("'", "\\'"))
+    return repr(string)

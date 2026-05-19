@@ -53,18 +53,20 @@ def process_single_item(
 ) -> None:
     """Handle processing for a single test item."""
     item.session._setupstate.setup(item)  # noqa: SLF001
-    item_request: FixtureRequest = item._request  # noqa: SLF001
-    pickle: Pickle = item_request.getfixturevalue("pickle")
-    gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
-    feature_source: Source = item_request.getfixturevalue("feature_source")
-    feature_binding = Run.from_stash(item_request.config.stash).ensure_feature_binding(
-        gherkin_document=gherkin_document,
-        source=feature_source,
-        pickles=(pickle,),
-    )
-    seen_feature_pickles_ids.add((feature_binding.uri, pickle.name))
-    process_pickle_steps(pickle, item_request, feature_binding, non_matched_feature_pickle_steps)
-    item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]  # noqa: SLF001
+    try:
+        item_request: FixtureRequest = item._request  # noqa: SLF001
+        pickle: Pickle = item_request.getfixturevalue("pickle")
+        gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
+        feature_source: Source = item_request.getfixturevalue("feature_source")
+        feature_binding = Run.from_stash(item_request.config.stash).ensure_feature_binding(
+            gherkin_document=gherkin_document,
+            source=feature_source,
+            pickles=(pickle,),
+        )
+        seen_feature_pickles_ids.add((feature_binding.uri, pickle.name))
+        process_pickle_steps(pickle, item_request, feature_binding, non_matched_feature_pickle_steps)
+    finally:
+        item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]  # noqa: SLF001
 
 
 def process_pickle_steps(

@@ -30,6 +30,14 @@ def test_governance_cli_contract_file_exists() -> None:
     assert CLI_SCHEMA_PATH.exists()
 
 
+def test_governance_repo_root_walks_to_project_root(monkeypatch, tmp_path: Path) -> None:
+    """Verify governance repo root discovery survives package nesting changes."""
+    repo_root = Path(__file__).resolve().parents[4]
+    monkeypatch.chdir(tmp_path)
+
+    assert message_capability_governance._repo_root() == repo_root
+
+
 def test_governance_cli_contract_accepts_valid_report_payload(tmp_path: Path) -> None:
     """Verify governance cli contract accepts valid report payload."""
     payload = {

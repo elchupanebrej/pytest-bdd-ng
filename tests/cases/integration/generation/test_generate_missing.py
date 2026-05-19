@@ -1,8 +1,13 @@
 """Code generation and assertion tests."""
 
+import ast
 import itertools
 import textwrap
 
+import pytest
+
+from pytest_bdd.plugin.code_generator.collection import process_single_item
+from pytest_bdd.plugin.code_generator.rendering import make_python_docstring, make_string_literal
 from pytest_bdd.scenario import get_python_name_generator
 
 
@@ -13,6 +18,53 @@ def test_python_name_generator():
         "test_some_name_1",
         "test_some_name_2",
     ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "trailing backslash\\",
+        "line one\nline two",
+        "single ' quote",
+        'triple """ quote',
+    ],
+)
+def test_generated_python_literals_preserve_valid_gherkin_text(value: str) -> None:
+    """Verify generated Python literals preserve valid Gherkin text."""
+    assert ast.literal_eval(make_string_literal(value)) == value
+    assert ast.literal_eval(make_python_docstring(value)) == value
+    ast.parse(f"def test_generated():\n    {make_python_docstring(value)}\n")
+
+
+def test_process_single_item_tears_down_after_fixture_error() -> None:
+    """Verify code-generation item setup is torn down after fixture errors."""
+    events = []
+
+    class SetupState:
+        def setup(self, item):
+            events.append(("setup", item))
+
+        def teardown_exact(self, item):
+            events.append(("teardown", item))
+
+    class Session:
+        _setupstate = SetupState()
+
+    class FixtureRequest:
+        def getfixturevalue(self, name):
+            msg = f"{name} fixture failed"
+            raise RuntimeError(msg)
+
+    class Item:
+        session = Session()
+        _request = FixtureRequest()
+
+    item = Item()
+
+    with pytest.raises(RuntimeError, match="pickle fixture failed"):
+        process_single_item(item, set(), [])
+
+    assert events == [("setup", item), ("teardown", None)]
 
 
 def test_generate_missing(testdir, tmp_path):
