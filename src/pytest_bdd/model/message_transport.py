@@ -116,13 +116,20 @@ class WorkerChunkBatch:
         Returns:
             A new instance of WorkerChunkBatch initialized from the payload.
 
+        Raises:
+            ValueError: If the required ``worker_id`` field is missing from the payload.
+
         """
         raw_envelopes = payload.get("envelopes", [])
         envelope_candidates = raw_envelopes if isinstance(raw_envelopes, list) else []
         envelopes = tuple(candidate for candidate in envelope_candidates if isinstance(candidate, dict))
         gateway_mode = payload.get("gateway_mode")
+        worker_id = payload.get("worker_id")
+        if worker_id is None:
+            msg = "Missing required field 'worker_id' in batch payload"
+            raise ValueError(msg)
         return cls(
-            worker_id=str(payload["worker_id"]),
+            worker_id=str(worker_id),
             batch_sequence=_payload_int(payload, "batch_sequence"),
             envelopes=envelopes,
             is_terminal_batch=bool(payload.get("is_terminal_batch")),
@@ -169,11 +176,18 @@ class WorkerCompletionManifest:
         Returns:
             A new instance of WorkerCompletionManifest initialized from the payload.
 
+        Raises:
+            ValueError: If the required ``worker_id`` field is missing from the payload.
+
         """
         interruption_reason = payload.get("interruption_reason")
         gateway_mode = payload.get("gateway_mode")
+        worker_id = payload.get("worker_id")
+        if worker_id is None:
+            msg = "Missing required field 'worker_id' in manifest payload"
+            raise ValueError(msg)
         return cls(
-            worker_id=str(payload["worker_id"]),
+            worker_id=str(worker_id),
             complete=bool(payload.get("complete")),
             last_batch_sequence=(
                 _payload_int(payload, "last_batch_sequence") if payload.get("last_batch_sequence") is not None else None
