@@ -232,43 +232,35 @@ filterwarnings = [
 markers = [
   "deprecated: mark test testing deprecated API",
   "deficient: mark test with non-full coverage",
-  "docker: mark tests that require Docker-backed environments",
-  "instant: smallest in-process tests",
-  "doc: documentation verification tests",
-  "unit: fast in-memory unit tests for core modules",
-  "fast: normal fast tests",
-  "medium: moderate integration tests",
-  "slow: expensive local tests",
-  "external: tests requiring external services",
+  "unit: pure in-process module tests",
+  "integration: local plugin, parser, runtime, pytester, and subprocess-light flows",
+  "contract: golden files, boundary contracts, schema contracts, and formatter parity contracts",
+  "e2e: full executable user workflows and feature-doc driven acceptance tests",
+  "compat: Python, pytest, dependency, and platform compatibility checks",
+  "perf: benchmarks and expensive performance probes",
+  "external: Docker, browser, and host-platform harnesses or acceptance wrappers",
   "slow: mark tests that are intentionally excluded from short/default runs",
-  "playwright: mark browser-backed acceptance tests",
+  "docker: mark tests that require Docker-backed environments",
+  "windows: mark tests that require Windows or Windows bridge behavior",
+  "posix: mark tests that require POSIX host behavior",
+  "browser: mark browser-backed acceptance tests",
   "surplus: mark test testing non-standard API",
   "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
   "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
   "order: execution ordering marker from pytest-order"
 ]
-test_group_default = "fast"
-test_group_order = ["instant", "fast", "medium", "slow", "external"]
+test_group_default = "integration"
+test_group_order = ["unit", "integration", "contract", "e2e", "compat", "perf", "external"]
 test_group_paths = [
-  "tests/unit/** = instant",
-  "tests/model/** = instant",
-  "tests/args/** = fast",
-  "tests/hook/** = fast",
-  "tests/steps/** = fast",
-  "tests/feature/** = medium",
-  "tests/gherkin_integration/** = medium",
-  "tests/library/** = medium",
-  "tests/struct_bdd/** = medium",
-  "tests/messages/** = slow",
-  "tests/compatibility/** = slow",
-  "tests/contract/** = slow",
-  "tests/doc/** = slow",
-  "tests/generation/** = slow",
-  "tests/messages_coverage/** = slow",
-  "tests/scripts/** = slow",
-  "tests/e2e/** = external"
+  "tests/cases/unit/** = unit",
+  "tests/cases/integration/** = integration",
+  "tests/cases/contract/** = contract",
+  "tests/cases/e2e/** = e2e",
+  "tests/cases/compat/** = compat",
+  "tests/cases/perf/** = perf",
+  "tests/cases/external/** = external"
 ]
-testpaths = ["tests"]
+testpaths = ["tests/cases"]
 
 [tool.quality_gates]
 command = "uv run python -m pytest_bdd._ruff.rules.quality_gates src/pytest_bdd/"
@@ -403,9 +395,9 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF067 preview rule not recognized by pre-commit ruff v0.12.0
 "src/pytest_bdd/script/message_capability_governance/*" = ["PLC0415", "SLF001", "TC003"]  # PLC0415: lazy imports for monkeypatch compatibility; SLF001: package-internal _repo_root/_candidate_repo_roots access for monkeypatching; TC003: Path used at runtime in function bodies
-"tests/*" = ["ANN", "D", "DOC201", "EM101", "F841", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6301", "S101", "S506", "SIM117", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
-"tests/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
-"tests/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
+"tests/cases/*" = ["ANN", "D", "DOC201", "EM101", "F841", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6301", "S101", "S506", "SIM117", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
+"tests/cases/external/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
+"tests/cases/integration/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

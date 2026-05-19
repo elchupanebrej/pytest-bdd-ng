@@ -32,7 +32,7 @@ def test_pytest_groups_are_canonical_semantic_groups() -> None:
     pytest_options = _pytest_ini_options()
 
     assert tuple(pytest_options["test_group_order"]) == CANONICAL_GROUPS
-    assert pytest_options["test_group_default"] == "unit"
+    assert pytest_options["test_group_default"] == "integration"
     assert set(CANONICAL_GROUPS).issubset({marker.split(":", maxsplit=1)[0] for marker in pytest_options["markers"]})
 
 
