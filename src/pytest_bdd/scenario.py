@@ -61,9 +61,6 @@ def get_python_name_generator(name: str) -> Iterator[str]:
         suffix = f"{index}"
 
 
-test_names = get_python_name_generator("")
-
-
 class FeaturePathType(Enum):
     """
     Controls how non-absolute feature paths are resolved during loading.
@@ -459,6 +456,6 @@ def scenarios(  # noqa: PLR0913
     def test() -> None:
         return Nothing.value_or(None)
 
-    test.__name__ = next(iter(test_names))
+    test.__name__ = next(get_python_name_generator(""))
 
     return test
