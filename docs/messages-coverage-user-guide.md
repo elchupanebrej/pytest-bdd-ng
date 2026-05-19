@@ -35,7 +35,7 @@ Plugin is loaded explicitly when `--messages-ndjson` or `--cucumber-html` is use
 ```bash
 mkdir -p /tmp/pytest-bdd-ng-messages-audit
 uv run --with pytest -m pytest \
-  tests/messages_coverage/test_mandatory_attachments.py -q \
+  tests/cases/contract/messages_coverage/test_mandatory_attachments.py -q \
   -p no:pytest-bdd-gherkin-message-reporter \
   -p pytest_bdd.plugin.gherkin_message_reporter.entrypoint \
   --messages-ndjson /tmp/pytest-bdd-ng-messages-audit/messages-runtime.ndjson

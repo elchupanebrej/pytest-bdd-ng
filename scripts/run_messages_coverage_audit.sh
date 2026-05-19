@@ -56,12 +56,12 @@ run_expected_failure_capture() {
   fi
 }
 
-run_message_capture tests/messages_coverage/test_mandatory_attachments.py
+run_message_capture tests/cases/contract/messages_coverage/test_mandatory_attachments.py
 # Additional real run with tag ref ensures meta.ci.git.tag is observed from runtime CI metadata.
-GITHUB_REF=refs/tags/v32.0.0 GITHUB_REF_NAME=v32.0.0 GITHUB_REF_TYPE=tag run_message_capture tests/messages_coverage/test_mandatory_attachments.py
-run_expected_failure_capture tests/messages_coverage/probes/test_failing_step_runtime.py
-run_expected_failure_capture tests/messages_coverage/probes/test_undefined_parameter_runtime.py
-run_expected_failure_capture tests/messages_coverage/probes/test_parse_error_runtime.py
+GITHUB_REF=refs/tags/v32.0.0 GITHUB_REF_NAME=v32.0.0 GITHUB_REF_TYPE=tag run_message_capture tests/cases/contract/messages_coverage/test_mandatory_attachments.py
+run_expected_failure_capture tests/cases/contract/messages_coverage/probes/test_failing_step_runtime.py
+run_expected_failure_capture tests/cases/contract/messages_coverage/probes/test_undefined_parameter_runtime.py
+run_expected_failure_capture tests/cases/contract/messages_coverage/probes/test_parse_error_runtime.py
 
 uv run --with pytest-bdd-ng python -m pytest_bdd.script.message_capability_governance report \
   --messages-file "${MESSAGES_FILE}" \

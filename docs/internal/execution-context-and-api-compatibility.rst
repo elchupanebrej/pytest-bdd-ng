@@ -24,6 +24,6 @@ symbols with a saved baseline.
 
 Current repository usage:
 
-* Baseline file: ``tests/compatibility/hook_public_api_baseline.json``
+* Baseline file: ``tests/cases/compat/compatibility/hook_public_api_baseline.json``
 * Validation tests:
-  ``tests/compatibility/test_hook_execution_context_api_surface.py``
+  ``tests/cases/compat/compatibility/test_hook_run_api_surface.py``
