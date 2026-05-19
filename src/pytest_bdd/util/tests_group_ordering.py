@@ -7,7 +7,7 @@ import json
 import os
 import time
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TypedDict
 
@@ -494,4 +494,5 @@ def _barrier_lock(state_path: Path) -> Iterator[None]:
     try:
         yield
     finally:
-        lock_path.rmdir()
+        with suppress(FileNotFoundError):
+            lock_path.rmdir()
