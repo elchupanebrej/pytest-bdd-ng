@@ -22,13 +22,13 @@ from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
 from pytest_bdd.util.data_table import data_table_to_dicts
 from pytest_bdd.util.toolz_extra import compose, deepattrgetter
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     install_fake_node,
     requests_terminal_formatter_output,
     run_pytest_via_real_entrypoint,
 )
-from tests.support.docker import require_docker_daemon
-from tests.support.pytest_results import (
+from pytest_bdd.testing.docker import require_docker_daemon
+from pytest_bdd.testing.pytest_results import (
     attach_command_result_outputs,
     combined_result_output,
     resolve_pytester_run_mode,

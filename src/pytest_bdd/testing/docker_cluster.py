@@ -10,7 +10,7 @@ from pathlib import Path
 
 from attrs import define
 
-from tests.support.docker import _resolve_tool_path
+from pytest_bdd.testing.docker import _resolve_tool_path
 
 
 @define
@@ -256,7 +256,7 @@ class DockerClusterManager:
             f"PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR={env['PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR']}",
             "controller",
             "python",
-            "tests/e2e/fixtures/remote_xdist/controller_entrypoint.py",
+            "tests/assets/docker/remote_xdist/controller_entrypoint.py",
         ]
 
         result = self._run_docker_cmd(exec_cmd, timeout=self.timeouts.compose_exec, operation="compose_exec", env=env)

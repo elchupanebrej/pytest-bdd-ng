@@ -69,7 +69,8 @@ _VISIBLE_PYTEST_TERMINAL_FRAGMENTS = (
     "INTERNALERROR>",
 )
 
-_TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_TEMPLATE_DIR = _REPO_ROOT / "tests" / "assets" / "templates" / "cucumber_formatters"
 
 
 def _active_coverage_controller() -> Any | None:
@@ -142,7 +143,7 @@ def run_pytest_via_real_entrypoint(
     preserve_fake_node: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     """Run pytest via real entrypoint."""
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = _REPO_ROOT
     env = os.environ.copy()
     if not preserve_fake_node:
         # Strip fake node environment from previous test steps (#3213)

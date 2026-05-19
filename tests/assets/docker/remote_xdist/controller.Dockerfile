@@ -12,7 +12,7 @@ RUN python -m pip install --upgrade pip setuptools wheel \
 
 COPY . /app
 RUN install -d -m 700 /root/.ssh \
-    && cp /app/tests/e2e/fixtures/remote_xdist/ssh/id_ed25519 /root/.ssh/id_ed25519 \
+    && cp /app/tests/assets/docker/remote_xdist/ssh/id_ed25519 /root/.ssh/id_ed25519 \
     && chmod 600 /root/.ssh/id_ed25519 \
     && printf '%s\n' \
         'Host worker1 worker2' \
@@ -24,4 +24,4 @@ RUN install -d -m 700 /root/.ssh \
         > /root/.ssh/config \
     && chmod 600 /root/.ssh/config
 
-ENTRYPOINT ["python", "tests/e2e/fixtures/remote_xdist/controller_entrypoint.py"]
+ENTRYPOINT ["python", "tests/assets/docker/remote_xdist/controller_entrypoint.py"]

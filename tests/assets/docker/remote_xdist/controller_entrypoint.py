@@ -129,7 +129,7 @@ def main():
         *xdist_args,
         f"--messages-ndjson={local_report_rel}",
         "--pyargs",
-        "tests.e2e.fixtures.remote_xdist.project.test_remote_aggregation",
+        "tests.assets.docker.remote_xdist.project.remote_aggregation_case",
         *extra_pytest_args,
         "-q",
     ]
@@ -138,7 +138,7 @@ def main():
     verify_cmd = [
         "python",
         "-m",
-        "tests.e2e.fixtures.remote_xdist.verify_report",
+        "tests.assets.docker.remote_xdist.verify_report",
         str(local_report_path),
         os.environ.get("VERIFY_REPORT_MODE", "success"),
         remote_mode,

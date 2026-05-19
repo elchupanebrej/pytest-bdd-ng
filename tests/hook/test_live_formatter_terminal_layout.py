@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.cucumber_formatters import materialize_live_formatter_runtime
+from pytest_bdd.testing.cucumber_formatters import materialize_live_formatter_runtime
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 

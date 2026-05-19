@@ -7,7 +7,7 @@ import warnings
 from pathlib import Path
 from types import SimpleNamespace
 
-from tests.support import cucumber_formatters
+from pytest_bdd.testing import cucumber_formatters
 
 
 class _FakeCoverage:

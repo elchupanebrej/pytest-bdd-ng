@@ -1,6 +1,6 @@
 """Provide cucumber formatter support helpers."""
 
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     assert_formatter_output_is_not_mixed_with_pytest_terminal,
     assert_pytest_terminal_reporter_suppressed,
     assert_pytest_terminal_reporter_visible,
@@ -17,7 +17,7 @@ from tests.support.cucumber_formatters import (
     run_pytest_via_real_entrypoint,
     with_pytester_terminal_capture_disabled,
 )
-from tests.support.pytest_results import (
+from pytest_bdd.testing.pytest_results import (
     attach_command_result_outputs,
     combined_result_output,
     resolve_pytester_run_mode,

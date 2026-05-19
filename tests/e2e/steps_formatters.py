@@ -1,7 +1,7 @@
 import json
 
 from pytest_bdd import given, parsers, step, then
-from tests.support.cucumber_formatters import install_fake_node, run_pytest_via_real_entrypoint
+from pytest_bdd.testing.cucumber_formatters import install_fake_node, run_pytest_via_real_entrypoint
 
 
 @given("Cucumber formatters are available")

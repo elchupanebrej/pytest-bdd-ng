@@ -12,7 +12,7 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import (
     load_live_formatter_bridge_template,
 )
 from pytest_bdd.script.render_cucumber_formatters import main
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     install_fake_node,
     materialize_live_formatter_runtime,
     read_fake_formatter_telemetry,

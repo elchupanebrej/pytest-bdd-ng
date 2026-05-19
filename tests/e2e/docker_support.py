@@ -1,5 +1,5 @@
 """Provide docker support helpers."""
 
-from tests.support.docker import docker_daemon_available, require_docker_daemon
+from pytest_bdd.testing.docker import docker_daemon_available, require_docker_daemon
 
 __all__ = ["docker_daemon_available", "require_docker_daemon"]

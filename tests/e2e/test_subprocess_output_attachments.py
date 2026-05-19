@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from attrs import define
 
-from tests.support.pytest_results import (
+from pytest_bdd.testing.pytest_results import (
     attach_command_result_outputs,
     resolve_pytester_run_mode,
     run_quietly,

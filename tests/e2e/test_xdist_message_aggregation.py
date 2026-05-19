@@ -10,7 +10,7 @@ from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type
 from pytest_bdd.model.message_validation import validate_message_stream
 from tests.messages.message_stream_assertions import count_payload_kinds, parse_ndjson_messages, worker_ids_for_payloads
 from tests.messages.test_messages import runpytest_with_message_reporter
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     expected_formatter_visible_line,
     install_fake_node,
     read_fake_formatter_telemetry,

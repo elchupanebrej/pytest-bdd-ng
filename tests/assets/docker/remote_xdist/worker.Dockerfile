@@ -13,7 +13,7 @@ RUN python -m pip install --upgrade pip setuptools wheel \
 COPY . /app
 
 RUN install -d -m 700 /root/.ssh /etc/pytest-bdd /etc/ssh/sshd_config.d /run/sshd \
-    && cp /app/tests/e2e/fixtures/remote_xdist/ssh/id_ed25519.pub /etc/pytest-bdd/controller_ed25519.pub \
+    && cp /app/tests/assets/docker/remote_xdist/ssh/id_ed25519.pub /etc/pytest-bdd/controller_ed25519.pub \
     && chmod 644 /etc/pytest-bdd/controller_ed25519.pub \
     && printf '%s\n' \
         'PermitRootLogin yes' \
@@ -24,4 +24,4 @@ RUN install -d -m 700 /root/.ssh /etc/pytest-bdd /etc/ssh/sshd_config.d /run/ssh
         > /etc/ssh/sshd_config.d/pytest-bdd.conf \
     && ssh-keygen -A
 
-ENTRYPOINT ["python", "tests/e2e/fixtures/remote_xdist/worker_entrypoint.py"]
+ENTRYPOINT ["python", "tests/assets/docker/remote_xdist/worker_entrypoint.py"]

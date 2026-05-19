@@ -11,7 +11,7 @@ import pytest
 
 from pytest_bdd.script.render_cucumber_formatters import main
 from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
-from tests.support.cucumber_formatters import install_fake_node
+from pytest_bdd.testing.cucumber_formatters import install_fake_node
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN_PATH = REPO_ROOT / "tests" / "fixtures" / "cucumber_formatter_golden.json"

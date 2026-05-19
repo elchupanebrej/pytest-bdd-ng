@@ -8,8 +8,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from tests.support.cucumber_formatters import materialize_fake_node_runtime
-from tests.support.docker import (
+from pytest_bdd.testing.cucumber_formatters import materialize_fake_node_runtime
+from pytest_bdd.testing.docker import (
     _alpine_wsl2_available,
     _ensure_docker_cli_in_alpine,
     _resolve_tool_path,
@@ -18,22 +18,22 @@ from tests.support.docker import (
     docker_daemon_available,
     require_docker_daemon,
 )
-from tests.support.docker_cluster import DockerClusterManager, DockerTimeouts
+from pytest_bdd.testing.docker_cluster import DockerClusterManager, DockerTimeouts
 
 
 def test_prefers_path_lookup():
     """Verify prefers path lookup."""
-    with patch("tests.support.docker.shutil.which", return_value=r"C:\tools\docker.exe"):
+    with patch("pytest_bdd.testing.docker.shutil.which", return_value=r"C:\tools\docker.exe"):
         assert _resolve_tool_path("docker") == r"C:\tools\docker.exe"
 
 
 def test_uses_windows_wsl_fallback_when_path_missing():
     """Verify uses windows wsl fallback when path missing."""
     with (
-        patch("tests.support.docker.shutil.which", return_value=None),
-        patch("tests.support.docker.os.name", "nt"),
-        patch.dict("tests.support.docker.os.environ", {"SystemRoot": r"C:\Windows"}, clear=False),
-        patch("tests.support.docker.Path.exists", return_value=True),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value=None),
+        patch("pytest_bdd.testing.docker.os.name", "nt"),
+        patch.dict("pytest_bdd.testing.docker.os.environ", {"SystemRoot": r"C:\Windows"}, clear=False),
+        patch("pytest_bdd.testing.docker.Path.exists", return_value=True),
     ):
         assert _resolve_tool_path("wsl").lower().endswith(r"system32\wsl.exe")
 
@@ -41,10 +41,10 @@ def test_uses_windows_wsl_fallback_when_path_missing():
 def test_uses_windows_docker_fallback_when_path_missing():
     """Verify uses windows docker fallback when path missing."""
     with (
-        patch("tests.support.docker.shutil.which", return_value=None),
-        patch("tests.support.docker.os.name", "nt"),
-        patch.dict("tests.support.docker.os.environ", {"ProgramFiles": r"C:\Program Files"}, clear=False),
-        patch("tests.support.docker.Path.exists", side_effect=[True, False]),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value=None),
+        patch("pytest_bdd.testing.docker.os.name", "nt"),
+        patch.dict("pytest_bdd.testing.docker.os.environ", {"ProgramFiles": r"C:\Program Files"}, clear=False),
+        patch("pytest_bdd.testing.docker.Path.exists", side_effect=[True, False]),
     ):
         assert _resolve_tool_path("docker").lower().endswith(r"docker\docker\resources\bin\docker.exe")
 
@@ -58,8 +58,8 @@ def test_returns_true_when_alpine_wsl2_found():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=wsl_output),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=wsl_output),
     ):
         assert _alpine_wsl2_available() is True
 
@@ -73,15 +73,15 @@ def test_returns_false_when_alpine_not_present():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=wsl_output),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=wsl_output),
     ):
         assert _alpine_wsl2_available() is False
 
 
 def test_returns_false_when_wsl_not_found():
     """Verify returns false when wsl not found."""
-    with patch("tests.support.docker._resolve_tool_path", return_value=None):
+    with patch("pytest_bdd.testing.docker._resolve_tool_path", return_value=None):
         assert _alpine_wsl2_available() is False
 
 
@@ -94,8 +94,8 @@ def test_returns_false_when_wsl_command_fails():
         stderr="wsl: not installed",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=wsl_output),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=wsl_output),
     ):
         assert _alpine_wsl2_available() is False
 
@@ -109,8 +109,8 @@ def test_returns_false_when_alpine_version_1():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=wsl_output),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=wsl_output),
     ):
         assert _alpine_wsl2_available() is False
 
@@ -124,8 +124,8 @@ def test_starts_docker_desktop_successfully():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="powershell"),
-        patch("tests.support.docker.subprocess.run", return_value=result),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="powershell"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=result),
     ):
         _start_docker_desktop()
 
@@ -139,8 +139,8 @@ def test_returns_true_when_docker_ready_immediately_native():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/docker"),
-        patch("tests.support.docker.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/docker"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=result) as mock_run,
     ):
         assert _wait_for_docker("native", timeout=5) is True
         mock_run.assert_called_once()
@@ -155,8 +155,8 @@ def test_returns_true_when_docker_ready_immediately_wsl2():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=result) as mock_run,
     ):
         assert _wait_for_docker("wsl2", timeout=5) is True
         mock_run.assert_called_once()
@@ -177,12 +177,12 @@ def test_polls_until_ready_native():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/docker"),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/docker"),
         patch(
-            "tests.support.docker.subprocess.run",
+            "pytest_bdd.testing.docker.subprocess.run",
             side_effect=[fail_result, fail_result, success_result],
         ) as mock_run,
-        patch("tests.support.docker.time.sleep"),
+        patch("pytest_bdd.testing.docker.time.sleep"),
     ):
         assert _wait_for_docker("native", timeout=5) is True
         assert mock_run.call_count == 3
@@ -203,12 +203,12 @@ def test_polls_until_ready_wsl2():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
         patch(
-            "tests.support.docker.subprocess.run",
+            "pytest_bdd.testing.docker.subprocess.run",
             side_effect=[fail_result, fail_result, success_result],
         ) as mock_run,
-        patch("tests.support.docker.time.sleep"),
+        patch("pytest_bdd.testing.docker.time.sleep"),
     ):
         assert _wait_for_docker("wsl2", timeout=5) is True
         assert mock_run.call_count == 3
@@ -223,9 +223,9 @@ def test_returns_false_on_timeout():
         stderr="Cannot connect",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/docker"),
-        patch("tests.support.docker.subprocess.run", return_value=fail_result),
-        patch("tests.support.docker.time.sleep"),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/docker"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=fail_result),
+        patch("pytest_bdd.testing.docker.time.sleep"),
     ):
         assert _wait_for_docker("native", timeout=2) is False
 
@@ -239,8 +239,8 @@ def test_does_nothing_when_docker_cli_exists():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=result) as mock_run,
     ):
         _ensure_docker_cli_in_alpine()
         mock_run.assert_called_once()
@@ -261,8 +261,8 @@ def test_installs_docker_cli_when_missing():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", side_effect=[which_result, install_result]) as mock_run,
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", side_effect=[which_result, install_result]) as mock_run,
     ):
         _ensure_docker_cli_in_alpine()
         assert mock_run.call_count == 2
@@ -283,8 +283,8 @@ def test_fails_when_installation_fails():
         stderr="apk: permission denied",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker.subprocess.run", side_effect=[which_result, install_result]),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker.subprocess.run", side_effect=[which_result, install_result]),
         pytest.raises(pytest.fail.Exception),
     ):
         _ensure_docker_cli_in_alpine()
@@ -300,8 +300,8 @@ def test_returns_native_when_native_docker_works():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value=docker_bin),
-        patch("tests.support.docker.subprocess.run", return_value=info_result),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value=docker_bin),
+        patch("pytest_bdd.testing.docker.subprocess.run", return_value=info_result),
     ):
         docker_daemon_available.cache_clear()
         available, backend = docker_daemon_available()
@@ -325,9 +325,9 @@ def test_returns_wsl2_when_native_fails_but_wsl2_works():
         stderr="",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value=docker_bin),
-        patch("tests.support.docker.subprocess.run", side_effect=[info_result, wsl_info_result]),
-        patch("tests.support.docker._alpine_wsl2_available", return_value=True),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value=docker_bin),
+        patch("pytest_bdd.testing.docker.subprocess.run", side_effect=[info_result, wsl_info_result]),
+        patch("pytest_bdd.testing.docker._alpine_wsl2_available", return_value=True),
     ):
         docker_daemon_available.cache_clear()
         available, backend = docker_daemon_available()
@@ -351,9 +351,9 @@ def test_returns_false_when_both_fail_and_desktop_not_available():
         stderr="not found",
     )
     with (
-        patch("tests.support.docker.shutil.which", return_value=docker_bin),
-        patch("tests.support.docker.subprocess.run", side_effect=[info_result, desktop_fail]),
-        patch("tests.support.docker._alpine_wsl2_available", return_value=False),
+        patch("pytest_bdd.testing.docker.shutil.which", return_value=docker_bin),
+        patch("pytest_bdd.testing.docker.subprocess.run", side_effect=[info_result, desktop_fail]),
+        patch("pytest_bdd.testing.docker._alpine_wsl2_available", return_value=False),
     ):
         docker_daemon_available.cache_clear()
         available, backend = docker_daemon_available()
@@ -363,7 +363,7 @@ def test_returns_false_when_both_fail_and_desktop_not_available():
 
 def test_returns_backend_when_available():
     """Verify returns backend when available."""
-    with patch("tests.support.docker.docker_daemon_available", return_value=(True, "native")):
+    with patch("pytest_bdd.testing.docker.docker_daemon_available", return_value=(True, "native")):
         result = require_docker_daemon()
         assert result == "native"
 
@@ -372,7 +372,7 @@ def test_refreshes_cached_probe_before_checking_environment():
     """Verify refreshes cached probe before checking environment."""
     availability_probe = Mock(return_value=(True, "native"))
     availability_probe.cache_clear = Mock()
-    with patch("tests.support.docker.docker_daemon_available", availability_probe):
+    with patch("pytest_bdd.testing.docker.docker_daemon_available", availability_probe):
         result = require_docker_daemon()
         assert result == "native"
         availability_probe.cache_clear.assert_called_once_with()
@@ -381,8 +381,8 @@ def test_refreshes_cached_probe_before_checking_environment():
 def test_fails_when_docker_desktop_not_installed():
     """Verify fails when docker desktop not installed."""
     with (
-        patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
-        patch("tests.support.docker._resolve_tool_path", return_value=None),
+        patch("pytest_bdd.testing.docker.docker_daemon_available", return_value=(False, None)),
+        patch("pytest_bdd.testing.docker._resolve_tool_path", return_value=None),
         pytest.raises(pytest.fail.Exception, match="Docker Desktop not installed"),
     ):
         require_docker_daemon()
@@ -391,9 +391,9 @@ def test_fails_when_docker_desktop_not_installed():
 def test_fails_when_wsl2_alpine_not_found():
     """Verify fails when wsl2 alpine not found."""
     with (
-        patch("tests.support.docker.docker_daemon_available", return_value=(False, None)),
-        patch("tests.support.docker._resolve_tool_path", return_value="/usr/bin/docker"),
-        patch("tests.support.docker._alpine_wsl2_available", return_value=False),
+        patch("pytest_bdd.testing.docker.docker_daemon_available", return_value=(False, None)),
+        patch("pytest_bdd.testing.docker._resolve_tool_path", return_value="/usr/bin/docker"),
+        patch("pytest_bdd.testing.docker._alpine_wsl2_available", return_value=False),
         pytest.raises(pytest.fail.Exception, match="WSL2 Alpine dist not found"),
     ):
         require_docker_daemon()
@@ -442,10 +442,10 @@ def test_constructs_wsl_command_correctly():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=result) as mock_run,
     ):
-        from tests.support.docker_cluster import _run_wsl_cmd
+        from pytest_bdd.testing.docker_cluster import _run_wsl_cmd
 
         _run_wsl_cmd(["docker", "compose", "up", "-d"], timeout=120)
         mock_run.assert_called_once()
@@ -464,10 +464,10 @@ def test_passes_env_and_capture_settings():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=result) as mock_run,
     ):
-        from tests.support.docker_cluster import _run_wsl_cmd
+        from pytest_bdd.testing.docker_cluster import _run_wsl_cmd
 
         _run_wsl_cmd(["docker", "info"], timeout=60)
         call_kwargs = mock_run.call_args.kwargs
@@ -484,11 +484,11 @@ def test_inlines_env_overrides_into_wsl_command():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
-        patch.dict("tests.support.docker_cluster.os.environ", {"PATH": "/usr/bin"}, clear=False),
-        patch("tests.support.docker_cluster.subprocess.run", return_value=result) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+        patch.dict("pytest_bdd.testing.docker_cluster.os.environ", {"PATH": "/usr/bin"}, clear=False),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=result) as mock_run,
     ):
-        from tests.support.docker_cluster import _run_wsl_cmd
+        from pytest_bdd.testing.docker_cluster import _run_wsl_cmd
 
         _run_wsl_cmd(
             ["docker", "compose", "up", "-d"],
@@ -511,10 +511,10 @@ def test_returns_completed_process():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
-        patch("tests.support.docker_cluster.subprocess.run", return_value=result),
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value="/usr/bin/wsl"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=result),
     ):
-        from tests.support.docker_cluster import _run_wsl_cmd
+        from pytest_bdd.testing.docker_cluster import _run_wsl_cmd
 
         returned = _run_wsl_cmd(["echo", "hello"], timeout=30)
         assert returned.returncode == 0
@@ -530,8 +530,8 @@ def test_wsl2_backend_routes_get_cluster_through_wsl():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._run_wsl_cmd", return_value=up_result) as mock_wsl,
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster._run_wsl_cmd", return_value=up_result) as mock_wsl,
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="wsl2")
         mgr.get_cluster("socket", Path("/fixtures"), Path("/repo"))
@@ -551,10 +551,10 @@ def test_native_backend_uses_subprocess_run_directly():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
-        patch("tests.support.docker_cluster._run_wsl_cmd") as mock_wsl,
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._run_wsl_cmd") as mock_wsl,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         mgr.get_cluster("socket", Path("/fixtures"), Path("/repo"))
@@ -578,8 +578,8 @@ def test_wsl2_backend_routes_run_in_controller_through_wsl():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._run_wsl_cmd", side_effect=[up_result, exec_result]) as mock_wsl,
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster._run_wsl_cmd", side_effect=[up_result, exec_result]) as mock_wsl,
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="wsl2")
         mgr.run_in_controller("socket", Path("/fixtures"), Path("/repo"), "success-live", "")
@@ -603,9 +603,9 @@ def test_native_backend_uses_stable_compose_project_name_for_up_and_exec():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
@@ -626,9 +626,9 @@ def test_compose_up_sets_remote_mode_for_cluster_services():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=up_result) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         mgr.get_cluster("ssh", Path("/fixtures"), Path("/repo"))
@@ -653,9 +653,9 @@ def test_run_in_controller_uses_compose_mounted_artifacts_directory():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]),
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]),
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         _, artifact_dir = mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
@@ -678,9 +678,9 @@ def test_run_in_controller_disables_tty_for_compose_exec():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success", "")
@@ -706,9 +706,9 @@ def test_run_in_controller_uses_explicit_exec_env_values():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", side_effect=[up_result, exec_result]) as mock_run,
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
     ):
         mgr = DockerClusterManager(backend="native")
         mgr.run_in_controller("ssh", Path("/fixtures"), Path("/repo"), "success-live", "gw1")
@@ -736,9 +736,9 @@ def test_wsl2_backend_routes_cleanup_through_wsl():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster._run_wsl_cmd", side_effect=[up_result, down_result]) as mock_wsl,
-        patch("tests.support.docker_cluster.Path.mkdir"),
-        patch("tests.support.docker_cluster.Path.exists", return_value=False),
+        patch("pytest_bdd.testing.docker_cluster._run_wsl_cmd", side_effect=[up_result, down_result]) as mock_wsl,
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.Path.exists", return_value=False),
     ):
         mgr = DockerClusterManager(backend="wsl2")
         mgr.get_cluster("socket", Path("/fixtures"), Path("/repo"))
@@ -765,10 +765,10 @@ def test_session_timer_starts_on_first_cluster_use():
         stderr="",
     )
     with (
-        patch("tests.support.docker_cluster.subprocess.run", return_value=up_result),
-        patch("tests.support.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
-        patch("tests.support.docker_cluster.Path.mkdir"),
-        patch("tests.support.docker_cluster.time.monotonic", return_value=1000.0),
+        patch("pytest_bdd.testing.docker_cluster.subprocess.run", return_value=up_result),
+        patch("pytest_bdd.testing.docker_cluster._resolve_tool_path", return_value=r"C:\Docker\docker.exe"),
+        patch("pytest_bdd.testing.docker_cluster.Path.mkdir"),
+        patch("pytest_bdd.testing.docker_cluster.time.monotonic", return_value=1000.0),
     ):
         mgr = DockerClusterManager(backend="native", timeouts=DockerTimeouts(overall_session=1))
         assert mgr._session_start is None
@@ -782,7 +782,7 @@ def test_local_images_have_build_config():
     """docker-compose.yml local-tagged services should be buildable without registry pulls."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
 
@@ -796,7 +796,7 @@ def test_remote_xdist_builds_use_repo_root_context():
     """remote xdist Dockerfiles copy repo-root files, so compose builds must use the repo root as context."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
 
@@ -810,7 +810,7 @@ def test_no_repo_root_env_var_in_compose():
     """docker-compose.yml should not use ${REPO_ROOT} for build context."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -824,7 +824,7 @@ def test_no_artifact_dir_env_var_in_volumes():
     """docker-compose.yml should not use ${ARTIFACT_DIR} in volumes."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -836,7 +836,7 @@ def test_build_context_is_relative():
     """docker-compose.yml build contexts should be relative (.) or valid paths."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -852,7 +852,7 @@ def test_controller_entrypoint_has_no_external_imports():
     """controller_entrypoint.py should only import stdlib + pytest + pytest-xdist."""
     import ast
 
-    entrypoint_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"
+    entrypoint_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
     tree = ast.parse(Path(entrypoint_path).read_text(encoding="utf-8"))
     allowed = {
         "os",
@@ -878,7 +878,7 @@ def test_controller_entrypoint_has_no_external_imports():
 
 def test_controller_entrypoint_waits_for_ssh_command_readiness():
     """Verify controller entrypoint waits for ssh command readiness."""
-    entrypoint_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller_entrypoint.py"
+    entrypoint_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
     content = Path(entrypoint_path).read_text(encoding="utf-8")
 
     assert "ssh_ready(" in content
@@ -905,7 +905,7 @@ def test_node_and_npm_scripts_use_lf_newlines(tmp_path: Path):
 
 def test_controller_dockerfile_installs_git_for_gitpython_imports():
     """Verify controller dockerfile installs git for gitpython imports."""
-    dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller.Dockerfile"
+    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
 
     assert "apt-get install --yes --no-install-recommends" in content
@@ -914,7 +914,7 @@ def test_controller_dockerfile_installs_git_for_gitpython_imports():
 
 def test_worker_dockerfile_installs_git_for_gitpython_imports():
     """Verify worker dockerfile installs git for gitpython imports."""
-    dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "worker.Dockerfile"
+    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
 
     assert "apt-get install --yes --no-install-recommends" in content
@@ -924,7 +924,7 @@ def test_worker_dockerfile_installs_git_for_gitpython_imports():
 def test_controller_dockerfile_no_absolute_repo_paths():
     """controller.Dockerfile COPY source paths should be relative to build context."""
 
-    dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "controller.Dockerfile"
+    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
     for line in content.splitlines():
         stripped = line.strip()
@@ -940,7 +940,7 @@ def test_controller_dockerfile_no_absolute_repo_paths():
 
 def test_worker_dockerfile_no_absolute_repo_paths():
     """worker.Dockerfile COPY source paths should be relative to build context."""
-    dockerfile_path = Path(__file__).parent.parent / "e2e" / "fixtures" / "remote_xdist" / "worker.Dockerfile"
+    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
     for line in content.splitlines():
         stripped = line.strip()

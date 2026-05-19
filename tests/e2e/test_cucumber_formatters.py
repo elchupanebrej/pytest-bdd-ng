@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     assert_pytest_terminal_reporter_suppressed,
     assert_pytest_terminal_reporter_visible,
     build_sample_suite,
@@ -19,7 +19,7 @@ from tests.support.cucumber_formatters import (
     run_pytest_via_real_entrypoint,
     with_pytester_terminal_capture_disabled,
 )
-from tests.support.pytest_results import combined_result_output
+from pytest_bdd.testing.pytest_results import combined_result_output
 
 
 def test_fake_runtime_support_uses_template_assets_from_shared_support_module() -> None:

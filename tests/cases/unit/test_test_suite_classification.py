@@ -13,7 +13,7 @@ LEGACY_TEST_PATHS = (
     "tests/feature",
     "tests/messages",
     "tests/e2e",
-    "tests/support",
+    "tests/assets/templates",
 )
 
 

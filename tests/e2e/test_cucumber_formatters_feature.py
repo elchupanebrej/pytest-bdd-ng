@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from pytest_bdd import given, parsers, scenarios, then, when
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     assert_pytest_terminal_reporter_suppressed,
     build_sample_suite,
     install_fake_node,
@@ -19,7 +19,7 @@ from tests.support.cucumber_formatters import (
     requests_terminal_formatter_output,
     run_pytest_via_real_entrypoint,
 )
-from tests.support.pytest_results import attach_command_result_outputs
+from pytest_bdd.testing.pytest_results import attach_command_result_outputs
 
 test = scenarios("../tests/e2e/_cucumber_formatters.feature")
 
@@ -38,7 +38,7 @@ def test_e2e_formatter_support_module_is_only_a_thin_reexport() -> None:
     """Verify e2e formatter support module is only a thin reexport."""
     shim_source = (_repo_root() / "tests" / "e2e" / "cucumber_formatter_support.py").read_text(encoding="utf-8")
 
-    assert "from tests.support.cucumber_formatters import (" in shim_source
+    assert "from pytest_bdd.testing.cucumber_formatters import (" in shim_source
     assert "materialize_fake_node_runtime" in shim_source
 
 

@@ -18,13 +18,13 @@ from tests.messages.message_stream_assertions import (
     parse_ndjson_messages,
     worker_ids_for_payloads,
 )
-from tests.support.cucumber_formatters import (
+from pytest_bdd.testing.cucumber_formatters import (
     assert_pytest_terminal_reporter_suppressed,
     expected_formatter_visible_line,
     materialize_fake_node_runtime,
     read_fake_formatter_telemetry,
 )
-from tests.support.docker import require_docker_daemon
+from pytest_bdd.testing.docker import require_docker_daemon
 
 pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.slow]
 
@@ -132,7 +132,7 @@ def _run_local_xdist(  # noqa: C901
         *xdist_args,
         f"--messages-ndjson={report_path}",
         "--pyargs",
-        "tests.e2e.fixtures.remote_xdist.project.test_remote_aggregation",
+        "tests.assets.docker.remote_xdist.project.remote_aggregation_case",
         *extra_args,
         "-q",
     ]
@@ -144,7 +144,7 @@ def _run_local_xdist(  # noqa: C901
         verify_cmd = [
             sys.executable,
             "-m",
-            "tests.e2e.fixtures.remote_xdist.verify_report",
+            "tests.assets.docker.remote_xdist.verify_report",
             str(report_path),
             "success" if verify_mode == "success-live" else verify_mode,
             remote_mode,
@@ -180,7 +180,7 @@ def _run_remote_xdist_compose(
         finally:
             os.chdir(original_cwd)
 
-    from tests.support.docker_cluster import cluster_manager
+    from pytest_bdd.testing.docker_cluster import cluster_manager
 
     try:
         cluster_manager.set_backend(require_docker_daemon())
