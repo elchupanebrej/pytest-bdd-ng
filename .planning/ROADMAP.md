@@ -260,7 +260,7 @@ Plans:
 **Goal:** Restructure the test suite so `tests/cases/` communicates semantic purpose, `tests/assets/` holds passive data only, shared active harness code lives under internal `src/pytest_bdd/testing/`, and Makefile targets are the documented human API for local, full, semantic, slow, and environment-specific runs.
 **Requirements**: P12-01, P12-02, P12-03, P12-04, P12-05, P12-06, P12-07, P12-08, P12-09, P12-10
 **Depends on:** Phase 11
-**Plans:** 4/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -278,8 +278,42 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 12-05-PLAN.md — Update development docs and handle generated feature-doc drift
+- [x] 12-05-PLAN.md — Update development docs and handle generated feature-doc drift
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 12-06-PLAN.md — Run final guard, semantic slice, tox, full feasible suite, and stale path validation
+  - [x] 12-06-PLAN.md — Run final guard, semantic slice, tox, full feasible suite, and stale path validation
+
+### Phase 13: Unify cucumber-json plugins INI/CLI options
+
+**Goal:** Unify the two existing cucumber-json reporter plugins (INI-configured and CLI-configured) into a single consolidated plugin with both configuration paths
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. Single `cucumber_json` plugin entry point serves both `--cucumber-json` CLI flag and INI option
+  2. No duplicate registration or conflicting output between the two paths
+  3. Backward compatible: existing INI configs and CLI invocations produce identical output
+  4. Full test suite passes with zero regressions
+
+Plans:
+- [ ] 13-01-PLAN.md — TBD
+
+### Phase 14: Gap Closure
+
+**Goal:** Close v1.0 milestone audit gaps: achieve 70% unit test coverage (from 56%) and resolve 27 remaining BDD feature test failures (TEST-02)
+**Requirements**: TEST-01, TEST-02
+**Depends on:** Phase 13
+**Plans:** 2/0 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+  1. Unit test coverage reaches >=70% line coverage (from current 56%)
+  2. All 27 BDD feature test failures in `features/` are resolved
+  3. BDD test suite passes via `python -m pytest tests/e2e/` with zero failures
+  4. No regressions introduced to existing passing tests
+
+Plans:
+- [ ] 14-01-PLAN.md — Raise unit test coverage from 56% to 70%
+- [ ] 14-02-PLAN.md — Fix 27 remaining BDD feature test failures

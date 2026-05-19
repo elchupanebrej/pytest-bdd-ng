@@ -14,27 +14,27 @@
 
 ### Refactoring
 
-- [ ] **REF-01**: Split `scenario_run.py` (1422 lines) into `model/run.py`, `model/scenario_run.py`, `model/feature_binding.py` with characterization tests first
+- [x] **REF-01**: Split `scenario_run.py` (1422 lines) into `model/run.py`, `model/scenario_run.py`, `model/feature_binding.py` with characterization tests first
 - [x] **REF-02**: Refactor `code_generator` plugin into class-based pattern matching other plugins (entrypoint.py + plugin.py class)
 - [x] **REF-03**: Reduce other large files (>400 lines) where practical (target: live_formatter_runtime.py 823L, message_validation.py 672L, steps.py 627L)
 
 ### Simplification
 
-- [ ] **SIM-01**: Streamline compatibility layer — remove `pathlib2` (Python 2 backport), `docopt-ng` (legacy CLI parser)
-- [ ] **SIM-02**: Unify programming approaches across plugins — consistent class + entrypoint + hook.py pattern, fix plugin-internal direct imports
-- [ ] **SIM-03**: Audit and prune underused plugin/utility modules (dead code, unused imports, stale modules)
+- [x] **SIM-01**: Streamline compatibility layer — remove `pathlib2` (Python 2 backport), `docopt-ng` (legacy CLI parser)
+- [x] **SIM-02**: Unify programming approaches across plugins — consistent class + entrypoint + hook.py pattern, fix plugin-internal direct imports
+- [x] **SIM-03**: Audit and prune underused plugin/utility modules (dead code, unused imports, stale modules)
 
 ### Documentation
 
-- [ ] **DOC-01**: Ensure all public API functions in `src/pytest_bdd/__init__.py` have docstrings
-- [ ] **DOC-02**: Update DEVELOPMENT.rst with current conventions (StashBound, attrs, testing patterns)
-- [ ] **DOC-03**: Create migration guide documenting differences from pytest-bdd (original) — fixture injection, hooks, configuration
+- [x] **DOC-01**: Ensure all public API functions in `src/pytest_bdd/__init__.py` have docstrings
+- [x] **DOC-02**: Update DEVELOPMENT.rst with current conventions (StashBound, attrs, testing patterns)
+- [x] **DOC-03**: Create migration guide documenting differences from pytest-bdd (original) — fixture injection, hooks, configuration
 
 ### Testing
 
 - [ ] **TEST-01**: Improve unit test coverage for core modules (`scenario_run.py`, `steps.py`, `parsers.py`)
 - [ ] **TEST-02**: Expand BDD feature tests in `features/` for undocumented behaviors and edge cases
-- [ ] **TEST-03**: Add integration tests for edge cases in step matching priority and scenario execution lifecycle
+- [x] **TEST-03**: Add integration tests for edge cases in step matching priority and scenario execution lifecycle
 
 ## v2 Requirements
 
@@ -64,18 +64,18 @@
 | STAB-02 | Phase 2 — Code Quality Gates | Complete |
 | STAB-03 | Phase 2 — Code Quality Gates | Complete |
 | STAB-04 | Phase 1 — Foundation Cleanup | Complete |
-| REF-01 | Phase 3 — Core Runtime Refactor | Pending |
+| REF-01 | Phase 3 — Core Runtime Refactor | Complete |
 | REF-02 | Phase 4 — Plugin Refactoring | Complete |
 | REF-03 | Phase 4 — Plugin Refactoring | Complete |
-| SIM-01 | Phase 9 — Compatibility Streamlining | Pending |
-| SIM-02 | Phase 10 — Pattern Unification | Pending |
-| SIM-03 | Phase 11 — Audit & Prune | Pending |
-| DOC-01 | Phase 7 — Documentation | Pending |
-| DOC-02 | Phase 7 — Documentation | Pending |
-| DOC-03 | Phase 7 — Documentation | Pending |
-| TEST-01 | Phase 5 — Unit Test Fortification | Pending |
-| TEST-02 | Phase 8 — BDD Acceptance Testing | Pending |
-| TEST-03 | Phase 6 — Integration Testing | Pending |
+| SIM-01 | Phase 9 — Compatibility Streamlining | Complete |
+| SIM-02 | Phase 10 — Pattern Unification | Complete |
+| SIM-03 | Phase 11 — Audit & Prune | Complete |
+| DOC-01 | Phase 7 — Documentation | Complete |
+| DOC-02 | Phase 7 — Documentation | Complete |
+| DOC-03 | Phase 7 — Documentation | Complete |
+| TEST-01 | Phase 5 — Unit Test Fortification | Deferred (coverage 56% vs 70% target) |
+| TEST-02 | Phase 8 — BDD Acceptance Testing | Deferred (27 BDD failures remain) |
+| TEST-03 | Phase 6 — Integration Testing | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -84,4 +84,4 @@
 
 ---
 *Requirements defined: 2026-05-12*
-*Last updated: 2026-05-12 after initial definition*
+*Last updated: 2026-05-19 — checkboxes synced with completed phases; TEST-01/TEST-02 deferred to next milestone*

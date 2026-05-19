@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 12-05-PLAN.md
-last_updated: "2026-05-19T14:21:05.587Z"
-last_activity: 2026-05-19 -- Phase 12 execution started
+status: Phase 13 inserted — Unify cucumber-json plugins INI/CLI options (Gap Closure renumbered to 14)
+stopped_at: Inserted Phase 13 between 12 and 14
+last_updated: "2026-05-19T17:47:00.000Z"
+last_activity: 2026-05-19 -- Phase 13 inserted: Unify cucumber-json plugins INI/CLI options; old Phase 13 → 14
 progress:
-  total_phases: 12
-  completed_phases: 11
+  total_phases: 14
+  completed_phases: 12
   total_plans: 49
-  completed_plans: 49
-  percent: 92
+  completed_plans: 50
+  percent: 86
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 12 — restructure-test-suite-into-semantic-groups
+**Current focus:** Phase 13 — Unify cucumber-json plugins INI/CLI options
 
 ## Current Position
 
-Phase: 12 (restructure-test-suite-into-semantic-groups) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 12
-Last activity: 2026-05-19 -- Phase 12 execution started
+Phase: 13 — Active
+Plan: 0 of 0
+Status: Phase 13 inserted between Phase 12 and Phase 14 — unify cucumber-json plugins INI/CLI options
+Last activity: 2026-05-19 -- Phase 13 inserted: Unify cucumber-json plugins INI/CLI options; Phase 13 (Gap Closure) renumbered to 14
 
 Progress: [██████████] 98%
 
@@ -83,6 +83,8 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 12 added: Restructure test suite into semantic groups
+- Phase 13 inserted between Phase 12 and Phase 14: Unify cucumber-json plugins INI/CLI options
+- Phase 13 (Gap Closure) renumbered to Phase 14
 
 ### Pending Todos
 
@@ -108,7 +110,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| TEST-01 | Unit test coverage at 56% (target 70%) | Deferred to next milestone | 2026-05-19 |
+| TEST-02 | 27 BDD feature test failures remain | Deferred to next milestone | 2026-05-19 |
 
 ## Session Continuity
 

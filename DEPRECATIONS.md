@@ -6,6 +6,8 @@
 |---------|-------------|--------|
 | `--cucumberjson` CLI flag | `--cucumber-json-formatter` via class-based plugin entrypoint | Replaced by class-based plugin architecture |
 | Allure logger plugin | External `pytest-allure` plugin | Dead code — all implementation commented out |
+| `pathlib2` dependency | stdlib `pathlib` (Python 3.10+) | Python 2 backport — no longer needed |
+| `docopt-ng` dependency | argparse or click for CLI | Legacy CLI parser — no longer used |
 
 ## Deprecated in pytest-bdd-ng 2.x
 
@@ -13,8 +15,6 @@
 |---------|-------------|----------|
 | `example_converters` on `@scenario` | `converters` on step decorators with `parsers.parse()` | Remove in 3.0 |
 | `<var>` template syntax in step strings | `{var}` with `parsers.parse()` | Remove in 3.0 |
-| `pathlib2` dependency | stdlib `pathlib` (Python 3.10+) | Remove in 3.0 |
-| `docopt-ng` dependency | argparse or click for CLI | Remove in 3.0 |
 
 ## Migration Notes
 
