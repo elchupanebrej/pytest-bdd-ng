@@ -1,4 +1,5 @@
 import json
+import pathlib
 
 from pytest_bdd import given, parsers, step, then
 from pytest_bdd.testing.cucumber_formatters import install_fake_node, run_pytest_via_real_entrypoint
@@ -42,7 +43,9 @@ def run_pytest_usage(testdir):
 @step("run pytest with usage JSON formatter", target_fixture="pytest_result")
 def run_pytest_usage_json(testdir):
     return run_pytest_via_real_entrypoint(
-        testdir, "--cucumber-usage-json=standalone-usage.json", preserve_fake_node=True
+        testdir,
+        "--cucumber-usage-json=standalone-usage.json",
+        preserve_fake_node=True,
     )
 
 
@@ -70,6 +73,6 @@ def usage_output_shows(pytest_result, count):
 @then("Usage JSON is valid")
 def usage_json_is_valid(testdir):
     usage_json_path = testdir.tmpdir.join("standalone-usage.json")
-    with open(str(usage_json_path)) as f:
+    with pathlib.Path(str(usage_json_path)).open() as f:
         data = json.load(f)
     assert isinstance(data, dict)

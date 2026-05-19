@@ -1,6 +1,7 @@
 """Convert single-file formatter plugins into canonical packages."""
 
 import os
+import pathlib
 
 base = r"c:\Users\bulky\Projects\pytest-bdd\src\pytest_bdd\plugin"
 
@@ -20,14 +21,14 @@ for pkg_name, class_name, instance_name in plugins:
     old_file = os.path.join(base, f"{pkg_name}.py")
     pkg_dir = os.path.join(base, pkg_name)
 
-    with open(old_file) as f:
-        old_content = f.read()
+    old_content = pathlib.Path(old_file).read_text()
 
-    os.makedirs(pkg_dir, exist_ok=True)
+    pathlib.Path(pkg_dir).mkdir(exist_ok=True, parents=True)
 
     # __init__.py
-    with open(os.path.join(pkg_dir, "__init__.py"), "w") as f:
-        f.write(f'"""Provide src.pytest_bdd.plugin.{pkg_name} package helpers."""\n')
+    pathlib.Path(os.path.join(pkg_dir, "__init__.py")).write_text(
+        f'"""Provide src.pytest_bdd.plugin.{pkg_name} package helpers."""\n'
+    )
 
     # plugin.py
     plugin_content = (
@@ -50,8 +51,7 @@ for pkg_name, class_name, instance_name in plugins:
         lines.pop()
     plugin_content = "\n".join(lines) + "\n"
 
-    with open(os.path.join(pkg_dir, "plugin.py"), "w") as f:
-        f.write(plugin_content)
+    pathlib.Path(os.path.join(pkg_dir, "plugin.py")).write_text(plugin_content)
 
     # hook.py
     hook_content = (
@@ -62,8 +62,7 @@ for pkg_name, class_name, instance_name in plugins:
         "require every pytest11 plugin package to provide an explicit hook surface.\n"
         '"""\n'
     )
-    with open(os.path.join(pkg_dir, "hook.py"), "w") as f:
-        f.write(hook_content)
+    pathlib.Path(os.path.join(pkg_dir, "hook.py")).write_text(hook_content)
 
     # entrypoint.py
     ep_content = (
@@ -73,11 +72,10 @@ for pkg_name, class_name, instance_name in plugins:
         "\n"
         f"{instance_name} = {class_name}()\n"
     )
-    with open(os.path.join(pkg_dir, "entrypoint.py"), "w") as f:
-        f.write(ep_content)
+    pathlib.Path(os.path.join(pkg_dir, "entrypoint.py")).write_text(ep_content)
 
     # Remove old file
-    os.remove(old_file)
+    pathlib.Path(old_file).unlink()
     print(f"Converted {pkg_name}")
 
 print("Done!")

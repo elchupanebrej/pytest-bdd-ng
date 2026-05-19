@@ -5,7 +5,7 @@
 | Feature | Replacement | Reason |
 |---------|-------------|--------|
 | `--cucumberjson` CLI flag | `--cucumber-json-formatter` via class-based plugin entrypoint | Replaced by class-based plugin architecture |
-| Allure logger plugin | External `pytest-allure` plugin | Dead code — all implementation commented out |
+| Allure logger plugin | External `allure-pytest` plugin | Dead code — all implementation commented out |
 | `pathlib2` dependency | stdlib `pathlib` (Python 3.10+) | Python 2 backport — no longer needed |
 | `docopt-ng` dependency | argparse or click for CLI | Legacy CLI parser — no longer used |
 

@@ -8,9 +8,6 @@ import subprocess  # noqa: S404 - test intentionally exercises subprocess-driven
 from pathlib import Path
 
 import pytest
-from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
-
-from pytest_bdd.model.message_validation import validate_message_stream
 from contract.messages.message_stream_assertions import (
     assert_single_output_file,
     count_payload_kinds,
@@ -18,6 +15,9 @@ from contract.messages.message_stream_assertions import (
     parse_ndjson_messages,
     worker_ids_for_payloads,
 )
+from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
+
+from pytest_bdd.model.message_validation import validate_message_stream
 from pytest_bdd.testing.cucumber_formatters import (
     assert_pytest_terminal_reporter_suppressed,
     expected_formatter_visible_line,

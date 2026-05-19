@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from contract.messages.message_capability_fixtures import make_mapping_rule
+
 from pytest_bdd.model.message_outcome_mapping import (
     MATRIX_PROFILE_FIXED_RELEASE_READINESS_V1,
     ObservedOutcome,
     resolve_outcome_mapping,
     validate_outcome_mappings,
 )
-
-from contract.messages.message_capability_fixtures import make_mapping_rule
 
 
 def _fixed_matrix_rules():

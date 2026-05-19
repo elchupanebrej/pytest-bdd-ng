@@ -27,10 +27,12 @@ class DockerTimeouts:
 
 
 def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    """Run a command inside WSL2 Alpine distro.
+    """
+    Run a command inside WSL2 Alpine distro.
 
     Raises:
         FileNotFoundError: If the WSL executable is unavailable.
+
     """
     wsl_bin = _resolve_tool_path("wsl")
     if wsl_bin is None:
@@ -78,11 +80,13 @@ class DockerClusterManager:
         operation: str = "",
         env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess:
-        """Route Docker command through the appropriate backend.
+        """
+        Route Docker command through the appropriate backend.
 
         Raises:
             FileNotFoundError: If the Docker executable is unavailable.
             RuntimeError: If the Docker command exceeds its timeout.
+
         """
         try:
             if self.backend == "wsl2":
@@ -142,10 +146,12 @@ class DockerClusterManager:
             shutil.rmtree(capture_dir, ignore_errors=True)
 
     def _check_session_timeout(self):
-        """Raise RuntimeError if overall session timeout exceeded.
+        """
+        Raise RuntimeError if overall session timeout exceeded.
 
         Raises:
             RuntimeError: If the configured overall session timeout is exceeded.
+
         """
         if self._session_start is None:
             return

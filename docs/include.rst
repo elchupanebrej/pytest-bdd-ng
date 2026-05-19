@@ -12,4 +12,6 @@
 .. include:: ../LICENSE.rst
 .. include:: ../CHANGES.rst
 .. include:: ../DEPRECATIONS.md
+   :parser: myst_parser.sphinx_
 .. include:: ../MIGRATION.md
+   :parser: myst_parser.sphinx_

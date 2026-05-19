@@ -152,18 +152,18 @@ pytest --cucumberjson=output.json
 pytest --cucumber-json-formatter=json --cucumber-json-file=output.json
 ```
 
-## 10. Allure Plugin Removed
+## 156. Allure Plugin Removed
 
-Dead Allure logger plugin removed. Use external `pytest-allure` plugin.
+Dead Allure logger plugin removed. Use external `allure-pytest` plugin.
 
 **Before:**
 ```bash
-pytest --alluredir=results
+pip install allure-pytestdir=results
 ```
 
 **After:**
 ```bash
-pip install pytest-allure
+pip install allure-pytest
 pytest --alluredir=results  # Via external plugin
 ```
 

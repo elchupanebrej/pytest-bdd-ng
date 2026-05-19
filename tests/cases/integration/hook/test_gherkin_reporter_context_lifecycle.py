@@ -45,9 +45,9 @@ from pytest_bdd.model.scenario_run import ScenarioRun
 from pytest_bdd.plugin.gherkin_message_reporter import entrypoint, lifecycle_runtime, message_stream
 from pytest_bdd.plugin.gherkin_message_reporter.html_report import render_html_report_content
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+from pytest_bdd.testing.cucumber_formatters import install_formatter_hook_registry
 from pytest_bdd.util import inspect_extra
 from pytest_bdd.util.other import IdGenerator
-from pytest_bdd.testing.cucumber_formatters import install_formatter_hook_registry
 
 
 def _build_reporter() -> GherkinMessageReporter:

@@ -115,7 +115,8 @@ doc-gen = [
   'pandoc',
   'panflute',
   'pypandoc',
-  'sphinx>=7.0'
+  'sphinx>=7.0',
+  'myst-parser'
 ]
 full = [
   "pytest-bdd-ng[async]",

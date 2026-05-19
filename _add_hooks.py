@@ -1,6 +1,7 @@
 """Add missing hook.py files to pre-existing plugin packages."""
 
 import os
+import pathlib
 
 base = r"c:\Users\bulky\Projects\pytest-bdd\src\pytest_bdd\plugin"
 missing = ["cucumber_json", "gherkin_terminal_reporter", "scenario_reporter", "struct_bdd"]
@@ -15,7 +16,6 @@ for pkg in missing:
         "require every pytest11 plugin package to provide an explicit hook surface.\n"
         '"""\n'
     )
-    with open(hook_path, "w") as f:
-        f.write(content)
+    pathlib.Path(hook_path).write_text(content)
     print(f"Created {hook_path}")
 print("Done")

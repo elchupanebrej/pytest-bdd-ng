@@ -15,10 +15,10 @@ from pytest_bdd.plugin.gherkin_message_reporter.plugin import (
     GherkinMessageReporter,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_contract import ReporterLifecycleContract
+from pytest_bdd.testing.cucumber_formatters import install_formatter_hook_registry
 from pytest_bdd.util.cucumber_formatter_support import registry as formatter_registry
 from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd.util.cucumber_formatters import cucumber_formatter_definitions
-from pytest_bdd.testing.cucumber_formatters import install_formatter_hook_registry
 
 
 def _build_config(tmp_path: Path, **overrides):

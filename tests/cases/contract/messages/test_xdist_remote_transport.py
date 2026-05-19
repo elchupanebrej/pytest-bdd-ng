@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
+from contract.messages.message_stream_assertions import worker_ids_for_payloads
 from pytest_bdd.model.message_consolidation import MessageFragment, consolidate_message_fragments
 from pytest_bdd.model.message_transport import (
     REPORTING_BATCH_EVENT,
@@ -27,7 +28,6 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
     _resolve_reporting_worker_identity,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
-from contract.messages.message_stream_assertions import worker_ids_for_payloads
 from tests.cases.contract.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment
 
 

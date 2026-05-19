@@ -6,7 +6,7 @@ from base64 import b64encode
 from io import BufferedIOBase, TextIOBase
 from typing import TYPE_CHECKING
 
-from cucumber_messages import Attachment, AttachmentContentEncoding, ExternalAttachment, Source
+from cucumber_messages import Attachment, AttachmentContentEncoding, Source
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 
 from pytest_bdd.model.run import Run
@@ -121,23 +121,3 @@ class AttachmentService(ReporterServiceBase):
                 ),
             ),
         )
-
-        if as_external and attachment_url is not None:
-            external_media_type = media_type_ or "application/octet-stream"
-            self.lifecycle_service._emit_envelope(  # noqa: SLF001
-                config,
-                Message(
-                    external_attachment=ExternalAttachment(
-                        media_type=external_media_type,
-                        url=attachment_url,
-                        **({"test_case_started_id": test_case_started_id} if test_case_started_id is not None else {}),
-                        **({"test_step_id": active_test_step_id} if active_test_step_id is not None else {}),
-                        **(
-                            {"test_run_hook_started_id": effective_test_run_hook_started_id}
-                            if effective_test_run_hook_started_id is not None
-                            else {}
-                        ),
-                        timestamp=attachment_timestamp,
-                    ),
-                ),
-            )

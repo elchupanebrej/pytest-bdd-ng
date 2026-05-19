@@ -46,25 +46,25 @@ class QualityGateVisitor(ast.NodeVisitor):
         self.violations: list[Violation] = []
         self._function_stack: list[str] = []
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Visit function body with hook exemption context."""
         self._function_stack.append(node.name)
         self.generic_visit(node)
         self._function_stack.pop()
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """Visit async function body with hook exemption context."""
         self._function_stack.append(node.name)
         self.generic_visit(node)
         self._function_stack.pop()
 
-    def visit_Return(self, node: ast.Return) -> None:  # noqa: N802
+    def visit_Return(self, node: ast.Return) -> None:
         """Detect explicit return None outside pytest hooks."""
         if self._is_none_return(node) and not self._current_function_is_hook():
             self.violations.append(Violation(self.path, node.lineno, RETURN_NONE_MESSAGE))
         self.generic_visit(node)
 
-    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:  # noqa: N802
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         """Detect unlogged except Exception handlers."""
         if self._is_exception_handler(node) and not self._has_noqa(node) and not self._has_exception_logging(node):
             self.violations.append(Violation(self.path, node.lineno, EXCEPT_EXCEPTION_MESSAGE))
