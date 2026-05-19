@@ -212,3 +212,18 @@ Plans:
 | 9. Compatibility Streamlining | 0/TBD | Not started | - |
 | 10. Pattern Unification | 1/1 | Complete   | 2026-05-16 |
 | 11. Audit & Prune | 0/TBD | Not started | - |
+
+### Phase 12: Restructure test suite into semantic groups
+
+**Goal:** Restructure the test suite so `tests/cases/` communicates semantic purpose, `tests/assets/` holds passive data only, shared active harness code lives under internal `src/pytest_bdd/testing/`, and Makefile targets are the documented human API for local, full, semantic, slow, and environment-specific runs.
+**Requirements**: P12-01, P12-02, P12-03, P12-04, P12-05, P12-06, P12-07, P12-08, P12-09, P12-10
+**Depends on:** Phase 11
+**Plans:** 6 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Wave 0 guard tests for semantic classification, Makefile API, and E2E loader shape
+- [ ] 12-02-PLAN.md — Move active shared helpers to `src/pytest_bdd/testing/` and passive fixtures to `tests/assets/`
+- [ ] 12-03-PLAN.md — Big-bang semantic test tree migration and per-file E2E loader split
+- [ ] 12-04-PLAN.md — Rewrite pytest config, Makefile API, tox paths, and path-coupled scripts
+- [ ] 12-05-PLAN.md — Update development docs and handle generated feature-doc drift
+- [ ] 12-06-PLAN.md — Run final guard, semantic slice, tox, full feasible suite, and stale path validation
