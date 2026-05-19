@@ -609,8 +609,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
 
     @property
     def arguments(self) -> Collection[str]:
-        """Initialize the cucumber regular expression."""
-        """Initialize the cucumber regular expression."""
+        """Get argument names from the compiled regular expression."""
         return [*re_compile(self.pattern).groupindex.keys()]
 
 
