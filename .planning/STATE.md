@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-05-19T11:33:53.327Z"
+stopped_at: Completed 12-04-PLAN.md
+last_updated: "2026-05-19T12:27:48.227Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 12
   completed_phases: 11
   total_plans: 49
-  completed_plans: 47
-  percent: 92
+  completed_plans: 48
+  percent: 98
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 ## Current Position
 
 Phase: 12 (restructure-test-suite-into-semantic-groups) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-05-19
 
-Progress: [██████████] 96%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Updated after each plan completion
 | Phase 04 P05 | 19 min | 4 tasks | 5 files |
 | Phase 04 P06 | 2h 8m | 4 tasks | 9 files |
 | Phase 12 P01 | 38 min | 3 tasks | 4 files |
+| Phase 12 P04 | 47 min | 3 tasks | 62 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,7 @@ Recent decisions affecting current work:
 - Parsers frozen during entire stabilization — tests only, no modifications to parsers.py
 - REF-01 (scenario_run.py split) requires characterization tests capturing all RunStage transitions before module boundaries change
 - Phase 12 Plan 01 guards intentionally fail against legacy pyproject, Makefile, and broad E2E loader until migration waves land
+- Phase 12 Plan 04 establishes Makefile as the human test API over `tests/cases` semantic selectors with read-only environment gates
 
 ### Roadmap Evolution
 
@@ -110,6 +112,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-19T11:33:53.231Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-05-19T12:27:48.115Z
+Stopped at: Completed 12-04-PLAN.md
 Resume file: None
