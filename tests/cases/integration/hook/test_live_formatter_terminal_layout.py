@@ -162,7 +162,7 @@ def test_usage_formatter_wraps_to_terminal_width(tmp_path: Path) -> None:
         text=True,
         check=False,
         cwd=str(tmp_path),
-        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src")},
+        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[4] / "src")},
     )
     assert pytest_run.returncode == pytest.ExitCode.TESTS_FAILED
     assert messages_path.exists()

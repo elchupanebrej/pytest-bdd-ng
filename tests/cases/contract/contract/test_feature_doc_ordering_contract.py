@@ -5,7 +5,7 @@ from pathlib import Path
 import yaml
 
 CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[4]
     / "specs"
     / "010-order-rst-docs"
     / "contracts"

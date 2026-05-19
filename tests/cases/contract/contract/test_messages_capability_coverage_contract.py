@@ -10,7 +10,7 @@ from pytest_bdd.model.coverage.inventory import generate_inventory, inventory_to
 from pytest_bdd.model.message_capability_inventory import resolve_messages_schema_dir
 from pytest_bdd.script.message_capability_governance import discover_governance_schema_path
 
-FEATURE_CONTRACT_DIR = Path(__file__).resolve().parents[2] / "specs" / "008-maximize-messages-coverage" / "contracts"
+FEATURE_CONTRACT_DIR = Path(__file__).resolve().parents[4] / "specs" / "008-maximize-messages-coverage" / "contracts"
 OPENAPI_CONTRACT_PATH = FEATURE_CONTRACT_DIR / "messages-capability-governance.openapi.yaml"
 GOVERNANCE_SCHEMA_PATH = FEATURE_CONTRACT_DIR / "governance-report.schema.json"
 

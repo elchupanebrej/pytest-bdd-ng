@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[4]
     / "specs"
     / "003-unify-run-context"
     / "contracts"

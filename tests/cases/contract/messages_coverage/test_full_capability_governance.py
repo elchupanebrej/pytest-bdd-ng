@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(
     reason="messages coverage audit suite is opt-in; set PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT=1 to run it",
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 DECISIONS_FILE = REPO_ROOT / "specs/008-maximize-messages-coverage/contracts/capability-decisions.json"
 GOVERNANCE_SCHEMA = REPO_ROOT / "specs/008-maximize-messages-coverage/contracts/governance-report.schema.json"
 MANDATORY_FILE = REPO_ROOT / "specs/008-maximize-messages-coverage/mandatory-hook-capability-ids.txt"

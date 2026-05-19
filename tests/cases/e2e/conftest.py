@@ -278,7 +278,7 @@ def _assert_remote_run_succeeds(remote_xdist_result):
     from pytest_bdd.model.message_validation import (
         validate_message_stream,
     )
-    from tests.messages.message_stream_assertions import (
+    from contract.messages.message_stream_assertions import (
         count_payload_kinds,
         gateway_modes_for_payloads,
         parse_ndjson_messages,

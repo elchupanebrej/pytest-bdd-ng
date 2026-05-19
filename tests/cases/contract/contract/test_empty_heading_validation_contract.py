@@ -14,7 +14,7 @@ from pytest_bdd.script.validate_feature_headings import (
 )
 
 CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[4]
     / "specs"
     / "005-no-empty-bdd-headings"
     / "contracts"

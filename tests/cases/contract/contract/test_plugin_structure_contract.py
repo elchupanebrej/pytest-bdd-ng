@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pytest_bdd.compatibility.tomllib import loads
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 SOURCE_ROOT = REPO_ROOT / "src"
 PLUGIN_ROOT = SOURCE_ROOT / "pytest_bdd" / "plugin"
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"

@@ -37,7 +37,7 @@ from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_consolidation import MessageFragment, consolidate_message_fragments
 from pytest_bdd.model.message_extension import StepDefinitionPattern, StepDefinitionPatternType
 from pytest_bdd.model.message_validation import validate_message_stream
-from tests.messages.message_stream_assertions import (
+from contract.messages.message_stream_assertions import (
     count_payload_kinds,
     filter_payloads,
     payload_ids,

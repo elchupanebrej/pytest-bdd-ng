@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(__file__).resolve().parents[4]
 COMMON_SCRIPT = ROOT_DIR / ".specify" / "scripts" / "bash" / "common.sh"
 CHECK_PREREQUISITES_SCRIPT = ROOT_DIR / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
 CREATE_FEATURE_SCRIPT = ROOT_DIR / ".specify" / "scripts" / "bash" / "create-new-feature.sh"

@@ -27,7 +27,7 @@ def _assert_import_does_not_load(module: str, blocked_modules: tuple[str, ...]) 
         """,
     )
     env = os.environ.copy()
-    src_path = str((Path(__file__).resolve().parents[2] / "src").resolve())
+    src_path = str((Path(__file__).resolve().parents[4] / "src").resolve())
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [src_path, env.get("PYTHONPATH")]))
     result = subprocess.run(  # noqa: S603
         [sys.executable, "-c", code],

@@ -8,7 +8,7 @@ from pathlib import Path
 from pytest_bdd.model.message_extension import PAYLOAD_KINDS
 
 REPORTER_RUNTIME_DIR = (
-    Path(__file__).resolve().parents[2] / "src" / "pytest_bdd" / "plugin" / "gherkin_message_reporter"
+    Path(__file__).resolve().parents[4] / "src" / "pytest_bdd" / "plugin" / "gherkin_message_reporter"
 )
 RUNTIME_MODULE_PATHS = (
     REPORTER_RUNTIME_DIR / "lifecycle_runtime.py",

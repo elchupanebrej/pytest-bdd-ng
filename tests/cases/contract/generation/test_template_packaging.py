@@ -5,7 +5,7 @@ from pathlib import Path
 from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.compatibility.tomllib import loads
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
 def _load_pyproject() -> dict:

@@ -7,13 +7,13 @@ import sys
 from pathlib import Path
 
 CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "xdist_worker_controller_boundary.md"
+    Path(__file__).resolve().parents[4] / "tests" / "contract" / "fixtures" / "xdist_worker_controller_boundary.md"
 )
 LIVE_CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
+    Path(__file__).resolve().parents[4] / "tests" / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
 )
 PLUGIN_BOUNDARY_CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "live_reporting_plugin_boundary.md"
+    Path(__file__).resolve().parents[4] / "tests" / "contract" / "fixtures" / "live_reporting_plugin_boundary.md"
 )
 
 

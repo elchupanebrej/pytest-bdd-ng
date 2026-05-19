@@ -11,7 +11,7 @@ import pytest
 from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
 from pytest_bdd.model.message_validation import validate_message_stream
-from tests.messages.message_stream_assertions import (
+from contract.messages.message_stream_assertions import (
     assert_single_output_file,
     count_payload_kinds,
     gateway_modes_for_payloads,

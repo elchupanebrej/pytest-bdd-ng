@@ -27,7 +27,7 @@ from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
     _resolve_reporting_worker_identity,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
-from tests.messages.message_stream_assertions import worker_ids_for_payloads
+from contract.messages.message_stream_assertions import worker_ids_for_payloads
 from tests.cases.contract.messages.test_xdist_message_consolidation import _controller_fragment, _worker_fragment
 
 

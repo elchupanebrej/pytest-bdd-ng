@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from pytest_bdd import scenarios
 from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_outcome_mappings
-from tests.messages.message_capability_fixtures import make_mapping_rule
+from contract.messages.message_capability_fixtures import make_mapping_rule
 
 _EXCLUDED_TAGS = {"allure", "docker", "slow", "xdist"}
 _EXCLUDED_FEATURE_URI_FRAGMENTS = ("07 report/08 xdist remote network reporting.feature.md",)

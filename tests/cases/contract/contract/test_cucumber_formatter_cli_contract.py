@@ -210,7 +210,7 @@ def test_entrypoint_addhooks_only_registers_hookspecs() -> None:
 
 def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
     """Verify formatter plugins have independent pytest11 entrypoints."""
-    pyproject_path = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    pyproject_path = Path(__file__).resolve().parents[4] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     pytest11_entrypoints = pyproject["project"]["entry-points"]["pytest11"]
 
@@ -221,7 +221,7 @@ def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
 def test_runtime_session_resolves_formatter_requests_via_hooks_not_entrypoint_registry() -> None:
     """Verify runtime session resolves formatter requests via hooks not entrypoint registry."""
     session_source = (
-        Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[4]
         / "src"
         / "pytest_bdd"
         / "plugin"
@@ -244,7 +244,7 @@ def test_reporter_implements_explicit_lifecycle_contract(tmp_path: Path) -> None
 def test_entrypoint_source_does_not_fall_back_to_private_reporter_methods() -> None:
     """Verify entrypoint source does not fall back to private reporter methods."""
     entrypoint_source = (
-        Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[4]
         / "src"
         / "pytest_bdd"
         / "plugin"

@@ -367,7 +367,7 @@ def test_feature_driven_message_suite_consolidates_xdist_output_into_one_stream(
     assert worker_ids.issuperset({"gw0", "gw1"})
 
 
-@pytest.mark.playwright
+@pytest.mark.browser
 @pytest.mark.technical_nonconvertible
 def test_feature_driven_message_suite_html_report_renders_in_browser(
     testdir: Testdir,

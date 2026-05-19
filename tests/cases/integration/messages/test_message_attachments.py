@@ -10,7 +10,7 @@ from cucumber_messages import TestCaseStarted as _TestCaseStarted  # type:ignore
 from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 from cucumber_messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 
-from .test_messages import list_filter_by_type, parse_and_unfold_messages, runpytest_with_message_reporter
+from contract.messages.test_messages import list_filter_by_type, parse_and_unfold_messages, runpytest_with_message_reporter
 
 
 def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):

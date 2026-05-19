@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-CONTRACT_PATH = Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "xdist_consolidated_stream.md"
+CONTRACT_PATH = Path(__file__).resolve().parents[4] / "tests" / "contract" / "fixtures" / "xdist_consolidated_stream.md"
 LIVE_CONTRACT_PATH = (
-    Path(__file__).resolve().parents[2] / "tests" / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
+    Path(__file__).resolve().parents[4] / "tests" / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
 )
 
 

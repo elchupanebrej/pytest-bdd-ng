@@ -92,7 +92,7 @@ def test_reconcile_inventory_with_runtime_required_scope_has_zero_missing() -> N
     inventory = generate_inventory(resolve_messages_schema_dir())
     inventory_capability_ids = iter_capability_ids(inventory)
     runtime_required_scope_path = (
-        Path(__file__).resolve().parents[2]
+        Path(__file__).resolve().parents[4]
         / "specs"
         / "008-maximize-messages-coverage"
         / "runtime-required-capability-ids.txt"

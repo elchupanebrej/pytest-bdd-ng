@@ -8,7 +8,7 @@ import pytest
 from cucumber_messages import TestCaseStarted as CucumberTestCaseStarted  # type:ignore[attr-defined]
 
 from pytest_bdd.model.message_validation import validate_message_stream
-from tests.messages.message_stream_assertions import count_payload_kinds, parse_ndjson_messages, worker_ids_for_payloads
+from contract.messages.message_stream_assertions import count_payload_kinds, parse_ndjson_messages, worker_ids_for_payloads
 from tests.cases.contract.messages.test_messages import runpytest_with_message_reporter
 from pytest_bdd.testing.cucumber_formatters import (
     expected_formatter_visible_line,

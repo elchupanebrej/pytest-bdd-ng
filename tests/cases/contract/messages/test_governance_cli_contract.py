@@ -10,7 +10,7 @@ from jsonschema import validators
 from pytest_bdd.script import message_capability_governance
 
 CLI_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[4]
     / "specs"
     / "008-maximize-messages-coverage"
     / "contracts"

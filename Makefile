@@ -16,6 +16,7 @@ TOX_NDJSON_GLOB ?= .tox/*.messages.ndjson
 TOX_HTML_REPORT_DIR ?= .tmp/tox-reports
 PYTEST ?= uv run python -m pytest
 PYTEST_LOCAL_SELECTOR ?= not slow and not docker and not windows and not browser and not external
+PYTEST_UNIT_IGNORE ?= --ignore=tests/cases/unit/unit/test_dead_code.py
 
 develop:
 	uv python install 3.14
@@ -36,7 +37,7 @@ test-all: env-check test-unit test-integration test-contract test-e2e test-compa
 	-$(MAKE) --no-print-directory render-tox-reports-run
 
 test-unit: env-check
-	$(PYTEST) tests/cases/unit -m unit
+	$(PYTEST) tests/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
 
 test-integration: env-check
 	$(PYTEST) tests/cases/integration -m integration

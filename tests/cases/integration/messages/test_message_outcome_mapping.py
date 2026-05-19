@@ -9,7 +9,7 @@ from pytest_bdd.model.message_outcome_mapping import (
     validate_outcome_mappings,
 )
 
-from .message_capability_fixtures import make_mapping_rule
+from contract.messages.message_capability_fixtures import make_mapping_rule
 
 
 def _fixed_matrix_rules():
