@@ -36,3 +36,27 @@ def batch_collection_flag_is_set(step):
 def batch_collection_cache_is_used(pytest_result):
     # Check stdout for cache hit
     pass
+
+
+@then("Batch collection processes many scenarios correctly")
+def batch_collection_processes_many(pytest_result):
+    """Verify batch collection discovers all scenarios."""
+    stdout = pytest_result.stdout.str()
+    assert "5 tests collected" in stdout or "collected 5 items" in stdout, stdout
+
+
+@given("Batch collection is disabled")
+def batch_collection_disabled(testdir):
+    testdir.makeini("""
+[pytest]
+bdd_batch_collect = false
+bdd_features_base_dir = .
+    """)
+
+
+@given("Batch collection is enabled")
+def batch_collection_enabled(testdir):
+    testdir.makeini("""
+[pytest]
+bdd_features_base_dir = .
+    """)

@@ -44,6 +44,16 @@ def mimetype_hook_override(monkeypatch):
     pass
 
 
+@then("No mimetype is resolved")
+def no_mimetype_is_resolved(file_path):
+    ext = file_path.suffix
+    # Multiple dots → extract last suffix group for mimetype detection
+    # For .feature.bak, suffix is .bak → not in _SUFFIX_TO_MIMETYPE → None
+    # For .feature.md.renamed, suffix is .renamed → not in map → None
+    matched = _SUFFIX_TO_MIMETYPE.get(Suffix(ext))
+    assert matched is None, f"Expected no mimetype for {ext}, got {matched}"
+
+
 @then("custom mimetype is used")
 def custom_mimetype_is_used(pytest_result):
     # Verify that the file was processed successfully
