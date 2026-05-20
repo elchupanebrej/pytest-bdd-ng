@@ -305,15 +305,24 @@ Plans:
 **Goal:** Close v1.0 milestone audit gaps: achieve 70% unit test coverage (from 56%) and resolve 27 remaining BDD feature test failures (TEST-02)
 **Requirements**: TEST-01, TEST-02
 **Depends on:** Phase 13
-**Plans:** 2/0 plans complete
+**Plans:** 4 plans
 
 **Success Criteria** (what must be TRUE):
 
-  1. Unit test coverage reaches >=70% line coverage (from current 56%)
-  2. All 27 BDD feature test failures in `features/` are resolved
-  3. BDD test suite passes via `python -m pytest tests/e2e/` with zero failures
-  4. No regressions introduced to existing passing tests
+  1. Unit test coverage reaches >=70% line+branch coverage on non-exempt modules (from current 56%)
+  2. All 27 BDD feature test failures in `features/` are resolved (excluding infrastructure-dependent tests)
+  3. BDD test suite passes via `python -m pytest tests/cases/e2e/e2e/` with zero failures
+  4. E2E test modules are split per feature file (D-10), no whole-directory loaders
+  5. No regressions introduced to existing passing tests
+  6. All `# pragma: no cover` instances are justified or removed
 
 Plans:
-- [ ] 14-01-PLAN.md — Raise unit test coverage from 56% to 70%
-- [ ] 14-02-PLAN.md — Fix 27 remaining BDD feature test failures
+**Wave 1**
+- [ ] 14-01-PLAN.md — Analysis sweep: coverage gap scan + BDD failure triage
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 14-02-PLAN.md — Unit test coverage augmentation + markers + pragma audit
+- [ ] 14-03-PLAN.md — BDD failure resolution + E2E per-file module split + new feature docs
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 14-04-PLAN.md — Final verification: full suite + coverage threshold + phase summary
