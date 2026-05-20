@@ -292,7 +292,7 @@ Plans:
 
 **Success Criteria** (what must be TRUE):
 
-  1. Single `cucumber_json` plugin entry point serves both `--cucumber-json` CLI flag and INI option
+  1. A third entry point (`cucumber_json_dispatcher`) bridges INI and CLI cucumber-json configuration paths
   2. No duplicate registration or conflicting output between the two paths
   3. Backward compatible: existing INI configs and CLI invocations produce identical output
   4. Full test suite passes with zero regressions
