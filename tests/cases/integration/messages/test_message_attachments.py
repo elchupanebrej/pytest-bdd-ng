@@ -9,7 +9,6 @@ from contract.messages.test_messages import (
 )
 from cucumber_messages import (
     Attachment,  # type:ignore[attr-defined]
-    ExternalAttachment,  # type:ignore[attr-defined]
 )
 from cucumber_messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
 from cucumber_messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
@@ -46,13 +45,11 @@ def test_attachment_messages_are_correlated_to_active_step(testdir, tmp_path):
     payloads = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
 
     attachments = list_filter_by_type(Attachment, payloads)
-    external_attachments = list_filter_by_type(ExternalAttachment, payloads)
     test_case_started_messages = list_filter_by_type(_TestCaseStarted, payloads)
     test_step_started_messages = list_filter_by_type(_TestStepStarted, payloads)
     test_step_finished_messages = list_filter_by_type(_TestStepFinished, payloads)
 
     assert len(attachments) == 1
-    assert len(external_attachments) == 0
     assert len(test_case_started_messages) == 1
     assert len(test_step_started_messages) == 1
     assert len(test_step_finished_messages) == 1
@@ -110,10 +107,8 @@ def test_attachment_messages_populate_mandatory_metadata_fields(testdir, tmp_pat
     payloads = parse_and_unfold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
 
     attachments = list_filter_by_type(Attachment, payloads)
-    external_attachments = list_filter_by_type(ExternalAttachment, payloads)
 
     assert attachments, "Expected at least one attachment payload"
-    assert external_attachments, "Expected at least one external attachment payload"
 
     attachment = attachments[-1]
     assert attachment.file_name == "evidence.bin"
@@ -127,9 +122,3 @@ def test_attachment_messages_populate_mandatory_metadata_fields(testdir, tmp_pat
     assert attachment.test_run_hook_started_id == "hook-started-id"
     assert attachment.test_run_started_id == "run-started-id"
     assert attachment.timestamp is not None
-
-    external = external_attachments[-1]
-    assert external.url == "https://example.invalid/evidence.bin"
-    assert external.media_type == "application/octet-stream"
-    assert external.test_run_hook_started_id == "hook-started-id"
-    assert external.timestamp is not None

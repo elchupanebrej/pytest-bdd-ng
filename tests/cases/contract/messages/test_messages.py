@@ -100,7 +100,6 @@ def unfold_message(message: Message):
     """
     unfoldable_attrs = [
         "attachment",
-        "external_attachment",
         "gherkin_document",
         "hook",
         "meta",

@@ -243,6 +243,7 @@ class StepCatalogService(ReporterServiceBase):
             parameter_value_text = "" if parameter_value is None else str(parameter_value)
             parameter_start_index = step_text.find(parameter_value_text) if parameter_value_text else -1
             group = Group(
+                children=[],
                 **({"start": parameter_start_index} if parameter_start_index >= 0 else {}),
                 **({"value": parameter_value_text} if parameter_value_text else {}),
             )
