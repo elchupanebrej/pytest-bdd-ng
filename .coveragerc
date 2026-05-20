@@ -3,6 +3,7 @@ branch = true
 source = pytest_bdd
 omit =
     */_gherkin_go/*
+    */.ruff/*
     */script/*
     */testing/*
     */types/*
@@ -16,6 +17,7 @@ fail_under = 70
 show_missing = true
 omit =
     */_gherkin_go/*
+    */.ruff/*
     */script/*
     */testing/*
     */types/*

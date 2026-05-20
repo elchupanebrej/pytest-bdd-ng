@@ -284,8 +284,8 @@ def test_console_formatter_emits_output_via_real_entrypoint(
     install_fake_node(monkeypatch, tmp_path)
     build_sample_suite(testdir)
 
-    result = run_pytest_via_real_entrypoint(testdir, "--cucumber-summary")
+    result = run_pytest_via_real_entrypoint(testdir, "--cucumber-summary", preserve_fake_node=True)
 
     assert result.returncode == pytest.ExitCode.TESTS_FAILED
-    assert "2 scenarios (1 failed, 1 passed)" in result.stdout
+    assert expected_formatter_visible_line("summary") in result.stdout
     assert_pytest_terminal_reporter_suppressed(result.stdout)
