@@ -89,6 +89,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
+- [ ] Vulture must be run not via pytest but as pre-commit hook
 - [ ] No TestClasses are allowed in tests — enforce via ruff rule
 - [ ] Begin Phase 8 execution (BDD acceptance testing)
 - [ ] Expand feature tests for undocumented behaviors
