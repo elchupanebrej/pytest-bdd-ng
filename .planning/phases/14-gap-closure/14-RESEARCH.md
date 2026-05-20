@@ -567,27 +567,27 @@ Needs investigation (verify if reachable with additional tests):
 
 **If this table is empty:** All claims in this research were verified or cited — no user confirmation needed.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Scope of "27 BDD failures"**
+1. **Scope of "27 BDD failures"** — RESOLVED
    - What we know: 61 E2E scenarios are excluded by tag-based filtering. The 27 count likely comes from a previous run with different exclusions.
    - What's unclear: Are the 27 failures all within the currently skipped scenarios, or are some in the passing set? Do the 27 include infrastructure-dependent tests (@docker, @xdist)?
-   - Recommendation: Run full E2E suite without exclusions as Wave 0, capture failure counts. If 27 +/- matches, the triage strategy is correct. If significantly different, adjust task allocation.
+   - **Resolution:** Plan 14-01 Task 2 runs the full E2E suite without tag exclusions to capture the actual failure count, categorized by error type. If count differs significantly from 27, task allocation adjusts dynamically based on the triage report. Infrastructure-dependent failures are identified and kept excluded.
 
-2. **Per-module coverage threshold enforcement mechanism**
+2. **Per-module coverage threshold enforcement mechanism** — RESOLVED
    - What we know: `.coveragerc` has `fail_under = 70` which gates TOTAL aggregate coverage. No per-module enforcement exists.
    - What's unclear: Should per-module checking be a CI script, a pytest plugin, or manual review? What action on violation?
-   - Recommendation: Use `coverage json` post-processing in a verification script. Flag modules below 70% as CI warnings (not hard failures initially). The planner can decide hard vs soft enforcement.
+   - **Resolution:** Use `coverage json` post-processing in Plan 14-04 Task 1 (full suite verification). Parse `coverage.json` to extract per-file percentages, flag any non-exempt module below 70%. Hard enforcement: plan does not pass verification until all non-exempt modules reach ≥70%. The `.coveragerc` `fail_under = 70` handles the aggregate gate; per-module checking is scripted as part of 14-04 Task 1 action steps.
 
-3. **25 files needing `@pytest.mark.unit` — intentional or oversight?**
+3. **25 files needing `@pytest.mark.unit` — intentional or oversight?** — RESOLVED
    - What we know: 25 test files under `tests/cases/unit/` lack `@pytest.mark.unit`. The `test_group_paths` config in pyproject.toml uses directory globs (`tests/cases/unit/** = unit`) which may provide automatic grouping independent of markers.
    - What's unclear: Are explicit markers required per Phase 12 D-04/D-06 conventions, or does test_group_paths suffice?
-   - Recommendation: If `test_group_paths` already assigns `unit` group to all files under `tests/cases/unit/**`, markers may be redundant. Clarify with Phase 12 conventions before bulk-adding markers.
+   - **Resolution:** `test_group_paths` provides automatic grouping via directory globs, so markers are not strictly required for group assignment. However, explicit `@pytest.mark.unit` markers are added per D-11 for convention compliance, human readability, and marker-based test selection (`pytest -m unit`). Plan 14-02 Task 3 adds markers to all unit test files.
 
-4. **E2E module split — keep or remove test_e2e.py?**
+4. **E2E module split — keep or remove test_e2e.py?** — RESOLVED
    - What we know: D-10 says "Replaces the current `tests/e2e/test_e2e.py` with per-file modules." The file also contains 3 non-scenario tests (messages_fixed matrix validation).
    - What's unclear: Should the 3 non-scenario tests move to their own file, or stay in a retained non-scenario module?
-   - Recommendation: Split into: (a) `test_messages_fixed.py` for the 3 non-scenario tests, (b) 47 `test_feature_NNN.py` modules, one per feature file. Delete the original `test_e2e.py` after migration.
+   - **Resolution:** Split into: (a) `test_messages_fixed.py` for the 3 non-scenario tests, (b) ~47 `test_feature_NNN.py` modules, one per feature file. Delete the original `test_e2e.py` after migration. This is implemented in Plan 14-03 Task 2. The 3 non-scenario tests are extracted first, then per-file modules are created, then original file is stripped of scenarios() calls (kept only as module stub, to be deleted after verification).
 
 ## Environment Availability
 
