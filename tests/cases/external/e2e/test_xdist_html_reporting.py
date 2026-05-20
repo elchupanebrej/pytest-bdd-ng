@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from pytest_bdd import given, scenario, then, when
-from tests.cases.e2e.e2e.test_e2e import _exclude_default_bdd_features
+from tests.cases.e2e.e2e._bdd_filter import exclude_default_bdd_features as _exclude_default_bdd_features
 
 pytestmark = [pytest.mark.xdist, pytest.mark.slow]
 

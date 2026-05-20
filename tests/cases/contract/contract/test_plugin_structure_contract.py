@@ -12,7 +12,7 @@ SOURCE_ROOT = REPO_ROOT / "src"
 PLUGIN_ROOT = SOURCE_ROOT / "pytest_bdd" / "plugin"
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
 
-EXPECTED_PLUGIN_COUNT = 17
+EXPECTED_PLUGIN_COUNT = 18
 EXPECTED_PLUGIN_CLASSES = {
     "pytest-bdd-code-generator": "CodeGeneratorPlugin",
 }

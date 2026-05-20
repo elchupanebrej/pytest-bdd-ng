@@ -19,19 +19,17 @@ pytestmark = [pytest.mark.unit]
 
 
 class _Parser:
-    """Minimal parser test double."""
+    """Parser test double that delegates to real GherkinParser for feature file content."""
 
     def __init__(self, *, id_generator: IdGenerator | None = None) -> None:
         self.id_generator = id_generator
 
-    def parse(self, _config: SimpleNamespace, path: Path, uri: str, **_kwargs: object) -> ParsedFeature:
-        """Parse file content into a minimal feature document."""
-        document = _document(uri=uri)
-        return ParsedFeature(
-            gherkin_document=document,
-            filename=path.as_posix(),
-            raw_data=path.read_text(encoding="utf-8"),
-        )
+    def parse(self, config: SimpleNamespace, path: Path, uri: str, **_kwargs: object) -> ParsedFeature:
+        """Parse file content using the real GherkinParser for accurate scenario extraction."""
+        from pytest_bdd.parser import GherkinParser
+
+        real_parser = GherkinParser(id_generator=self.id_generator)
+        return real_parser.parse(config, path, uri, **_kwargs)
 
 
 def _document(*, uri: str = "file:feature.feature") -> GherkinDocument:
@@ -155,3 +153,100 @@ def test_bind_feature_creates_pickles_in_run_stash() -> None:
 
     assert binding.uri == "file:feature.feature"
     assert binding.pickles == ()
+
+
+def test_file_locator_resolve_yields_document_pickle_source(tmp_path: Path) -> None:
+    """FileScenarioLocator.resolve yields (GherkinDocument, Pickle, Source) tuples."""
+    feature = tmp_path / "sample.feature"
+    feature.write_text("Feature: Resolve\n  Scenario: Test\n    Given step\n", encoding="utf-8")
+    locator = FileScenarioLocator(features_base_dir=tmp_path, feature_paths=[feature.name])
+
+    results = list(locator.resolve(_config()))
+
+    assert len(results) >= 1
+    doc, _pickle, source = results[0]
+    assert doc.feature.name == "Resolve"
+    assert source.uri.startswith("file:")
+
+
+def test_file_locator_filter_scenarios_passes_when_callback_none() -> None:
+    """filter_scenarios with no filter yields all pickles."""
+    locator = FileScenarioLocator(features_base_dir=Path())
+    pickle = Pickle(
+        id="p1",
+        uri="file:f.feature",
+        ast_node_ids=[],
+        language="en",
+        name="S",
+        steps=[],
+        tags=[],
+    )
+
+    results = list(locator.filter_scenarios(_document(), [pickle], _config()))
+    assert len(results) == 1
+
+
+def test_file_locator_filter_scenarios_passes_all_when_callback_true() -> None:
+    """filter_scenarios with truthy callback yields all pickles."""
+
+    def filter_(_c: object, _d: object, _p: object) -> bool:
+        return True
+
+    locator = FileScenarioLocator(features_base_dir=Path(), filter_=filter_)
+    pickle = Pickle(id="p1", uri="file:f.feature", ast_node_ids=[], language="en", name="S", steps=[], tags=[])
+
+    assert list(locator.filter_scenarios(_document(), [pickle], _config())) == [(_document(), pickle)]
+
+
+def test_file_locator_defaults_provides_utf8_encoding() -> None:
+    """FileScenarioLocatorDefaults.encoding returns utf-8."""
+    from pytest_bdd.scenario_locator import FileScenarioLocatorDefaults
+
+    assert FileScenarioLocatorDefaults.encoding() == "utf-8"
+
+
+def test_file_locator_defaults_parse_args_returns_empty_args() -> None:
+    """FileScenarioLocatorDefaults.parse_args returns empty Args."""
+    from pytest_bdd.scenario_locator import FileScenarioLocatorDefaults
+
+    result = FileScenarioLocatorDefaults.parse_args()
+    assert result.args == ()
+    assert result.kwargs == {}
+
+
+def test_file_locator_with_glob_pattern(tmp_path: Path) -> None:
+    """FileScenarioLocator resolves glob patterns into files."""
+    features = tmp_path / "features"
+    features.mkdir()
+    (features / "a.feature").write_text("Feature: A\n", encoding="utf-8")
+    (features / "b.feature").write_text("Feature: B\n", encoding="utf-8")
+    locator = FileScenarioLocator(features_base_dir=tmp_path, feature_paths=["features/*.feature"])
+
+    results = list(locator.resolve_features(_config()))
+    assert len(results) == 2
+
+
+def test_file_locator_duplicate_path_skipped(tmp_path: Path) -> None:
+    """FileScenarioLocator skips duplicate resolved paths."""
+    feature = tmp_path / "dup.feature"
+    feature.write_text("Feature: Dup\n", encoding="utf-8")
+    locator = FileScenarioLocator(features_base_dir=tmp_path, feature_paths=[feature.name, feature.name])
+
+    results = list(locator.resolve_features(_config()))
+    assert len(results) == 1
+
+
+def test_url_locator_builds_only_remote_urls() -> None:
+    """UrlScenarioLocator._build_urls returns only remote URLs when no base."""
+    locator = UrlScenarioLocator(url_paths=["https://example.test/only.feature"])
+
+    assert locator._build_urls() == ["https://example.test/only.feature"]
+
+
+def test_filter_mixin_with_none_filter_passes_all() -> None:
+    """ScenarioLocatorFilterMixin with no filter passes all pickles."""
+    locator = ScenarioLocatorFilterMixin(filter_=None)
+    pickle = Pickle(id="p1", uri="file:f.feature", ast_node_ids=[], language="en", name="S", steps=[], tags=[])
+
+    results = list(locator.filter_scenarios(_document(), [pickle], _config()))
+    assert len(results) == 1

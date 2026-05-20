@@ -1,6 +1,12 @@
 [run]
 branch = true
 source = pytest_bdd
+omit =
+    */_gherkin_go/*
+    */script/*
+    */testing/*
+    */entrypoint.py
 
 [report]
 fail_under = 70
+show_missing = true
