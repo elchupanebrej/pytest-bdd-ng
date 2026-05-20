@@ -27,6 +27,8 @@ FEATURE_TEXT = b"""Feature: Test feature
 
 # ── FeatureBatchParser state machine tests ──────────────────────────────
 
+pytestmark = [pytest.mark.unit]
+
 
 def test_register_appends_and_returns_count() -> None:
     parser = FeatureBatchParser()

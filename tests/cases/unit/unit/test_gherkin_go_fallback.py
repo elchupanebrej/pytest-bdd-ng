@@ -10,6 +10,8 @@ import pytest
 
 from pytest_bdd._gherkin_go._types import GherkinGoNotAvailable, GherkinParseError
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestBackendAuto:
     def test_env_var_defaults_to_auto(self) -> None:

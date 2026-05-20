@@ -1,6 +1,10 @@
 """Step arguments tests."""
 
+from __future__ import annotations
+
 import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 @pytest.mark.parametrize(

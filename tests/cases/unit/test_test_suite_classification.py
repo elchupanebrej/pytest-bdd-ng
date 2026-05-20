@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -15,6 +16,8 @@ LEGACY_TEST_PATHS = (
     "tests/e2e",
     "tests/assets/templates",
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 def _pytest_ini_options() -> dict[str, object]:

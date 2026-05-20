@@ -1,11 +1,16 @@
 """Step arguments tests."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import pytest
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
+
+
+pytestmark = [pytest.mark.unit]
 
 
 @pytest.mark.parametrize(
@@ -82,7 +87,7 @@ def test_cucumber_expression(
     result.assert_outcomes(passed=1)
 
 
-def test_cucumber_expression_complex_type(testdir: "Testdir"):
+def test_cucumber_expression_complex_type(testdir: Testdir):
     """Test comments inside scenario."""
     testdir.makeconftest(
         # language=python

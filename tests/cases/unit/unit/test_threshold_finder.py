@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 SCENARIOS_PER_FEATURE = 5
 TEST_SIZES = [500, 750, 1000]
 
+pytestmark = [pytest.mark.unit]
+
 
 def _build_feature_text(n: int) -> str:
     scenarios = "\n".join(

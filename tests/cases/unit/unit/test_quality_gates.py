@@ -6,12 +6,16 @@ import ast
 import textwrap
 from pathlib import Path
 
+import pytest
+
 from pytest_bdd._ruff.rules.quality_gates import (
     QualityGateVisitor,
     check_file,
 )
 
 SRC_ROOT = Path("src/pytest_bdd")
+
+pytestmark = [pytest.mark.unit]
 
 
 def _check_source(source: str, filename: str = "<test>") -> list:

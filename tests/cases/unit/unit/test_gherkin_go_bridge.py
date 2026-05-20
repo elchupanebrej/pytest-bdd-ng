@@ -16,6 +16,8 @@ from pytest_bdd._gherkin_go._bridge import (
     parse_gherkin_markdown,
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestLoadLibrary:
     def test_loads_cached_library(self) -> None:

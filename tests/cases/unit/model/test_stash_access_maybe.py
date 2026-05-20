@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections import UserDict
 
+import pytest
 from returns.maybe import Maybe, Nothing, Some
 
 from pytest_bdd.model.stash_access import StashAccess, StashBound
+
+pytestmark = [pytest.mark.unit]
 
 
 class FakeStash(UserDict):

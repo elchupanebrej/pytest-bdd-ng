@@ -1,6 +1,12 @@
 """Provide test arg fixture mix helpers."""
 
+from __future__ import annotations
+
 from textwrap import dedent
+
+import pytest
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_arg_fixture_mix(testdir, tmp_path):

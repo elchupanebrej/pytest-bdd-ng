@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from returns.result import Failure, Success
 
 from pytest_bdd.parsers import (
@@ -11,6 +12,8 @@ from pytest_bdd.parsers import (
     string,
 )
 from pytest_bdd.types.failure_reasons import ParserFailure
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestBuildParserResult:

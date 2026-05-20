@@ -18,6 +18,8 @@ from pytest_bdd.util.tests_group_ordering import (
     resolve_group_assignment,
 )
 
+pytestmark = [pytest.mark.unit]
+
 pytest_plugins = ("pytester",)
 REPO_SRC = Path(__file__).parents[2] / "src"
 

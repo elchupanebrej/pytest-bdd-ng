@@ -44,6 +44,8 @@ KNOWN_FALSE_POSITIVES: set[tuple[str, int, str]] = {
     ("parsers.py", 9, "Match"),
 }
 
+pytestmark = [pytest.mark.unit]
+
 
 def _run_vulture() -> list[str]:
     """Run vulture at 80% confidence, return stdout lines."""

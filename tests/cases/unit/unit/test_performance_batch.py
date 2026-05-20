@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 FEATURE_COUNT = 2000
 SCENARIOS_PER_FEATURE = 20
 
+pytestmark = [pytest.mark.unit]
+
 
 def _build_feature_text(n: int) -> str:
     """Build a single feature file with SCENARIOS_PER_FEATURE scenarios."""

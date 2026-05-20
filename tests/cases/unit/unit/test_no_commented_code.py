@@ -10,6 +10,10 @@ import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = [pytest.mark.unit]
+
 
 class TestNoCommentedCode:
     """SIM-03: No commented-out code in source (ERA001 clean)."""

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.model.cucumber_formatter_adapter import (
     CucumberFormatterEnvelopeAdapter,
     normalize_formatter_envelope_dicts,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 def _test_case(test_case_id: str, *test_steps: dict[str, object]) -> dict[str, object]:

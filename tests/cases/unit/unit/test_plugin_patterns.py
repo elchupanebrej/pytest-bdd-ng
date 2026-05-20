@@ -5,6 +5,8 @@ from __future__ import annotations
 import textwrap
 from typing import TYPE_CHECKING
 
+import pytest
+
 from pytest_bdd._ruff.rules.plugin_patterns import (
     check_cross_plugin_imports,
     check_plugin_patterns,
@@ -15,6 +17,8 @@ from pytest_bdd._ruff.rules.plugin_patterns import (
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+pytestmark = [pytest.mark.unit]
 
 
 def _write_file(path: Path, content: str) -> None:

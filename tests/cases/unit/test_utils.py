@@ -1,5 +1,7 @@
 """Provide test utils helpers."""
 
+from __future__ import annotations
+
 import re
 
 import pytest
@@ -8,6 +10,8 @@ from attr import attrib, attrs
 from pytest_bdd.compatibility.pytest.outcomes import Failed
 from pytest_bdd.util.pytest_extra import doesnt_raise
 from pytest_bdd.util.toolz_extra import deepattrgetter, flip, setdefaultattr
+
+pytestmark = [pytest.mark.unit]
 
 
 def test_get_attribute():

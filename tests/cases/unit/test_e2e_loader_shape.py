@@ -5,8 +5,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 E2E_ROOTS = (REPO_ROOT / "tests" / "cases" / "e2e",)
+
+pytestmark = [pytest.mark.unit]
 
 
 def _iter_e2e_test_modules() -> list[Path]:

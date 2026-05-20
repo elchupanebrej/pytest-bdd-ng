@@ -28,6 +28,8 @@ PARSE_ERROR_ARRAY = json.dumps(
     [{"source": {"uri": "", "location": {"line": 1, "column": 1}}, "message": "Parse error"}],
 )
 
+pytestmark = [pytest.mark.unit]
+
 
 class TestParsePlainGherkin:
     def test_parses_valid_gherkin(self) -> None:
