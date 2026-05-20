@@ -305,7 +305,7 @@ Plans:
 **Goal:** Close v1.0 milestone audit gaps: achieve 70% unit test coverage (from 56%) and resolve 27 remaining BDD feature test failures (TEST-02)
 **Requirements**: TEST-01, TEST-02
 **Depends on:** Phase 13
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 
 **Success Criteria** (what must be TRUE):
 
@@ -318,7 +318,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 14-01-PLAN.md — Analysis sweep: coverage gap scan + BDD failure triage
+- [x] 14-01-PLAN.md — Analysis sweep: coverage gap scan + BDD failure triage
 
 **Wave 2** *(blocked on Wave 1)*
 - [ ] 14-02-PLAN.md — Unit test coverage augmentation + markers + pragma audit
