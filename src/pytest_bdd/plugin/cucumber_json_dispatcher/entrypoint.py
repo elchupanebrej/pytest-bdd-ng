@@ -8,8 +8,7 @@ from .const import CucumberJsonDispatcher
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: Config) -> None:
-    """Handle configure."""
+def pytest_configure(config: Config) -> None:  # noqa: D103
     if hasattr(config, "workerinput"):
         return
 
