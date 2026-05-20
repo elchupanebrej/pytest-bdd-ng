@@ -32,8 +32,8 @@
 
 ### Testing
 
-- [ ] **TEST-01**: Improve unit test coverage for core modules (`scenario_run.py`, `steps.py`, `parsers.py`)
-- [ ] **TEST-02**: Expand BDD feature tests in `features/` for undocumented behaviors and edge cases
+- [x] **TEST-01**: Improve unit test coverage for core modules (`scenario_run.py`, `steps.py`, `parsers.py`)
+- [x] **TEST-02**: Expand BDD feature tests in `features/` for undocumented behaviors and edge cases
 - [x] **TEST-03**: Add integration tests for edge cases in step matching priority and scenario execution lifecycle
 
 ## v2 Requirements
