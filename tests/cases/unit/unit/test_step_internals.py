@@ -6,7 +6,11 @@ to cover branches that are hard to reach via testdir integration tests.
 
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.steps import StepDefinitionManager, _resolve_callable_source_location
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestResolveCallableSourceLocation:
@@ -18,15 +22,19 @@ class TestResolveCallableSourceLocation:
         def my_func():
             pass
 
-        source_file, source_line = _resolve_callable_source_location(my_func)
+        _source_file, source_line = _resolve_callable_source_location(my_func)
         assert isinstance(source_line, int)
 
     def test_function_without_code(self):
         """Handles function with no __code__ attribute gracefully."""
+
         # A built-in function may not have getsourcelines accessible
         # but we test the fallback path
-        obj = type("Dummy", (), {"__call__": lambda self: None})()
-        source_file, source_line = _resolve_callable_source_location(obj.__call__)
+        def call(_self):
+            return None
+
+        obj = type("Dummy", (), {"__call__": call})()
+        _source_file, source_line = _resolve_callable_source_location(obj.__call__)
         assert isinstance(source_line, int)
         assert source_line >= 1
 
@@ -234,6 +242,31 @@ class TestDefinitionGetParameters:
         result = definition.get_parameters(mock_request, mock_step)
         assert result["euro"] == 5
         assert isinstance(result["euro"], int)
+
+    def test_get_parameters_uses_identity_converter_by_default(self):
+        """get_parameters leaves parsed values unchanged without converter."""
+        from unittest.mock import MagicMock
+
+        from pytest_bdd.parsers import re as re_parser
+
+        parser = re_parser(r"I have (?P<thing>.+)")
+        definition = StepDefinitionManager.Definition(
+            func=lambda: None,
+            type_="given",
+            parser=parser,
+            anonymous_group_names=None,
+            converters={},
+            params_fixtures_mapping=True,
+            param_defaults={},
+            target_fixtures=[],
+            liberal=None,
+        )
+        mock_step = MagicMock()
+        mock_step.text = "I have café"
+
+        result = definition.get_parameters(MagicMock(), mock_step)
+
+        assert result == {"thing": "café"}
 
 
 class TestRegistry:

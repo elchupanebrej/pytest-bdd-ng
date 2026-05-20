@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from re import compile as re_compile
 
+import pytest
 from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 from cucumber_expressions.regular_expression import RegularExpression
@@ -22,6 +23,8 @@ from pytest_bdd.parsers import (
     re,
     string,
 )
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestStepParserBuild:
@@ -171,6 +174,12 @@ class TestParseParser:
         parser = parse("I have {euro:d} Euro")
         result = parser.parse_arguments(None, "I have 5 Euro")
         assert result["euro"] == 5
+
+    def test_is_matching_handles_conversion_failure(self):
+        """Parse format reports no match when conversion fails."""
+        parser = parse("I have {euro:d} Euro")
+
+        assert parser.is_matching(None, "I have five Euro") is False
 
     def test_parse_arguments_named(self):
         """Parse named arguments."""
@@ -387,7 +396,8 @@ class TestParserBuildResult:
         from pytest_bdd.parsers import _EXPECTED_PARSER_BUILD_ERRORS
 
         def bad_builder():
-            raise _EXPECTED_PARSER_BUILD_ERRORS[0]("test error")
+            msg = "test error"
+            raise _EXPECTED_PARSER_BUILD_ERRORS[0](msg)
 
         result = _build_parser_result(bad_builder)
         assert isinstance(result, Failure)
