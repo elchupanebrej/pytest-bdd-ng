@@ -43,6 +43,7 @@ pip-log.txt
 coverage/
 htmlcov/
 nosetests.xml
+coverage.json
 
 # Documentation build artifacts
 docs/_build/
@@ -76,6 +77,7 @@ docs/doctrees/
 
 # Python virtual environments
 .venv/
+.venv-linux/
 venv/
 /uv.lock
 

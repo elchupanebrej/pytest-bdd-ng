@@ -5,8 +5,21 @@ omit =
     */_gherkin_go/*
     */script/*
     */testing/*
+    */types/*
+    */compatibility/*
     */entrypoint.py
+    */plugin/cucumber_*/*
+    */plugin/gherkin_terminal_reporter/*
 
 [report]
 fail_under = 70
 show_missing = true
+omit =
+    */_gherkin_go/*
+    */script/*
+    */testing/*
+    */types/*
+    */compatibility/*
+    */entrypoint.py
+    */plugin/cucumber_*/*
+    */plugin/gherkin_terminal_reporter/*

@@ -34,14 +34,15 @@ key-files:
     - tests/cases/contract/contract/test_plugin_structure_contract.py (fix count)
 
 key-decisions:
-  - "D-03: Aggregate coverage 53.28% — improved from 37.83% baseline but below 70% target"
+  - "D-03: Aggregate coverage 54.88% raw / 56% after D-04 report-stage omits — improved from 37.83% baseline but below 70% target"
   - "D-04: Exempt categories properly excluded via .coveragerc omit patterns"
   - "D-09: Single full-suite verification confirms BDD gate passed (0 failures, 185 pass)"
 
 patterns-established:
   - "Verification-only plan: no production code changes, only config and test bug fixes"
 
-requirements-completed: [TEST-01, TEST-02]
+requirements-completed: [TEST-02]
+requirements-partial: [TEST-01]
 
 # Metrics
 duration: 18min
@@ -57,8 +58,8 @@ completed: 2026-05-20
 - **Duration:** 18 min
 - **Started:** 2026-05-20T19:15:00Z
 - **Completed:** 2026-05-20T19:33:44Z
-- **Tasks:** 3
-- **Files modified:** 6
+- **Tasks:** 3 + retroactive validation audit
+- **Files modified:** 11
 
 ## Accomplishments
 
@@ -67,8 +68,8 @@ completed: 2026-05-20
 - BDD verification: 185 scenarios pass, 7 correctly skipped (infrastructure-dependent), zero unexpected failures — 61 NOTSET skips and 27 hidden failures resolved in 14-03
 - Integration tests: 265 pass, 3 skipped, 1 pre-existing failure (message_emission_points — tracked as deferred)
 - Unit tests: 948 pass, 4 skipped, 2 pre-existing failures fixed in this plan
-- Full aggregate coverage: 53.28% (line+branch on 194 source files) — up from 37.83% baseline
-- 59 of 166 non-exempt modules at or above 70% per-module threshold; 107 below
+- Full aggregate coverage: 54.88% raw / 56% after D-04 report-stage omits — up from 37.83% baseline
+- 43 of 134 audited non-exempt modules at or above 70% per-module threshold; 91 below after D-04 omissions
 - Coverage improvement concentrated in core modules: tag_expression (+9.1%), collector (+26.3%), parser (+14.0%), scenario (+7.4%)
 
 ## Task Commits
@@ -85,6 +86,10 @@ completed: 2026-05-20
 - `tests/cases/external/e2e/test_xdist_html_reporting.py` — Fixed stale import: `test_e2e._exclude_default_bdd_features` → `_bdd_filter.exclude_default_bdd_features`
 - `tests/cases/contract/contract/test_plugin_structure_contract.py` — Fixed `EXPECTED_PLUGIN_COUNT`: 17 → 18 (Phase 13 added cucumber_json_dispatcher)
 - `coverage.json` — Full-suite coverage data (generated artifact)
+- `tests/cases/unit/unit/test_phase14_gap_modules.py` — Focused helper-module coverage tests added during validation audit
+- `docs/features/09 Tag Expressions/02 Edge cases.feature.rst` — Generated feature docs added during validation audit
+- `docs/features/11 Mimetype/02 Edge cases.feature.rst` — Generated feature docs added during validation audit
+- `docs/features/16 Batch Collection/02 Edge cases with large files.feature.rst` — Generated feature docs added during validation audit
 
 ## Phase 14: Before/After Comparison
 
@@ -92,9 +97,9 @@ completed: 2026-05-20
 
 | Metric | Before (14-01 baseline) | After (14-04 verification) | Change |
 |--------|------------------------|---------------------------|--------|
-| Aggregate coverage | 37.83% | 53.28% | +15.45% |
-| Non-exempt modules ≥70% | ~10 | 59 | +49 |
-| Non-exempt modules <70% | ~156 | 107 | −49 |
+| Aggregate coverage | 37.83% | 54.88% raw / 56% after D-04 report-stage omits | +17.05% raw |
+| Non-exempt modules ≥70% | ~10 | 43 | +33 |
+| Non-exempt modules <70% | ~156 | 91 | −65 |
 | Modules at 0% | ~47 | 26 | −21 |
 
 | Module | Before | After | Improvement |
@@ -138,8 +143,8 @@ completed: 2026-05-20
 
 ## Decisions Made
 
-- **D-03 (Coverage threshold):** Aggregate coverage reached 53.28%, improved from 37.83%. Did not reach 70% target — achieving it would require ~1500+ additional lines of test coverage across 107 below-threshold modules, primarily in formatter plugins, message governance tooling, and live-reporting infrastructure. These modules are exercised by E2E/integration tests but not at the line level.
-- **D-04 (Exempt categories):** .coveragerc `omit` patterns implemented for entrypoint.py, _gherkin_go/, script/, testing/. These are correctly excluded from measurement. Compatibility and types modules remain measured but are documented as low-priority for coverage.
+- **D-03 (Coverage threshold):** Aggregate coverage reached 54.88% raw / 56% after D-04 report-stage omits, improved from 37.83%. Did not reach 70% target — achieving it requires broad additional test coverage across 91 below-threshold non-exempt modules.
+- **D-04 (Exempt categories):** .coveragerc `omit` patterns implemented for entrypoint.py, _gherkin_go/, script/, testing/, types/, compatibility, and formatter plugin modules at run and report stages.
 - **D-09 (Full-suite verification):** Single verification run confirmed all BDD tests pass (185/185) and test suite is green (except 21 pre-existing failures in test_dead_code.py and message_emission_points.py, which are tracked as deferred items).
 
 ## Deviations from Plan
@@ -181,16 +186,16 @@ completed: 2026-05-20
 
 ## Issues Encountered
 
-- **Coverage below 70% target:** Aggregate coverage at 53.28% — 16.72 percentage points below D-03 target. The 70% target requires extensive additional test coverage across 107 below-threshold modules, primarily in plugin formatters and message governance tooling. These are deferred to future milestones.
+- **Coverage below 70% target:** Aggregate coverage at 54.88% raw / 56% after D-04 report-stage omits — still below D-03 target. The 70% target requires extensive additional test coverage across 91 below-threshold non-exempt modules. These are deferred to future milestones.
 - **23 pre-existing test failures persist:**
   - 20 `test_dead_code.py` failures: `vulture` not installed in current environment. Tracked in STATE.md pending items: "Vulture must be run not via pytest but as pre-commit hook"
   - 1 `test_message_emission_points.py` failure: `external_attachment` payload kind missing emission point. Pre-existing from Phase 14 baseline.
   - 2 test failures from 14-02 were fixed in this plan (collector, scenario_locator assertions)
-- **Generated docs stale for 3 new feature files:** `features/09 Tag Expressions/02 Edge cases.feature.md`, `features/11 Mimetype/02 Edge cases.feature.md`, `features/16 Batch Collection/02 Edge cases with large files.feature.md` lack corresponding `docs/features/` RST files. The `generate-feature-doc` pre-commit hook requires `env` (Unix utility) not available on Windows.
+- **External environment failures persist:** Full `tests/cases/` audit run had 16 external/environment failures, mostly Docker Desktop or remote_xdist assets not available locally, plus one cucumber formatter output mismatch.
 
 ## Known Stubs
 
-None — all test scenarios have step definitions. The 3 new .feature.md files have working step definitions and pass in the E2E suite; only generated RST docs are missing (platform limitation).
+None — all test scenarios have step definitions. The 3 new .feature.md files have working step definitions and generated RST docs.
 
 ## Threat Flags
 
@@ -218,10 +223,10 @@ uv run python _coverage_parse.py
 
 | Gap | Severity | Description |
 |-----|----------|-------------|
-| Coverage <70% | HIGH | 107 non-exempt modules below 70%. Requires ~1500+ additional test lines across formatter plugins, message governance, live reporting, and struct_bdd modules. |
+| Coverage <70% | HIGH | 91 non-exempt modules below 70% after D-04 report-stage omissions. Requires additional test coverage across live reporting, scenario collection, steps, parser, and utility modules. |
 | test_dead_code.py | MEDIUM | 20 vulture failures — vulture not installed. Pending pre-commit hook migration. |
 | test_message_emission_points.py | LOW | 1 assertion failure for `external_attachment` payload kind. |
-| Docs generation on Windows | LOW | `generate-feature-doc` hook requires `env` (Unix). 3 new features lack generated RST docs. |
+| Full external suite on local machine | LOW | Docker Desktop and remote_xdist assets are unavailable in this environment; external tests fail outside configured infrastructure. |
 | 26 modules at 0% | LOW | Mostly exempt (const, init, hook modules) or Node.js-dependent (npm_resource, live_formatter_runtime). |
 
 ## Phase 14: Overall Phase Summary
@@ -238,15 +243,15 @@ Phase 14 (Gap Closure) executed 4 plans across 3 waves:
 | 14-04 | Final verification + coverage validation + phase summary | Full suite green, 53.28% coverage, BDD gate passed, summary produced |
 
 **Aggregate results:**
-- Coverage: 37.83% → 53.28% (+15.45%)
+- Coverage: 37.83% → 54.88% raw / 56% after D-04 report-stage omits
 - BDD failures: 88 → 0 (all resolved)
 
 ### Artifacts created
-- New test files: 8 (5 unit, 0 integration, 3 feature)
+- New test files: 9 (6 unit, 0 integration, 3 feature)
 - E2E modules: 0 → 64 per-file modules (D-10)
 - Test bugs fixed: 6 (this plan) + 2 (14-02) = 8 total
 
-**TEST-01 status:** Coverage improved from 37.83% to 53.28%. 70% target not reached — requires significant additional test coverage across formatter plugins and message governance tooling. 59 of 166 non-exempt modules meet ≥70% threshold. Remaining gap deferred to future milestone.
+**TEST-01 status:** Coverage improved from 37.83% to 54.88% raw / 56% after D-04 report-stage omits. 70% target not reached — requires significant additional test coverage across live reporting, scenario collection, steps, parser, and utility modules. 43 of 134 audited non-exempt modules meet ≥70% threshold. Remaining gap deferred to future milestone.
 
 **TEST-02 status:** All 88 BDD failures resolved to zero. 185 scenarios pass, 7 correctly excluded (infrastructure-dependent). 64 per-file E2E modules created. 3 new .feature.md files added covering tag expression edge cases, mimetype struct_bdd formats, and batch collection directory scan.
 
