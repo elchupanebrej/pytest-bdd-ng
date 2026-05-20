@@ -90,6 +90,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
+- [ ] Improve library typing using best practices from awesome-python-typing
 - [ ] Integrate BDD/ATDD tests into development workflow and UAT phase
 - [ ] Vulture must be run not via pytest but as pre-commit hook
 - [ ] No TestClasses are allowed in tests — enforce via ruff rule
