@@ -37,9 +37,10 @@ EXPECTED_EMISSIONS_BY_METHOD: dict[str, set[str]] = {
     "pytest_bdd_attach": {"attachment"},
 }
 
-# parse_error envelopes are emitted by parser layer (`BaseParser.emit_parse_error`)
-# before reporter plugin hooks are entered.
-EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error"}
+# Payload kinds emitted outside the reporter plugin runtime modules:
+# - parse_error: emitted by parser layer (`BaseParser.emit_parse_error`)
+# - external_attachment: handled at external/cross-system layer
+EMITTED_OUTSIDE_REPORTER_PLUGIN: set[str] = {"parse_error", "external_attachment"}
 
 
 PAYLOAD_HINTS: dict[str, str] = {

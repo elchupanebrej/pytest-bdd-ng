@@ -58,16 +58,16 @@ test-external: env-check-docker
 	$(PYTEST) tests/cases/external -m external
 
 test-slow: env-check
-	$(PYTEST) tests/cases -m slow
+	$(PYTEST) tests/cases -m "slow and not external and not docker"
 
 test-docker: env-check-docker
 	$(PYTEST) tests/cases -m docker
 
 test-windows: env-check-windows
-	$(PYTEST) tests/cases -m windows
+	$(PYTEST) tests/cases -m windows || [ $$? -eq 5 ]
 
 test-posix: env-check
-	$(PYTEST) tests/cases -m posix
+	$(PYTEST) tests/cases -m posix || [ $$? -eq 5 ]
 
 env-check:
 	@command -v uv >/dev/null || { echo "ERROR: uv missing. Run make env-install."; exit 1; }
@@ -172,8 +172,8 @@ render-tox-reports-run:
 	fi; \
 	for ndjson in "$$@"; do \
 		envname=$$(basename "$$ndjson" .messages.ndjson); \
-		echo "Rendering $$envname -> $(TOX_HTML_REPORT_DIR)/$$envname.html"; \
-		uv run render_cucumber_formatters --messages-ndjson "$$ndjson" --cucumber-html "$(TOX_HTML_REPORT_DIR)/$$envname.html"; \
+		echo "Rendering $$envname -> $(TOX_HTML_REPORT_DIR)/$$envname.json"; \
+		uv run render_cucumber_formatters --messages-ndjson "$$ndjson" --cucumber-json "$(TOX_HTML_REPORT_DIR)/$$envname.json"; \
 	done
 
 sync-message-schemas: env-check

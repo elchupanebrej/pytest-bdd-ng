@@ -5,7 +5,7 @@ milestone_name: milestone
 status: executing
 stopped_at: Completed 14-04-PLAN.md
 last_updated: "2026-05-20T16:40:14.460Z"
-last_activity: 2026-05-20
+last_activity: 2026-05-21
 progress:
   total_phases: 14
   completed_phases: 14
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-05-12)
 Phase: 14 (gap-closure) — EXECUTING
 Plan: 4 of 4
 Status: Ready to execute
-Last activity: 2026-05-20
+Last activity: 2026-05-21 - Completed quick task 260521-bye: fix make test-all
 
 Progress: [██████████] 100%
 
@@ -111,6 +111,12 @@ Recent decisions affecting current work:
 - Decopatch health unverified — audit needed during Phase 10 (pattern unification)
 - Go parser v39 compatibility untested — bump during dependency upgrades in Phase 9-10
 - Phase 12 Wave 0 guard tests intentionally fail until later migration waves update `pyproject.toml`, `Makefile`, and E2E loaders.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Directory |
+|---|-------------|------|-----------|
+| 260521-bye | fix make test-all command all way down for all targets. Make fix of errors, not bypass | 2026-05-21 | [260521-bye-fix-make-test-all-command-all-way-down-f](./quick/260521-bye-fix-make-test-all-command-all-way-down-f/) |
 
 ## Deferred Items
 
