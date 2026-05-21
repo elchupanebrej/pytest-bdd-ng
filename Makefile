@@ -1,9 +1,26 @@
-.PHONY: develop sync tox-list test test-all test-unit test-integration test-contract test-e2e \
-	test-compat test-perf test-external test-slow test-docker test-windows test-posix \
+.PHONY: check-shell develop sync tox-list test test-all test-unit test-integration test-contract test-e2e \
+	test-compat test-perf test-external test-slow test-docker-linux test-docker-windows test-windows test-posix \
 	env-check env-check-docker env-check-windows env-check-browser env-install env-install-docker \
 	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
 	clean compat-list compat-check validate-headings features-docs render-formatters local-pr-gate \
 	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas
+
+UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
+
+ifeq ($(UNAME_S),Windows)
+  $(error ERROR: make requires Git Bash on Windows. Run from Git Bash terminal.)
+endif
+
+ifeq ($(UNAME_S),Linux)
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
+  DOCKER_TARGETS := test-docker-windows
+else ifeq ($(UNAME_S),Darwin)
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
+  DOCKER_TARGETS := test-docker-linux test-docker-windows
+else
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external test-windows
+  DOCKER_TARGETS := test-docker-linux
+endif
 
 UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
 PYTHON_FACTOR ?= 314
@@ -30,11 +47,12 @@ tox-list: env-check
 test: env-check
 	$(PYTEST) tests/cases -m "$(PYTEST_LOCAL_SELECTOR)"
 
-test-all: env-check test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
-	-$(MAKE) --no-print-directory test-docker
-	-$(MAKE) --no-print-directory test-windows
-	-$(MAKE) --no-print-directory test-external
-	-$(MAKE) --no-print-directory render-tox-reports-run
+test-all: env-check
+	@echo "=== Native targets ($(UNAME_S)) ==="
+	@$(MAKE) --no-print-directory $(NATIVE_TARGETS)
+	@echo "=== Docker targets ==="
+	@-$(MAKE) --no-print-directory $(DOCKER_TARGETS)
+	@-$(MAKE) --no-print-directory render-tox-reports-run
 
 test-unit: env-check
 	$(PYTEST) tests/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
@@ -60,16 +78,22 @@ test-external: env-check-docker
 test-slow: env-check
 	$(PYTEST) tests/cases -m "slow and not external and not docker"
 
-test-docker: env-check-docker
-	$(PYTEST) tests/cases -m docker
+test-docker-linux: env-check-docker
+	$(PYTEST) tests/cases -m "docker and not windows"
+
+test-docker-windows: env-check-docker
+	$(PYTEST) tests/cases -m "docker and windows"
 
 test-windows: env-check-windows
-	$(PYTEST) tests/cases -m windows || [ $$? -eq 5 ]
+	$(PYTEST) tests/cases -m windows; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
 test-posix: env-check
-	$(PYTEST) tests/cases -m posix || [ $$? -eq 5 ]
+	$(PYTEST) tests/cases -m posix; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
-env-check:
+check-shell:
+	@true
+
+env-check: check-shell
 	@command -v uv >/dev/null || { echo "ERROR: uv missing. Run make env-install."; exit 1; }
 	@uv run python -c "import pytest" >/dev/null || { echo "ERROR: pytest environment missing. Run make env-install."; exit 1; }
 
