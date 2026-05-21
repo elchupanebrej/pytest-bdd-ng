@@ -17,7 +17,58 @@ Prerequisites
 - Python 3.10 or higher
 - ``uv`` installed (https://docs.astral.sh/uv/)
 - Go 1.21+ (build-time only, for cgo shared library compilation in Phase 023;
-  not required for standard Python-only development)
+   not required for standard Python-only development)
+
+Cross-Platform Setup
+--------------------
+
+The test suite supports cross-platform execution via Make. Each platform
+requires specific tools. Use the table below to verify your environment.
+
+.. list-table:: Cross-Platform Prerequisites
+   :header-rows: 1
+
+   * - Operating System
+     - Required Tools
+     - Verify Command
+     - Install Link
+   * - Windows
+     - Git for Windows 2.40+, Docker Desktop 4.34+
+     - ``make --version`` (in Git Bash), ``docker info``
+     - https://git-scm.com/download/win | https://www.docker.com/products/docker-desktop/
+   * - macOS
+     - Homebrew or uv, Docker Desktop (optional)
+     - ``make --version``, ``uv --version``
+     - https://docs.astral.sh/uv/getting-started/installation/
+   * - Linux
+     - uv, Docker (optional for cross-platform testing)
+     - ``make --version``, ``uv --version``
+     - https://docs.astral.sh/uv/getting-started/installation/
+
+.. note::
+
+   On Windows, all ``make`` commands must be run from Git Bash terminal.
+   Running ``make`` from ``cmd.exe`` or PowerShell produces an error with
+   instructions to switch to Git Bash.
+
+Canonical Make Commands
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``make test``
+  Default feasible test suite for the current machine (no surprise provisioning).
+
+``make test-all``
+  Full suite with cross-platform routing: native tests for your OS plus
+  Docker-backed tests for non-native platforms (Docker unavailable is non-fatal).
+
+``make test-unit``
+  Unit test suite only.
+
+``make env-install``
+  Provision the development environment (Python 3.14, uv sync).
+
+``make env-install-docker``
+  Build Docker images for cross-platform testing.
 
 Installation
 ------------
@@ -298,9 +349,12 @@ Make is the human entrypoint for running tests. Tox remains the matrix engine.
    make test-perf
    make test-external
 
+   # Docker-backed tests (split by platform)
+   make test-docker-linux
+   make test-docker-windows
+
    # Speed and environment slices
    make test-slow
-   make test-docker
    make test-windows
    make test-posix
 
@@ -452,7 +506,7 @@ Render HTML reports from the collected tox NDJSON artifacts:
    make render-tox-reports
 
 By default, tox writes NDJSON artifacts as ``.tox/<envname>.messages.ndjson`` and the
-Makefile renders HTML reports to ``.tmp/tox-reports/<envname>.html``.
+Makefile renders JSON reports to ``.tmp/tox-reports/<envname>.json``.
 
 For a quick test run with pytest directly:
 
