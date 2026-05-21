@@ -102,11 +102,11 @@ env-check-docker:
 	@docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon unavailable. Start Docker, then retry."; exit 1; }
 	@docker compose version >/dev/null 2>&1 || { echo "ERROR: Docker Compose unavailable. Run make env-install-docker."; exit 1; }
 
-env-check-windows:
+env-check-windows: env-check
 	@if [ "$$(uname -s 2>/dev/null)" = "Linux" ]; then \
 		command -v wsl.exe >/dev/null || { echo "ERROR: Windows bridge missing. Run make env-install-windows."; exit 1; }; \
 	else \
-		python -c "import platform, sys; sys.exit(0 if platform.system() == 'Windows' else 1)" || { echo "ERROR: Windows target requires Windows host or WSL bridge."; exit 1; }; \
+		uv run python -c "import platform, sys; sys.exit(0 if platform.system() == 'Windows' else 1)" || { echo "ERROR: Windows target requires Windows host or WSL bridge."; exit 1; }; \
 	fi
 
 env-check-browser:
