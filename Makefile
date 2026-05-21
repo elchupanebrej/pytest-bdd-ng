@@ -12,14 +12,14 @@ ifeq ($(UNAME_S),Windows)
 endif
 
 ifeq ($(UNAME_S),Linux)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
-  DOCKER_TARGETS := test-docker-windows
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
+  DOCKER_TARGETS := test-docker-windows test-external
 else ifeq ($(UNAME_S),Darwin)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
-  DOCKER_TARGETS := test-docker-linux test-docker-windows
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
+  DOCKER_TARGETS := test-docker-linux test-docker-windows test-external
 else
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external test-windows
-  DOCKER_TARGETS := test-docker-linux
+  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-windows
+  DOCKER_TARGETS := test-docker-linux test-external
 endif
 
 UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
