@@ -261,7 +261,7 @@ Plans:
 | 12. Restructure test suite | 6/6 | Complete | 2026-05-20 |
 | 13. Unify cucumber-json plugins | 3/3 | Complete | 2026-05-20 |
 | 14. Gap Closure | 4/4 | Complete | 2026-05-21 |
-| 15. Cross-platform test suite entrypoint | 0/0 | Not started | - |
+| 15. Cross-platform test suite entrypoint | 0/2 | Planned | - |
 
 ### Phase 12: Restructure test suite into semantic groups
 
@@ -340,9 +340,24 @@ Plans:
 **Goal:** Add a Makefile-based test entrypoint that works across platforms including MinGW shell
 **Depends on:** Phase 14
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 2 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. OS detection at top of Makefile uses `uname -s` to detect Windows, macOS, Linux
+  2. Unsupported shell guard exits early with actionable error when invoked from cmd.exe/PowerShell
+  3. Windows SHELL set to Git Bash `sh.exe` (short DOS path) and Docker bin added to PATH
+  4. `test-docker` split into `test-docker-linux` and `test-docker-windows` with per-platform routing in `test-all`
+  5. `test-all` routes native, Docker, and platform-specific targets per OS (D-10 satisfied)
+  6. Shell syntax in `test-windows` and `test-posix` fixed for cross-platform compatibility
+  7. DEVELOPMENT.rst has "Cross-Platform Setup" section with prerequisite table
+  8. All existing Makefile targets continue to work; no regressions in test suite
 
 Plans:
-- [ ] TBD
+**Wave 1**
+- [ ] 15-01-PLAN.md — Makefile cross-platform guards, OS detection, Docker split, platform routing
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 15-02-PLAN.md — DEVELOPMENT.rst cross-platform documentation + final verification
 
 ## Backlog
