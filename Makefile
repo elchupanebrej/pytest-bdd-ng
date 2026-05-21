@@ -162,6 +162,7 @@ dist-check: build
 release-check: dist-check
 
 local-pr-gate: env-check
+	@command -v rg >/dev/null 2>&1 || { echo "ERROR: ripgrep (rg) is required for local-pr-gate. Install: https://github.com/BurntSushi/ripgrep"; exit 1; }
 	@echo "[1/4] pre-commit"
 	uvx pre-commit run --all-files
 	@echo "[2/4] e2e tests"
