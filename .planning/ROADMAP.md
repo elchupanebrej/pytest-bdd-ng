@@ -326,3 +326,14 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 - [x] 14-04-PLAN.md — Final verification: full suite + coverage threshold + phase summary
+
+## Backlog
+
+### Phase 999.1: Cross-platform test suite entrypoint (Makefile + MinGW sh) (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
