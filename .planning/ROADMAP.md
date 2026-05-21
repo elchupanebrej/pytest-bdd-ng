@@ -19,6 +19,10 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [ ] **Phase 9: Compatibility Streamlining** — Remove dead shims; consolidate legacy compat layer
 - [x] **Phase 10: Pattern Unification** — Consistent plugin patterns; eliminate cross-plugin imports (completed 2026-05-16)
 - [ ] **Phase 11: Audit & Prune** — Dead code removal; stale module evaluation; final CI validation
+- [x] **Phase 12: Restructure test suite into semantic groups** — Semantic test tree migration, Makefile API, testing/ package
+- [x] **Phase 13: Unify cucumber-json plugins INI/CLI options** — Consolidate INI and CLI cucumber-json reporters
+- [x] **Phase 14: Gap Closure** — Achieve 70% unit test coverage; resolve BDD feature test failures
+- [ ] **Phase 15: Cross-platform test suite entrypoint (Makefile + MinGW sh)** — Cross-platform test suite entrypoint via Makefile and MinGW shell
 
 ## Phase Details
 
@@ -243,17 +247,21 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Cleanup | 2/2 | Planned | - |
+| 1. Foundation Cleanup | 2/2 | Complete | 2026-05-12 |
 | 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
-| 3. Core Runtime Refactor | 0/3 | Planned | - |
+| 3. Core Runtime Refactor | 3/3 | Complete | 2026-05-13 |
 | 4. Plugin Refactoring | 6/6 | Complete | 2026-05-14 |
-| 5. Unit Test Fortification | 4/4 | Planned | - |
-| 6. Integration Testing | 0/4 | Planned | - |
+| 5. Unit Test Fortification | 4/4 | Complete | 2026-05-14 |
+| 6. Integration Testing | 4/4 | Complete | 2026-05-14 |
 | 7. Documentation | 4/4 | Complete | 2026-05-15 |
-| 8. BDD Acceptance Testing | 0/TBD | Not started | - |
-| 9. Compatibility Streamlining | 0/TBD | Not started | - |
-| 10. Pattern Unification | 1/1 | Complete   | 2026-05-16 |
-| 11. Audit & Prune | 0/TBD | Not started | - |
+| 8. BDD Acceptance Testing | 8/8 | Complete | 2026-05-15 |
+| 9. Compatibility Streamlining | 2/2 | Complete | 2026-05-16 |
+| 10. Pattern Unification | 1/1 | Complete | 2026-05-16 |
+| 11. Audit & Prune | 0/5 | Not started | - |
+| 12. Restructure test suite | 6/6 | Complete | 2026-05-20 |
+| 13. Unify cucumber-json plugins | 3/3 | Complete | 2026-05-20 |
+| 14. Gap Closure | 4/4 | Complete | 2026-05-21 |
+| 15. Cross-platform test suite entrypoint | 0/0 | Not started | - |
 
 ### Phase 12: Restructure test suite into semantic groups
 
@@ -327,13 +335,14 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 - [x] 14-04-PLAN.md — Final verification: full suite + coverage threshold + phase summary
 
-## Backlog
+### Phase 15: Cross-platform test suite entrypoint (Makefile + MinGW sh)
 
-### Phase 999.1: Cross-platform test suite entrypoint (Makefile + MinGW sh) (BACKLOG)
-
-**Goal:** [Captured for future planning]
+**Goal:** Add a Makefile-based test entrypoint that works across platforms including MinGW shell
+**Depends on:** Phase 14
 **Requirements:** TBD
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+- [ ] TBD
+
+## Backlog
