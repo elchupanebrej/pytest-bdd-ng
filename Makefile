@@ -15,6 +15,11 @@ ifeq ($(UNAME_S),Windows)
   $(error ERROR: make requires Git Bash on Windows. Run from Git Bash terminal.)
 endif
 
+ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
+  SHELL := C:/PROGRA~1/Git/bin/sh.exe
+  export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)
+endif
+
 ifeq ($(UNAME_S),Linux)
   NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
   DOCKER_TARGETS := test-docker-windows test-external
@@ -136,7 +141,8 @@ test-platform-windows:
 		$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
 		powershell.exe -NoProfile -Command "Set-Location '$$(cygpath -w "$$PWD")'; $(TOX) run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"; \
 	elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
-		docker run --rm -v "$$PWD":/work -w /work python:3.14-windowsservercore powershell -NoProfile -Command "$(TOX) run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"; \
+		$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
+		docker run --rm -v "$$PWD":/work -w /work python:3.14-windowsservercore-ltsc2022 powershell -NoProfile -Command "$(TOX) run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"; \
 	elif [ "$(FAIL_FAST)" = "1" ]; then \
 		echo "ERROR: Windows Docker or VM-like backend unavailable. Run make env-install-docker."; exit 1; \
 	else \
@@ -154,22 +160,22 @@ test-platform-macos:
 	fi
 
 test-unit: env-check
-	$(PYTEST) tests/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
 
 test-integration: env-check
-	$(PYTEST) tests/cases/integration -m integration
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/integration -m integration
 
 test-contract: env-check
-	$(PYTEST) tests/cases/contract -m contract
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/contract -m contract
 
 test-e2e: env-check
-	$(PYTEST) tests/cases/e2e -m "e2e and not browser"
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/e2e -m "e2e and not browser"
 
 test-compat: env-check
-	$(PYTEST) tests/cases/compat -m compat
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/compat -m compat
 
 test-perf: env-check
-	$(PYTEST) tests/cases/perf -m perf
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/perf -m perf
 
 test-external: env-check-docker
 	@$(MAKE) --no-print-directory test-external-subprocess-output
@@ -202,23 +208,23 @@ test-external-support: env-check
 	$(PYTEST) tests/cases/external/support -m external
 
 test-slow: env-check
-	$(PYTEST) tests/cases -m "slow and not external and not docker"
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases -m "slow and not external and not docker"
 
 test-docker: env-check-docker
 	@$(MAKE) --no-print-directory test-docker-linux
 	@$(MAKE) --no-print-directory test-docker-windows
 
 test-docker-linux: env-check-docker
-	$(PYTEST) tests/cases -m "docker and not windows"
+	$(TOX) run -e $(TOX_LINUX_ENVS) -- tests/cases -m "docker and not windows"
 
 test-docker-windows: env-check-docker
-	$(PYTEST) tests/cases -m "docker and windows"
+	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- tests/cases -m "docker and windows"
 
 test-windows: env-check-windows
-	$(PYTEST) tests/cases -m windows; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
+	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- tests/cases -m windows; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
 test-posix: env-check
-	$(PYTEST) tests/cases -m posix; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases -m posix; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
 check-shell:
 	@true
@@ -261,8 +267,14 @@ validate-test-all-backends: env-check-tox
 			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
 		fi; \
 	else \
-		if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)' && ! command -v wsl.exe >/dev/null 2>&1; then \
-			echo "ERROR: WSL2 unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-windows."; \
+		if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
+			$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
+			$(MAKE_COMMAND) --no-print-directory env-check-wsl2 || echo "ERROR: WSL2 unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-windows."; \
+		elif [ "$(UNAME_S)" = "Linux" ]; then \
+			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows || echo "ERROR: Windows Docker backend unavailable. Windows tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
+		elif [ "$(UNAME_S)" = "Darwin" ]; then \
+			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux || echo "ERROR: Linux Docker backend unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
+			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows || echo "ERROR: Windows Docker backend unavailable. Windows tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
 		fi; \
 		if ! command -v docker >/dev/null 2>&1; then \
 			echo "ERROR: Docker unavailable. Non-native Docker tox backends will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
