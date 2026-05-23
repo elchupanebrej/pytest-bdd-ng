@@ -2,7 +2,17 @@
 
 **Phase:** 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh
 **Date:** 2026-05-21
-**Status:** PASSED
+**Status:** gaps_found
+
+## Gaps
+
+- Tox-backed cross-platform pipeline from `15-SPEC.md` was not implemented. Missing scope:
+  WSL2 Linux backend, PowerShell-native Windows tox launch, required backend validation before subwork,
+  per-target argument forwarding, fail-fast mode, and artifact/report modes.
+
+## Existing Verified Scope
+
+The original Makefile and documentation scope remains verified as passed below.
 
 ## Plan 15-01: Makefile Cross-Platform Guards
 
