@@ -28,9 +28,27 @@ from pytest_bdd.testing.docker import require_docker_daemon
 
 pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.slow]
 
-FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "remote_xdist"
+FIXTURE_DIR = Path(__file__).resolve().parents[4] / "tests" / "assets" / "docker" / "remote_xdist"
 REPORT_NAME = "remote-xdist.ndjson"
-REMOTE_MODES = ("socket", "via", "ssh")
+LOCAL_REMOTE_TEST_TIMEOUT_SECONDS = 240
+SSH_REMOTE_TEST_TIMEOUT_SECONDS = 1500
+REMOTE_MODES = (
+    pytest.param(
+        "socket",
+        marks=pytest.mark.timeout(LOCAL_REMOTE_TEST_TIMEOUT_SECONDS, method="thread"),
+        id="socket",
+    ),
+    pytest.param(
+        "via",
+        marks=pytest.mark.timeout(LOCAL_REMOTE_TEST_TIMEOUT_SECONDS, method="thread"),
+        id="via",
+    ),
+    pytest.param(
+        "ssh",
+        marks=pytest.mark.timeout(SSH_REMOTE_TEST_TIMEOUT_SECONDS, method="thread"),
+        id="ssh",
+    ),
+)
 
 
 def _run_local_xdist(  # noqa: C901
@@ -215,7 +233,7 @@ def run_remote_xdist_compose(
         os.chdir(original_cwd)
 
 
-@pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
+@pytest.mark.parametrize("remote_mode", REMOTE_MODES)
 def test_remote_xdist_run_aggregates_into_one_ndjson(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist run aggregates into one ndjson."""
     result = run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success")
@@ -237,7 +255,7 @@ def test_remote_xdist_run_aggregates_into_one_ndjson(tmp_path: Path, remote_mode
     assert gateway_modes == {remote_mode}
 
 
-@pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
+@pytest.mark.parametrize("remote_mode", REMOTE_MODES)
 def test_remote_xdist_partial_worker_transport_still_emits_one_report(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist partial worker transport still emits one report."""
     result = run_remote_xdist_compose(
@@ -268,7 +286,7 @@ def test_remote_xdist_partial_worker_transport_still_emits_one_report(tmp_path: 
     assert "Worker fragment for 'gw1' is incomplete." in output
 
 
-@pytest.mark.parametrize("remote_mode", REMOTE_MODES, ids=REMOTE_MODES)
+@pytest.mark.parametrize("remote_mode", REMOTE_MODES)
 def test_remote_xdist_live_formatter_stream_is_rendered_once_by_controller(tmp_path: Path, remote_mode: str) -> None:
     """Verify remote xdist live formatter stream is rendered once by controller."""
     result = run_remote_xdist_compose(tmp_path, remote_mode=remote_mode, verify_mode="success-live")

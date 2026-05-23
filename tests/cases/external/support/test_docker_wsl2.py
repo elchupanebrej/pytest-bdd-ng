@@ -403,12 +403,12 @@ def test_default_values():
     """Verify default values."""
     timeouts = DockerTimeouts()
     assert timeouts.startup_poll == 60
-    assert timeouts.compose_up == 300
+    assert timeouts.compose_up == 900
     assert timeouts.compose_exec == 300
     assert timeouts.compose_cp == 30
     assert timeouts.compose_down == 30
     assert timeouts.alpine_install == 60
-    assert timeouts.overall_session == 900
+    assert timeouts.overall_session == 1800
 
 
 def test_overall_session_gte_sum_of_per_step():
@@ -782,7 +782,7 @@ def test_local_images_have_build_config():
     """docker-compose.yml local-tagged services should be buildable without registry pulls."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
 
@@ -796,7 +796,7 @@ def test_remote_xdist_builds_use_repo_root_context():
     """remote xdist Dockerfiles copy repo-root files, so compose builds must use the repo root as context."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
 
@@ -810,7 +810,7 @@ def test_no_repo_root_env_var_in_compose():
     """docker-compose.yml should not use ${REPO_ROOT} for build context."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -824,7 +824,7 @@ def test_no_artifact_dir_env_var_in_volumes():
     """docker-compose.yml should not use ${ARTIFACT_DIR} in volumes."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -836,7 +836,7 @@ def test_build_context_is_relative():
     """docker-compose.yml build contexts should be relative (.) or valid paths."""
     import yaml
 
-    compose_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
+    compose_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "docker-compose.yml"
     with Path(compose_path).open(encoding="utf-8") as f:
         compose = yaml.safe_load(f)
     for svc_name, svc in compose.get("services", {}).items():
@@ -852,7 +852,9 @@ def test_controller_entrypoint_has_no_external_imports():
     """controller_entrypoint.py should only import stdlib + pytest + pytest-xdist."""
     import ast
 
-    entrypoint_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
+    entrypoint_path = (
+        Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
+    )
     tree = ast.parse(Path(entrypoint_path).read_text(encoding="utf-8"))
     allowed = {
         "os",
@@ -878,7 +880,9 @@ def test_controller_entrypoint_has_no_external_imports():
 
 def test_controller_entrypoint_waits_for_ssh_command_readiness():
     """Verify controller entrypoint waits for ssh command readiness."""
-    entrypoint_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
+    entrypoint_path = (
+        Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "controller_entrypoint.py"
+    )
     content = Path(entrypoint_path).read_text(encoding="utf-8")
 
     assert "ssh_ready(" in content
@@ -905,7 +909,9 @@ def test_node_and_npm_scripts_use_lf_newlines(tmp_path: Path):
 
 def test_controller_dockerfile_installs_git_for_gitpython_imports():
     """Verify controller dockerfile installs git for gitpython imports."""
-    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
+    dockerfile_path = (
+        Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
+    )
     content = Path(dockerfile_path).read_text(encoding="utf-8")
 
     assert "apt-get install --yes --no-install-recommends" in content
@@ -914,7 +920,7 @@ def test_controller_dockerfile_installs_git_for_gitpython_imports():
 
 def test_worker_dockerfile_installs_git_for_gitpython_imports():
     """Verify worker dockerfile installs git for gitpython imports."""
-    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
+    dockerfile_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
 
     assert "apt-get install --yes --no-install-recommends" in content
@@ -924,7 +930,9 @@ def test_worker_dockerfile_installs_git_for_gitpython_imports():
 def test_controller_dockerfile_no_absolute_repo_paths():
     """controller.Dockerfile COPY source paths should be relative to build context."""
 
-    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
+    dockerfile_path = (
+        Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "controller.Dockerfile"
+    )
     content = Path(dockerfile_path).read_text(encoding="utf-8")
     for line in content.splitlines():
         stripped = line.strip()
@@ -940,7 +948,7 @@ def test_controller_dockerfile_no_absolute_repo_paths():
 
 def test_worker_dockerfile_no_absolute_repo_paths():
     """worker.Dockerfile COPY source paths should be relative to build context."""
-    dockerfile_path = Path(__file__).parent.parent / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
+    dockerfile_path = Path(__file__).parents[4] / "tests" / "assets" / "docker" / "remote_xdist" / "worker.Dockerfile"
     content = Path(dockerfile_path).read_text(encoding="utf-8")
     for line in content.splitlines():
         stripped = line.strip()

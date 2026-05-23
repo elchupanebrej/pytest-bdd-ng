@@ -12,23 +12,28 @@ from attrs import define
 
 from pytest_bdd.testing.docker import _resolve_tool_path
 
+_DEFAULT_OPERATION_ARG_COUNT = 3
+
 
 @define
 class DockerTimeouts:
     """Represent docker timeouts state."""
 
     startup_poll: int = 60
-    compose_up: int = 300
+    compose_up: int = 900
     compose_exec: int = 300
     compose_cp: int = 30
     compose_down: int = 30
     alpine_install: int = 60
-    overall_session: int = 900
+    overall_session: int = 1800
 
 
 def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     """
     Run a command inside WSL2 Alpine distro.
+
+    Returns:
+        Completed WSL subprocess result.
 
     Raises:
         FileNotFoundError: If the WSL executable is unavailable.
@@ -76,6 +81,22 @@ class DockerClusterManager:
         self._session_start: float | None = None
         self._atexit_registered = False
 
+    def _run_docker_cmd_once(
+        self,
+        args: list[str],
+        timeout: int,
+        env: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess:
+        if self.backend == "wsl2":
+            return _run_wsl_cmd(args, timeout=timeout, env=env)
+        if args and args[0] == "docker":
+            docker_bin = _resolve_tool_path("docker")
+            if docker_bin is None:
+                msg = "docker executable not found"
+                raise FileNotFoundError(msg)
+            args = [docker_bin, *args[1:]]
+        return subprocess.run(args, check=False, capture_output=True, text=True, timeout=timeout, env=env)  # noqa: S603
+
     def _run_docker_cmd(
         self,
         args: list[str],
@@ -86,23 +107,22 @@ class DockerClusterManager:
         """
         Route Docker command through the appropriate backend.
 
+        Returns:
+            Completed Docker subprocess result.
+
         Raises:
-            FileNotFoundError: If the Docker executable is unavailable.
             RuntimeError: If the Docker command exceeds its timeout.
 
         """
+        default_op_name = (
+            " ".join(args[:_DEFAULT_OPERATION_ARG_COUNT])
+            if len(args) >= _DEFAULT_OPERATION_ARG_COUNT
+            else " ".join(args)
+        )
         try:
-            if self.backend == "wsl2":
-                return _run_wsl_cmd(args, timeout=timeout, env=env)
-            if args and args[0] == "docker":
-                docker_bin = _resolve_tool_path("docker")
-                if docker_bin is None:
-                    msg = "docker executable not found"
-                    raise FileNotFoundError(msg)
-                args = [docker_bin, *args[1:]]
-            return subprocess.run(args, check=False, capture_output=True, text=True, timeout=timeout, env=env)  # noqa: S603
+            return self._run_docker_cmd_once(args, timeout=timeout, env=env)
         except subprocess.TimeoutExpired as err:
-            op_name = operation or " ".join(args[:3]) if len(args) >= 3 else " ".join(args)
+            op_name = operation or default_op_name
             msg = f"Docker operation '{op_name}' exceeded timeout ({timeout}s)"
             raise RuntimeError(msg) from err
 
@@ -163,9 +183,12 @@ class DockerClusterManager:
             msg = f"Overall session timeout exceeded ({self.timeouts.overall_session}s)"
             raise RuntimeError(msg)
 
-    def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path):  # noqa: ARG002
+    def get_cluster(self, remote_mode: str, fixture_dir: Path, repo_root: Path) -> tuple[list[str], Path]:  # noqa: ARG002
         """
         Return cluster.
+
+        Returns:
+            Docker compose command and artifact directory for the remote mode.
 
         Raises:
             RuntimeError: If the operation cannot be completed.
@@ -215,7 +238,13 @@ class DockerClusterManager:
         verify_mode: str,
         fail_transport_workers: str,
     ) -> tuple[subprocess.CompletedProcess, Path]:
-        """Run in controller."""
+        """
+        Run in controller.
+
+        Returns:
+            Completed controller subprocess result and artifact directory.
+
+        """
         compose_cmd, docker_artifact_dir = self.get_cluster(remote_mode, fixture_dir, repo_root)
         self._reset_artifacts(docker_artifact_dir)
 
@@ -300,7 +329,13 @@ _cluster_manager_holder: list[DockerClusterManager] = []
 
 
 def get_cluster_manager() -> DockerClusterManager:
-    """Return the session-scoped DockerClusterManager singleton, lazily initialized."""
+    """
+    Return the session-scoped DockerClusterManager singleton, lazily initialized.
+
+    Returns:
+        Session-scoped Docker cluster manager.
+
+    """
     if not _cluster_manager_holder:
         _cluster_manager_holder.append(DockerClusterManager())
     return _cluster_manager_holder[0]

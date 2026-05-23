@@ -144,6 +144,7 @@ test = [
   "PyHamcrest",
   "pytest-httpserver",
   "pytest-order",
+  "pytest-timeout",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
   "pytest-bdd-ng[struct-bdd]",
@@ -249,6 +250,7 @@ markers = [
   "surplus: mark test testing non-standard API",
   "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
   "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
+  "timeout: per-test timeout from pytest-timeout",
   "order: execution ordering marker from pytest-order"
 ]
 test_group_default = "integration"

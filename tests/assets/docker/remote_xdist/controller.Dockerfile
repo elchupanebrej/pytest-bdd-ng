@@ -10,7 +10,10 @@ COPY src /app/src/
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -e '.[test]' pytest-xdist
 
-COPY . /app
+COPY tests/__init__.py /app/tests/
+COPY tests/conftest.py /app/tests/
+COPY tests/assets /app/tests/assets/
+COPY tests/cases/contract /app/tests/cases/contract/
 RUN install -d -m 700 /root/.ssh \
     && cp /app/tests/assets/docker/remote_xdist/ssh/id_ed25519 /root/.ssh/id_ed25519 \
     && chmod 600 /root/.ssh/id_ed25519 \

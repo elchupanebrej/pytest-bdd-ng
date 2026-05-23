@@ -1,5 +1,7 @@
 .PHONY: check-shell develop sync tox-list test test-all test-unit test-integration test-contract test-e2e \
-	test-compat test-perf test-external test-slow test-docker-linux test-docker-windows test-windows test-posix \
+	test-compat test-perf test-external test-external-subprocess-output test-external-xdist-html \
+	test-external-xdist-message test-external-remote-local test-external-remote-ssh test-external-support \
+	test-external-docker-build test-slow test-docker test-docker-linux test-docker-windows test-windows test-posix \
 	env-check env-check-docker env-check-windows env-check-browser env-install env-install-docker \
 	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
 	clean compat-list compat-check validate-headings features-docs render-formatters local-pr-gate \
@@ -31,7 +33,7 @@ MESSAGES_NDJSON ?= .tmp/messages.ndjson
 FORMATTER_ARGS ?= --cucumber-summary
 TOX_NDJSON_GLOB ?= .tox/*.messages.ndjson
 TOX_HTML_REPORT_DIR ?= .tmp/tox-reports
-PYTEST ?= uv run python -m pytest
+PYTEST ?= uv run $(UV_SYNC_EXTRAS) python -m pytest
 PYTEST_LOCAL_SELECTOR ?= not slow and not docker and not windows and not browser and not external
 PYTEST_UNIT_IGNORE ?= --ignore=tests/cases/unit/unit/test_dead_code.py
 
@@ -73,10 +75,41 @@ test-perf: env-check
 	$(PYTEST) tests/cases/perf -m perf
 
 test-external: env-check-docker
-	$(PYTEST) tests/cases/external -m external
+	@$(MAKE) --no-print-directory test-external-subprocess-output
+	@$(MAKE) --no-print-directory test-external-xdist-html
+	@$(MAKE) --no-print-directory test-external-xdist-message
+	@$(MAKE) --no-print-directory test-external-docker-build
+	@$(MAKE) --no-print-directory test-external-remote-local
+	@$(MAKE) --no-print-directory test-external-remote-ssh
+	@$(MAKE) --no-print-directory test-external-support
+
+test-external-subprocess-output: env-check
+	$(PYTEST) tests/cases/external/e2e/test_subprocess_output_attachments.py -m external
+
+test-external-xdist-html: env-check
+	$(PYTEST) tests/cases/external/e2e/test_xdist_html_reporting.py -m external
+
+test-external-xdist-message: env-check
+	$(PYTEST) tests/cases/external/e2e/test_xdist_message_aggregation.py -m external
+
+test-external-docker-build: env-check-docker
+	docker compose -f tests/assets/docker/remote_xdist/docker-compose.yml build
+
+test-external-remote-local: env-check
+	$(PYTEST) tests/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k "socket or via"
+
+test-external-remote-ssh: env-check-docker
+	$(PYTEST) tests/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k ssh
+
+test-external-support: env-check
+	$(PYTEST) tests/cases/external/support -m external
 
 test-slow: env-check
 	$(PYTEST) tests/cases -m "slow and not external and not docker"
+
+test-docker: env-check-docker
+	@$(MAKE) --no-print-directory test-docker-linux
+	@$(MAKE) --no-print-directory test-docker-windows
 
 test-docker-linux: env-check-docker
 	$(PYTEST) tests/cases -m "docker and not windows"

@@ -60,7 +60,13 @@ def _resolve_tool_path(name: str) -> str | None:
 
 
 def _alpine_wsl2_available() -> bool:
-    """Detect if WSL2 Alpine dist exists by parsing ``wsl -l -v`` output."""
+    """
+    Detect if WSL2 Alpine dist exists by parsing ``wsl -l -v`` output.
+
+    Returns:
+        True when Alpine is registered as a WSL2 distribution.
+
+    """
     wsl_bin = _resolve_tool_path("wsl")
     if wsl_bin is None:
         return False
@@ -111,7 +117,13 @@ def _start_docker_desktop() -> None:
 
 
 def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
-    """Poll ``docker info`` (native) or ``wsl -d Alpine docker info`` (wsl2)."""
+    """
+    Poll ``docker info`` (native) or ``wsl -d Alpine docker info`` (wsl2).
+
+    Returns:
+        True when Docker responds before the timeout expires.
+
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if backend == "native":
@@ -174,7 +186,13 @@ def _ensure_docker_cli_in_alpine(timeout: int = 60) -> None:
 
 @lru_cache(maxsize=1)
 def docker_daemon_available() -> tuple[bool, str | None]:
-    """Return ``(available, backend)`` where backend is ``"native"`` or ``"wsl2"``."""
+    """
+    Return ``(available, backend)`` where backend is ``"native"`` or ``"wsl2"``.
+
+    Returns:
+        Availability flag and backend name, when a backend is available.
+
+    """
     # Try native docker first
     docker_bin = _resolve_tool_path("docker")
     if docker_bin is not None:
@@ -221,7 +239,12 @@ def require_docker_daemon() -> str:
     Results are cached via :func:`docker_daemon_available`; call
     ``docker_daemon_available.cache_clear()`` before this function if a fresh
     probe is required.
+
+    Returns:
+        Docker backend name, either ``"native"`` or ``"wsl2"``.
+
     """
+    docker_daemon_available.cache_clear()
     available, backend = docker_daemon_available()
     if available:
         return backend
