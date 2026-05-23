@@ -22,7 +22,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [x] **Phase 12: Restructure test suite into semantic groups** — Semantic test tree migration, Makefile API, testing/ package
 - [x] **Phase 13: Unify cucumber-json plugins INI/CLI options** — Consolidate INI and CLI cucumber-json reporters
 - [x] **Phase 14: Gap Closure** — Achieve 70% unit test coverage; resolve BDD feature test failures
-- [x] **Phase 15: Cross-platform test suite entrypoint (Makefile + MinGW sh)** — Cross-platform test suite entrypoint via Makefile and MinGW shell (completed 2026-05-23)
+- [ ] **Phase 15: Cross-platform test suite entrypoint (Makefile + MinGW sh)** — Cross-platform test suite entrypoint via Makefile and MinGW shell (reopened for gap closure 2026-05-23)
 
 ## Phase Details
 
@@ -344,7 +344,7 @@ Plans:
 **Goal:** Add a Makefile-based test entrypoint that works across platforms including MinGW shell
 **Depends on:** Phase 14
 **Requirements:** TBD
-**Plans:** 2/2 plans complete
+**Plans:** 2/3 plans complete
 
 **Success Criteria** (what must be TRUE):
 
@@ -365,5 +365,9 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 15-02-PLAN.md — DEVELOPMENT.rst cross-platform documentation + final verification
+
+**Wave 3** *(gap closure; blocked on Wave 2 completion)*
+
+- [ ] 15-03-PLAN.md — Tox-backed cross-platform pipeline gap closure
 
 ## Backlog
