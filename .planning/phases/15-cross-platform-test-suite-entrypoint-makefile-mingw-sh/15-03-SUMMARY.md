@@ -61,12 +61,14 @@ completed: 2026-05-24
 - Converted `make test-all` to depend on `validate-test-all-backends` and delegate to `test-platform-native`, `test-platform-linux`, `test-platform-windows`, and `test-platform-macos`.
 - Added backend validation and routing for PowerShell-native Windows tox, WSL2 Linux tox from Git Bash, host tox, and Docker-backed non-native probes.
 - Documented the tox-backed pipeline, backend routing, collect/default mode, `FAIL_FAST=1`, `REPORT_MODE`, and target-specific argument forwarding.
+- Closed verifier blockers by restoring the Windows Git Bash shell/PATH block, validating Docker Windows backends before non-native Windows tox, and converting SPEC-named test targets to tox wrappers.
 
 ## Task Commits
 
 1. **Task 1: Convert full and platform test entrypoints to tox-backed debuggable targets** - `08535672` (feat)
 2. **Task 2: Add backend preflight validation plus fail-fast and artifact/report modes** - `08535672` (feat)
 3. **Task 3: Document and verify the tox-backed pipeline gap closure** - `08535672` (feat)
+4. **Verifier blocker closure** - `f5ddb47a` (fix)
 
 **Plan metadata:** committed separately with this summary.
 
@@ -87,14 +89,15 @@ completed: 2026-05-24
 - `rtk powershell ...` static checks passed for tox variables, platform targets, validation targets, backend launch patterns, and documentation tokens.
 - `rtk make -n test-all TEST_NATIVE_ARGS='-k native_only' TEST_LINUX_ARGS='-k linux_only' TEST_WINDOWS_ARGS='-k windows_only' TEST_MACOS_ARGS='-k macos_only' FAIL_FAST=1 REPORT_MODE=skip` passed dry-run inspection.
 - `rtk sh -lc ...` arg isolation check passed: each platform arg appears only on its matching target line.
-- `rtk uv run pre-commit run --files Makefile DEVELOPMENT.rst` passed.
+- `rtk uv run pre-commit run --files Makefile DEVELOPMENT.rst` passed before and after verifier blocker fixes.
+- GSD verifier re-run scored 15/15 must-haves verified and left only human platform execution checks.
 
 ## Deviations from Plan
 
-None - plan executed as written. The only implementation adjustment was making `test-all` dry-run friendly after discovering GNU Make executes recipe lines containing recursive `$(MAKE)` even under `make -n`; this preserved the planned dry-run verification contract.
+The verifier found four blockers after the first implementation pass: missing Windows Git Bash `SHELL`/Docker PATH fix, weak default backend probes, unproven Windows Docker backend routing, and SPEC-named targets still invoking pytest directly. These were fixed in `f5ddb47a`.
 
-**Total deviations:** 0 auto-fixed.
-**Impact on plan:** No scope change.
+**Total deviations:** 4 auto-fixed verifier blockers.
+**Impact on plan:** Fixes align implementation with Phase 15 roadmap and 15-SPEC tox pipeline scope.
 
 ## Issues Encountered
 
@@ -107,7 +110,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Phase 15 gap closure is ready for final verification. The remaining check should confirm `VERIFICATION.md` status can move from gap-found to passed for the tox-backed cross-platform pipeline scope.
+Phase 15 automated/static verification is complete at 15/15 must-haves. Real Windows, Linux, and macOS backend execution remains as human UAT in `15-HUMAN-UAT.md`.
 
 ---
 *Phase: 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh*

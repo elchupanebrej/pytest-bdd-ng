@@ -1,122 +1,131 @@
-# Phase 15 Verification Report
+---
+phase: 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh
+verified: 2026-05-23T21:34:56Z
+status: human_needed
+score: 15/15 must-haves verified
+overrides_applied: 0
+re_verification:
+  previous_status: gaps_found
+  previous_score: 10/15
+  gaps_closed:
+    - "Windows SHELL/PATH fix restored with Git Bash short DOS path and Docker resources/bin PATH export"
+    - "validate-test-all-backends probes selected PowerShell/WSL2/Docker backends before test-all subwork and hard-fails selected probes under FAIL_FAST=1"
+    - "Linux/macOS Windows tox route validates env-check-docker-windows and uses python:3.14-windowsservercore-ltsc2022 before Windows tox Docker run"
+    - "SPEC-named test targets now run tox instead of direct pytest"
+  gaps_remaining: []
+  regressions: []
+human_verification:
+  - test: "Run make test-all from Git Bash on Windows with WSL2 and Docker Desktop available"
+    expected: "PowerShell native Windows tox, WSL2 Linux tox, Docker/external work, and report rendering follow documented collect/fail-fast behavior"
+    why_human: "Requires real Windows host, Git Bash, PowerShell, WSL2, Docker Desktop state, and tox backend execution"
+  - test: "Run make test-all on Linux and macOS hosts with Docker configured for requested non-native backends"
+    expected: "Linux/macOS route Windows tox through validated Windows Docker or equivalent VM-like backend and route Linux/macOS native tox as documented"
+    why_human: "Cross-host Docker backend behavior cannot be proven from this Windows workspace by static inspection alone"
+---
 
-**Phase:** 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh
-**Date:** 2026-05-21
-**Status:** gaps_found
+# Phase 15: Cross-Platform Test Suite Entrypoint Verification Report
 
-## Gaps
+**Phase Goal:** Add a Makefile-based test entrypoint that works across platforms including MinGW shell.
+**Verified:** 2026-05-23T21:34:56Z
+**Status:** human_needed
+**Re-verification:** Yes - after blocker fixes.
 
-- Tox-backed cross-platform pipeline from `15-SPEC.md` was not implemented. Missing scope:
-  WSL2 Linux backend, PowerShell-native Windows tox launch, required backend validation before subwork,
-  per-target argument forwarding, fail-fast mode, and artifact/report modes.
+## Goal Achievement
 
-## Existing Verified Scope
+### Observable Truths
 
-The original Makefile and documentation scope remains verified as passed below.
+| # | Truth | Status | Evidence |
+|---|---|---|---|
+| 1 | OS detection uses `uname -s` | VERIFIED | `UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)` in `Makefile`. |
+| 2 | PowerShell/cmd invocation blocked with actionable error | VERIFIED | `rtk make -n test-unit` from PowerShell exits before tests with `ERROR: make requires Git Bash on Windows. Run from Git Bash terminal.` |
+| 3 | Windows SHELL short DOS path and Docker PATH export exist | VERIFIED | `Makefile:19` has `SHELL := C:/PROGRA~1/Git/bin/sh.exe`; `Makefile:20` exports `C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)`. |
+| 4 | `test-docker` split targets exist | VERIFIED | `test-docker`, `test-docker-linux`, and `test-docker-windows` exist; split targets select Docker Linux/Windows marker scopes. |
+| 5 | `test-all` has platform-specific routing | VERIFIED | `test-all: validate-test-all-backends` delegates to `test-platform-native`, `test-platform-linux`, `test-platform-windows`, and `test-platform-macos`. |
+| 6 | `test-windows` and `test-posix` shell syntax fixed | VERIFIED | Both targets capture `EXIT=$$?` and ignore pytest exit 5 only. |
+| 7 | DEVELOPMENT.rst Cross-Platform Setup table exists | VERIFIED | Section has OS/tools/verify/install columns plus tox-backed `make test-all` docs. |
+| 8 | Existing Makefile targets continue to resolve | VERIFIED | Dry-runs parse for `test-all`, platform targets, split Docker targets, Windows/Posix targets; legacy target names remain. |
+| 9 | `make test-all` documented as full tox-backed entrypoint | VERIFIED | DEVELOPMENT.rst documents tox-backed full cross-platform pipeline, backend routing, args, modes, and report behavior. |
+| 10 | `test-all` delegates execution to tox-backed named sub-targets | VERIFIED | `test-all` invokes named platform targets; platform targets call `$(TOX) run -e ...`. |
+| 11 | Windows native tox uses PowerShell; Windows Linux tox uses WSL2 | VERIFIED | `test-platform-windows` uses `powershell.exe ... $(TOX)` on MinGW; `test-platform-linux` uses `wsl.exe sh -lc "... $(TOX) ..."`. |
+| 12 | Each platform target receives its own arg variable | VERIFIED | Dry-run with `TEST_NATIVE_ARGS=nat TEST_LINUX_ARGS=lin TEST_WINDOWS_ARGS=win TEST_MACOS_ARGS=mac` shows each arg only on its matching platform target invocation. |
+| 13 | Default collect mode and `FAIL_FAST=1` behavior exist | VERIFIED | `FAIL_FAST`, `ARTIFACT_MODE`, and `REPORT_MODE` are wired; dry-runs show default collect branches and `FAIL_FAST=1` exit branches. |
+| 14 | Required backend validation happens before tox subwork | VERIFIED | `validate-test-all-backends` runs before `test-all` recipe. Default mode probes selected PowerShell/WSL2/Docker backends with loud optional skip messages; `FAIL_FAST=1` hard-fails selected backend probes before subwork. |
+| 15 | SPEC-named test targets are tox wrappers | VERIFIED | `test-unit`, `test-integration`, `test-contract`, `test-e2e`, `test-compat`, `test-perf`, `test-slow`, `test-docker-linux`, `test-docker-windows`, `test-windows`, and `test-posix` all invoke `$(TOX) run -e ...`; direct pytest remains only default `test` and external utility/support targets. |
 
-## Plan 15-01: Makefile Cross-Platform Guards
+**Score:** 15/15 truths verified
 
-### Task 1: OS Detection, Shell Guard, Windows SHELL/PATH Fix
+### Required Artifacts
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| `UNAME_S` detection present | PASS | `UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)` at Makefile:8 |
-| Shell guard blocks from PowerShell | PASS | `make -n` from PowerShell exits 2: "ERROR: make requires Git Bash on Windows. Run from Git Bash terminal." |
-| Windows SHELL set to short DOS path | PASS | `SHELL := C:/PROGRA~1/Git/bin/sh.exe` at Makefile:15 |
-| Docker bin added to PATH on Windows | PASS | `export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)` at Makefile:16 |
-| `check-shell` in .PHONY | PASS | Listed at Makefile:1 |
-| No anti-patterns | PASS | No `SHELL := sh`, no `ifdef OS`, no MSYS2 paths, no spaces in SHELL path |
+| Artifact | Expected | Status | Details |
+|---|---|---|---|
+| `Makefile` | Cross-platform entrypoint, MinGW shell fix, tox-backed routing, validation, args, modes | VERIFIED | `gsd-sdk verify.artifacts` passed; manual wiring confirms prior blocker fixes. |
+| `DEVELOPMENT.rst` | Cross-platform setup plus tox pipeline docs | VERIFIED | `gsd-sdk verify.artifacts` passed; docs describe prerequisites, backend routing, validation, collect/fail-fast/report modes. |
 
-### Task 2: Docker Target Split
+### Key Link Verification
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| `test-docker-linux` exists | PASS | Line 86-87, marker: `docker and not windows` |
-| `test-docker-windows` exists | PASS | Line 89-90, marker: `docker and windows` |
-| Dry-run `test-docker-linux` resolves | PASS | Shows env-check-docker + pytest with correct markers |
-| Dry-run `test-docker-windows` resolves | PASS | Shows env-check-docker + pytest with correct markers |
-| Old `test-docker` removed | PASS | No standalone `test-docker` target |
+| From | To | Via | Status | Details |
+|---|---|---|---|---|
+| `Makefile:test-all` | `validate-test-all-backends` | target dependency | WIRED | `test-all: validate-test-all-backends`. |
+| `Makefile:test-platform-windows` | PowerShell native tox launch | `powershell.exe` | WIRED | MinGW branch runs `powershell.exe ... $(TOX) run -e $(TOX_WINDOWS_ENVS)`. |
+| `Makefile:test-platform-linux` | WSL2 Linux backend | `wsl.exe` | WIRED | MinGW branch runs `wsl.exe sh -lc "... $(TOX) run -e $(TOX_LINUX_ENVS) ..."`. |
+| `Makefile:test-platform-windows` | Windows Docker backend on Linux/macOS | `env-check-docker-windows` then Windows image | WIRED | Non-MinGW branch calls `env-check-docker-windows`, then `docker run ... python:3.14-windowsservercore-ltsc2022 ... $(TOX)`. |
 
-### Task 3: Platform Routing Table + test-all Rewrite
+### Data-Flow Trace (Level 4)
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| `NATIVE_TARGETS` defined for Linux/Darwin/MINGW | PASS | Lines 19-28 |
-| `DOCKER_TARGETS` defined per platform | PASS | Lines 19-28 |
-| `test-all` uses routing variables | PASS | Lines 55-60 |
-| Docker targets have `@-` prefix | PASS | `@-$(MAKE) --no-print-directory $(DOCKER_TARGETS)` |
-| Shell guard blocks PowerShell invocation | PASS | Error: "ERROR: make requires Git Bash on Windows" |
+| Artifact | Data Variable | Source | Produces Real Data | Status |
+|---|---|---|---|---|
+| `Makefile` | `UNAME_S` | `uname -s` fallback | Yes | FLOWING |
+| `Makefile` | `TEST_*_ARGS` | Make variables into recursive target args and tox posargs | Yes | FLOWING |
+| `Makefile` | backend availability | `command -v`, `uvx tox --version`, `wsl.exe`, `powershell.exe`, `docker info`, `docker version --format` | Yes | FLOWING |
 
-### Task 4: Cross-Platform Shell Syntax Fix
+### Behavioral Spot-Checks
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| No `[ $$? -eq 5 ]` syntax in Makefile | PASS | Zero occurrences |
-| `test-windows` uses POSIX-compatible exit handling | PASS | `EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]` |
-| `test-posix` uses POSIX-compatible exit handling | PASS | Same pattern |
+| Behavior | Command | Result | Status |
+|---|---|---|---|
+| PowerShell shell guard | `rtk make -n test-unit` | Exit 1 with Git Bash error before pytest/tox work | PASS |
+| `FAIL_FAST=1` validation before subwork | Git Bash `make -n test-all FAIL_FAST=1 REPORT_MODE=skip` | Shows `validate-test-all-backends` first; selected backend checks use hard-fail branch before platform target calls | PASS |
+| Default validation probes | Git Bash `make -n validate-test-all-backends FAIL_FAST=0` | Shows PowerShell/WSL2 probes on MinGW plus Docker availability probe; Linux/macOS overrides show Docker backend probes | PASS |
+| Linux/macOS Windows tox backend | Git Bash `make -n test-platform-windows UNAME_S=Linux/Darwin FAIL_FAST=1` | Shows `env-check-docker-windows` before `python:3.14-windowsservercore-ltsc2022` tox run | PASS |
+| SPEC-named targets use tox | Static Makefile scan | All named targets from prior gap call `$(TOX) run`; no direct `$(PYTEST)` in those target bodies | PASS |
 
-### Task 5: Makefile Syntax Validation
+### Probe Execution
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| `make --version` | PASS | GNU Make 4.4.1 |
-| Dry-runs via Git Bash resolve correctly | PASS | `make -n test-docker-linux` and `make -n test-docker-windows` both resolve |
-| No make syntax errors | PASS | All targets parse cleanly |
+| Probe | Command | Result | Status |
+|---|---|---|---|
+| None declared | N/A | No `scripts/*/tests/probe-*.sh` or phase-declared probes found | SKIPPED |
 
-## Plan 15-02: DEVELOPMENT.rst + Final Verification
+### Requirements Coverage
 
-### Task 1: Cross-Platform Setup Section
+| Requirement | Source Plan | Description | Status | Evidence |
+|---|---|---|---|---|
+| `P15-SPEC-TOX-PIPELINE` | `15-03-PLAN.md` / `15-SPEC.md` | Tox-backed Makefile pipeline, validation, routing, args, modes | SATISFIED | Makefile routes through tox platform targets, validates backends before subwork, documents collect/fail-fast behavior. |
+| Roadmap SC 1-8 | ROADMAP Phase 15 | OS detection, shell guard/fix, Docker split, routing, shell syntax, docs, target no-regression | SATISFIED | All roadmap truths verified by Makefile/DEVELOPMENT.rst evidence and dry-runs. |
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| "Cross-Platform Setup" section exists | PASS | DEVELOPMENT.rst:22-71 |
-| Prerequisite table present | PASS | `list-table` with columns: OS, Required Tools, Verify Command, Install Link |
-| Windows row complete | PASS | Git for Windows 2.40+, Docker Desktop 4.34+ |
-| macOS row complete | PASS | Homebrew/uv, Docker Desktop optional |
-| Linux row complete | PASS | uv, Docker optional |
-| Git Bash note present | PASS | `.. note::` at DEVELOPMENT.rst:48-52 |
-| Canonical Make Commands subsection | PASS | DEVELOPMENT.rst:54-71 |
+### Anti-Patterns Found
 
-### Task 2: test-all Platform Routing (Windows)
+| File | Line | Pattern | Severity | Impact |
+|---|---:|---|---|---|
+| None | N/A | N/A | N/A | `rtk rg` found no `TBD`, `FIXME`, `XXX`, `TODO`, `HACK`, placeholders, or empty implementations in `Makefile` / `DEVELOPMENT.rst`. |
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| Shell guard fires from PowerShell | PASS | Blocks with correct error (intended per D-01) |
-| Dry-run shows NATIVE_TARGETS includes test-windows | PASS | Routing table includes `test-windows` on MINGW/CYGWIN/MSYS |
-| Dry-run shows DOCKER_TARGETS includes test-docker-linux | PASS | Routing table selects `test-docker-linux` on Windows |
+### Human Verification Required
 
-### Task 3: Test Suite Regression Check
+### 1. Windows Real Backend Run
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| Unit tests (excluding vulture) | PASS | **834 passed, 1 skipped** (exit code 0) |
-| Vulture dead code tests | PRE-EXISTING | 20 failures — vulture module not installed (`PYTEST_UNIT_IGNORE` excludes in Makefile) |
-| E2E tests | PASS | **22+ passed, 0 failures** before timeout (suite too large for full run in allocated time) |
-| No regressions from Makefile changes | PASS | Only Makefile modified, no test code changes |
+**Test:** Run `make test-all` from Git Bash on Windows with WSL2 and Docker Desktop available.
+**Expected:** PowerShell native Windows tox, WSL2 Linux tox, Docker/external work, and report rendering follow documented collect/fail-fast behavior.
+**Why human:** Requires real Windows host, Git Bash, PowerShell, WSL2, Docker Desktop state, and tox backend execution.
 
-### Task 4: Lint Gate Validation
+### 2. Linux/macOS Real Backend Run
 
-| Check | Result | Evidence |
-|-------|--------|----------|
-| `pre-commit run --files DEVELOPMENT.rst Makefile` | PASS | trim trailing whitespace: Passed, fix end of files: Passed, check for added large files: Passed |
-| `validate-feature-headings` | PASS | "Heading validation passed for 66 document(s)." |
+**Test:** Run `make test-all` on Linux and macOS hosts with Docker configured for requested non-native backends.
+**Expected:** Linux/macOS route Windows tox through validated Windows Docker or equivalent VM-like backend and route Linux/macOS native tox as documented.
+**Why human:** Cross-host Docker backend behavior cannot be proven from this Windows workspace by static inspection alone.
 
-## Verification Summary
+### Gaps Summary
 
-| Criterion | Status |
-|-----------|--------|
-| D-01: Unsupported shell guard blocks non-Git-Bash | PASS |
-| D-02: test-docker split, platform routing | PASS |
-| D-03: env-check silent-on-success, loud-on-failure | PASS |
-| D-04: DEVELOPMENT.rst prerequisite table | PASS |
-| D-08: Make test feasible on current machine | PASS |
-| D-10: test-all non-fatal on unavailable Docker | PASS |
-| Makefile cross-platform compatible | PASS |
-| No test regressions | PASS |
-| Lint gates clean | PASS |
+No blocker gaps remain. All four prior verifier gaps are closed in the codebase. Automated/static verification reaches 15/15 must-haves. Final status is `human_needed` because real cross-platform backend execution requires target hosts and Docker/WSL/PowerShell environments.
 
-## Notes
+---
 
-- The 20 unit test failures in `test_dead_code.py` are pre-existing (vulture not installed) and excluded via `PYTEST_UNIT_IGNORE` in the Makefile target.
-- Full `make test-all` cannot be exercised from this environment (PowerShell) — the shell guard correctly blocks it. Target resolution was verified via `make -n` dry-runs from Git Bash.
-- E2E suite takes >10 minutes on this host; 22+ tests passed with zero failures before timeout.
+_Verified: 2026-05-23T21:34:56Z_
+_Verifier: the agent (gsd-verifier)_
