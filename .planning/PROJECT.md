@@ -24,6 +24,7 @@ A pytest plugin that brings BDD (Behavior-Driven Development) to Python testing.
 - ✓ Struct BDD (YAML/JSON/TOML/HOCON feature definitions) — existing
 - ✓ Test group ordering for CI — existing
 - ✓ Live reporting bridge (gherkin_message_reporter) — existing
+- ✓ Cross-platform Makefile test entrypoint and setup docs — Phase 15
 - ✓ Python 3.10-3.14 + PyPy support — existing
 - ✓ Cross-platform (Linux, macOS, Windows) — existing
 - ✓ pytest-xdist distributed execution support — existing
@@ -44,7 +45,7 @@ A pytest plugin that brings BDD (Behavior-Driven Development) to Python testing.
 - [ ] **TEST-02**: Expand BDD feature tests in `features/` for undocumented behaviors
 - [ ] **TEST-03**: Add integration tests for edge cases in step matching and scenario execution
 - [ ] **DOC-01**: Ensure all public API functions have docstrings
-- [ ] **DOC-02**: Update DEVELOPMENT.rst with current practices
+- [x] **DOC-02**: Update DEVELOPMENT.rst with current practices — validated in Phase 15
 - [ ] **DOC-03**: Add migration guide for users coming from pytest-bdd (original)
 
 ### Out of Scope
@@ -60,7 +61,7 @@ A pytest plugin that brings BDD (Behavior-Driven Development) to Python testing.
 - **Origin:** Fork/evolution of `pytest-bdd` with expanded Cucumber Messages support and modern tooling.
 - **Codebase state:** Production-grade library with 17 pytest plugins, Go parser backend, and full Cucumber protocol compliance. Architecture is plugin-oriented with model/collector/parser/step-definition layers. Accumulated tech debt from rapid feature development.
 - **Test infrastructure:** `tests/` organized as unit/feature/hook/e2e/model/messages/messages_coverage. BDD acceptance tests live in `features/` directory as `.feature.md` files. Coverage tooling includes `coverage.py`, Codecov, and Coveralls.
-- **Development workflow:** ATDD/BDD — acceptance tests in `features/` before implementation. Specs in `specs/` for planning. Pre-commit hooks enforce ruff linting and formatting. Tox matrix runs Python 3.10-3.14 × pytest 7.0-latest.
+- **Development workflow:** ATDD/BDD — acceptance tests in `features/` before implementation. Specs in `specs/` for planning. Pre-commit hooks enforce ruff linting and formatting. Tox matrix runs Python 3.10-3.14 × pytest 7.0-latest. Phase 15 validated `make test-all` as the cross-platform suite entrypoint with Git Bash on Windows.
 
 ## Constraints
 
@@ -96,4 +97,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-Last updated: 2026-05-12 after initialization
+Last updated: 2026-05-23 after Phase 15 completion
