@@ -22,7 +22,8 @@ Prerequisites
 Cross-Platform Setup
 --------------------
 
-The test suite supports cross-platform execution via Make. Each platform
+The test suite supports cross-platform execution via Make. Make is the human
+entrypoint; tox is the execution engine for platform matrix work. Each platform
 requires specific tools. Use the table below to verify your environment.
 
 .. list-table:: Cross-Platform Prerequisites
@@ -58,8 +59,27 @@ Canonical Make Commands
   Default feasible test suite for the current machine (no surprise provisioning).
 
 ``make test-all``
-  Full suite with cross-platform routing: native tests for your OS plus
-  Docker-backed tests for non-native platforms (Docker unavailable is non-fatal).
+  Tox-backed full cross-platform pipeline. It validates the required native tox
+  backend first, then delegates to named platform targets. In default
+  ``ARTIFACT_MODE=collect`` mode, unavailable non-native Docker or WSL2 probes
+  are reported and skipped while independent platform work continues. Use
+  ``FAIL_FAST=1`` to hard-fail missing selected backends and stop after the first
+  failed platform target. Use ``REPORT_MODE=skip`` to skip final report
+  rendering; default ``REPORT_MODE=render`` renders collected tox artifacts.
+
+``make test-platform-native``
+  Native host tox run for the current OS platform factor.
+
+``make test-platform-linux``
+  Linux tox run. Windows/Git Bash routes this through WSL2; Linux runs it on the
+  host; macOS uses a Docker-backed Linux command.
+
+``make test-platform-windows``
+  Windows tox run. Windows/Git Bash launches native Windows tox through
+  PowerShell; Linux and macOS use a Windows Docker or equivalent VM-like backend.
+
+``make test-platform-macos``
+  macOS tox run on macOS host tox.
 
 ``make test-unit``
   Unit test suite only.
@@ -69,6 +89,17 @@ Canonical Make Commands
 
 ``make env-install-docker``
   Build Docker images for cross-platform testing.
+
+Argument forwarding is target-specific. For example:
+
+.. code-block:: bash
+
+   make test-all TEST_LINUX_ARGS="-k linux_only" TEST_WINDOWS_ARGS="-k windows_only"
+
+``TEST_LINUX_ARGS`` is forwarded only to Linux tox work, and
+``TEST_WINDOWS_ARGS`` is forwarded only to Windows tox work. ``TEST_NATIVE_ARGS``
+and ``TEST_MACOS_ARGS`` follow the same matching-target rule. ``TEST_ALL_ARGS``
+is appended to every platform target.
 
 Installation
 ------------
@@ -330,15 +361,22 @@ Test targets depend on ``env-check-*``, not ``env-install-*``. Run
 Makefile Test API
 ~~~~~~~~~~~~~~~~~
 
-Make is the human entrypoint for running tests. Tox remains the matrix engine.
+Make is the human entrypoint for running tests. Tox is the matrix engine behind
+full and platform test execution.
 
 .. code-block:: bash
 
    # Default suite: all feasible tests for current machine (no surprise provisioning)
    make test
 
-   # Every feasible local, Docker, and platform bridge target, then render reports
+   # Tox-backed native, Linux, Windows, and macOS platform targets, then reports
    make test-all
+
+   # Platform tox targets for debugging one backend at a time
+   make test-platform-native
+   make test-platform-linux
+   make test-platform-windows
+   make test-platform-macos
 
    # Individual semantic slices
    make test-unit
