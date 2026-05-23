@@ -41,7 +41,7 @@ Phase 15 is Makefile/documentation orchestration work, not pytest runtime work [
 
 Critical planning risk: `.planning/phases/15-cross-platform-test-suite-entrypoint-makefile-mingw-sh/15-SPEC.md` adds a broader tox-backed platform pipeline requirement that conflicts with the earlier `15-CONTEXT.md` scope and the user-provided success criteria [VERIFIED: `15-SPEC.md`; VERIFIED: `15-CONTEXT.md`]. Planner must choose source of truth before new implementation tasks: old Phase 15 means Makefile `pytest` target routing; newer SPEC means tox wrappers, WSL2, PowerShell launch, backend validation before work, per-target args, and fail-fast/artifact modes [VERIFIED: `15-SPEC.md`].
 
-**Primary recommendation:** Treat `15-SPEC.md` vs `15-CONTEXT.md` as planning gate; if old scope wins, finish/verify existing Makefile+docs; if SPEC wins, plan a separate tox-orchestration expansion [VERIFIED: codebase artifacts].
+**Resolved planning rule:** `ROADMAP.md` Phase 15 success criteria plus `15-CONTEXT.md` govern this revision; finish/verify existing Makefile+docs. `15-SPEC.md` tox-orchestration expansion is deferred unless promoted to a later phase [VERIFIED: revision_context].
 
 ## Architectural Responsibility Map
 
@@ -284,17 +284,16 @@ Current pattern treats "no tests collected" as non-fatal only for platform slice
 | A1 | Target-scoped validation may be preferable if SPEC needs diagnostic targets from PowerShell. | Common Pitfalls | Planner may over-constrain guard design. |
 | A2 | Windows Docker image runtime failures commonly indicate daemon/container-mode mismatch. | Common Pitfalls | Error triage docs may be incomplete. |
 
-## Open Questions
+## Resolved Questions
 
 1. **Which source of truth governs planning: `15-CONTEXT.md` or `15-SPEC.md`?**
-   - What we know: CONTEXT/user prompt require Makefile OS detection, Git Bash guard, Docker split, docs [VERIFIED: `15-CONTEXT.md`; VERIFIED: user prompt].
-   - What's unclear: SPEC requires tox-backed platform pipeline, WSL2, PowerShell-native tox, required backend validation, fail-fast/artifact modes [VERIFIED: `15-SPEC.md`].
-   - Recommendation: Planner must checkpoint before implementation; do not merge both silently [VERIFIED: codebase artifacts].
+   - Resolution: `ROADMAP.md` Phase 15 success criteria plus `15-CONTEXT.md` locked decisions govern this planning revision [VERIFIED: `ROADMAP.md`; VERIFIED: `15-CONTEXT.md`; VERIFIED: revision_context].
+   - Scope effect: `15-SPEC.md` tox-backed expansion is deferred unless explicitly promoted into a later phase or new planning pass [VERIFIED: `15-SPEC.md`; VERIFIED: revision_context].
+   - Planner action: keep current Makefile/docs scope; do not silently merge tox-backed WSL2/PowerShell/fail-fast expansion into Phase 15.
 
 2. **Should `test-docker` remain as meta-target?**
-   - What we know: CONTEXT leaves this to agent discretion; current Makefile includes `test-docker` meta-target [VERIFIED: `15-CONTEXT.md`; VERIFIED: `Makefile`].
-   - What's unclear: Success criteria emphasize split targets; docs emphasize split targets [VERIFIED: user prompt; VERIFIED: `DEVELOPMENT.rst`].
-   - Recommendation: Keep meta-target for compatibility but document split targets as primary [ASSUMED].
+   - Resolution: Keep `test-docker` as compatibility/meta target per roadmap no-regression criterion and checker feedback [VERIFIED: `ROADMAP.md`; VERIFIED: revision_context].
+   - Scope effect: split targets remain primary routing units; meta-target dispatches to `test-docker-linux` and `test-docker-windows`.
 
 ## Environment Availability
 
@@ -308,7 +307,7 @@ Current pattern treats "no tests collected" as non-fatal only for platform slice
 | Docker CLI | Docker targets | yes | 29.4.3 | Docker targets non-fatal under old CONTEXT [VERIFIED: local probe; VERIFIED: `15-CONTEXT.md`]. |
 | Docker daemon | Docker targets | yes | desktop-linux context observed | Docker targets non-fatal under old CONTEXT [VERIFIED: local `docker info` partial output]. |
 | ripgrep | local-pr-gate | yes | 15.1.0 | none; Makefile guard gives install link [VERIFIED: local probe; VERIFIED: `Makefile`]. |
-| WSL2 / `wsl.exe` | SPEC Linux-from-Windows backend | not verified | — | none if SPEC wins [VERIFIED: `15-SPEC.md`]. |
+| WSL2 / `wsl.exe` | Deferred SPEC Linux-from-Windows backend | not verified | — | none in current Phase 15 scope; required only if deferred SPEC expansion is promoted [VERIFIED: `15-SPEC.md`; VERIFIED: revision_context]. |
 
 **Missing dependencies with no fallback:**
 - WSL2 availability is unverified if SPEC/tox platform scope wins [VERIFIED: `15-SPEC.md`].
@@ -345,8 +344,8 @@ Current pattern treats "no tests collected" as non-fatal only for platform slice
 
 ### Wave 0 Gaps
 
-- [ ] Source-of-truth checkpoint for `15-CONTEXT.md` vs `15-SPEC.md` [VERIFIED: conflicting artifacts].
-- [ ] If SPEC wins: add tox-target validation tests/dry-runs for per-target args, WSL2, PowerShell, fail-fast/artifact modes [VERIFIED: `15-SPEC.md`].
+- [x] Source-of-truth checkpoint for `15-CONTEXT.md` vs `15-SPEC.md` resolved: `ROADMAP.md` + `15-CONTEXT.md` govern current revision; SPEC tox expansion deferred unless promoted [VERIFIED: revision_context].
+- [x] SPEC tox-target validation tests/dry-runs not planned for current revision because SPEC expansion is deferred, not Phase 15 scope [VERIFIED: revision_context].
 
 ## Security Domain
 
