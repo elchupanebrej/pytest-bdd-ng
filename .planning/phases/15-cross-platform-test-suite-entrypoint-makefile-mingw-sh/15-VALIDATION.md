@@ -1,55 +1,94 @@
-# Phase 15: Validation Architecture
+---
+phase: 15
+slug: cross-platform-test-suite-entrypoint-makefile-mingw-sh
+status: partial
+nyquist_compliant: false
+wave_0_complete: true
+created: 2026-05-23
+updated: 2026-05-24
+---
 
-**Created:** 2026-05-23
-**Scope:** Makefile cross-platform entrypoint and DEVELOPMENT.rst documentation
-**Source of truth:** `ROADMAP.md` Phase 15 success criteria + `15-CONTEXT.md` locked decisions. `15-SPEC.md` tox-backed expansion is deferred unless promoted to a later phase.
+# Phase 15 - Validation Strategy
 
-## Validation Goals
+Scope: Makefile cross-platform entrypoint, tox-backed platform routing, backend validation, argument forwarding, report modes, and DEVELOPMENT.rst documentation.
 
-- Prove Makefile OS detection and Git Bash guard are present.
-- Prove `test-docker` remains a compatibility/meta target and split Docker targets exist.
-- Prove `test-external` runs only through non-fatal Docker/external routing in `test-all`.
-- Prove current-host dry-runs resolve without Makefile syntax errors.
-- Prove DEVELOPMENT.rst documents concise cross-platform prerequisites and canonical Make commands.
+Source of truth: `ROADMAP.md` Phase 15, `15-SPEC.md`, `15-CONTEXT.md`, `15-01-PLAN.md`, `15-02-PLAN.md`, `15-03-PLAN.md`, and `VERIFICATION.md`.
 
-## Requirement Map
+## Test Infrastructure
 
-| ID | Source | Behavior | Validation |
-|----|--------|----------|------------|
-| P15-01 | ROADMAP #1-3, D-01 | `UNAME_S` detection, unsupported PowerShell/cmd guard, Windows shell/path behavior | Static grep + PowerShell guard smoke |
-| P15-02 | ROADMAP #4, D-02 | `test-docker` compatibility/meta target plus `test-docker-linux` and `test-docker-windows` split targets | Static grep + dry-run |
-| P15-03 | ROADMAP #5, Phase 12 D-10 | `test-all` routes native targets fatally, Docker/external/report targets non-fatally | Static grep + `rtk make -n test-all` |
-| P15-04 | ROADMAP #6 | `test-windows` and `test-posix` preserve pytest exit code 5 handling | Static grep |
-| P15-05 | ROADMAP #7, D-04 | DEVELOPMENT.rst has Cross-Platform Setup prerequisite table | Static grep + pre-commit |
-| P15-06 | ROADMAP #8 | Existing Makefile targets continue to resolve | Dry-runs + feasible smoke tests |
+| Property | Value |
+|----------|-------|
+| Framework | pytest contract tests plus Makefile dry-run/static checks |
+| Config file | `pyproject.toml` |
+| Quick run command | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py tests/cases/contract/doc/test_development_rst.py -q` |
+| Full suite command | `rtk make test-contract` |
+| Estimated runtime | ~1s quick, tox-dependent full run |
 
-## Automated Commands
+## Sampling Rate
 
-Run from repository root.
+- After every Makefile/docs task commit: run the quick contract command.
+- After every Phase 15 wave: run `rtk uv run pre-commit run --files Makefile DEVELOPMENT.rst tests/cases/contract/test_makefile_test_api.py tests/cases/contract/doc/test_development_rst.py`.
+- Before `$gsd-verify-work`: run `rtk make -n test-all FAIL_FAST=1 REPORT_MODE=skip` from Git Bash plus the quick contract command.
+- Max feedback latency: under 5s for the quick contract slice.
 
-```powershell
-rtk rg -c "UNAME_S :=.*uname -s" Makefile
-rtk rg -c "^test-docker:" Makefile
-rtk rg -c "^test-docker-linux:" Makefile
-rtk rg -c "^test-docker-windows:" Makefile
-rtk rg -c "DOCKER_TARGETS.*test-external|test-external.*DOCKER_TARGETS" Makefile
-rtk make -n test-all
-rtk make -n test-docker
-rtk make -n test-docker-linux
-rtk make -n test-docker-windows
-rtk rg -c "Cross-Platform Setup" DEVELOPMENT.rst
-rtk uv run pre-commit run --files Makefile DEVELOPMENT.rst
-```
+## Per-Task Verification Map
 
-## Expected Results
+| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | Test File | Status |
+|---------|------|------|-------------|-----------|-------------------|-----------|--------|
+| 15-01-01 | 01 | 1 | OS detection, Git Bash guard, Windows short-path shell/PATH behavior | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-01-02 | 01 | 1 | `test-docker` compatibility target and Linux/Windows split Docker targets | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-01-03 | 01 | 1 | Cross-platform exit code 5 handling for `test-windows` and `test-posix` | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-02-01 | 02 | 2 | Cross-Platform Setup and canonical Make command docs | contract/docs | `rtk uv run python -m pytest tests/cases/contract/doc/test_development_rst.py -q` | `tests/cases/contract/doc/test_development_rst.py` | green |
+| 15-03-01 | 03 | 3 | `test-all` validates backends before platform subwork and delegates to named platform targets | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-03-02 | 03 | 3 | Platform targets are tox-backed and use matching tox env/arg variables | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-03-03 | 03 | 3 | PowerShell, WSL2, Docker Windows, and custom Windows backend routing patterns exist | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-03-04 | 03 | 3 | `FAIL_FAST`, `ARTIFACT_MODE`, `REPORT_MODE`, and `TEST_*_ARGS` are public Make inputs | contract/static | `rtk uv run python -m pytest tests/cases/contract/test_makefile_test_api.py -q` | `tests/cases/contract/test_makefile_test_api.py` | green |
+| 15-03-05 | 03 | 3 | DEVELOPMENT.rst documents tox-backed routing, backend requirements, modes, and args | contract/docs | `rtk uv run python -m pytest tests/cases/contract/doc/test_development_rst.py -q` | `tests/cases/contract/doc/test_development_rst.py` | green |
 
-- `UNAME_S` grep returns at least 1.
-- `test-docker`, `test-docker-linux`, and `test-docker-windows` target greps each return 1.
-- `rtk make -n test-all` shows native route first and non-fatal Docker/external/report route with ignored-error prefix.
-- `test-external` is not listed in fatal native target routing.
-- DEVELOPMENT.rst contains Cross-Platform Setup and canonical Make command documentation.
-- Pre-commit exits 0 or reports only pre-existing unrelated hook environment issues; file content issues must be fixed.
+## Wave 0 Requirements
 
-## Manual Check
+Existing infrastructure covers this phase:
 
-On Windows, run `rtk make test-all` from Git Bash. If run from PowerShell/cmd, Makefile must fail early with: `ERROR: make requires Git Bash on Windows. Run from Git Bash terminal.`
+- `tests/cases/contract/test_makefile_test_api.py` - Makefile API and Phase 15 static contract tests.
+- `tests/cases/contract/doc/test_development_rst.py` - DEVELOPMENT.rst documentation contract tests.
+- `pyproject.toml` - pytest configuration.
+
+## Manual-Only Verifications
+
+| Behavior | Requirement | Why Manual | Test Instructions |
+|----------|-------------|------------|-------------------|
+| Real Windows full backend run | Phase 15 human UAT 1 | Requires Git Bash, PowerShell, WSL2, Docker Desktop state, and Windows tox execution on a real Windows host | From Git Bash on Windows, run `rtk make test-all` with WSL2 and Docker Desktop available. Confirm PowerShell Windows tox, WSL2 Linux tox, optional Docker/external work, and report rendering follow documented collect/fail-fast behavior. |
+| Real Linux/macOS non-native backend run | Phase 15 human UAT 2 | Requires Linux/macOS hosts with Docker or equivalent Windows-capable backend | On Linux and macOS, run `rtk make test-all` with Docker or `WINDOWS_TOX_BACKEND_COMMAND` configured. Confirm native tox and non-native Windows/Linux backend routing match docs. |
+
+## Validation Audit 2026-05-24
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 6 |
+| Resolved | 6 |
+| Escalated | 2 |
+
+Resolved gaps:
+
+- Added automated Makefile contract coverage for Phase 15 platform targets and backend validation.
+- Added automated Makefile contract coverage for tox env/arg isolation.
+- Added automated Makefile contract coverage for backend routing patterns.
+- Added automated Makefile contract coverage for mode/argument variables.
+- Added automated guard that legacy `NATIVE_TARGETS`/`DOCKER_TARGETS` routing variables stay removed.
+- Added automated DEVELOPMENT.rst contract coverage for Phase 15 docs.
+
+Escalated to manual-only:
+
+- Real Windows full backend execution.
+- Real Linux/macOS non-native backend execution.
+
+## Validation Sign-Off
+
+- [x] All tasks have automated verification or explicit manual-only coverage.
+- [x] Sampling continuity: no 3 consecutive tasks without automated verification.
+- [x] Wave 0 covers all missing automated contract checks.
+- [x] No watch-mode flags.
+- [x] Feedback latency under 5s for quick contract slice.
+- [ ] `nyquist_compliant: true` set in frontmatter.
+
+**Approval:** partial 2026-05-24; blocked only on real cross-host manual backend UAT.
