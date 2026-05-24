@@ -40,6 +40,8 @@ MAKE_COMMAND ?= make
 TOX_LINUX_ENVS ?= py314-pytestlatest-coverage-lin,py314-pytestlatest-gherkinlatest-xdist-coverage-lin
 TOX_WINDOWS_ENVS ?= py314-pytestlatest-coverage-win,py314-pytestlatest-gherkinlatest-xdist-coverage-win
 TOX_MACOS_ENVS ?= py314-pytestlatest-coverage-mac,py314-pytestlatest-gherkinlatest-xdist-coverage-mac
+WSL_LINUX_WORKDIR ?= /tmp/pytest-bdd-ng-wsl-linux-backend
+WSL_LINUX_RSYNC_EXCLUDES ?= --delete-excluded --exclude=.git/ --exclude=.tox/ --exclude=.pytest_cache/ --exclude=.mypy_cache/ --exclude=.ruff_cache/ --exclude=.tmp/ --exclude=.venv/ --exclude=.venv-wsl/ --exclude=.win_venv/ --exclude=.windows_venv/ --exclude=.opencode/ --exclude=node_modules/ --exclude=htmlcov/ --exclude=__pycache__/ --exclude=.coverage --exclude=.coverage.* --exclude=coverage.json
 TEST_ALL_ARGS ?=
 TEST_NATIVE_ARGS ?=
 TEST_LINUX_ARGS ?=
@@ -121,8 +123,11 @@ test-platform-linux:
 		$(TOX) run -e $(TOX_LINUX_ENVS) -- $$TEST_ALL_ARGS $$TEST_LINUX_ARGS; \
 	elif printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
 		if command -v wsl.exe >/dev/null 2>&1; then \
+			$(MAKE_COMMAND) --no-print-directory env-check-wsl2; \
 			WIN_PWD=$$(cygpath -w "$$PWD"); \
-			wsl.exe sh -lc "cd \"$$(wslpath -u "$$WIN_PWD")\" && TEST_ALL_ARGS=\"\$$TEST_ALL_ARGS\" TEST_LINUX_ARGS=\"\$$TEST_LINUX_ARGS\" $(TOX) run -e $(TOX_LINUX_ENVS) -- \$$TEST_ALL_ARGS \$$TEST_LINUX_ARGS"; \
+			POSIX_PWD=$$(cygpath -u "$$WIN_PWD"); \
+			WSL_PWD=$$(printf '%s' "$$POSIX_PWD" | sed -E 's#^/([A-Za-z])/#/mnt/\L\1/#'); \
+			wsl.exe sh -lc "set -e; mkdir -p \"$(WSL_LINUX_WORKDIR)\"; rsync -a --delete $(WSL_LINUX_RSYNC_EXCLUDES) \"$$WSL_PWD/\" \"$(WSL_LINUX_WORKDIR)/\"; cd \"$(WSL_LINUX_WORKDIR)\"; $(TOX) run -e $(TOX_LINUX_ENVS) -- $(TEST_ALL_ARGS) $(TEST_LINUX_ARGS); mkdir -p \"$$WSL_PWD/.tox\"; find .tox -maxdepth 1 -name '*.messages.ndjson' -exec cp {} \"$$WSL_PWD/.tox/\" \; 2>/dev/null || true"; \
 		elif [ "$(FAIL_FAST)" = "1" ]; then \
 			echo "ERROR: WSL2 unavailable. Run make env-install-windows."; exit 1; \
 		else \
@@ -248,6 +253,7 @@ env-check-powershell: check-shell
 env-check-wsl2: check-shell
 	@command -v wsl.exe >/dev/null || { echo "ERROR: WSL2 missing. Run make env-install-windows."; exit 1; }
 	@wsl.exe sh -lc 'command -v uvx >/dev/null' || { echo "ERROR: WSL2 tox backend missing uvx. Install uv in WSL2, then retry."; exit 1; }
+	@wsl.exe sh -lc 'command -v rsync >/dev/null' || { echo "ERROR: WSL2 tox backend missing rsync. Install rsync in WSL2, then retry."; exit 1; }
 
 env-check-docker:
 	@command -v docker >/dev/null || { echo "ERROR: docker missing. Run make env-install-docker."; exit 1; }

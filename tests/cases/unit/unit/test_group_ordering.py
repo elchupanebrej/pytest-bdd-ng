@@ -11,6 +11,7 @@ from pytest_bdd.util.tests_group_ordering import (
     GroupAssignment,
     GroupConfig,
     GroupPathMapping,
+    _read_barrier_state,
     apply_group_ordering,
     apply_order_marker,
     read_group_config,
@@ -512,6 +513,22 @@ def test_xdist_runtime_barrier_delays_later_group_until_earlier_group_finishes(p
     assert first_finishes
     assert later_starts
     assert min(later_starts) >= max(first_finishes)
+
+
+def test_barrier_state_read_tolerates_file_disappearing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify barrier state read tolerates cache file deletion races."""
+    state_path = tmp_path / "barrier.json"
+    state_path.write_text("{}", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def race_read_text(path: Path, *args: object, **kwargs: object) -> str:
+        if path == state_path:
+            raise FileNotFoundError(path)
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", race_read_text)
+
+    assert _read_barrier_state(state_path) == {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
 
 
 def test_marker_filter_selects_one_group_and_empty_selection_exits_cleanly(pytester: pytest.Pytester) -> None:

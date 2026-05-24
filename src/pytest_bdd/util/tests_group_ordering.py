@@ -439,7 +439,10 @@ def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> Non
 def _read_barrier_state(state_path: Path) -> _BarrierState:
     if not state_path.exists():
         return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
-    payload = json.loads(state_path.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
     if not isinstance(payload, dict):
         return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
     return {
