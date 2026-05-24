@@ -34,7 +34,6 @@ KNOWN_FALSE_POSITIVES: set[tuple[str, int, str]] = {
     # Protocol/pytest hook parameter names (dynamic dispatch)
     ("compatibility/pytest/__init__.py", 135, "fixturemanager"),
     ("message_stream.py", 39, "event"),
-    ("message_stream.py", 45, "controller"),
     ("plugin.py", 62, "fixturefunc"),  # pickle_runner/plugin.py
     ("plugin.py", 185, "nextitem"),  # pickle_runner/plugin.py
     ("plugin.py", 284, "module_path"),  # scenario_test_collector/plugin.py

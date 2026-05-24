@@ -147,6 +147,7 @@ test = [
   "pytest-timeout",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
+  "vulture",
   "pytest-bdd-ng[struct-bdd]",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'"
 ]
@@ -399,6 +400,7 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF067 preview rule not recognized by pre-commit ruff v0.12.0
 "src/pytest_bdd/script/message_capability_governance/*" = ["PLC0415", "SLF001", "TC003"]  # PLC0415: lazy imports for monkeypatch compatibility; SLF001: package-internal _repo_root/_candidate_repo_roots access for monkeypatching; TC003: Path used at runtime in function bodies
+"src/pytest_bdd/testing/cucumber_formatters.py" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101"]  # Test support helper intentionally mirrors pytest-style assertions and dynamic hook objects
 "tests/cases/*" = ["ANN", "D", "DOC201", "EM101", "F841", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6301", "S101", "S506", "SIM117", "SLF001"]  # ANN: ~885 errors, D: ~908 errors, EM101: ~4 errors, PLR0913: ~6 errors, PLR0914: ~3 errors, PLR0915: ~3 errors, PLR0917: ~2 errors, PLR2004: ~43 errors, S101: ~1582 errors, S506: ~9 errors
 "tests/cases/external/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
 "tests/cases/integration/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
@@ -442,6 +444,9 @@ pytest_bdd = [
   "features_index.rst.jinja2",
   "features_section.rst.jinja2",
   "test.py.jinja2"
+]
+"pytest_bdd.testing" = [
+  "resources/templates/cucumber_formatters/*.j2"
 ]
 
 [tool.setuptools.packages.find]

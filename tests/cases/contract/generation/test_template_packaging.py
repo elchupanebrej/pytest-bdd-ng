@@ -42,6 +42,14 @@ def test_pyproject_package_data_lists_message_schema_assets() -> None:
     assert package_data["pytest_bdd.model"] == ["message_jsonschema/*.json"]
 
 
+def test_pyproject_package_data_lists_testing_formatter_templates() -> None:
+    """Verify pyproject package data lists test helper formatter templates."""
+    pyproject = _load_pyproject()
+    package_data = pyproject["tool"]["setuptools"]["package-data"]
+
+    assert package_data["pytest_bdd.testing"] == ["resources/templates/cucumber_formatters/*.j2"]
+
+
 def test_release_workflow_syncs_message_schemas_before_build() -> None:
     """Verify release workflow syncs message schemas before build."""
     workflow = (PROJECT_ROOT / ".github" / "workflows" / "release.yaml").read_text(encoding="utf-8")

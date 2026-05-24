@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+import json
+import os
+import sys
+from pathlib import Path
+
+FORMATTER_OUTPUTS = __FORMATTER_OUTPUTS__
+
+
+def _package_dir(root, package_name):
+    return Path(root).joinpath(*package_name.split("/"))
+
+
+def _package_search_roots():
+    roots = []
+    node_path = os.environ.get("NODE_PATH", "")
+    if node_path:
+        roots.extend(Path(item) for item in node_path.split(os.pathsep) if item)
+    cwd_node_modules = Path.cwd() / "node_modules"
+    if cwd_node_modules not in roots:
+        roots.append(cwd_node_modules)
+    return roots
+
+
+def _package_installed(package_name):
+    return any(_package_dir(root, package_name).exists() for root in _package_search_roots())
+
+
+def _walk(value):
+    if isinstance(value, dict):
+        yield value
+        for item in value.values():
+            yield from _walk(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk(item)
+
+
+def _normalize_name(formatter_spec):
+    for key in ("kind", "specifier", "formatter", "name", "type"):
+        value = formatter_spec.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return "unknown"
+
+
+def _normalize_output_path(formatter_spec):
+    for key in ("output_path", "outputPath", "path", "target"):
+        value = formatter_spec.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    if formatter_spec.get("stdout") is True:
+        return None
+    return None
+
+
+def _find_messages_path(payload):
+    candidate_keys = {
+        "messages_path",
+        "messagesPath",
+        "message_path",
+        "messagePath",
+        "ndjson_path",
+        "ndjsonPath",
+    }
+    for node in _walk(payload):
+        for key in candidate_keys:
+            value = node.get(key)
+            if isinstance(value, str) and value.endswith(".ndjson"):
+                return value
+    for node in _walk(payload):
+        for value in node.values():
+            if isinstance(value, str) and value.endswith(".ndjson"):
+                return value
+    return None
+
+
+def _find_formatters(payload):
+    for node in _walk(payload):
+        for value in node.values():
+            if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
+                if any(
+                    any(key in item for key in ("kind", "specifier", "formatter", "name", "type"))
+                    for item in value
+                ):
+                    return value
+    raise SystemExit("fake node could not locate formatter specifications in payload")
+
+
+def _capture_path():
+    capture_dir = os.environ.get("PYTEST_BDD_FAKE_NODE_CAPTURE_DIR")
+    if not capture_dir:
+        return None
+    path = Path(capture_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    return path / f"{os.getpid()}.json"
+
+
+def _collect_worker_ids(envelopes):
+    worker_ids = set()
+    for envelope in envelopes:
+        for node in _walk(envelope):
+            worker_id = node.get("workerId")
+            if isinstance(worker_id, str) and worker_id:
+                worker_ids.add(worker_id)
+    return tuple(sorted(worker_ids))
+
+
+def _saw_test_run_finished(envelopes):
+    return any(
+        ("testRunFinished" in envelope) or ("test_run_finished" in envelope)
+        for envelope in envelopes
+        if isinstance(envelope, dict)
+    )
+
+
+def _write_capture(payload, *, mode, envelopes, emitted_console_before_close):
+    console_write_count = 0
+    console_formatter_names = []
+    if isinstance(emitted_console_before_close, dict):
+        console_write_count = int(emitted_console_before_close.get("count", 0))
+        console_formatter_names = list(emitted_console_before_close.get("names", []))
+        emitted_console_before_close = bool(console_write_count)
+    capture_path = _capture_path()
+    if capture_path is None:
+        return
+    messages_path = _find_messages_path(payload)
+    capture_payload = {
+        "mode": mode,
+        "messagesPath": messages_path,
+        "formatterNames": [_normalize_name(formatter) for formatter in _find_formatters(payload)],
+        "envelopeCount": len(envelopes),
+        "workerIds": list(_collect_worker_ids(envelopes)),
+        "sawTestRunFinished": _saw_test_run_finished(envelopes),
+        "emittedConsoleBeforeClose": emitted_console_before_close,
+        "consoleWriteCount": console_write_count,
+        "consoleFormatterNames": console_formatter_names,
+    }
+    capture_path.write_text(json.dumps(capture_payload, sort_keys=True), encoding="utf-8")
+
+
+def _render_output_for_request(formatter_spec):
+    formatter_name = _normalize_name(formatter_spec)
+    return FORMATTER_OUTPUTS.get(formatter_name, f"Formatter: {formatter_name}\n")
+
+
+def _split_console_output(formatter_name, rendered_output):
+    if formatter_name not in {"progress", "progress-bar", "pretty"}:
+        return [rendered_output]
+    if len(rendered_output) <= 1:
+        return [rendered_output]
+    midpoint = max(len(rendered_output) // 2, 1)
+    chunks = [rendered_output[:midpoint], rendered_output[midpoint:]]
+    return [chunk for chunk in chunks if chunk]
+
+
+def _finalize_outputs(payload, *, envelopes, emitted_console_names, emitted_console_before_close):
+    formatters = _find_formatters(payload)
+    for formatter_spec in formatters:
+        formatter_name = _normalize_name(formatter_spec)
+        rendered_output = _render_output_for_request(formatter_spec)
+        output_path = _normalize_output_path(formatter_spec)
+        if output_path is None:
+            if formatter_name in emitted_console_names:
+                continue
+            sys.stdout.write(rendered_output)
+            sys.stdout.flush()
+            continue
+        destination = Path(output_path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(rendered_output, encoding="utf-8")
+    _write_capture(
+        payload,
+        mode="stream" if not _find_messages_path(payload) else "replay",
+        envelopes=envelopes,
+        emitted_console_before_close=emitted_console_before_close,
+    )
+    return 0
+
+
+def _emit_formatter_outputs_from_file(payload):
+    messages_path = _find_messages_path(payload)
+    if messages_path is None:
+        raise SystemExit("fake node could not locate an NDJSON messages path in payload")
+    envelopes = [
+        json.loads(line)
+        for line in Path(messages_path).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return _finalize_outputs(
+        payload,
+        envelopes=envelopes,
+        emitted_console_names=set(),
+        emitted_console_before_close=False,
+    )
+
+
+def _emit_formatter_outputs_from_stream(payload):
+    envelopes = []
+    emitted_console_names = set()
+    console_write_count = 0
+    formatters = _find_formatters(payload)
+    pending_console_chunks = {}
+    for formatter_spec in formatters:
+        output_path = _normalize_output_path(formatter_spec)
+        if output_path is not None:
+            continue
+        formatter_name = _normalize_name(formatter_spec)
+        pending_console_chunks[formatter_name] = _split_console_output(
+            formatter_name,
+            _render_output_for_request(formatter_spec)
+        )
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        envelope = json.loads(line)
+        envelopes.append(envelope)
+        for formatter_name, chunks in pending_console_chunks.items():
+            if not chunks:
+                continue
+            sys.stdout.write(chunks.pop(0))
+            sys.stdout.flush()
+            emitted_console_names.add(formatter_name)
+            console_write_count += 1
+    for formatter_name, chunks in pending_console_chunks.items():
+        while chunks:
+            sys.stdout.write(chunks.pop(0))
+            sys.stdout.flush()
+            emitted_console_names.add(formatter_name)
+            console_write_count += 1
+    return _finalize_outputs(
+        payload,
+        envelopes=envelopes,
+        emitted_console_names=emitted_console_names,
+        emitted_console_before_close={
+            "count": console_write_count,
+            "names": tuple(sorted(emitted_console_names)),
+        },
+    )
+
+
+def _check_package():
+    package_name = sys.argv[-1]
+    for root in _package_search_roots():
+        package_dir = _package_dir(root, package_name)
+        if package_dir.exists():
+            sys.stdout.write(str(package_dir / "package.json"))
+            return 0
+    return 1
+
+
+def _required_packages(payload):
+    required = {"@cucumber/cucumber"}
+    for formatter_spec in _find_formatters(payload):
+        if _normalize_name(formatter_spec) == "pretty":
+            required.add("@cucumber/pretty-formatter")
+    return tuple(sorted(required))
+
+
+def main():
+    if len(sys.argv) >= 3 and sys.argv[1] == "-e":
+        raise SystemExit(_check_package())
+    if len(sys.argv) >= 3:
+        payload = json.loads(Path(sys.argv[-1]).read_text(encoding="utf-8"))
+        missing = [
+            package_name for package_name in _required_packages(payload) if not _package_installed(package_name)
+        ]
+        if missing:
+            sys.stderr.write(f"missing package: {', '.join(missing)}\n")
+            raise SystemExit(1)
+        if _find_messages_path(payload):
+            raise SystemExit(_emit_formatter_outputs_from_file(payload))
+        raise SystemExit(_emit_formatter_outputs_from_stream(payload))
+    raise SystemExit("fake node expected either `-e` or `<script> <payload>` arguments")
+
+
+if __name__ == "__main__":
+    main()

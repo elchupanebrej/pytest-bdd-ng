@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     import pytest
 
+from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.plugin.gherkin_message_reporter.session import (
     CucumberFormatterRequest,
 )
@@ -70,7 +71,7 @@ _VISIBLE_PYTEST_TERMINAL_FRAGMENTS = (
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_TEMPLATE_DIR = _REPO_ROOT / "tests" / "assets" / "templates" / "cucumber_formatters"
+_TEMPLATE_RESOURCE_DIR = files("pytest_bdd.testing").joinpath("resources", "templates", "cucumber_formatters")
 
 
 def _active_coverage_controller() -> Any | None:
@@ -233,7 +234,7 @@ def read_fake_formatter_telemetry(tmp_path: Path) -> list[dict[str, Any]]:
 
 
 def _load_support_template(template_name: str) -> str:
-    return (_TEMPLATE_DIR / template_name).read_text(encoding="utf-8")
+    return _TEMPLATE_RESOURCE_DIR.joinpath(template_name).read_text(encoding="utf-8")
 
 
 def _render_support_template(template_name: str, *, replacements: dict[str, str] | None = None) -> str:

@@ -42,7 +42,7 @@ from cucumber_messages import Exception as CucumberException
 from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
-from pytest_bdd.compatibility.pytest import Config, is_testrun_success
+from pytest_bdd.compatibility.pytest import Config, is_set, is_testrun_success
 from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
 from pytest_bdd.model.message_converter import message_converter
 from pytest_bdd.model.message_extension import get_payload_kind, has_single_payload
@@ -428,6 +428,8 @@ class LifecycleService(ReporterServiceBase):
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
         scenario_run = run.active_scenario_run
         if scenario_run is None:
+            return Nothing.value_or(None), None
+        if not is_set(scenario_run.gherkin_document) or not is_set(scenario_run.pickle):
             return Nothing.value_or(None), None
         return scenario_run.gherkin_document, scenario_run.pickle
 
