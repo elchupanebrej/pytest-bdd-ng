@@ -1,309 +1,123 @@
 ---
 phase: 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh
-reviewed: 2026-05-21T00:00:00Z
+reviewed: 2026-05-24T04:48:34Z
 depth: standard
 files_reviewed: 2
 files_reviewed_list:
   - Makefile
   - DEVELOPMENT.rst
 findings:
-  critical: 2
-  warning: 5
-  info: 3
-  total: 10
+  critical: 4
+  warning: 3
+  info: 1
+  total: 8
 status: issues_found
 ---
 
 # Phase 15: Code Review Report
 
-**Reviewed:** 2026-05-21T00:00:00Z
+**Reviewed:** 2026-05-24T04:48:34Z
 **Depth:** standard
 **Files Reviewed:** 2
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the two deliverables for Phase 15 (Cross-platform Makefile entrypoint): the project root `Makefile` and `DEVELOPMENT.rst` documentation. The phase added OS detection, unsupported-shell guard, Windows SHELL/PATH fix, Docker target split, platform routing, and cross-platform shell syntax fixes.
+Reviewed `Makefile` and `DEVELOPMENT.rst` against Phase 15 cross-platform tox orchestration requirements. Current implementation has blocking portability and correctness defects in Windows native routing, fail-fast validation ordering, Windows Docker execution, and shell argument interpolation. Docs also drift from Makefile behavior.
 
-Two **BLOCKER** issues found: hardcoded short DOS paths that will fail on non-standard Windows installations, and a regression where `test-external` changed from non-fatal to mandatory in `test-all`, breaking macOS users without Docker. Five **WARNING** issues in environment check consistency, missing tool dependency validation, and documentation inaccuracies. Three **INFO** items on code duplication and naming.
+## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: Hardcoded short DOS paths for SHELL and Docker PATH
+### CR-01: BLOCKER: Windows native platform target bypasses PowerShell
 
-**File:** `Makefile:15-16`
-**Issue:** The MSYS2/MINGW/CYGWIN block sets two hardcoded paths using short DOS 8.3 names:
-
-```makefile
-SHELL := C:/PROGRA~1/Git/bin/sh.exe
-export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)
+**File:** `Makefile:113`
+**Issue:** `test-platform-native` always runs `$(TOX)` directly in the active Make shell. On Windows/Git Bash, `TOX_NATIVE_ENVS` resolves to Windows tox envs, so `make test-all` runs Windows native tox under Git Bash before `test-platform-windows` later runs the same Windows envs through PowerShell. This violates Phase 15 requirement that native Windows tox launched from Git Bash must run through PowerShell, and it duplicates Windows platform work in full runs.
+**Fix:**
+```make
+test-platform-native:
+	@if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
+		$(MAKE_COMMAND) --no-print-directory test-platform-windows TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_WINDOWS_ARGS='$(TEST_NATIVE_ARGS)'; \
+	else \
+		$(MAKE_COMMAND) --no-print-directory env-check-tox; \
+		$(TOX) run -e $(TOX_NATIVE_ENVS) -- $(TEST_ALL_ARGS) $(TEST_NATIVE_ARGS); \
+	fi
 ```
+Then avoid running duplicate Windows scope from `test-all` on MinGW, or make `test-platform-windows` the native Windows target and remove duplicate native Windows execution.
 
-These paths will fail in any of these scenarios:
-- **Non-English Windows** — "Program Files" is localized (e.g., "Programme" in German), making `PROGRA~1` point to a different or non-existent directory.
-- **Custom install locations** — Git or Docker installed on a different drive (e.g., `D:\Git`, `E:\Docker`).
-- **Short-name collisions** — If another directory already claims `PROGRA~1`, the real "Program Files" gets `PROGRA~2`.
-- **64-bit vs 32-bit** — Git might reside in `Program Files (x86)` with short name `PROGRA~2`.
+### CR-02: BLOCKER: Fail-fast validation does not validate macOS backend before work starts
 
-A wrong `SHELL` path will cause ALL recipe commands to fail with "sh.exe: not found". A wrong Docker PATH means `docker` is not discoverable even when installed.
-
-**Fix:** Detect the actual Git and Docker locations dynamically. Use environment-aware resolution instead of hardcoded paths:
-
-```makefile
-ifneq ($(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),)
-  # Use the shell that invoked make itself — already correct for MSYS2/Git Bash
-  # SHELL is already set correctly by MSYS2 make; only override if unset
-  ifeq ($(origin SHELL),default)
-    SHELL := sh.exe
-  endif
-  # Discover Docker via common install paths + registry, or rely on PATH
-  DOCKER_BIN_DIR := $(or $(wildcard /c/Program Files/Docker/Docker/resources/bin),\
-                         $(wildcard /c/Program Files (x86)/Docker/Docker/resources/bin))
-  ifneq ($(DOCKER_BIN_DIR),)
-    export PATH := $(DOCKER_BIN_DIR):$(PATH)
-  endif
-endif
+**File:** `Makefile:258`
+**Issue:** `validate-test-all-backends` checks PowerShell/WSL2 on MinGW, Windows Docker on Linux, and Linux/Windows Docker on macOS. It never validates that `test-platform-macos` can run on non-macOS hosts. With `FAIL_FAST=1`, `test-all` starts native/Linux/Windows work first, then fails at `test-platform-macos` on Windows or Linux. This breaks "validation before work" and fail-fast semantics.
+**Fix:**
+```make
+validate-test-all-backends: env-check-tox
+	@if [ "$(FAIL_FAST)" = "1" ]; then \
+		if [ "$(UNAME_S)" != "Darwin" ]; then \
+			echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
+		fi; \
+		... existing backend checks ... \
+	fi
 ```
+Better: define selected platform scopes per host/mode, validate only selected scopes, and make `test-all` execute that same selected list.
 
-Or, simpler and more robust — don't override SHELL at all (MSYS2 make already uses the correct shell), and for Docker, add a user-friendly error in `env-check-docker` rather than guessing install paths:
+### CR-03: BLOCKER: Windows Docker tox backend cannot run because container lacks `uvx`
 
-```makefile
-ifneq ($(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),)
-  # MSYS2/Git Bash already provides sh.exe as the default SHELL.
-  # Do not hardcode paths. Rely on env-check-docker to validate Docker availability.
-endif
+**File:** `Makefile:145`
+**Issue:** Windows Docker branch runs `$(TOX)`, defaulting to `uvx --with tox-uv tox`, inside `python:3.14-windowsservercore-ltsc2022`. Unlike the Linux Docker branch, it never installs `uv`, so `uvx` is unavailable in the container. `env-check-docker-windows` only checks Docker daemon OS, not tool availability inside the container, so validation can pass while execution fails immediately.
+**Fix:**
+```make
+docker run --rm -v "$$PWD":C:/work -w C:/work python:3.14-windowsservercore-ltsc2022 \
+	powershell -NoProfile -Command "python -m pip install uv; uvx --with tox-uv tox run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"
 ```
+Also add a validation probe that executes `python -m pip --version` and `uvx --version` or installs `uv` in the same Windows container path used by the test target.
 
----
+### CR-04: BLOCKER: Option passthrough allows shell/PowerShell injection and breaks valid pytest expressions
 
-### CR-02: `test-external` regressed from non-fatal to mandatory in `test-all`
+**File:** `Makefile:86`
+**Issue:** User-facing argument variables (`TEST_ALL_ARGS`, `TEST_*_ARGS`, `REPORT_ARGS`) are interpolated directly into recursive Make shell commands and PowerShell command strings. A value containing a single quote breaks the recursive assignment (`TEST_WINDOWS_ARGS='-k a'b'`), while shell metacharacters can execute unintended commands. The PowerShell branch also embeds arguments in a double-quoted `-Command` string, so `;`, `&`, backticks, and quotes are interpreted by PowerShell instead of passed as tox args.
+**Fix:**
+```make
+export TEST_ALL_ARGS TEST_NATIVE_ARGS TEST_LINUX_ARGS TEST_WINDOWS_ARGS TEST_MACOS_ARGS
 
-**File:** `Makefile:19-28, 55-61`
-**Issue:** In the old `test-all` target, `test-external` was invoked via `-$(MAKE) --no-print-directory test-external` — the leading `-` made Docker-unavailable failures non-fatal. The new platform routing places `test-external` inside `NATIVE_TARGETS` for ALL platforms:
+test-all: validate-test-all-backends
+	@$(MAKE_COMMAND) --no-print-directory test-platform-native
 
-```makefile
-# Linux NATIVE_TARGETS
-NATIVE_TARGETS := ... test-external   # mandatory (no - prefix)
-# Darwin NATIVE_TARGETS
-NATIVE_TARGETS := ... test-external   # mandatory (no - prefix)
-# else (MINGW*/MSYS*/CYGWIN*)
-NATIVE_TARGETS := ... test-external   # mandatory (no - prefix)
+test-platform-native: env-check-tox
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- "$$TEST_ALL_ARGS" "$$TEST_NATIVE_ARGS"
 ```
-
-The `test-all` recipe invokes native targets WITHOUT the `-` prefix:
-```makefile
-@$(MAKE) --no-print-directory $(NATIVE_TARGETS)
-```
-
-Since `test-external` depends on `env-check-docker` (which fails when Docker is absent), `make test-all` now **fails** on any machine without Docker — including macOS, where the DEVELOPMENT.rst docs explicitly state Docker is optional.
-
-**Fix:** Move `test-external` from `NATIVE_TARGETS` into `DOCKER_TARGETS` (which already uses `@-` prefix), or keep it in `NATIVE_TARGETS` but wrap it with `-` separately. The intent from the old Makefile was clear: Docker-backed tests are non-fatal.
-
-```makefile
-# Approach A: Move test-external to DOCKER_TARGETS (matches old behavior)
-ifeq ($(UNAME_S),Linux)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
-  DOCKER_TARGETS := test-docker-windows test-external
-else ifeq ($(UNAME_S),Darwin)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
-  DOCKER_TARGETS := test-docker-linux test-docker-windows test-external
-else
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-windows
-  DOCKER_TARGETS := test-docker-linux test-external
-endif
-```
-
-Or, keep it in NATIVE_TARGETS but use `-` for just that target in the recipe:
-```makefile
-test-all: env-check
-	@echo "=== Native targets ($(UNAME_S)) ==="
-	@$(MAKE) --no-print-directory $(filter-out test-external,$(NATIVE_TARGETS))
-	@-$(MAKE) --no-print-directory test-external
-	@echo "=== Docker targets ==="
-	@-$(MAKE) --no-print-directory $(DOCKER_TARGETS)
-	@-$(MAKE) --no-print-directory render-tox-reports-run
-```
-
----
+For PowerShell, pass values through environment variables and use `--%` or `Start-Process`/argument arrays rather than string-building `-Command`.
 
 ## Warnings
 
-### WR-01: `env-check-windows` uses bare `python` instead of `uv run python`
+### WR-01: WARNING: Linux/macOS Windows backend policy is documented but not actually implementable
 
-**File:** `Makefile:114`
-**Issue:** The else branch of `env-check-windows` runs:
-```makefile
-python -c "import platform, sys; sys.exit(0 if platform.system() == 'Windows' else 1)"
-```
+**File:** `Makefile:255`
+**Issue:** `env-check-docker-windows` requires `docker version --format '{{.Server.Os}}'` to report `windows`. Normal Linux and macOS Docker daemons report `linux`; Docker Desktop for macOS does not run Windows containers. The docs say Linux/macOS use "Windows Docker or equivalent VM-like backend", but there is no equivalent backend path. `test-platform-windows` therefore cannot satisfy documented Linux/macOS routing on ordinary hosts.
+**Fix:** Either implement explicit VM/remote backend variables, for example `WINDOWS_TOX_BACKEND_COMMAND`, or document and enforce that Windows platform tox is only supported from Windows hosts.
 
-The entire Makefile otherwise uses `$(PYTEST)` (which expands to `uv run python -m pytest`) and `uv run python`. Using bare `python` is inconsistent and may resolve to a different interpreter (Python 2, system Python, or missing entirely on Windows PATH). Furthermore, `env-check-windows` does not depend on `env-check`, so `uv`/Python availability is not verified before this check runs. If `python` is not on PATH, the error message will be a cryptic "python: command not found" rather than the intended "Windows target requires Windows host or WSL bridge."
+### WR-02: WARNING: Documentation tells users `make test` runs full tox report flow
 
-**Fix:** Use `uv run python` for consistency, and add `env-check` as a prerequisite:
-```makefile
-env-check-windows: env-check
-	@if [ "$$(uname -s 2>/dev/null)" = "Linux" ]; then \
-		command -v wsl.exe >/dev/null || { echo "ERROR: Windows bridge missing. Run make env-install-windows."; exit 1; }; \
-	else \
-		uv run python -c "import platform, sys; sys.exit(0 if platform.system() == 'Windows' else 1)" || { echo "ERROR: Windows target requires Windows host or WSL bridge."; exit 1; }; \
-	fi
-```
+**File:** `DEVELOPMENT.rst:528`
+**Issue:** The "Running Tests" section says "To run the full test suite and render one HTML report per pytest-based tox environment" and shows `make test`. In the Makefile, `make test` runs direct pytest on the local feasible selector, while `make test-all` is the tox-backed full pipeline. This sends users to the wrong entrypoint.
+**Fix:** Change that block to `make test-all`, and describe `make test` as local feasible pytest-only smoke/default suite.
 
----
+### WR-03: WARNING: Cross-platform prerequisites omit required backends
 
-### WR-02: `local-pr-gate` depends on `rg` (ripgrep) without availability check
-
-**File:** `Makefile:179-182, 184-187`
-**Issue:** The `local-pr-gate` target uses `rg` (ripgrep) in two `if` conditions:
-
-```makefile
-@if rg -n '"3\.9"|"pypy3\.9"' .github/workflows/*.yml; then \
-    echo "ERROR: unsupported 3.9 matrix entries found in workflows"; \
-    exit 1; \
-fi
-```
-
-```makefile
-@if ! rg -n '"jq;platform_system!=\x27Windows\x27"' pyproject.toml >/dev/null; then \
-    echo "ERROR: jq dependency marker for Windows exclusion is missing in pyproject.toml"; \
-    exit 1; \
-fi
-```
-
-If `rg` is not installed on the developer's machine, `rg` returns exit code 127 (or similar non-zero). In the first check, `if rg ...` evaluates to FALSE, so the `then` branch (error) is SKIPPED — a **false negative**. Unsanctioned 3.9 entries in workflow files would pass silently. In the second check, `if ! rg ...` evaluates to TRUE, so the error IS shown — but the error message is misleading ("jq dependency marker is missing") when the real problem is that `rg` is not available.
-
-**Fix:** Guard both checks with a `command -v rg` prerequisite, or use `grep -r` (more universally available):
-
-```makefile
-@command -v rg >/dev/null 2>&1 || { echo "ERROR: ripgrep (rg) is required for local-pr-gate. Install: https://github.com/BurntSushi/ripgrep"; exit 1; }
-```
-
-Or replace with `grep -r`:
-```makefile
-@if grep -rn '"3\.9"\|"pypy3\.9"' .github/workflows/*.yml; then \
-    echo "ERROR: unsupported 3.9 matrix entries found in workflows"; \
-    exit 1; \
-fi
-```
-
----
-
-### WR-03: DEVELOPMENT.rst references non-existent `make test-docker` target
-
-**File:** `DEVELOPMENT.rst:354`
-**Issue:** The "Makefile Test API" section lists:
-```
-make test-docker
-```
-This target was split into `test-docker-linux` and `test-docker-windows` in this phase. The old `test-docker` target no longer exists. Running `make test-docker` will produce a Make error: `No rule to make target 'test-docker'`.
-
-**Fix:** Update the documentation to list the actual available targets:
-```rst
-   # Docker-backed tests (split by platform)
-   make test-docker-linux
-   make test-docker-windows
-```
-
----
-
-### WR-04: DEVELOPMENT.rst reports wrong output extension for `render-tox-reports`
-
-**File:** `DEVELOPMENT.rst:506`
-**Issue:** The documentation states:
-```
-the Makefile renders HTML reports to ``.tmp/tox-reports/<envname>.html``
-```
-However, the Makefile (line 205) renders JSON using `--cucumber-json`:
-```makefile
-uv run render_cucumber_formatters --messages-ndjson "$$ndjson" --cucumber-json "$(TOX_HTML_REPORT_DIR)/$$envname.json"
-```
-The output extension is `.json`, not `.html`. (The variable name `TOX_HTML_REPORT_DIR` is also misleading — see IN-02.)
-
-**Fix:** Correct the documentation to reflect the actual output format:
-```rst
-the Makefile renders JSON reports to ``.tmp/tox-reports/<envname>.json``
-```
-
----
-
-### WR-05: `env-check-windows` lacks `env-check` prerequisite
-
-**File:** `Makefile:110-115`
-**Issue:** `env-check-windows` runs Python (`python -c "..."`) but does not declare `env-check` as a prerequisite. If a developer runs `make test-windows` directly without first running `make env-install` or `make env-check`, the `env-check-windows` check will fail with a raw "python: command not found" shell error rather than the friendly "ERROR: uv missing. Run make env-install." message provided by `env-check`.
-
-All other `env-check-*` targets should validate basic environment first, but `env-check-docker` and `env-check-browser` also lack `env-check` as a prerequisite — though they don't use Python directly so the impact is lower.
-
-**Fix:** Add `env-check` as a prerequisite to `env-check-windows`:
-```makefile
-env-check-windows: env-check
-```
-
----
+**File:** `DEVELOPMENT.rst:36`
+**Issue:** Windows row lists Git for Windows and Docker Desktop only, but `make test-all` also requires PowerShell and WSL2 for Linux tox from Windows. Linux/macOS rows mark Docker optional, but the documented full cross-platform target needs Docker or a Windows backend for non-native coverage. Setup docs are insufficient for reproducing the Makefile paths.
+**Fix:** Add PowerShell and WSL2 to Windows prerequisites, clarify Docker/Windows-container requirements, and distinguish `make test` prerequisites from `make test-all` prerequisites.
 
 ## Info
 
-### IN-01: Code duplication in NATIVE_TARGETS for Linux and Darwin
+### IN-01: Unused routing variables remain after `test-all` rewrite
 
-**File:** `Makefile:20-24`
-**Issue:** The Linux and Darwin (macOS) branches define identical NATIVE_TARGETS lists:
-```makefile
-ifeq ($(UNAME_S),Linux)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
-  DOCKER_TARGETS := test-docker-windows
-else ifeq ($(UNAME_S),Darwin)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
-  DOCKER_TARGETS := test-docker-linux test-docker-windows
-```
-
-The duplication is benign but makes maintenance harder — adding or removing a test target requires changing two identical lines.
-
-**Fix:** Consolidate to a single POSIX block, with only DOCKER_TARGETS differing:
-```makefile
-ifeq ($(UNAME_S),Windows)
-  $(error ...)
-endif
-
-# POSIX systems (Linux, Darwin, etc.)
-NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-external
-
-ifeq ($(UNAME_S),Darwin)
-  DOCKER_TARGETS := test-docker-linux test-docker-windows
-else
-  DOCKER_TARGETS := test-docker-linux
-endif
-```
+**File:** `Makefile:23`
+**Issue:** `NATIVE_TARGETS` and `DOCKER_TARGETS` are assigned for each OS but are no longer referenced by any recipe. They now create false confidence that platform routing table drives execution.
+**Fix:** Remove these variables or wire `test-all` to use them consistently.
 
 ---
 
-### IN-02: Variable `TOX_HTML_REPORT_DIR` is misleading — outputs JSON, not HTML
-
-**File:** `Makefile:38`
-**Issue:** The variable is named `TOX_HTML_REPORT_DIR` but the rendered output uses `--cucumber-json` (line 205), producing `.json` files. The directory contains JSON reports, not HTML. This naming can confuse developers looking for HTML artifacts.
-
-**Fix:** Rename to `TOX_REPORT_DIR` or `TOX_JSON_REPORT_DIR`:
-```makefile
-TOX_REPORT_DIR ?= .tmp/tox-reports
-```
-
-Update all references (lines 38, 196, 197, 204, 205, 211) to use the new name.
-
----
-
-### IN-03: `check-shell` target is a no-op placeholder
-
-**File:** `Makefile:98-99`
-**Issue:** The `check-shell` target does nothing (`@true`) and serves as a dependency of `env-check`. However, the actual unsupported-shell guard runs at Makefile parse-time (lines 10-12, `$(error ...)`) and is NOT executed by this target. The no-op `check-shell` likely confuses readers who expect it to perform the shell validation. It appears to be a leftover from development or a hook point for sub-makes.
-
-**Fix:** Either remove `check-shell` entirely (the parse-time guard on lines 10-12 already handles this), or add a comment explaining its purpose if it serves a specific need:
-
-```makefile
-# check-shell is a no-op; the actual guard runs at parse-time (see UNAME_S check above).
-# Included as a prerequisite anchor for sub-make contexts.
-check-shell:
-	@true
-```
-
----
-
-_Reviewed: 2026-05-21T00:00:00Z_
+_Reviewed: 2026-05-24T04:48:34Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
