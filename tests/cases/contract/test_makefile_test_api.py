@@ -9,6 +9,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 REQUIRED_TARGETS = (
     "test",
     "test-all",
+    "test-platform-native",
+    "test-platform-linux",
+    "test-platform-windows",
+    "test-platform-macos",
     "test-unit",
     "test-integration",
     "test-contract",
@@ -18,12 +22,20 @@ REQUIRED_TARGETS = (
     "test-external",
     "test-slow",
     "test-docker",
+    "test-docker-linux",
+    "test-docker-windows",
     "test-windows",
     "test-posix",
     "env-check",
+    "env-check-tox",
+    "env-check-powershell",
+    "env-check-wsl2",
     "env-check-docker",
+    "env-check-docker-linux",
+    "env-check-docker-windows",
     "env-check-windows",
     "env-check-browser",
+    "validate-test-all-backends",
     "env-install",
     "env-install-docker",
     "env-install-windows",
@@ -65,6 +77,12 @@ def _parse_targets(text: str) -> dict[str, dict[str, object]]:
     return targets
 
 
+def _target_body(targets: dict[str, dict[str, object]], name: str) -> str:
+    commands = targets[name]["commands"]
+    assert isinstance(commands, list)
+    return "\n".join(commands)
+
+
 def test_makefile_exposes_required_test_api_targets() -> None:
     """Verify Makefile contains the Phase 12 human test API."""
     targets = _parse_targets(_makefile_text())
@@ -96,7 +114,9 @@ def test_test_targets_run_group_commands_or_environment_checks() -> None:
         has_env_check = any(dependency.startswith("env-check") for dependency in dependencies)
         has_group_command = bool(re.search(r"pytest .*?(-m|tests/cases/)", commands))
         has_make_group = "$(MAKE)" in commands and "test-" in commands
-        if not (has_env_check or has_group_command or has_make_group):
+        has_tox_command = "$(TOX)" in commands and " run " in commands
+        has_backend_validation = "validate-test-all-backends" in dependencies
+        if not (has_env_check or has_group_command or has_make_group or has_tox_command or has_backend_validation):
             offenders.append(target)
 
     assert offenders == []
@@ -115,3 +135,76 @@ def test_env_check_targets_are_read_only() -> None:
             offenders[target] = body_without_echo
 
     assert offenders == {}
+
+
+def test_phase15_test_all_validates_backends_before_platform_work() -> None:
+    """Verify full cross-platform entrypoint validates before executing subwork."""
+    targets = _parse_targets(_makefile_text())
+    dependencies = set(targets["test-all"]["dependencies"])
+    body = _target_body(targets, "test-all")
+
+    assert "validate-test-all-backends" in dependencies
+    for target in (
+        "test-platform-native",
+        "test-platform-linux",
+        "test-platform-windows",
+        "test-platform-macos",
+    ):
+        assert target in body
+    assert "render-tox-reports-run" in body
+    assert "python -m pytest" not in body
+
+
+def test_phase15_platform_targets_are_tox_backed_and_arg_isolated() -> None:
+    """Verify platform targets use only their matching tox env and arg variables."""
+    targets = _parse_targets(_makefile_text())
+    expected = {
+        "test-platform-native": ("TOX_NATIVE_ENVS", "TEST_NATIVE_ARGS"),
+        "test-platform-linux": ("TOX_LINUX_ENVS", "TEST_LINUX_ARGS"),
+        "test-platform-windows": ("TOX_WINDOWS_ENVS", "TEST_WINDOWS_ARGS"),
+        "test-platform-macos": ("TOX_MACOS_ENVS", "TEST_MACOS_ARGS"),
+    }
+
+    for target, (env_var, arg_var) in expected.items():
+        body = _target_body(targets, target)
+        assert "$(TOX)" in body or target == "test-platform-windows"
+        assert env_var in body
+        assert arg_var in body
+
+
+def test_phase15_backend_routing_patterns_are_explicit() -> None:
+    """Verify backend routes for PowerShell, WSL2, Docker, and custom Windows backend."""
+    makefile = _makefile_text()
+
+    assert "powershell.exe" in makefile
+    assert "wsl.exe sh -lc" in makefile
+    assert "python:3.14-windowsservercore-ltsc2022" in makefile
+    assert "WINDOWS_TOX_BACKEND_COMMAND" in makefile
+    assert "env-check-docker-windows" in makefile
+
+
+def test_phase15_modes_and_argument_variables_are_exported() -> None:
+    """Verify collect/fail-fast/report controls and arg variables are public Make inputs."""
+    makefile = _makefile_text()
+
+    for variable in (
+        "TEST_ALL_ARGS",
+        "TEST_NATIVE_ARGS",
+        "TEST_LINUX_ARGS",
+        "TEST_WINDOWS_ARGS",
+        "TEST_MACOS_ARGS",
+        "REPORT_ARGS",
+        "FAIL_FAST",
+        "ARTIFACT_MODE",
+        "REPORT_MODE",
+    ):
+        assert re.search(rf"^{variable} \?=", makefile, re.MULTILINE)
+    assert re.search(r"^export .*TEST_LINUX_ARGS.*TEST_WINDOWS_ARGS", makefile, re.MULTILINE)
+
+
+def test_phase15_legacy_native_docker_routing_variables_removed() -> None:
+    """Verify obsolete routing variables do not drift back into validation/docs contract."""
+    makefile = _makefile_text()
+
+    assert "NATIVE_TARGETS" not in makefile
+    assert "DOCKER_TARGETS" not in makefile
