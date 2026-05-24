@@ -1,79 +1,80 @@
 ---
 phase: 15-cross-platform-test-suite-entrypoint-makefile-mingw-sh
-fixed_at: 2026-05-21T00:00:00Z
+fixed_at: 2026-05-24T05:12:00Z
 review_path: .planning/phases/15-cross-platform-test-suite-entrypoint-makefile-mingw-sh/15-REVIEW.md
-iteration: 1
-findings_in_scope: 7
-fixed: 7
+iteration: 2
+findings_in_scope: 8
+fixed: 8
 skipped: 0
 status: all_fixed
 ---
 
 # Phase 15: Code Review Fix Report
 
-**Fixed at:** 2026-05-21
-**Source review:** .planning/phases/15-cross-platform-test-suite-entrypoint-makefile-mingw-sh/15-REVIEW.md
-**Iteration:** 1
+**Fixed at:** 2026-05-24
+**Source review:** `.planning/phases/15-cross-platform-test-suite-entrypoint-makefile-mingw-sh/15-REVIEW.md`
+**Iteration:** 2
 
-**Summary:**
-- Findings in scope (critical + warning): 7
-- Fixed: 7
+## Summary
+
+- Findings in scope: 8
+- Fixed: 8
 - Skipped: 0
 
 ## Fixed Issues
 
-### CR-01: Hardcoded short DOS paths for SHELL and Docker PATH
+### CR-01: Windows native platform target bypasses PowerShell
 
 **Files modified:** `Makefile`
-**Commit:** `cfc0b05b`
-**Applied fix:** Removed the entire MSYS2/MINGW/CYGWIN block (lines 14-17) that hardcoded `C:/PROGRA~1/Git/bin/sh.exe` and `C:/PROGRA~1/Docker/Docker/resources/bin`. MSYS2/Git Bash already provides the correct SHELL. Docker path discovery is unnecessary — Docker should be on PATH, and `env-check-docker` validates availability with a friendly error message.
+**Applied fix:** `test-platform-native` now delegates to `test-platform-windows` on MinGW/MSYS/CYGWIN hosts. `test-all` also skips separate `test-platform-windows` execution on Windows hosts to avoid duplicate native Windows tox work.
 
-### CR-02: test-external regressed from non-fatal to mandatory in test-all
-
-**Files modified:** `Makefile`
-**Commit:** `1140b481`
-**Applied fix:** Moved `test-external` from NATIVE_TARGETS to DOCKER_TARGETS for all three platforms (Linux, Darwin, MINGW/MSYS/CYGWIN). Docker targets are invoked with `@-` prefix in `test-all`, making Docker-unavailable failures non-fatal. Restores the original intent from the pre-Phase-15 Makefile.
-
-### WR-01: env-check-windows uses bare python instead of uv run python
+### CR-02: Fail-fast validation misses macOS backend before work starts
 
 **Files modified:** `Makefile`
-**Commit:** `860c8d3b` (combined with WR-05)
-**Applied fix:** Changed `python -c` to `uv run python -c` in the env-check-windows else branch. Consistent with all other targets using `$(PYTEST)` / `uv run python`.
+**Applied fix:** `validate-test-all-backends FAIL_FAST=1` now fails before any subwork on non-macOS hosts when the full cross-platform set includes macOS tox. This preserves validation-before-work semantics.
 
-### WR-02: local-pr-gate depends on rg without availability check
+### CR-03: Windows Docker backend lacks `uvx`
 
 **Files modified:** `Makefile`
-**Commit:** `8101eae5`
-**Applied fix:** Added `command -v rg` guard as the first recipe line in `local-pr-gate`. If `rg` is missing, a clear error message with install link is shown and the gate exits. Prevents false negatives and misleading errors from failed rg invocations.
+**Applied fix:** Windows Docker execution now installs `uv` inside `python:3.14-windowsservercore-ltsc2022` before invoking `uvx --with tox-uv tox`. `env-check-docker-windows` also probes the Windows container Python backend before work.
 
-### WR-03: DEVELOPMENT.rst references non-existent make test-docker target
+### CR-04: Option passthrough injection and quoting risk
+
+**Files modified:** `Makefile`
+**Applied fix:** `TEST_ALL_ARGS`, `TEST_NATIVE_ARGS`, `TEST_LINUX_ARGS`, `TEST_WINDOWS_ARGS`, `TEST_MACOS_ARGS`, and `REPORT_ARGS` are exported instead of re-quoted into recursive Make assignments. PowerShell and Docker branches read args from environment variables instead of interpolating raw Make variables into command strings.
+
+### WR-01: Linux/macOS Windows backend policy not implementable
+
+**Files modified:** `Makefile`, `DEVELOPMENT.rst`
+**Applied fix:** Added `WINDOWS_TOX_BACKEND_COMMAND` as an explicit override for non-standard Windows tox backends. Documentation now states Linux/macOS Windows tox requires Windows Docker containers or a configured backend command.
+
+### WR-02: Running Tests docs point full tox flow at `make test`
 
 **Files modified:** `DEVELOPMENT.rst`
-**Commit:** `99819135` (combined with WR-04)
-**Applied fix:** Replaced `make test-docker` with `make test-docker-linux` and `make test-docker-windows` under a new "Docker-backed tests (split by platform)" subsection. Matches the actual post-Phase-15 target names.
+**Applied fix:** The Running Tests section now describes `make test` as the local feasible default suite and uses `make test-all` for the full tox-backed cross-platform/report flow.
 
-### WR-04: DEVELOPMENT.rst reports wrong output extension .html for render-tox-reports
+### WR-03: Cross-platform prerequisites omit required backends
 
 **Files modified:** `DEVELOPMENT.rst`
-**Commit:** `99819135` (combined with WR-03)
-**Applied fix:** Changed output extension from `.html` to `.json` and description from "HTML reports" to "JSON reports" in the Running Tests section. The Makefile renders Cucumber JSON via `--cucumber-json`, not HTML.
+**Applied fix:** Windows prerequisites now include PowerShell, WSL2 with `uvx`, and Windows-container requirements. Linux/macOS prerequisites now mention Docker and `WINDOWS_TOX_BACKEND_COMMAND` or equivalent Windows backend.
 
-### WR-05: env-check-windows lacks env-check prerequisite
+### IN-01: Unused routing variables remain
 
 **Files modified:** `Makefile`
-**Commit:** `860c8d3b` (combined with WR-01)
-**Applied fix:** Added `env-check` as a prerequisite to `env-check-windows`. Ensures uv/Python availability is validated before attempting to run `uv run python`, providing a friendly error message instead of a cryptic shell error.
+**Applied fix:** Removed unused `NATIVE_TARGETS` and `DOCKER_TARGETS` assignments. `test-all` now uses explicit platform target orchestration.
 
-## Deferred (Info-level, out of scope)
+## Verification
 
-These Info findings were not in the `critical_warning` fix scope:
+- `rtk make -n test-platform-windows TEST_WINDOWS_ARGS='-k windows_only'`
+- `rtk make -n test-all TEST_NATIVE_ARGS='-k native_only' TEST_LINUX_ARGS='-k linux_only' TEST_WINDOWS_ARGS='-k windows_only' TEST_MACOS_ARGS='-k macos_only' FAIL_FAST=0 REPORT_MODE=skip`
+- `rtk make -n test-all TEST_NATIVE_ARGS='-k native_only' TEST_LINUX_ARGS='-k linux_only' TEST_WINDOWS_ARGS='-k windows_only' TEST_MACOS_ARGS='-k macos_only' FAIL_FAST=1 REPORT_MODE=skip`
+- `rtk powershell ...` static checks for review-fix evidence in `Makefile` and `DEVELOPMENT.rst`
+- `rtk uv run pre-commit run --files Makefile DEVELOPMENT.rst`
 
-- **IN-01** (NATIVE_TARGETS code duplication): Consolidation deferred — a refactoring risk that should go through a separate change.
-- **IN-02** (TOX_HTML_REPORT_DIR misleading name): Variable rename requires updating 6 references across the file — deferred to avoid scope creep.
-- **IN-03** (check-shell no-op placeholder): Needs design decision on whether to remove or document — deferred.
+All listed checks passed.
 
 ---
 
-_Fixed: 2026-05-21T00:00:00Z_
-_Fixer: the agent (gsd-code-fixer)_
-_Iteration: 1_
+_Fixed: 2026-05-24T05:12:00Z_
+_Fixer: Codex_
+_Iteration: 2_

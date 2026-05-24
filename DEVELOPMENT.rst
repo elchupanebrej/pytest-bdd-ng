@@ -34,16 +34,16 @@ requires specific tools. Use the table below to verify your environment.
      - Verify Command
      - Install Link
    * - Windows
-     - Git for Windows 2.40+, Docker Desktop 4.34+
-     - ``make --version`` (in Git Bash), ``docker info``
+     - Git for Windows 2.40+, PowerShell, WSL2 with ``uvx``, Docker Desktop 4.34+ (Windows containers for Windows Docker backend)
+     - ``make --version`` (in Git Bash), ``powershell.exe -NoProfile -Command '$PSVersionTable.PSVersion'``, ``wsl.exe sh -lc 'uvx --version'``, ``docker info``
      - https://git-scm.com/download/win | https://www.docker.com/products/docker-desktop/
    * - macOS
-     - Homebrew or uv, Docker Desktop (optional)
-     - ``make --version``, ``uv --version``
+     - Homebrew or uv, Docker Desktop for Linux backend, ``WINDOWS_TOX_BACKEND_COMMAND`` or Windows-capable remote/VM backend for Windows tox
+     - ``make --version``, ``uv --version``, ``docker info``
      - https://docs.astral.sh/uv/getting-started/installation/
    * - Linux
-     - uv, Docker (optional for cross-platform testing)
-     - ``make --version``, ``uv --version``
+     - uv, Docker for Linux backend, ``WINDOWS_TOX_BACKEND_COMMAND`` or Windows-capable remote/VM backend for Windows tox
+     - ``make --version``, ``uv --version``, ``docker info``
      - https://docs.astral.sh/uv/getting-started/installation/
 
 .. note::
@@ -66,6 +66,8 @@ Canonical Make Commands
   ``FAIL_FAST=1`` to hard-fail missing selected backends and stop after the first
   failed platform target. Use ``REPORT_MODE=skip`` to skip final report
   rendering; default ``REPORT_MODE=render`` renders collected tox artifacts.
+  On non-Windows hosts, Windows tox requires either Windows Docker containers or
+  a custom ``WINDOWS_TOX_BACKEND_COMMAND``.
 
 ``make test-platform-native``
   Native host tox run for the current OS platform factor.
@@ -525,11 +527,18 @@ To list the supported tox environments:
 
    uvx --with tox-uv tox -l
 
-To run the full test suite and render one HTML report per pytest-based tox environment:
+To run the local feasible default test suite:
 
 .. code-block:: bash
 
    make test
+
+To run the full tox-backed cross-platform pipeline and render one JSON report per
+pytest-based tox environment:
+
+.. code-block:: bash
+
+   make test-all
 
 If you run tox directly, it will write one NDJSON artifact per pytest-based environment:
 

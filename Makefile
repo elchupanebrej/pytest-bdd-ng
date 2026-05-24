@@ -15,20 +15,12 @@ ifeq ($(UNAME_S),Windows)
   $(error ERROR: make requires Git Bash on Windows. Run from Git Bash terminal.)
 endif
 
+IS_WINDOWS_HOST := $(if $(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),1,0)
+WINDOWS_TOX_BACKEND_COMMAND ?=
+
 ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
   SHELL := C:/PROGRA~1/Git/bin/sh.exe
   export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)
-endif
-
-ifeq ($(UNAME_S),Linux)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
-  DOCKER_TARGETS := test-docker-windows test-external
-else ifeq ($(UNAME_S),Darwin)
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix
-  DOCKER_TARGETS := test-docker-linux test-docker-windows test-external
-else
-  NATIVE_TARGETS := test-unit test-integration test-contract test-e2e test-compat test-perf test-slow test-posix test-windows
-  DOCKER_TARGETS := test-docker-linux test-external
 endif
 
 UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
@@ -57,6 +49,7 @@ REPORT_ARGS ?=
 FAIL_FAST ?= 0
 ARTIFACT_MODE ?= collect
 REPORT_MODE ?= render
+export TEST_ALL_ARGS TEST_NATIVE_ARGS TEST_LINUX_ARGS TEST_WINDOWS_ARGS TEST_MACOS_ARGS REPORT_ARGS WINDOWS_TOX_BACKEND_COMMAND
 
 ifeq ($(UNAME_S),Linux)
   TOX_NATIVE_ENVS ?= $(TOX_LINUX_ENVS)
@@ -83,44 +76,53 @@ test-all: validate-test-all-backends
 	status=0; \
 	echo "=== test-platform-native ($(UNAME_S)) ==="; \
 	if [ "$(FAIL_FAST)" = "1" ]; then \
-		$(MAKE_COMMAND) --no-print-directory test-platform-native TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_NATIVE_ARGS='$(TEST_NATIVE_ARGS)' || exit $$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-native || exit $$?; \
 	else \
-		$(MAKE_COMMAND) --no-print-directory test-platform-native TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_NATIVE_ARGS='$(TEST_NATIVE_ARGS)' || status=$$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-native || status=$$?; \
 	fi; \
 	echo "=== test-platform-linux ($(UNAME_S)) ==="; \
 	if [ "$(FAIL_FAST)" = "1" ]; then \
-		$(MAKE_COMMAND) --no-print-directory test-platform-linux TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_LINUX_ARGS='$(TEST_LINUX_ARGS)' || exit $$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-linux || exit $$?; \
 	else \
-		$(MAKE_COMMAND) --no-print-directory test-platform-linux TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_LINUX_ARGS='$(TEST_LINUX_ARGS)' || status=$$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-linux || status=$$?; \
 	fi; \
-	echo "=== test-platform-windows ($(UNAME_S)) ==="; \
-	if [ "$(FAIL_FAST)" = "1" ]; then \
-		$(MAKE_COMMAND) --no-print-directory test-platform-windows TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_WINDOWS_ARGS='$(TEST_WINDOWS_ARGS)' || exit $$?; \
-	else \
-		$(MAKE_COMMAND) --no-print-directory test-platform-windows TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_WINDOWS_ARGS='$(TEST_WINDOWS_ARGS)' || status=$$?; \
+	if [ "$(IS_WINDOWS_HOST)" != "1" ]; then \
+		echo "=== test-platform-windows ($(UNAME_S)) ==="; \
+		if [ "$(FAIL_FAST)" = "1" ]; then \
+			$(MAKE_COMMAND) --no-print-directory test-platform-windows || exit $$?; \
+		else \
+			$(MAKE_COMMAND) --no-print-directory test-platform-windows || status=$$?; \
+		fi; \
 	fi; \
 	echo "=== test-platform-macos ($(UNAME_S)) ==="; \
 	if [ "$(FAIL_FAST)" = "1" ]; then \
-		$(MAKE_COMMAND) --no-print-directory test-platform-macos TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_MACOS_ARGS='$(TEST_MACOS_ARGS)' || exit $$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-macos || exit $$?; \
 	else \
-		$(MAKE_COMMAND) --no-print-directory test-platform-macos TEST_ALL_ARGS='$(TEST_ALL_ARGS)' TEST_MACOS_ARGS='$(TEST_MACOS_ARGS)' || status=$$?; \
+		$(MAKE_COMMAND) --no-print-directory test-platform-macos || status=$$?; \
 	fi; \
 	if [ "$(REPORT_MODE)" = "render" ]; then \
-		$(MAKE_COMMAND) --no-print-directory render-tox-reports-run $(REPORT_ARGS) || status=$$?; \
+		$(MAKE_COMMAND) --no-print-directory render-tox-reports-run || status=$$?; \
 	fi; \
 	exit $$status
 
-test-platform-native: env-check-tox
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- $(TEST_ALL_ARGS) $(TEST_NATIVE_ARGS)
+test-platform-native:
+	@if [ "$(IS_WINDOWS_HOST)" = "1" ]; then \
+		$(MAKE_COMMAND) --no-print-directory test-platform-windows TEST_WINDOWS_ARGS="$$TEST_NATIVE_ARGS"; \
+	else \
+		set -f; \
+		$(MAKE_COMMAND) --no-print-directory env-check-tox; \
+		$(TOX) run -e $(TOX_NATIVE_ENVS) -- $$TEST_ALL_ARGS $$TEST_NATIVE_ARGS; \
+	fi
 
 test-platform-linux:
 	@if [ "$(UNAME_S)" = "Linux" ]; then \
+		set -f; \
 		$(MAKE_COMMAND) --no-print-directory env-check-tox; \
-		$(TOX) run -e $(TOX_LINUX_ENVS) -- $(TEST_ALL_ARGS) $(TEST_LINUX_ARGS); \
+		$(TOX) run -e $(TOX_LINUX_ENVS) -- $$TEST_ALL_ARGS $$TEST_LINUX_ARGS; \
 	elif printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
 		if command -v wsl.exe >/dev/null 2>&1; then \
 			WIN_PWD=$$(cygpath -w "$$PWD"); \
-			wsl.exe sh -lc "cd \"$$(wslpath -u "$$WIN_PWD")\" && $(TOX) run -e $(TOX_LINUX_ENVS) -- $(TEST_ALL_ARGS) $(TEST_LINUX_ARGS)"; \
+			wsl.exe sh -lc "cd \"$$(wslpath -u "$$WIN_PWD")\" && TEST_ALL_ARGS=\"\$$TEST_ALL_ARGS\" TEST_LINUX_ARGS=\"\$$TEST_LINUX_ARGS\" $(TOX) run -e $(TOX_LINUX_ENVS) -- \$$TEST_ALL_ARGS \$$TEST_LINUX_ARGS"; \
 		elif [ "$(FAIL_FAST)" = "1" ]; then \
 			echo "ERROR: WSL2 unavailable. Run make env-install-windows."; exit 1; \
 		else \
@@ -128,7 +130,7 @@ test-platform-linux:
 		fi; \
 	else \
 		if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
-			docker run --rm -v "$$PWD":/work -w /work python:3.14-slim sh -lc 'python -m pip install uv && $(TOX) run -e $(TOX_LINUX_ENVS) -- $(TEST_ALL_ARGS) $(TEST_LINUX_ARGS)'; \
+			docker run --rm -e TEST_ALL_ARGS -e TEST_LINUX_ARGS -v "$$PWD":/work -w /work python:3.14-slim sh -lc 'set -f; python -m pip install uv && $(TOX) run -e $(TOX_LINUX_ENVS) -- $$TEST_ALL_ARGS $$TEST_LINUX_ARGS'; \
 		elif [ "$(FAIL_FAST)" = "1" ]; then \
 			echo "ERROR: Docker unavailable for Linux tox backend. Run make env-install-docker."; exit 1; \
 		else \
@@ -139,10 +141,12 @@ test-platform-linux:
 test-platform-windows:
 	@if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
 		$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
-		powershell.exe -NoProfile -Command "Set-Location '$$(cygpath -w "$$PWD")'; $(TOX) run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"; \
+		powershell.exe -NoProfile -Command "Set-Location '$$(cygpath -w "$$PWD")'; $(TOX) run -e $(TOX_WINDOWS_ENVS) -- \$$env:TEST_ALL_ARGS \$$env:TEST_WINDOWS_ARGS"; \
+	elif [ -n "$$WINDOWS_TOX_BACKEND_COMMAND" ]; then \
+		eval "$$WINDOWS_TOX_BACKEND_COMMAND"; \
 	elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
 		$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
-		docker run --rm -v "$$PWD":/work -w /work python:3.14-windowsservercore-ltsc2022 powershell -NoProfile -Command "$(TOX) run -e $(TOX_WINDOWS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_WINDOWS_ARGS)"; \
+		docker run --rm -e TEST_ALL_ARGS -e TEST_WINDOWS_ARGS -v "$$PWD":C:/work -w C:/work python:3.14-windowsservercore-ltsc2022 powershell -NoProfile -Command "python -m pip install uv; uvx --with tox-uv tox run -e $(TOX_WINDOWS_ENVS) -- \$$env:TEST_ALL_ARGS \$$env:TEST_WINDOWS_ARGS"; \
 	elif [ "$(FAIL_FAST)" = "1" ]; then \
 		echo "ERROR: Windows Docker or VM-like backend unavailable. Run make env-install-docker."; exit 1; \
 	else \
@@ -151,8 +155,9 @@ test-platform-windows:
 
 test-platform-macos:
 	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+		set -f; \
 		$(MAKE_COMMAND) --no-print-directory env-check-tox; \
-		$(TOX) run -e $(TOX_MACOS_ENVS) -- $(TEST_ALL_ARGS) $(TEST_MACOS_ARGS); \
+		$(TOX) run -e $(TOX_MACOS_ENVS) -- $$TEST_ALL_ARGS $$TEST_MACOS_ARGS; \
 	elif [ "$(FAIL_FAST)" = "1" ]; then \
 		echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
 	else \
@@ -253,15 +258,22 @@ env-check-docker-linux: env-check-docker
 	@true
 
 env-check-docker-windows: env-check-docker
-	@docker version --format '{{.Server.Os}}' 2>/dev/null | grep -qi windows || { echo "ERROR: Windows Docker backend unavailable. Switch Docker Desktop to Windows containers or use equivalent VM backend."; exit 1; }
+	@if [ -n "$$WINDOWS_TOX_BACKEND_COMMAND" ]; then \
+		true; \
+	else \
+		docker version --format '{{.Server.Os}}' 2>/dev/null | grep -qi windows || { echo "ERROR: Windows Docker backend unavailable. Switch Docker Desktop to Windows containers or set WINDOWS_TOX_BACKEND_COMMAND."; exit 1; }; \
+		docker run --rm python:3.14-windowsservercore-ltsc2022 powershell -NoProfile -Command "python -m pip --version" >/dev/null || { echo "ERROR: Windows Docker Python backend unavailable."; exit 1; }; \
+	fi
 
 validate-test-all-backends: env-check-tox
 	@if [ "$(FAIL_FAST)" = "1" ]; then \
 		if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
 			$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
 			$(MAKE_COMMAND) --no-print-directory env-check-wsl2; \
+			echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
 		elif [ "$(UNAME_S)" = "Linux" ]; then \
 			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
+			echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
 		elif [ "$(UNAME_S)" = "Darwin" ]; then \
 			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux; \
 			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
