@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 15-03-PLAN.md
-last_updated: "2026-05-23T21:09:38.037Z"
-last_activity: 2026-05-24 - Completed quick task 260524-qv5: Add phase 15 failfast make tox target guide and spawn per-environment target fixers
+stopped_at: Phase 16 context gathered
+last_updated: "2026-05-25T18:57:48.306Z"
+last_activity: 2026-05-23 -- Phase 15 planning complete
 progress:
-  total_phases: 15
-  completed_phases: 13
-  total_plans: 64
+  total_phases: 16
+  completed_phases: 15
+  total_plans: 59
   completed_plans: 60
-  percent: 87
+  percent: 94
 ---
 
 # Project State
@@ -90,6 +90,7 @@ Recent decisions affecting current work:
 - Phase 12 added: Restructure test suite into semantic groups
 - Phase 13 inserted between Phase 12 and Phase 14: Unify cucumber-json plugins INI/CLI options
 - Phase 13 (Gap Closure) renumbered to Phase 14
+- Phase 16 added: Move vulture dead-code gate from pytest to native pre-commit hook
 
 ### Pending Todos
 
@@ -131,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-23T21:09:37.681Z
-Stopped at: Completed 15-03-PLAN.md
-Resume file: None
+Last session: 2026-05-25T18:57:48.270Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-move-vulture-dead-code-gate-from-pytest-to-native-pre-commit/16-CONTEXT.md
