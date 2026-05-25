@@ -147,7 +147,6 @@ test = [
   "pytest-timeout",
   "pytest-xdist>=3.8.0",
   "python-coveralls",
-  "vulture",
   "pytest-bdd-ng[struct-bdd]",
   "pytest-bdd-ng[doc-gen];python_version>='3.13.0'"
 ]
@@ -453,4 +452,11 @@ pytest_bdd = [
 namespaces = false
 where = [
   "src"
+]
+
+[tool.vulture]
+min_confidence = 80
+paths = [
+  "src/pytest_bdd",
+  "vulture_whitelist.py"
 ]
