@@ -23,6 +23,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [x] **Phase 13: Unify cucumber-json plugins INI/CLI options** — Consolidate INI and CLI cucumber-json reporters
 - [x] **Phase 14: Gap Closure** — Achieve 70% unit test coverage; resolve BDD feature test failures
 - [x] **Phase 15: Cross-platform test suite entrypoint (Makefile + MinGW sh)** — Cross-platform test suite entrypoint via Makefile and MinGW shell (reopened for gap closure 2026-05-23) (completed 2026-05-23)
+- [x] **Phase 16: Move vulture dead-code gate from pytest to native pre-commit hook** — Native vulture pre-commit hook with native whitelist (completed 2026-05-25)
 
 ## Phase Details
 
@@ -262,6 +263,7 @@ Plans:
 | 13. Unify cucumber-json plugins | 3/3 | Complete | 2026-05-20 |
 | 14. Gap Closure | 4/4 | Complete | 2026-05-21 |
 | 15. Cross-platform test suite entrypoint | 3/3 | Complete   | 2026-05-23 |
+| 16. Vulture pre-commit hook | 1/1 | Complete | 2026-05-25 |
 
 ### Phase 12: Restructure test suite into semantic groups
 
@@ -370,14 +372,20 @@ Plans:
 
 - [x] 15-03-PLAN.md — Tox-backed cross-platform pipeline gap closure
 
-## Backlog
-
 ### Phase 16: Move vulture dead-code gate from pytest to native pre-commit hook
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Move vulture dead-code checking out of pytest and into the native pre-commit workflow.
+**Requirements**: SIM-03
 **Depends on:** Phase 15
-**Plans:** 0 plans
+**Plans:** 1/1 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+  1. Vulture runs as a native pre-commit hook.
+  2. False positives live in native `vulture_whitelist.py`.
+  3. The pytest wrapper vulture test is removed.
+  4. Direct project test/tox dependencies on vulture are removed.
+  5. Targeted pre-commit hooks and unit suite pass.
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 16 to break down)
+- [x] 16-01-PLAN.md — Move vulture gate to native pre-commit config and whitelist

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-05-25T19:53:26.159Z"
-last_activity: 2026-05-25 -- Phase 16 planning complete
+status: complete
+stopped_at: Phase 16 complete
+last_updated: "2026-05-25T23:11:11.4560008+03:00"
+last_activity: 2026-05-25 -- Phase 16 complete
 progress:
   total_phases: 16
-  completed_phases: 15
+  completed_phases: 16
   total_plans: 60
-  completed_plans: 60
-  percent: 94
+  completed_plans: 61
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 15 — cross-platform-test-suite-entrypoint-makefile-mingw-sh
+**Current focus:** Phase 16 — move-vulture-dead-code-gate-from-pytest-to-native-pre-commit
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 16 planning complete
+Phase: 16
+Plan: 16-01 complete
+Status: Complete
+Last activity: 2026-05-25 -- Phase 16 complete
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: N/A
 - Total execution time: 0.0 hours
 
@@ -69,6 +69,7 @@ Updated after each plan completion
 | Phase 13 P13-03 | 22 min | 6 tasks | 1 files |
 | Phase 14 P01 | 35min | 2 tasks | 2 files |
 | Phase 14-gap-closure P04 | 18min | 3 tasks | 6 files |
+| Phase 16 P01 | 45min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -91,12 +92,13 @@ Recent decisions affecting current work:
 - Phase 13 inserted between Phase 12 and Phase 14: Unify cucumber-json plugins INI/CLI options
 - Phase 13 (Gap Closure) renumbered to Phase 14
 - Phase 16 added: Move vulture dead-code gate from pytest to native pre-commit hook
+- Phase 16 completed: Vulture moved from pytest wrapper to native pre-commit hook and native whitelist.
 
 ### Pending Todos
 
 - [ ] Improve library typing using best practices from awesome-python-typing
 - [ ] Integrate BDD/ATDD tests into development workflow and UAT phase
-- [ ] Vulture must be run not via pytest but as pre-commit hook
+- [x] Vulture must be run not via pytest but as pre-commit hook
 - [ ] No TestClasses are allowed in tests — enforce via ruff rule
 - [ ] Begin Phase 8 execution (BDD acceptance testing)
 - [ ] Expand feature tests for undocumented behaviors
@@ -132,6 +134,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-25T18:57:48.270Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-move-vulture-dead-code-gate-from-pytest-to-native-pre-commit/16-CONTEXT.md
+Last session: 2026-05-25T23:11:11.4560008+03:00
+Stopped at: Phase 16 complete
+Resume file: .planning/phases/16-move-vulture-dead-code-gate-from-pytest-to-native-pre-commit/16-01-SUMMARY.md
