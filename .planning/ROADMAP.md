@@ -371,3 +371,13 @@ Plans:
 - [x] 15-03-PLAN.md — Tox-backed cross-platform pipeline gap closure
 
 ## Backlog
+
+### Phase 16: Move vulture dead-code gate from pytest to native pre-commit hook
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 15
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 16 to break down)
