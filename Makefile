@@ -139,7 +139,7 @@ test-platform-linux:
 			WIN_PWD=$$(cygpath -w "$$PWD"); \
 			POSIX_PWD=$$(cygpath -u "$$WIN_PWD"); \
 			WSL_PWD=$$(printf '%s' "$$POSIX_PWD" | sed -E 's#^/([A-Za-z])/#/mnt/\L\1/#'); \
-			wsl.exe sh -lc "set -e; mkdir -p \"$(WSL_LINUX_WORKDIR)\"; rsync -a --delete $(WSL_LINUX_RSYNC_EXCLUDES) \"$$WSL_PWD/\" \"$(WSL_LINUX_WORKDIR)/\"; cd \"$(WSL_LINUX_WORKDIR)\"; $(TOX) run -e $(TOX_LINUX_ENVS) -- $(TEST_ALL_ARGS) $(TEST_LINUX_ARGS); mkdir -p \"$$WSL_PWD/.tox\"; find .tox -maxdepth 1 -name '*.messages.ndjson' -exec cp {} \"$$WSL_PWD/.tox/\" \; 2>/dev/null || true"; \
+			WSLENV=TEST_ALL_ARGS/u:TEST_LINUX_ARGS/u wsl.exe sh -lc "set -e; mkdir -p \"$(WSL_LINUX_WORKDIR)\"; rsync -a --delete $(WSL_LINUX_RSYNC_EXCLUDES) \"$$WSL_PWD/\" \"$(WSL_LINUX_WORKDIR)/\"; cd \"$(WSL_LINUX_WORKDIR)\"; $(TOX) run -e $(TOX_LINUX_ENVS) -- \$\$TEST_ALL_ARGS \$\$TEST_LINUX_ARGS; mkdir -p \"$$WSL_PWD/.tox\"; find .tox -maxdepth 1 -name '*.messages.ndjson' -exec cp {} \"$$WSL_PWD/.tox/\" \; 2>/dev/null || true"; \
 		elif [ "$(FAIL_FAST)" = "1" ]; then \
 			echo "ERROR: WSL2 unavailable. Run make env-install-windows."; exit 1; \
 		else \
