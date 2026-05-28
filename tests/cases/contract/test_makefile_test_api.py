@@ -63,7 +63,15 @@ def _parse_targets(text: str) -> dict[str, dict[str, object]]:
     targets: dict[str, dict[str, object]] = {}
     current_targets: tuple[str, ...] = ()
     for line in text.splitlines():
-        if line and not line.startswith(("\t", " ")) and ":" in line:
+        line_stripped = line.strip()
+        if not line_stripped or line_stripped.startswith("#"):
+            current_targets = ()
+            continue
+
+        is_assignment = any(op in line for op in (":=", "+=", "?=", "="))
+        is_keyword = line_stripped.startswith(("export", "ifeq", "ifneq", "else", "endif", "include", "define", "undefine", "override"))
+
+        if not line.startswith(("\t", " ")) and ":" in line and not is_assignment and not is_keyword:
             target_part, dependency_part = line.split(":", maxsplit=1)
             current_targets = tuple(target.strip() for target in target_part.split() if target.strip())
             dependencies = tuple(dependency_part.strip().split())
@@ -74,6 +82,8 @@ def _parse_targets(text: str) -> dict[str, dict[str, object]]:
                 commands = targets[target]["commands"]
                 assert isinstance(commands, list)
                 commands.append(line.strip())
+        else:
+            current_targets = ()
     return targets
 
 
