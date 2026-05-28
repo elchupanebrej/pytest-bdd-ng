@@ -164,8 +164,6 @@ test-platform-windows:
 	elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
 		$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
 		docker run --rm -e TEST_ALL_ARGS -e TEST_WINDOWS_ARGS -v "$$PWD":C:/work -w C:/work python:3.14-windowsservercore-ltsc2022 powershell -NoProfile -Command "python -m pip install uv; uvx --with tox-uv tox run -e $(TOX_WINDOWS_ENVS) -- \$$env:TEST_ALL_ARGS \$$env:TEST_WINDOWS_ARGS"; \
-	elif [ "$(FAIL_FAST)" = "1" ]; then \
-		echo "ERROR: Windows Docker or VM-like backend unavailable. Run make env-install-docker."; exit 1; \
 	else \
 		echo "ERROR: Windows Docker or VM-like backend unavailable. Skipping Windows tox backend in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
 	fi
@@ -175,8 +173,6 @@ test-platform-macos:
 		set -f; \
 		$(MAKE_COMMAND) --no-print-directory env-check-tox; \
 		$(TOX) run -e $(TOX_MACOS_ENVS) -- $$TEST_ALL_ARGS $$TEST_MACOS_ARGS; \
-	elif [ "$(FAIL_FAST)" = "1" ]; then \
-		echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
 	else \
 		echo "ERROR: macOS tox backend requires macOS host. Skipping macOS tox backend in ARTIFACT_MODE=$(ARTIFACT_MODE)."; \
 	fi
@@ -284,30 +280,30 @@ env-check-docker-windows: env-check-docker
 	fi
 
 validate-test-all-backends: env-check-tox
-	@if [ "$(FAIL_FAST)" = "1" ]; then \
-		if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
+	@if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
+		$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
+		if [ "$(FAIL_FAST)" = "1" ]; then \
 			$(MAKE_COMMAND) --no-print-directory env-check-wsl2; \
-			echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
-		elif [ "$(UNAME_S)" = "Linux" ]; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
-			echo "ERROR: macOS tox backend requires macOS host."; exit 1; \
-		elif [ "$(UNAME_S)" = "Darwin" ]; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux; \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows; \
-		fi; \
-	else \
-		if printf '%s\n' "$(UNAME_S)" | grep -Eq '^(MINGW|MSYS|CYGWIN)'; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-powershell; \
+		else \
 			$(MAKE_COMMAND) --no-print-directory env-check-wsl2 || echo "ERROR: WSL2 unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-windows."; \
-		elif [ "$(UNAME_S)" = "Linux" ]; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows || echo "ERROR: Windows Docker backend unavailable. Windows tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
-		elif [ "$(UNAME_S)" = "Darwin" ]; then \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux || echo "ERROR: Linux Docker backend unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
-			$(MAKE_COMMAND) --no-print-directory env-check-docker-windows || echo "ERROR: Windows Docker backend unavailable. Windows tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
 		fi; \
-		if ! command -v docker >/dev/null 2>&1; then \
-			echo "ERROR: Docker unavailable. Non-native Docker tox backends will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
+	elif [ "$(UNAME_S)" = "Linux" ]; then \
+		if [ "$(FAIL_FAST)" = "1" ]; then \
+			if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+				docker version --format '{{.Server.Os}}' 2>/dev/null | grep -qi windows && $(MAKE_COMMAND) --no-print-directory env-check-docker-windows || true; \
+			fi; \
+		else \
+			if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+				docker version --format '{{.Server.Os}}' 2>/dev/null | grep -qi windows && $(MAKE_COMMAND) --no-print-directory env-check-docker-windows || echo "INFO: Windows Docker backend unavailable. Windows tox backend will be skipped."; \
+			else \
+				echo "INFO: Docker unavailable. Windows Docker backend will be skipped."; \
+			fi; \
+		fi; \
+	elif [ "$(UNAME_S)" = "Darwin" ]; then \
+		if [ "$(FAIL_FAST)" = "1" ]; then \
+			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux; \
+		else \
+			$(MAKE_COMMAND) --no-print-directory env-check-docker-linux || echo "ERROR: Linux Docker backend unavailable. Linux tox backend will be skipped in ARTIFACT_MODE=$(ARTIFACT_MODE). Run make env-install-docker."; \
 		fi; \
 	fi
 
