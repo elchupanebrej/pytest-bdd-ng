@@ -208,3 +208,36 @@ def test_phase15_legacy_native_docker_routing_variables_removed() -> None:
 
     assert "NATIVE_TARGETS" not in makefile
     assert "DOCKER_TARGETS" not in makefile
+
+
+def test_phase17_makefile_targets_and_tox_ci_conditional() -> None:
+    """Verify Phase 17 targets and tox CI conditional logic."""
+    makefile = _makefile_text()
+    targets = _parse_targets(makefile)
+
+    # Check targets exist
+    for target in ("tox", "env-install-npm", "check-message-schemas", "validate-github-actions"):
+        assert target in targets
+
+    # Test GITHUB_ACTIONS conditional and TOX command
+    assert "GITHUB_ACTIONS" in makefile
+    assert "uvx --with tox-uv --with tox-gh-actions tox" in makefile
+    assert "uvx --with tox-uv tox" in makefile
+
+    # Test env-install-npm target body installs exactly the expected packages with --no-save
+    npm_body = _target_body(targets, "env-install-npm")
+    assert "npm install" in npm_body
+    assert "--no-save" in npm_body
+    assert "@cucumber/html-formatter" in npm_body
+    assert "cucumber-html-reporter" in npm_body
+
+    # Test validate-github-actions target body checks command -v act, contains install URL, and runs act --validate
+    act_body = _target_body(targets, "validate-github-actions")
+    assert "command -v act" in act_body
+    assert "https://nektosact.com/installation/" in act_body
+    assert "act --validate" in act_body
+
+    # Test check-message-schemas target
+    schema_body = _target_body(targets, "check-message-schemas")
+    assert "sync_messages_contract_schemas" in schema_body
+    assert "--check" in schema_body

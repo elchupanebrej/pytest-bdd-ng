@@ -350,17 +350,15 @@ validate-github-actions:
 | A3 | npm package legitimacy should be human-verified because Context7 unavailable and slopcheck checked PyPI, not npm. | Package Legitimacy Audit | Planner may need checkpoint before npm target lands. |
 | A4 | Codecov CLI command remains acceptable as existing semantics. | Standard Stack / Pitfalls | Codecov upload action might be preferred later, but out of scope. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Pin `astral-sh/setup-uv` by tag or commit?**
    - What we know: uv official docs show commit-pinned example and call specific uv version pinning best practice. [CITED: https://docs.astral.sh/uv/guides/integration/github/]
-   - What's unclear: Phase context only says use `astral-sh/setup-uv`, not exact pin policy. [VERIFIED: 17-CONTEXT.md]
-   - Recommendation: Use current project style for actions tags, likely `astral-sh/setup-uv@v6`; note commit pin as later security hardening. [ASSUMED]
+   - RESOLVED: Use `astral-sh/setup-uv@v6`, following current workflow action tag style. Do not switch this phase to commit pinning; commit pin hardening is outside Phase 17 scope. [VERIFIED: 17-CONTEXT.md] [ASSUMED: project action pin policy]
 
 2. **Should npm installs be `--no-save`?**
    - What we know: Existing workflow runs plain `npm install` commands; local repo has no package.json/package-lock found by probe. [VERIFIED: .github/workflows/main.yml] [VERIFIED: local filesystem probe]
-   - What's unclear: Whether maintainers want a committed npm lockfile. [ASSUMED]
-   - Recommendation: Use `--no-save` to keep target ephemeral and CI-equivalent enough. [ASSUMED]
+   - RESOLVED: Use `npm install --no-save @cucumber/html-formatter cucumber-html-reporter` in `env-install-npm` to avoid repository package-file drift while preserving current ephemeral CI dependency semantics. [VERIFIED: 17-CONTEXT.md] [ASSUMED: no committed npm package files desired]
 
 ## Environment Availability
 

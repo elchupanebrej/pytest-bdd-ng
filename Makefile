@@ -7,7 +7,8 @@
 	env-check-docker-windows env-check-windows env-check-browser validate-test-all-backends env-install env-install-docker \
 	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
 	clean compat-list compat-check validate-headings features-docs render-formatters local-pr-gate \
-	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas
+	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas \
+	tox env-install-npm check-message-schemas validate-github-actions
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
 
@@ -35,7 +36,11 @@ TOX_HTML_REPORT_DIR ?= .tmp/tox-reports
 PYTEST ?= uv run $(UV_SYNC_EXTRAS) python -m pytest
 PYTEST_LOCAL_SELECTOR ?= not slow and not docker and not windows and not browser and not external
 PYTEST_UNIT_IGNORE ?= --ignore=tests/cases/unit/unit/test_dead_code.py
-TOX ?= uvx --with tox-uv tox
+ifeq ($(GITHUB_ACTIONS),true)
+  TOX ?= uvx --with tox-uv --with tox-gh-actions tox
+else
+  TOX ?= uvx --with tox-uv tox
+endif
 MAKE_COMMAND ?= make
 TOX_LINUX_ENVS ?= py314-pytestlatest-coverage-lin,py314-pytestlatest-gherkinlatest-xdist-coverage-lin
 TOX_WINDOWS_ENVS ?= py314-pytestlatest-coverage-win,py314-pytestlatest-gherkinlatest-xdist-coverage-win
@@ -400,6 +405,20 @@ render-tox-reports-run:
 
 sync-message-schemas: env-check
 	uv run python -m pytest_bdd.script.sync_messages_contract_schemas
+
+tox: env-check-tox
+	$(TOX)
+
+env-install-npm:
+	npm install --no-save @cucumber/html-formatter cucumber-html-reporter
+	npm list
+
+check-message-schemas: env-check
+	uv run python -m pytest_bdd.script.sync_messages_contract_schemas --check
+
+validate-github-actions: check-shell
+	@command -v act >/dev/null || { echo "ERROR: act missing. Install act: https://nektosact.com/installation/"; exit 1; }
+	act --validate
 
 clean:
 	-rm -rf .venv ./dist $(TOX_HTML_REPORT_DIR) .tox/*.messages.ndjson

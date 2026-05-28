@@ -66,7 +66,7 @@ def test_main_workflow_checks_generated_message_schemas_without_pre_commit() -> 
     pre_commit_config = (PROJECT_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
     assert "Generated messages schemas are up to date" in workflow
-    assert "pytest_bdd.script.sync_messages_contract_schemas --check" in workflow
+    assert "make check-message-schemas" in workflow
     assert "sync_messages_contract_schemas" not in pre_commit_config
 
 

@@ -264,6 +264,8 @@ Plans:
 | 14. Gap Closure | 4/4 | Complete | 2026-05-21 |
 | 15. Cross-platform test suite entrypoint | 3/3 | Complete   | 2026-05-23 |
 | 16. Vulture pre-commit hook | 1/1 | Complete | 2026-05-25 |
+| 17. Adapt GitHub CI to use make and validate with act | 2/2 | Complete | 2026-05-28 |
+
 
 ### Phase 12: Restructure test suite into semantic groups
 
@@ -389,3 +391,14 @@ Plans:
 
 Plans:
 - [x] 16-01-PLAN.md — Move vulture gate to native pre-commit config and whitelist
+
+### Phase 17: Adapt GitHub CI to use make and validate with act
+
+**Goal**: Adapt the main GitHub Actions workflow to reuse Makefile targets for project-specific commands, while keeping GitHub Actions responsible for runner/toolchain setup.
+**Requirements**: TBD
+**Depends on**: Phase 16
+**Plans**: 2 plans
+
+Plans:
+- [x] 17-01-PLAN.md — Create Makefile CI command API
+- [x] 17-02-PLAN.md — Migrate GitHub CI project-command steps to Makefile targets

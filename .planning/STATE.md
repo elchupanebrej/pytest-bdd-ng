@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 17 context gathered
-last_updated: "2026-05-27T20:47:29.631Z"
-last_activity: 2026-05-25 -- Phase 16 complete
+stopped_at: Phase 17 complete
+last_updated: "2026-05-28T10:35:00.000Z"
+last_activity: 2026-05-28 -- Phase 17 complete
 progress:
   total_phases: 17
-  completed_phases: 16
-  total_plans: 60
-  completed_plans: 61
-  percent: 94
+  completed_phases: 17
+  total_plans: 62
+  completed_plans: 63
+  percent: 100
 ---
 
 # Project State
@@ -21,24 +21,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 16 — move-vulture-dead-code-gate-from-pytest-to-native-pre-commit
+**Current focus:** Phase 17 — Adapt GitHub CI to use make and validate with act
 
 ## Current Position
 
-Phase: 16
-Plan: 16-01 complete
+Phase: 17
+Plan: 17-02 complete
 Status: Complete
-Last activity: 2026-05-25 -- Phase 16 complete
+Last activity: 2026-05-28 -- Phase 17 complete
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 33
-- Average duration: N/A
-- Total execution time: 0.0 hours
 
 **By Phase:**
 
@@ -52,11 +46,12 @@ Progress: [██████████] 100%
 | 06 | 5 | - | - |
 | 07 | 4 | — | — |
 | 15 | 2 | - | - |
+| 17 | 2 | - | - |
 
 **Recent Trend:**
 
-- Last 5 plans: 07-01, 07-02, 07-03, 07-04, 12-01
-- Trend: Phase 12 Wave 0 validation guards started
+- Last 5 plans: 14-01, 14-04, 16-01, 17-01, 17-02
+- Trend: Phase 17 GitHub Actions to Makefile migration complete
 
 Updated after each plan completion
 | Phase 04 P02 | 41 min | 4 tasks | 5 files |
@@ -70,6 +65,8 @@ Updated after each plan completion
 | Phase 14 P01 | 35min | 2 tasks | 2 files |
 | Phase 14-gap-closure P04 | 18min | 3 tasks | 6 files |
 | Phase 16 P01 | 45min | 4 tasks | 5 files |
+| Phase 17 P01 | 10min | 2 tasks | 2 files |
+| Phase 17 P02 | 10min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -77,6 +74,7 @@ Updated after each plan completion
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
 
 - Roadmap creation: Two-iteration structure — Iteration 1 (vertical slices, Phases 1-8), Iteration 2 (horizontal pass, Phases 9-11)
 - Code quality gates (Phase 2) are hard prerequisite for all structural refactoring (Phases 3+)

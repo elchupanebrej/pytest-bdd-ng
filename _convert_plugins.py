@@ -27,7 +27,7 @@ for pkg_name, class_name, instance_name in plugins:
 
     # __init__.py
     pathlib.Path(os.path.join(pkg_dir, "__init__.py")).write_text(
-        f'"""Provide src.pytest_bdd.plugin.{pkg_name} package helpers."""\n'
+        f'"""Provide src.pytest_bdd.plugin.{pkg_name} package helpers."""\n',
     )
 
     # plugin.py
