@@ -20,8 +20,15 @@ IS_WINDOWS_HOST := $(if $(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),1,0)
 WINDOWS_TOX_BACKEND_COMMAND ?=
 
 ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
-  SHELL := C:/PROGRA~1/Git/bin/sh.exe
-  export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)
+  DETECTED_SH := $(shell command -v sh.exe 2>/dev/null)
+  ifeq ($(DETECTED_SH),)
+    SHELL := C:/PROGRA~1/Git/bin/sh.exe
+  else
+    SHELL := $(DETECTED_SH)
+  endif
+  ifeq ($(shell command -v docker 2>/dev/null),)
+    export PATH := C:/PROGRA~1/Docker/Docker/resources/bin:$(PATH)
+  endif
 endif
 
 UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
