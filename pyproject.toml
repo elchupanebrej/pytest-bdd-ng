@@ -455,8 +455,24 @@ where = [
 ]
 
 [tool.vulture]
+ignore_names = [
+  "AttrsInstance",
+  "CodeType",
+  "FrameType",
+  "FunctionType",
+  "GherkinDocumentWithURI",
+  "Match",
+  "MethodType",
+  "TracebackType",
+  "Traversable",
+  "event",
+  "fixturefunc",
+  "fixturemanager",
+  "manager",
+  "module_path",
+  "nextitem"
+]
 min_confidence = 80
 paths = [
-  "src/pytest_bdd",
-  "vulture_whitelist.py"
+  "src/pytest_bdd"
 ]
