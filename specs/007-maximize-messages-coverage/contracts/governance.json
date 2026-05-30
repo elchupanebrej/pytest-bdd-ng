@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Messages Coverage Governance Report",
+  "type": "object",
+  "required": ["version", "generated_at", "summary", "capabilities"],
+  "properties": {
+    "version": { "type": "string", "enum": ["1.0"] },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "summary": {
+      "type": "object",
+      "required": ["total_fields", "covered_fields", "coverage_percentage"],
+      "properties": {
+        "total_fields": { "type": "integer", "minimum": 0 },
+        "covered_fields": { "type": "integer", "minimum": 0 },
+        "coverage_percentage": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["payload_kind", "path", "type", "is_required", "status"],
+        "properties": {
+          "payload_kind": { "type": "string" },
+          "path": { "type": "string" },
+          "type": { "type": "string" },
+          "is_required": { "type": "boolean" },
+          "status": {
+            "type": "string",
+            "enum": ["Implemented", "Non-Implementable", "Not-Acceptable", "Not-Applicable", "Pending"]
+          },
+          "rationale": { "type": "string" },
+          "decision_owner": { "type": "string" },
+          "reviewed_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
