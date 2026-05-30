@@ -1,15 +1,23 @@
+"""Provide pytest extra helpers."""
+
+from __future__ import annotations
+
 import re
 import sys
-from collections.abc import Sequence
 from contextlib import contextmanager
 from re import Pattern
-from typing import Any
+from typing import TYPE_CHECKING
 
-from pytest_bdd.compatibility.pytest import FixtureRequest, build_fixture_def, fail
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+from pytest_bdd.compatibility.pytest import FixtureDef, FixtureRequest, build_fixture_def, fail
 
 
-def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
-    """Inject fixture into pytest fixture request.
+def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
+    """
+    Inject fixture into pytest fixture request.
+
     :param request: pytest fixture request
     :param arg: argument name
     :param value: argument value
@@ -24,34 +32,40 @@ def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
     )
     fd.cached_result = (value, 0, None)
 
-    old_fd = request._fixture_defs.get(arg)
+    old_fd: FixtureDef[object] | None = request._fixture_defs.get(arg)  # noqa: SLF001
     add_fixturename = arg not in request.fixturenames
 
-    def fin():
-        request._fixturemanager._arg2fixturedefs[arg].remove(fd)
-        request._fixture_defs[arg] = old_fd
+    def fin() -> None:
+        request._fixturemanager._arg2fixturedefs[arg].remove(fd)  # noqa: SLF001
+        if old_fd is None:
+            request._fixture_defs.pop(arg, None)  # noqa: SLF001
+        else:
+            request._fixture_defs[arg] = old_fd  # noqa: SLF001
 
         if add_fixturename:
-            request._pyfuncitem._fixtureinfo.names_closure.remove(arg)
+            request._pyfuncitem._fixtureinfo.names_closure.remove(arg)  # noqa: SLF001
 
     request.addfinalizer(fin)
 
     # inject fixture definition
-    request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)
+    request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)  # noqa: SLF001
     # inject fixture value in request cache
-    request._fixture_defs[arg] = fd
+    request._fixture_defs[arg] = fd  # noqa: SLF001
     if add_fixturename:
-        request._pyfuncitem._fixtureinfo.names_closure.append(arg)
+        request._pyfuncitem._fixtureinfo.names_closure.append(arg)  # noqa: SLF001
 
 
 @contextmanager
 def doesnt_raise(
-    expected_exception: type[Exception] | Sequence[type[Exception]],
+    expected_exception: type[BaseException] | Sequence[type[BaseException]],
     *,
     match: str | Pattern[str] | None = None,
-    suppress_not_matched=True,
-):
-    """:param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
+    suppress_not_matched: bool = True,
+) -> Iterator[None]:
+    """
+    Temporarily allow a configured exception.
+
+    :param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
     :param match: Message which will be count as failing test. If message is not matched - function passes
     :param suppress_not_matched: If specified - all non-matched exceptions will be suppressed
     :return:

@@ -7,19 +7,32 @@ import json
 import sys
 from pathlib import Path
 
-from pytest_bdd.compatibility.matrix import (
+from pytest_bdd.compatibility.runtime_compat import (
     REASON_COMPATIBLE,
+    CompatibilityMatrixEntry,
+    is_pair_compatible,
+)
+from pytest_bdd.util.matrix import (
     build_matrix,
     build_migration_coverage_summary,
     discover_feature_scenario_ids,
     discover_user_facing_test_scenario_ids,
     expand_tox_env_names,
     extract_factors_from_tox_ini,
-    is_pair_compatible,
 )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """
+    Parse command-line arguments.
+
+    Args:
+        argv: Command-line arguments (defaults to sys.argv).
+
+    Returns:
+        Parsed arguments namespace.
+
+    """
     parser = argparse.ArgumentParser(description="Inspect Python/pytest compatibility matrix")
     parser.add_argument("--tox-ini", type=Path, default=Path("tox.ini"), help="Path to tox.ini")
     parser.add_argument("--python", dest="python_factor", help="Python factor without prefix, e.g. 314")
@@ -38,7 +51,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _entry_payload(entry) -> dict[str, object]:
+def _entry_payload(entry: CompatibilityMatrixEntry) -> dict[str, object]:
     return {
         "pythonVersion": entry.python_version,
         "pytestVersion": entry.pytest_version,
@@ -55,6 +68,16 @@ def _emit(payload: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    Run the compatibility matrix CLI.
+
+    Args:
+        argv: Command-line arguments.
+
+    Returns:
+        Exit code.
+
+    """
     args = parse_args(argv)
 
     if args.report_e2e_migration_threshold:
@@ -95,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
         compatible, reason = is_pair_compatible(args.python_factor, args.pytest_factor)
         pair_payload: dict[str, object] = {
             "pythonVersion": f"{args.python_factor[0]}.{args.python_factor[1:]}"
-            if args.python_factor.isdigit() and len(args.python_factor) == 3
+            if args.python_factor.isdigit() and len(args.python_factor) == 3  # noqa: PLR2004
             else args.python_factor,
             "pytestVersion": args.pytest_factor,
             "isCompatible": compatible,

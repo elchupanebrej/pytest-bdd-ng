@@ -1,3 +1,5 @@
+"""Provide typing helpers."""
+
 import sys
 from typing import TypeAlias
 

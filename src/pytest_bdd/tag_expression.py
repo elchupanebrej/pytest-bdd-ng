@@ -1,7 +1,9 @@
-from operator import attrgetter
-from typing import Optional, Protocol, runtime_checkable
+"""Provide tag expression helpers."""
 
-from attr import attrib, attrs
+from operator import attrgetter
+from typing import Protocol, runtime_checkable
+
+from attrs import define, field
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 from typing_extensions import Self
 
@@ -10,20 +12,36 @@ from pytest_bdd.compatibility.pytest import PYTEST83, Expression, Mark, MarkMatc
 
 @runtime_checkable
 class TagExpression(Protocol):
+    """Evaluate cucumber tag expressions against pytest marks."""
+
     @classmethod
     def parse(cls, expression: str) -> Self:
+        """
+        Parse parse.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
     def evaluate(self, marks: list[Mark]) -> bool:
+        """
+        Handle evaluate.
+
+        Raises:
+            NotImplementedError: If the operation cannot be completed.
+
+        """
         raise NotImplementedError  # pragma: no cover
 
 
-@attrs
+@define
 class _ModernTagExpression(TagExpression):
-    expression: Optional["Expression"] = attrib()
+    expression: Expression | None = field()
 
     @classmethod
-    def parse(cls, expression: str):
+    def parse(cls, expression: str) -> Self:
         try:
             return cls(expression=Expression.compile(expression) if expression else None)
         except ParseError as e:
@@ -31,21 +49,21 @@ class _ModernTagExpression(TagExpression):
             raise ValueError(msg) from e
 
 
-@attrs
+@define
 class _EnhancedMarksTagExpression(_ModernTagExpression):
-    """Used for 8.3<=pytest"""
+    """Used for 8.3<=pytest."""
 
-    def evaluate(self, marks):
+    def evaluate(self, marks: list[Mark]) -> bool:
         return self.expression.evaluate(MarkMatcher.from_markers(marks)) if self.expression is not None else True
 
 
-@attrs
+@define
 class _MarksTagExpression(_ModernTagExpression):
-    """Used for 6.0<=pytest<8.3"""
+    """Used for 6.0<=pytest<8.3."""
 
-    def evaluate(self, marks):
+    def evaluate(self, marks: list[Mark]) -> bool:
         return (
-            self.expression.evaluate(MarkMatcher(map(attrgetter("name"), marks)))
+            self.expression.evaluate(MarkMatcher({mark.name: [mark] for mark in marks}))
             if self.expression is not None
             else True
         )
@@ -55,20 +73,51 @@ MarksTagExpression: type[_EnhancedMarksTagExpression | _MarksTagExpression]
 MarksTagExpression = _EnhancedMarksTagExpression if PYTEST83 else _MarksTagExpression
 
 
-@attrs
+@define
 class GherkinTagExpression(TagExpression):
-    expression: TagExpressionParser = attrib()
+    """
+    Represent gherkin tag expression state.
+
+    Raises:
+        ValueError: If the operation cannot be completed.
+
+    """
+
+    expression: TagExpressionParser = field()
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str) -> Self:
+        """
+        Parse a tag expression string.
+
+        Args:
+            expression: Tag expression string.
+
+        Returns:
+            Parsed tag expression object.
+
+        Raises:
+            ValueError: If the expression is invalid.
+
+        """
         try:
             return cls(expression=TagExpressionParser.parse(expression))
         except TagExpressionError as e:
             msg = f"Unable parse tag expression: {expression}: {e}"
             raise ValueError(msg) from e
 
-    def evaluate(self, marks):
-        return self.expression.evaluate(map(attrgetter("name"), marks))
+    def evaluate(self, marks: list[Mark]) -> bool:
+        """
+        Evaluate tag expression against pytest marks.
+
+        Args:
+            marks: List of pytest marks.
+
+        Returns:
+            True if expression matches.
+
+        """
+        return bool(self.expression.evaluate(map(attrgetter("name"), marks)))
 
 
 TagExpressionType = _EnhancedMarksTagExpression | _MarksTagExpression | GherkinTagExpression

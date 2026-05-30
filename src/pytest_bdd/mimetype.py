@@ -1,9 +1,13 @@
+"""Provide mimetype helpers."""
+
 import mimetypes
 
 from pytest_bdd.compatibility.enum import StrEnum
 
 
 class Mimetype(StrEnum):
+    """Represent mimetype state."""
+
     gherkin_plain = "text/x.cucumber.gherkin+plain"
     gherkin_markdown = "text/x.cucumber.gherkin+markdown"
     struct_bdd_yaml = "application/x.struct_bdd+yaml"
@@ -25,6 +29,8 @@ class Mimetype(StrEnum):
 
 
 class Suffix(StrEnum):
+    """Represent suffix state."""
+
     gherkin = ".gherkin"
     feature = ".feature"
     struct_bdd = ".bdd"
