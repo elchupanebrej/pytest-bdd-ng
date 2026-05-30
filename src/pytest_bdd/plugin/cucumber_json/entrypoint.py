@@ -2,20 +2,23 @@
 
 from typing import TYPE_CHECKING, Protocol, Union, cast, runtime_checkable
 
-from pytest_bdd.compatibility.pytest import PYTEST62, Parser
+from pytest_bdd.compatibility.pytest import Parser
 
 from .const import CucumberJson
-from .plugin import LogBDDCucumberJSON
+from .plugin import CucumberJsonPlugin
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Config as BaseConfig
 
     @runtime_checkable
     class LogBDDCucumberJSONProtocol(Protocol):
-        _bddcucumberjson: "LogBDDCucumberJSON"
+        """Define the log bddcucumber jsonprotocol contract."""
+
+        _bddcucumberjson: "CucumberJsonPlugin"
 
     class Config(BaseConfig, LogBDDCucumberJSONProtocol):  # type: ignore[misc]
-        pass
+        """Represent config state."""
+
 
 else:
     from pytest_bdd.compatibility.pytest import Config
@@ -23,36 +26,29 @@ else:
 
 def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
-    group = parser.getgroup("bdd", "Cucumber JSON")
+    parser.getgroup("bdd", "Cucumber JSON")
     help_ = "create cucumber json style report file at given path."
-    group.addoption(
-        "--cucumberjson",
-        "--cucumber-json",
-        action="store",
-        dest=str(CucumberJson.Cli.PATH_OPTION),
-        metavar="path",
-        default=None,
-        help=help_,
-    )
     parser.addini(
         str(CucumberJson.Ini.PATH_OPTION),
         default="",
-        type="string" if PYTEST62 else None,
+        type="string",
         help=help_,
     )
 
 
 def pytest_configure(config: Union[Config, "BaseConfig"]) -> None:
-    cucumber_json_path = config.option.cucumber_json_path
+    """Handle configure."""
+    cucumber_json_path = config.getini(str(CucumberJson.Ini.PATH_OPTION))
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
-        cast(Config, config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)
-        config.pluginmanager.register(cast(Config, config)._bddcucumberjson)
+        cast("Config", config)._bddcucumberjson = CucumberJsonPlugin(cucumber_json_path)  # noqa: SLF001
+        config.pluginmanager.register(cast("Config", config)._bddcucumberjson)  # noqa: SLF001
 
 
 def pytest_unconfigure(config: Union[Config, "BaseConfig"]) -> None:
-    xml = getattr(config, "_bddcucumberjson", None)
-    if xml is not None:
-        config_ = cast(Config, config)
-        del config_._bddcucumberjson
-        config.pluginmanager.unregister(xml)
+    """Handle unconfigure."""
+    plugin = getattr(config, "_bddcucumberjson", None)
+    if plugin is not None:
+        config_ = cast("Config", config)
+        del config_._bddcucumberjson  # noqa: SLF001
+        config.pluginmanager.unregister(plugin)
