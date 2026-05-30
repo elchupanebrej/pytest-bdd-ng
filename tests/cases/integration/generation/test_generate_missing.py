@@ -1,0 +1,198 @@
+"""Code generation and assertion tests."""
+
+import ast
+import itertools
+import textwrap
+
+import pytest
+
+from pytest_bdd.plugin.code_generator.collection import process_single_item
+from pytest_bdd.plugin.code_generator.rendering import make_python_docstring, make_string_literal
+from pytest_bdd.scenario import get_python_name_generator
+
+
+def test_python_name_generator():
+    """Test python name generator function."""
+    assert list(itertools.islice(get_python_name_generator("Some name"), 3)) == [
+        "test_some_name",
+        "test_some_name_1",
+        "test_some_name_2",
+    ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "trailing backslash\\",
+        "line one\nline two",
+        "single ' quote",
+        'triple """ quote',
+    ],
+)
+def test_generated_python_literals_preserve_valid_gherkin_text(value: str) -> None:
+    """Verify generated Python literals preserve valid Gherkin text."""
+    assert ast.literal_eval(make_string_literal(value)) == value
+    assert ast.literal_eval(make_python_docstring(value)) == value
+    ast.parse(f"def test_generated():\n    {make_python_docstring(value)}\n")
+
+
+def test_process_single_item_tears_down_after_fixture_error() -> None:
+    """Verify code-generation item setup is torn down after fixture errors."""
+    events = []
+
+    class SetupState:
+        def setup(self, item):
+            events.append(("setup", item))
+
+        def teardown_exact(self, item):
+            events.append(("teardown", item))
+
+    class Session:
+        _setupstate = SetupState()
+
+    class FixtureRequest:
+        def getfixturevalue(self, name):
+            msg = f"{name} fixture failed"
+            raise RuntimeError(msg)
+
+    class Item:
+        session = Session()
+        _request = FixtureRequest()
+
+    item = Item()
+
+    with pytest.raises(RuntimeError, match="pickle fixture failed"):
+        process_single_item(item, set(), [])
+
+    assert events == [("setup", item), ("teardown", None)]
+
+
+def test_generate_missing(testdir, tmp_path):
+    """Test generate missing command."""
+    (tmp_path / "generation.feature").write_text(
+        textwrap.dedent(
+            # language=gherkin
+            """\
+            Feature: Missing code generation
+
+                Background:
+                    Given I have a foobar
+
+                Scenario: Scenario tests which are already bound to the tests stay as is
+                    Given I have a bar
+
+                Scenario: Code is generated for scenarios which are not bound to any tests
+                    Given I have a bar
+
+                Scenario: Code is generated for scenario steps which are not yet defined(implemented)
+                    Given I have a custom bar
+            """,
+        ),
+    )
+
+    testdir.makepyfile(
+        # language=python
+        f"""\
+        from functools import partial
+
+        from pytest_bdd import scenario, given
+        from pathlib import Path
+
+        scenario = partial(scenario, Path(r"{tmp_path}") / "generation.feature")
+
+        @given("I have a bar")
+        def i_have_a_bar():
+            return "bar"
+
+        @scenario("Scenario tests which are already bound to the tests stay as is")
+        def test_foo():
+            pass
+
+        @scenario("Code is generated for scenario steps which are not yet defined(implemented)")
+        def test_missing_steps():
+            pass
+        """,
+    )
+
+    result = testdir.runpytest("--generate-missing", "--feature", str(tmp_path / "generation.feature"))
+    result.assert_outcomes(passed=0, failed=0, errors=0)
+    assert not result.stderr.str()
+    assert result.ret == 0
+
+    result.stdout.fnmatch_lines(
+        ['Scenario "Code is generated for scenarios which are not bound to any tests" is not bound to any test *'],
+    )
+
+    result.stdout.fnmatch_lines(
+        [
+            (
+                'Step Given "I have a custom bar" is not defined in the scenario '
+                '"Code is generated for scenario steps which are not yet defined(implemented)" *'
+            ),
+        ],
+    )
+
+    result.stdout.fnmatch_lines(["Please place the code above to the test file(s):"])
+    generated_output = result.stdout.str()
+    assert "@scenario(" in generated_output
+    assert "raise NotImplementedError" in generated_output
+
+
+def test_generate_missing_with_step_parsers(testdir):
+    """Test that step parsers are correctly discovered and won't be part of the missing steps."""
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        generation="""\
+            Feature: Missing code generation with step parsers
+
+                Scenario: Step parsers are correctly discovered
+                    Given I use the string parser without parameter
+                    And I use parsers.parse with parameter 1
+                    And I use parsers.re with parameter 2
+                    And I use parsers.cfparse with parameter 3
+            """,
+    )
+
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given, parsers
+
+        @given("I use the string parser without parameter")
+        def i_have_a_bar():
+            return None
+
+        @given(parsers.parse("I use parsers.parse with parameter {param}"))
+        def i_have_n_baz(param):
+            return param
+
+        @given(parsers.re(r"^I use parsers.re with parameter (?P<param>.*?)$"))
+        def i_have_n_baz(param):
+            return param
+
+        @given(parsers.cfparse("I use parsers.cfparse with parameter {param:d}"))
+        def i_have_n_baz(param):
+            return param
+        """,
+    )
+
+    result = testdir.runpytest("--generate-missing", "--feature", "generation.feature")
+    result.assert_outcomes(passed=0, failed=0, errors=0)
+    assert not result.stderr.str()
+    assert result.ret == 0
+
+    output = result.stdout.str()
+
+    assert "I use the string parser" not in output
+    assert "I use parsers.parse" not in output
+    assert "I use parsers.re" not in output
+    assert "I use parsers.cfparse" not in output
+
+
+def test_generate_missing_without_feature_returns_100(testdir):
+    """Verify missing feature option preserves code-generation exit status."""
+    result = testdir.runpytest("--generate-missing")
+
+    assert result.ret == 100
+    result.stdout.fnmatch_lines(["*The --feature parameter is required.*"])

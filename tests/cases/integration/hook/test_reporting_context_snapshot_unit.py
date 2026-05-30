@@ -1,0 +1,104 @@
+"""Provide test reporting context snapshot unit helpers."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from pytest_bdd.model.run import (
+    ActiveObjectSet,
+    HookPhase,
+    LifecycleObjectRef,
+    Run,
+    RunStage,
+    RunStatus,
+)
+from pytest_bdd.model.run_access import build_reporting_context_snapshot
+from pytest_bdd.model.scenario_run import ScenarioRun
+
+
+def _build_scenario_run(*, stage: RunStage) -> ScenarioRun:
+    run_ref = LifecycleObjectRef(kind="run", object_id="run-1", is_active=True)
+    run_root = Run(
+        id="run-1",
+        run_ref=run_ref,
+        status=RunStatus.ok,
+    )
+    return ScenarioRun(
+        id="ctx-1",
+        run_ref=run_ref,
+        active_hook=HookPhase.before_scenario,
+        stage=stage,
+        status=RunStatus.ok,
+        active_set=ActiveObjectSet(run=run_ref, captured_at_stage=stage),
+        run=run_root,
+    )
+
+
+def _build_request(*, config: SimpleNamespace | None = None, session: SimpleNamespace | None = None):
+    if config is None:
+        config = SimpleNamespace(stash={})
+    if session is None:
+        session = SimpleNamespace(config=config, name="run-session")
+    return SimpleNamespace(config=config, session=session, node=SimpleNamespace(nodeid="node::test"))
+
+
+def test_snapshot_uses_run_from_stash_with_active_scenario() -> None:
+    """Verify snapshot uses run from stash with active scenario."""
+    request = _build_request()
+    context = _build_scenario_run(stage=RunStage.scenario_running)
+    context.run.active_scenario_run = context
+    context.run.set_in_stash(request.config.stash)
+
+    snapshot = build_reporting_context_snapshot(request=request)
+
+    assert snapshot is not None
+    assert snapshot.resolved_from_hierarchy is True
+    assert snapshot.fallback_reason is None
+    assert snapshot.stage == RunStage.scenario_running
+    assert snapshot.active_set.scenario.is_active is False
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.previous_step.empty_state_reason == "no_previous_step"
+
+
+def test_snapshot_falls_back_to_run_root_from_stash() -> None:
+    """Verify snapshot falls back to run root from stash."""
+    config = SimpleNamespace(stash={})
+    session = SimpleNamespace(config=config, name="run-session")
+    request = _build_request(config=config, session=session)
+    stash_root = Run(
+        id="run-stash",
+        run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
+        status=RunStatus.ok,
+    )
+    stash_root.set_in_stash(config.stash)
+
+    snapshot = build_reporting_context_snapshot(request=request, fallback_reason="hierarchy-missing")
+
+    assert snapshot is not None
+    assert snapshot.resolved_from_hierarchy is True
+    assert snapshot.run_id == "run-stash"
+    assert snapshot.active_set.run.object_id == "run-stash"
+    assert snapshot.fallback_reason == "hierarchy-missing"
+    assert snapshot.active_set.feature.empty_state_reason == "idle"
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.step.empty_state_reason == "idle"
+
+
+def test_snapshot_marks_missing_active_scenario_run_explicitly() -> None:
+    """Verify snapshot marks missing active scenario run explicitly."""
+    request = _build_request()
+    run_root = Run(
+        id="run-stash",
+        run_ref=LifecycleObjectRef(kind="run", object_id="run-stash", is_active=True),
+        status=RunStatus.ok,
+    )
+    run_root.set_in_stash(request.config.stash)
+
+    snapshot = build_reporting_context_snapshot(request=request)
+
+    assert snapshot is not None
+    assert snapshot.resolved_from_hierarchy is True
+    assert snapshot.fallback_reason == "run_has_no_active_scenario"
+    assert snapshot.active_set.feature.empty_state_reason == "idle"
+    assert snapshot.active_set.scenario.empty_state_reason == "idle"
+    assert snapshot.active_set.previous_step.empty_state_reason == "no_previous_step"
