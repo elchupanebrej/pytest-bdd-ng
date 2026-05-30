@@ -35,13 +35,13 @@ Compatibility policy
 
 Compatibility coverage is driven by pytest-to-python compatibility rules and bounded by
 project support floors.
-Supported Python range is ``3.10``-``3.14`` and supported pytest range is ``>=6.2.5``.
-Python ``3.9`` and pytest ``<6.2.5`` are EOL and explicitly unsupported.
+Supported Python range is ``3.10``-``3.14`` and supported pytest range is ``>=7``.
+Python ``3.9`` and pytest ``<7`` are EOL and explicitly unsupported.
 
 .. code-block:: console
 
     compatibility_matrix --list --compatible-only
-    compatibility_matrix --python 310 --pytest 625
+    compatibility_matrix --python 310 --pytest 70
     compatibility_matrix --python 314 --pytest 90
 
 Executable usage documentation
