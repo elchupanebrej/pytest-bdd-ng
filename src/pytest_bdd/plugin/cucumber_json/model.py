@@ -1,3 +1,5 @@
+"""Provide model helpers."""
+
 from enum import Enum
 from typing import Optional
 
@@ -5,11 +7,15 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ElementType(Enum):
+    """Represent element type state."""
+
     background = "background"
     scenario = "scenario"
 
 
 class Argument(BaseModel):
+    """Represent argument state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -19,6 +25,8 @@ class Argument(BaseModel):
 
 
 class Status(Enum):
+    """Represent status state."""
+
     passed = "passed"
     failed = "failed"
     skipped = "skipped"
@@ -28,6 +36,8 @@ class Status(Enum):
 
 
 class DocString(BaseModel):
+    """Represent doc string state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -38,6 +48,8 @@ class DocString(BaseModel):
 
 
 class DataTableRow(BaseModel):
+    """Represent data table row state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -46,6 +58,8 @@ class DataTableRow(BaseModel):
 
 
 class Tag(BaseModel):
+    """Represent tag state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -55,6 +69,8 @@ class Tag(BaseModel):
 
 
 class Match(BaseModel):
+    """Represent match state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -64,6 +80,8 @@ class Match(BaseModel):
 
 
 class Result(BaseModel):
+    """Represent result state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -74,6 +92,8 @@ class Result(BaseModel):
 
 
 class Step(BaseModel):
+    """Represent step state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -88,6 +108,8 @@ class Step(BaseModel):
 
 
 class Hook(BaseModel):
+    """Represent hook state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -97,6 +119,8 @@ class Hook(BaseModel):
 
 
 class Element(BaseModel):
+    """Represent element state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -115,6 +139,8 @@ class Element(BaseModel):
 
 
 class Feature(BaseModel):
+    """Represent feature state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -130,6 +156,8 @@ class Feature(BaseModel):
 
 
 class CucumberJson(BaseModel):
+    """Represent cucumber json state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,

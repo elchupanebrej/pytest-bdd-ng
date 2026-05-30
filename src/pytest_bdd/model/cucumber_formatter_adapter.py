@@ -1,0 +1,174 @@
+"""Provide cucumber formatter adapter helpers."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from attrs import define, field
+
+if TYPE_CHECKING:
+    from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
+
+_ZERO_DURATION = {"seconds": 0, "nanos": 0}
+_ZERO_TIMESTAMP = {"seconds": 0, "nanos": 0}
+
+
+@define
+class _FormatterAttemptState:
+    test_case_id: str
+    recorded_test_step_ids: set[str] = field(factory=set)
+
+
+class CucumberFormatterEnvelopeAdapter:
+    """Normalize schema-valid streams for stricter upstream formatter assumptions."""
+
+    def __init__(self) -> None:
+        """Initialize the cucumber formatter envelope adapter."""
+        self._test_cases_by_id: dict[str, JSONObject] = {}
+        self._attempts_by_started_id: dict[str, _FormatterAttemptState] = {}
+
+    def adapt_envelope_dict(self, envelope_dict: JSONObject) -> tuple[JSONObject, ...]:
+        """
+        Process envelope dict, injecting synthetic step results.
+
+        Returns:
+            A tuple of processed envelope dicts.
+
+        """
+        synthetic_envelopes: list[JSONObject] = []
+
+        test_case = envelope_dict.get("testCase")
+        if isinstance(test_case, dict):
+            test_case_id = test_case.get("id")
+            if isinstance(test_case_id, str) and test_case_id:
+                self._test_cases_by_id[test_case_id] = test_case
+        else:
+            test_case_started = envelope_dict.get("testCaseStarted")
+            if isinstance(test_case_started, dict):
+                started_id = test_case_started.get("id")
+                test_case_id = test_case_started.get("testCaseId")
+                if isinstance(started_id, str) and started_id and isinstance(test_case_id, str) and test_case_id:
+                    self._attempts_by_started_id[started_id] = _FormatterAttemptState(test_case_id=test_case_id)
+            else:
+                test_step_finished = envelope_dict.get("testStepFinished")
+                if isinstance(test_step_finished, dict):
+                    self._record_test_step_result(test_step_finished)
+                else:
+                    test_case_finished = envelope_dict.get("testCaseFinished")
+                    if isinstance(test_case_finished, dict):
+                        synthetic_envelopes.extend(
+                            self._synthesize_missing_pickle_step_results(
+                                test_case_started_id=str(test_case_finished.get("testCaseStartedId") or ""),
+                                timestamp_payload=test_case_finished.get("timestamp"),
+                            ),
+                        )
+                    else:
+                        test_run_finished = envelope_dict.get("testRunFinished")
+                        if isinstance(test_run_finished, dict):
+                            synthetic_envelopes.extend(self.flush(timestamp_payload=test_run_finished.get("timestamp")))
+
+        return (*synthetic_envelopes, envelope_dict)
+
+    def flush(self, *, timestamp_payload: object | None = None) -> tuple[JSONObject, ...]:
+        """
+        Emit synthetic step-finished envelopes for any test attempts that were not properly closed by the stream.
+
+        Returns:
+            A tuple of synthetic testStepFinished envelopes for all unclosed attempts.
+
+        """
+        synthetic_envelopes: list[JSONObject] = []
+        for test_case_started_id in list(self._attempts_by_started_id):
+            synthetic_envelopes.extend(
+                self._synthesize_missing_pickle_step_results(
+                    test_case_started_id=test_case_started_id,
+                    timestamp_payload=timestamp_payload,
+                ),
+            )
+        return tuple(synthetic_envelopes)
+
+    def _record_test_step_result(self, test_step_finished: JSONObject) -> None:
+        test_case_started_id = test_step_finished.get("testCaseStartedId")
+        test_step_id = test_step_finished.get("testStepId")
+        if not isinstance(test_case_started_id, str) or not test_case_started_id:
+            return
+        if not isinstance(test_step_id, str) or not test_step_id:
+            return
+        attempt_state = self._attempts_by_started_id.get(test_case_started_id)
+        if attempt_state is None:
+            return
+        attempt_state.recorded_test_step_ids.add(test_step_id)
+
+    def _synthesize_missing_pickle_step_results(
+        self,
+        *,
+        test_case_started_id: str,
+        timestamp_payload: object | None,
+    ) -> list[JSONObject]:
+        if not test_case_started_id:
+            return []
+        attempt_state = self._attempts_by_started_id.get(test_case_started_id)
+        if attempt_state is None:
+            return []
+        test_case = self._test_cases_by_id.get(attempt_state.test_case_id)
+        if test_case is None:
+            return []
+        resolved_timestamp = self._normalize_timestamp(timestamp_payload)
+        synthetic_envelopes: list[JSONObject] = []
+        raw_test_steps = test_case.get("testSteps", [])
+        test_steps = raw_test_steps if isinstance(raw_test_steps, list) else []
+        for test_step in test_steps:
+            if not isinstance(test_step, dict):
+                continue
+            test_step_id = test_step.get("id")
+            pickle_step_id = test_step.get("pickleStepId")
+            if not isinstance(test_step_id, str) or not test_step_id:
+                continue
+            if not isinstance(pickle_step_id, str) or not pickle_step_id:
+                continue
+            if test_step_id in attempt_state.recorded_test_step_ids:
+                continue
+            synthetic_envelopes.append(
+                {
+                    "testStepFinished": {
+                        "testCaseStartedId": test_case_started_id,
+                        "testStepId": test_step_id,
+                        "timestamp": dict(resolved_timestamp),
+                        "testStepResult": {
+                            "duration": dict(_ZERO_DURATION),
+                            "status": "UNKNOWN",
+                        },
+                    },
+                },
+            )
+            attempt_state.recorded_test_step_ids.add(test_step_id)
+        return synthetic_envelopes
+
+    @staticmethod
+    def _normalize_timestamp(timestamp_payload: object | None) -> dict[str, int]:
+        if not isinstance(timestamp_payload, dict):
+            return dict(_ZERO_TIMESTAMP)
+        seconds = timestamp_payload.get("seconds")
+        nanos = timestamp_payload.get("nanos")
+        return {
+            "seconds": int(seconds or 0),
+            "nanos": int(nanos or 0),
+        }
+
+
+def normalize_formatter_envelope_dicts(envelope_dicts: JSONArray) -> JSONArray:
+    """
+    Pass NDJSON stream through adapter to ensure all test steps are accounted for.
+
+    Returns:
+        A JSON array of normalized envelope dicts.
+
+    """
+    adapter = CucumberFormatterEnvelopeAdapter()
+    normalized_envelopes: list[JSONValue] = []
+    for envelope_dict in envelope_dicts:
+        if not isinstance(envelope_dict, dict):
+            continue
+        normalized_envelopes.extend(adapter.adapt_envelope_dict(envelope_dict))
+    normalized_envelopes.extend(adapter.flush())
+    return normalized_envelopes

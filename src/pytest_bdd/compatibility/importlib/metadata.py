@@ -1,3 +1,5 @@
+"""Provide metadata helpers."""
+
 from importlib.metadata import (
     Distribution,
     DistributionFinder,

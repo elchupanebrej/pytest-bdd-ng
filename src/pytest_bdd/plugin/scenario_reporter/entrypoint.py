@@ -1,7 +1,10 @@
+"""Provide entrypoint helpers."""
+
 from pytest_bdd.compatibility.pytest import Config
 
-from .plugin import ScenarioReporter
+from .plugin import ScenarioReporterPlugin
 
 
 def pytest_configure(config: Config) -> None:
-    config.pluginmanager.register(ScenarioReporter())
+    """Handle configure."""
+    config.pluginmanager.register(ScenarioReporterPlugin())

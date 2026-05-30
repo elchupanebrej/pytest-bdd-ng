@@ -1,3 +1,5 @@
+"""Provide entrypoint helpers."""
+
 import pytest
 
 from pytest_bdd.compatibility.pytest import Config
@@ -10,4 +12,5 @@ if STRUCT_BDD_INSTALLED:
 
     @pytest.hookimpl(trylast=True)
     def pytest_configure(config: Config) -> None:
+        """Handle configure."""
         config.pluginmanager.register(StructBDDPlugin())

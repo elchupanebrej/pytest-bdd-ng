@@ -1,32 +1,42 @@
+"""Provide plugin helpers."""
+
 import json
 import math
 import os
 import time
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 from _pytest.reports import TestReport
 from _pytest.terminal import TerminalReporter
 
 from pytest_bdd.plugin.cucumber_json.model import Feature
+from pytest_bdd.types.json import JSONArray, JSONObject
 
 
 class LogBDDCucumberJSON:
     """Logging plugin for cucumber like json output."""
 
     def __init__(self, logfile: str) -> None:
+        """Initialize the log bddcucumber json."""
         self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
-        self.features: dict[str, dict] = {}
+        self.features: dict[str, JSONObject] = {}
 
-    def _get_result(self, step: dict[str, Any], report: TestReport, *, error_message: bool = False) -> dict[str, Any]:
-        """Get scenario test run result.
-
-        :param step: `Step` step we get result for
-        :param report: pytest `Report` object
-        :return: `dict` in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}
+    @staticmethod
+    def _get_result(step: JSONObject, report: TestReport, *, error_message: bool = False) -> JSONObject:
         """
-        result: dict[str, Any] = {}
+        Get scenario test run result.
+
+        Args:
+            step: Step we get result for.
+            report: Pytest Report object.
+            error_message: Whether to include error message.
+
+        Returns:
+            Dict in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}.
+
+        """
+        result: JSONObject = {}
         if report.passed or not step["failed"]:  # ignore setup/teardown
             result = {"status": "passed"}
         elif report.failed and step["failed"]:
@@ -36,26 +46,33 @@ class LogBDDCucumberJSON:
             }
         elif report.skipped:
             result = {"status": "skipped"}
-        result["duration"] = math.floor((10**9) * step["duration"])  # nanosec
+        raw_duration = step.get("duration", 0)
+        duration = float(raw_duration) if isinstance(raw_duration, (str, int, float)) else 0.0
+        result["duration"] = math.floor((10**9) * duration)  # nanosec
         return result
 
-    def _serialize_tags(self, item: dict[str, Any]) -> Sequence[dict[str, Any]]:
-        """Serialize item's tags.
-
-        :param item: json-serialized `Scenario` or `Feature`.
-        :return: `list` of `dict` in the form of:
-            [
-                {
-                    "name": "<tag>",
-                    "line": 2,
-                }
-            ]
+    @staticmethod
+    def _serialize_tags(item: JSONObject) -> JSONArray:
         """
-        return [{"name": tag, "line": item["line_number"] - 1} for tag in item["tags"]]
+        Serialize item's tags.
+
+        Args:
+            item: JSON-serialized Scenario or Feature.
+
+        Returns:
+            List of dicts in the form of [{"name": "<tag>", "line": 2}, ...].
+
+        """
+        raw_tags = item.get("tags", [])
+        tags = raw_tags if isinstance(raw_tags, list) else []
+        line_number = item.get("line_number", 1)
+        line = int(line_number) if isinstance(line_number, (str, int, float)) else 1
+        return cast("JSONArray", [{"name": str(tag), "line": line - 1} for tag in tags])
 
     def pytest_runtest_logreport(self, report: TestReport) -> None:
+        """Handle the pytest runtest logreport pytest hook."""
         try:
-            scenario = report.scenario
+            scenario = cast("JSONObject", report.scenario)
         except AttributeError:
             # skip reporting for non-bdd tests
             return
@@ -64,7 +81,7 @@ class LogBDDCucumberJSON:
             # skip if there isn't a result or scenario has no steps
             return
 
-        def stepmap(step: dict[str, Any]) -> dict[str, Any]:
+        def stepmap(step: JSONObject) -> JSONObject:
             error_message = False
             if step["failed"] and not scenario.setdefault("failed", False):
                 scenario["failed"] = True
@@ -80,19 +97,24 @@ class LogBDDCucumberJSON:
                 "result": self._get_result(step, report, error_message=error_message),
             }
 
-        if scenario["feature"]["filename"] not in self.features:
-            self.features[scenario["feature"]["filename"]] = {
+        feature = cast("JSONObject", scenario["feature"])
+        feature_filename = str(feature["filename"])
+        if feature_filename not in self.features:
+            self.features[feature_filename] = {
                 "keyword": "Feature",
-                "uri": scenario["feature"]["rel_filename"],
-                "name": scenario["feature"]["name"] or scenario["feature"]["rel_filename"],
-                "id": scenario["feature"]["rel_filename"].lower().replace(" ", "-"),
-                "line": scenario["feature"]["line_number"],
-                "description": scenario["feature"]["description"],
-                "tags": self._serialize_tags(scenario["feature"]),
+                "uri": feature["rel_filename"],
+                "name": feature["name"] or feature["rel_filename"],
+                "id": str(feature["rel_filename"]).lower().replace(" ", "-"),
+                "line": feature["line_number"],
+                "description": feature["description"],
+                "tags": self._serialize_tags(feature),
                 "elements": [],
             }
 
-        self.features[scenario["feature"]["filename"]]["elements"].append(
+        elements = cast("JSONArray", self.features[feature_filename]["elements"])
+        raw_steps = scenario["steps"]
+        steps = raw_steps if isinstance(raw_steps, list) else []
+        elements.append(
             {
                 "keyword": "Scenario",
                 "id": report.item["name"],
@@ -101,17 +123,24 @@ class LogBDDCucumberJSON:
                 "description": "",
                 "tags": self._serialize_tags(scenario),
                 "type": "scenario",
-                "steps": [stepmap(step) for step in scenario["steps"]],
+                "steps": cast("JSONArray", [stepmap(cast("JSONObject", step)) for step in steps]),
             },
         )
 
     def pytest_sessionstart(self) -> None:
+        """Handle the pytest sessionstart pytest hook."""
         self.suite_start_time = time.time()
 
     def pytest_sessionfinish(self) -> None:
+        """Handle the pytest sessionfinish pytest hook."""
         for feature in self.features.values():
             Feature.model_validate(feature)
         Path(self.logfile).write_text(json.dumps(list(self.features.values())), encoding="utf-8")
 
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
+        """Handle the pytest terminal summary pytest hook."""
         terminalreporter.write_sep("-", f"generated json file: {self.logfile}")
+
+
+class CucumberJsonPlugin(LogBDDCucumberJSON):
+    """Represent cucumber json plugin state."""

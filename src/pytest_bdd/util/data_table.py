@@ -1,31 +1,24 @@
-from functools import partial
-from itertools import islice
-from operator import attrgetter
-from typing import TYPE_CHECKING, Optional
+"""Provide data table helpers."""
 
-from pytest_bdd.util.toolz_extra import compose
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover
     from cucumber_messages import DataTable  # type:ignore[attr-defined, import-untyped]
 
 
-def data_table_to_dicts(data_table: Optional["DataTable"]):
+def data_table_to_dicts(data_table: DataTable | None) -> dict[str, list[str]]:
+    """
+    Convert a Gherkin data table to dictionaries.
+
+    Args:
+        data_table: Gherkin data table or None.
+
+    Returns:
+        Dictionary mapping first column to list of other values.
+
+    """
     if data_table is None:
         return {}
-
-    data_table_keys = map(
-        attrgetter("value"),
-        map(compose(next, iter), map(attrgetter("cells"), data_table.rows)),
-    )
-    data_table_values = map(
-        compose(
-            list,
-            compose(
-                partial(map, attrgetter("value")),
-                lambda items: islice(items, 1, None),
-                iter,
-            ),
-        ),
-        map(attrgetter("cells"), data_table.rows),
-    )
-    return dict(zip(data_table_keys, data_table_values, strict=False))
+    return {row.cells[0].value: [cell.value for cell in row.cells[1:]] for row in data_table.rows}
