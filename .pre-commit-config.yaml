@@ -2,15 +2,18 @@
 # See https://pre-commit.com/hooks.html for more hooks
 ---
 default_language_version:
-  python: python3.13
+  python: python3.14
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.0
     hooks:
       - id: ruff-check
-        args: [--fix, --exit-non-zero-on-fix, src, tests, docs]
+        args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
-        args: [src, tests, docs]
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.16
+    hooks:
+      - id: vulture
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -30,54 +33,38 @@ repos:
     hooks:
       - id: yamllint
         args: [--format, parsable, --strict]
+        exclude: ^specs/
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.45.0
     hooks:
       - id: markdownlint
+        # Use a managed nodeenv so WSL does not pick up the Windows npm shim.
+        language_version: 22.0.0
+        exclude: ^(specs/|AGENTS\.md$)
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
       - id: pretty-format-toml
         args: [--autofix]
-# TODO: Temporary off of mypy and docgen to speedup development
-#  - repo: local
-#    hooks:
-#      - id: generate-feature-doc
-#        name: generate-feature-doc
-#        # language=python
-#        entry: |
-#          python -c "
-#          from subprocess import run as run_unchecked, CalledProcessError
-#          from sys import exit, executable as python
-#          run = lambda *args: run_unchecked(args, check=True, shell=True)
-#          try:
-#              run(python, '-m', 'ensurepip', '--upgrade')
-#              run(python, '-m', 'pip', 'install', '.[doc-gen]')
-#              run(
-#                  python,
-#                  'src/pytest_bdd/script/bdd_tree_to_rst.py',
-#                  'features',
-#                  'docs/features'
-#              )
-#          except CalledProcessError as e:
-#              exit(e.returncode)
-#          "
-#        language: python
-#        pass_filenames: false
-#      - id: mypy-tox
-#        name: mypy
-#        # language=python
-#        entry: |
-#          python -c "
-#          from subprocess import run as run_unchecked, CalledProcessError
-#          from sys import exit, executable as python
-#          run = lambda *args: run_unchecked(args, check=True, shell=True)
-#          try:
-#              run(python, '-m', 'ensurepip', '--upgrade')
-#              run(python, '-m', 'pip', 'install', '.[testenv]')
-#              run(python, '-m', 'tox', '-e', 'py313-pytestlatest-mypy', '--')
-#          except CalledProcessError as e:
-#              exit(e.returncode)
-#          "
-#        language: python
-#        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: generate-feature-doc
+        name: generate-feature-doc
+        entry: >-
+          env UV_PROJECT_ENVIRONMENT=.venv-linux
+          uv run --extra doc-gen --frozen python
+          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
+        language: system
+        files: >-
+          ^(features/|src/pytest_bdd/script/bdd_tree_to_rst.py|src/pytest_bdd/template/)
+        pass_filenames: false
+      - id: validate-feature-headings
+        name: validate-feature-headings
+        entry: >-
+          env UV_PROJECT_ENVIRONMENT=.venv-linux
+          uv run python
+          src/pytest_bdd/script/validate_feature_headings.py
+          --root-path features
+        language: system
+        files: ^features/
+        pass_filenames: false
