@@ -1,0 +1,34 @@
+# Documentation Build Interface Contract
+
+This document describes the interface between the architecture documentation and the documentation build system.
+
+## Interface: Documentation Build System
+
+**Purpose**: Defines how architecture documentation integrates with the existing Sphinx-based documentation build.
+
+**Contract Type**: Build system extension / configuration
+
+**Requirements**:
+1. Architecture documents must be in Markdown format (.md)
+2. Mermaid diagrams must be compatible with sphinxcontrib-mermaid extension
+3. Documents must follow naming convention: `architecture-[aspect].md`
+4. All architecture documents must be placed in `docs/architecture/` directory
+5. The documentation build process must be configured to process `.md` files in this directory
+6. Mermaid diagram rendering must be enabled in the Sphinx configuration
+
+**Input**:
+- Markdown files with embedded Mermaid syntax
+- Sphinx configuration (conf.py) with mermaid extension enabled
+
+**Output**:
+- HTML documentation with properly rendered Mermaid diagrams
+- Available in `_build/html/` directory after successful build
+
+**Validation Rules**:
+- Mermaid syntax must be valid for the specified diagram type
+- All referenced architecture documents must exist and be accessible
+- Build process must complete without errors related to Mermaid rendering
+
+**Versioning**:
+- Version 1.0: Initial implementation with sphinxcontrib-mermaid
+- Backward compatibility: Does not affect existing documentation build
