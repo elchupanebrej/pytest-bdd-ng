@@ -1,0 +1,308 @@
+---
+openapi: 3.0.3
+info:
+  title: Hook Lifecycle Non-Null Contract
+  version: 1.1.0
+  description: >-
+    Design-time contract for strict non-null runtime lifecycle guarantees.
+    This contract defines which hook-visible runtime members must be populated,
+    which members may surface through dedicated Empty-State Objects, and how
+    centralized lifecycle guards enforce deterministic failures when the
+    contract cannot be satisfied. Terminology retained for compatibility
+    includes guaranteed_present, empty_object_allowed, fail_fast, and
+    explicit_empty_state_when_inactive.
+paths:
+  /hooks/{hookName}/run-surface:
+    get:
+      summary: Describe hook-visible runtime guarantees for one hook phase
+      parameters:
+        - in: path
+          name: hookName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Hook lifecycle contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HookLifecycleContract'
+
+  /hooks/{hookName}/boundary-failure:
+    get:
+      summary: Describe deterministic guard failures when required lifecycle objects are unavailable
+      parameters:
+        - in: path
+          name: hookName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Boundary failure contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoundaryFailureContract'
+
+  /reporting/context-snapshot:
+    get:
+      summary: Describe reporter-facing snapshot guarantees across active, idle, and teardown stages
+      responses:
+        '200':
+          description: Reporting lifecycle contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportingLifecycleContract'
+
+  /parser/parse-error-emission:
+    get:
+      summary: Describe parse-error emission boundary behavior
+      responses:
+        '200':
+          description: Parse-error emission contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParseErrorEmissionContract'
+
+  /compatibility/hook-plugin-public-api:
+    get:
+      summary: Report public hook/plugin compatibility guarantees for this refactor
+      responses:
+        '200':
+          description: Compatibility contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalApiCompatibilityRecord'
+
+components:
+  schemas:
+    HookLifecycleContract:
+      type: object
+      required:
+        - hookName
+        - run
+        - scenarioRun
+        - feature
+        - scenario
+        - step
+        - previousStep
+        - stepRun
+      properties:
+        hookName:
+          type: string
+        run:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        scenarioRun:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        feature:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        scenario:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        step:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        previousStep:
+          $ref: '#/components/schemas/LifecycleAvailability'
+        stepRun:
+          $ref: '#/components/schemas/LifecycleAvailability'
+
+    LifecycleAvailability:
+      type: object
+      required:
+        - policy
+        - consumerAction
+        - lifecycleGuard
+      properties:
+        policy:
+          type: string
+          enum:
+            - guaranteed_present
+            - dedicated_empty_object
+            - deterministic_failure
+        consumerAction:
+          type: string
+          enum:
+            - use_directly
+            - use_polymorphically
+            - expect_deterministic_error
+        lifecycleGuard:
+          type: string
+          enum:
+            - centralized_boundary_guard
+        emptyObjectType:
+          type: string
+          enum:
+            - inactive_scenario_run
+            - inactive_feature_binding
+            - inactive_step_run
+            - no_previous_step
+            - idle_reporting_value
+            - unresolved_runtime_enrichment
+        notes:
+          type: string
+
+    BoundaryFailureContract:
+      type: object
+      required:
+        - errorCode
+        - trigger
+        - diagnostics
+        - guardPolicy
+      properties:
+        errorCode:
+          type: string
+          enum:
+            - object_inactive
+            - transition_order_violation
+            - context_not_initialized
+            - binding_missing
+        trigger:
+          type: string
+        diagnostics:
+          type: array
+          items:
+            type: string
+        guardPolicy:
+          type: string
+          enum:
+            - require_populated
+            - fail_fast
+        recoverable:
+          type: boolean
+
+    ReportingLifecycleContract:
+      type: object
+      required:
+        - activeSetContract
+        - idleSnapshotPolicy
+        - teardownPolicy
+        - guardPolicy
+      properties:
+        activeSetContract:
+          $ref: '#/components/schemas/ActiveSetContract'
+        idleSnapshotPolicy:
+          $ref: '#/components/schemas/EmptyStatePolicy'
+        teardownPolicy:
+          $ref: '#/components/schemas/EmptyStatePolicy'
+        guardPolicy:
+          type: string
+          enum:
+            - centralized_boundary_guard
+        fallbackBehavior:
+          type: string
+          enum:
+            - dedicated_empty_object
+            - deterministic_failure
+
+    ActiveSetContract:
+      type: object
+      required:
+        - run
+        - feature
+        - scenario
+        - step
+        - previousStep
+      properties:
+        run:
+          $ref: '#/components/schemas/LifecycleSlotContract'
+        feature:
+          $ref: '#/components/schemas/LifecycleSlotContract'
+        scenario:
+          $ref: '#/components/schemas/LifecycleSlotContract'
+        step:
+          $ref: '#/components/schemas/LifecycleSlotContract'
+        previousStep:
+          $ref: '#/components/schemas/LifecycleSlotContract'
+
+    LifecycleSlotContract:
+      type: object
+      required:
+        - mustExistInSnapshot
+        - activePolicy
+      properties:
+        mustExistInSnapshot:
+          type: boolean
+        activePolicy:
+          type: string
+          enum:
+            - populated_when_stage_requires_it
+            - dedicated_empty_object_when_inactive
+            - deterministic_failure_when_invalid
+        emptyStates:
+          type: array
+          items:
+            type: string
+            enum:
+              - inactive_feature_binding
+              - inactive_scenario_run
+              - inactive_step_run
+              - no_previous_step
+              - idle_reporting_value
+              - unresolved_runtime_enrichment
+
+    EmptyStatePolicy:
+      type: object
+      required:
+        - objectKind
+        - emptyObjectType
+        - meaning
+        - consumerContract
+      properties:
+        objectKind:
+          type: string
+        emptyObjectType:
+          type: string
+        meaning:
+          type: string
+        consumerContract:
+          type: string
+
+    ParseErrorEmissionContract:
+      type: object
+      required:
+        - hookAvailable
+        - sourceReferencePolicy
+        - callerBehavior
+        - lifecycleGuard
+      properties:
+        hookAvailable:
+          type: boolean
+        sourceReferencePolicy:
+          type: string
+          enum:
+            - best_effort
+            - default_only
+        callerBehavior:
+          type: string
+          enum:
+            - emit_without_branching
+            - emit_best_effort
+        lifecycleGuard:
+          type: string
+          enum:
+            - centralized_boundary_guard
+            - best_effort_boundary
+
+    ExternalApiCompatibilityRecord:
+      type: object
+      required:
+        - apiSurfaceId
+        - compatibilityPolicy
+        - protectedSymbols
+      properties:
+        apiSurfaceId:
+          type: string
+          enum:
+            - hook-plugin-public-api
+        compatibilityPolicy:
+          type: string
+          enum:
+            - additive_only
+        protectedSymbols:
+          type: array
+          items:
+            type: string
