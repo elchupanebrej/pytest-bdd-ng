@@ -1,0 +1,194 @@
+---
+openapi: 3.1.0
+info:
+  title: Empty Heading Validation Contract
+  version: 1.0.0
+  description: >-
+    Design-time contract for repository heading validation that enforces
+    non-empty
+    parsed Feature/Scenario/Scenario Outline titles under features/.
+servers:
+  - url: https://validation.local
+paths:
+  /validation/feature-headings/policy:
+    get:
+      summary: Get active heading validation policy
+      operationId: getHeadingValidationPolicy
+      responses:
+        '200':
+          description: Active policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeadingValidationPolicy'
+  /validation/feature-headings/scan:
+    post:
+      summary: Run heading validation over feature documents
+      operationId: runHeadingValidationScan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeadingValidationScanRequest'
+      responses:
+        '200':
+          description: Scan completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeadingValidationScanResponse'
+  /validation/feature-headings/baseline-audit:
+    post:
+      summary: Generate baseline compliance record for current repository state
+      operationId: runHeadingBaselineAudit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineAuditRequest'
+      responses:
+        '200':
+          description: Baseline audit completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineAuditResponse'
+components:
+  schemas:
+    HeadingValidationPolicy:
+      type: object
+      additionalProperties: false
+      required:
+        - policy_id
+        - enforced_heading_types
+        - trim_whitespace
+        - empty_name_is_violation
+        - snippet_text_excluded
+      properties:
+        policy_id:
+          type: string
+          example: feature-heading-policy-v1
+        enforced_heading_types:
+          type: array
+          items:
+            type: string
+            enum: [feature, scenario, scenario_outline]
+        trim_whitespace:
+          type: boolean
+          const: true
+        empty_name_is_violation:
+          type: boolean
+          const: true
+        snippet_text_excluded:
+          type: boolean
+          const: true
+    HeadingValidationScanRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - root_path
+        - include_patterns
+      properties:
+        root_path:
+          type: string
+          example: /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/features
+        include_patterns:
+          type: array
+          items:
+            type: string
+          example: ["**/*.feature", "**/*.feature.md"]
+        fail_on_violation:
+          type: boolean
+          default: true
+    HeadingValidationViolation:
+      type: object
+      additionalProperties: false
+      required:
+        - path
+        - line
+        - heading_type
+        - code
+        - message
+      properties:
+        path:
+          type: string
+          example: features/Step/Doc string.feature.md
+        line:
+          type: integer
+          minimum: 1
+          example: 7
+        heading_type:
+          type: string
+          enum: [feature, scenario, scenario_outline]
+        code:
+          type: string
+          enum: [EMPTY_HEADING_TITLE]
+        message:
+          type: string
+          example: "Scenario heading title is empty after trimming whitespace"
+        raw_name:
+          type: string
+          nullable: true
+    HeadingValidationScanResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - run_id
+        - documents_scanned
+        - violations
+        - status
+      properties:
+        run_id:
+          type: string
+        documents_scanned:
+          type: integer
+          minimum: 0
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/HeadingValidationViolation'
+        status:
+          type: string
+          enum: [pass, fail]
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+    BaselineAuditRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - root_path
+        - policy_id
+      properties:
+        root_path:
+          type: string
+          example: /Users/goloveshkokonstantin/Projects/pytest-bdd-ng/features
+        policy_id:
+          type: string
+          example: feature-heading-policy-v1
+    BaselineAuditResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - record_id
+        - policy_id
+        - run_id
+        - violations_count
+        - compliant
+      properties:
+        record_id:
+          type: string
+        policy_id:
+          type: string
+        run_id:
+          type: string
+        violations_count:
+          type: integer
+          minimum: 0
+        compliant:
+          type: boolean
