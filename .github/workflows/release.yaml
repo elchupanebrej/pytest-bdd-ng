@@ -21,6 +21,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip build twine
+          python -m pip install -e . GitPython
+      - name: Sync generated messages schemas
+        run: |
+          python -m pytest_bdd.script.sync_messages_contract_schemas
       - name: Build and publish
         env:
           TWINE_USERNAME: __token__
