@@ -2,18 +2,28 @@
 
 ## 1. Create Python 3.14 environment from conda-forge
 
+> Current workflow: provision Python 3.14 with `uv python install` and sync dependencies with `uv`.
+
+
 ```bash
-conda create -n pytest-bdd-ng-py314 -c conda-forge python=3.14 -y
-conda run -n pytest-bdd-ng-py314 python -m pip install -U pip
-conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+# Legacy workflow:
+# conda create -n pytest-bdd-ng-py314 -c conda-forge python=3.14 -y
+# conda run -n pytest-bdd-ng-py314 python -m pip install -U pip
+# conda run -n pytest-bdd-ng-py314 python -m pip install -e '.[test,testenv,testtypes]'
+uv python install 3.14
+uv sync --extra test --extra testenv --extra testtypes
 ```
 
 ## 2. Validate supported and unsupported pairs via matrix CLI
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 625
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 39 --pytest 625
-conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 310 --pytest 620
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 314 --pytest 625
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 39 --pytest 625
+# conda run -n pytest-bdd-ng-py314 python -m pytest_bdd.script.compatibility_matrix --python 310 --pytest 620
+uv run compatibility_matrix --python 314 --pytest 625
+uv run compatibility_matrix --python 39 --pytest 625
+uv run compatibility_matrix --python 310 --pytest 620
 ```
 
 Expected:
@@ -24,9 +34,13 @@ Expected:
 ## 3. Validate supported tox matrix environments
 
 ```bash
-conda run -n pytest-bdd-ng-py314 tox -l
-conda run -n pytest-bdd-ng-py314 tox -e py310-pytest625-coverage-lin -- -q
-conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-coverage-lin -- -q
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 tox -l
+# conda run -n pytest-bdd-ng-py314 tox -e py310-pytest625-coverage-lin -- -q
+# conda run -n pytest-bdd-ng-py314 tox -e py314-pytestlatest-coverage-lin -- -q
+uvx --with tox-uv tox -l
+uvx --with tox-uv tox -e py310-pytest625-coverage-lin -- -q
+uvx --with tox-uv tox -e py314-pytestlatest-coverage-lin -- -q
 ```
 
 Expected:
@@ -36,7 +50,9 @@ Expected:
 ## 4. Run compatibility and contract checks
 
 ```bash
-conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/contract
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 python -m pytest -q tests/compatibility tests/contract
+uv run python -m pytest -q tests/compatibility tests/contract
 ```
 
 Expected:
@@ -46,7 +62,9 @@ Expected:
 ## 5. Run pre-commit before commit
 
 ```bash
-conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+# Legacy workflow:
+# conda run -n pytest-bdd-ng-py314 pre-commit run --all-files
+uvx pre-commit run --all-files
 ```
 
 Expected: all hooks pass and all reported issues are fixed before commit.
