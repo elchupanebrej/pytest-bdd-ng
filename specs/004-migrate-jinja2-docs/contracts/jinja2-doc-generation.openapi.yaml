@@ -1,0 +1,344 @@
+---
+# yamllint disable rule:line-length
+openapi: 3.0.3
+info:
+  title: Jinja2 Documentation Generation Migration Contract
+  version: 1.1.0
+  description: >-
+    Design-time contract for generation parity, manual documentation preservation,
+    template asset packaging, documentation synchronization checks, and
+    `docs/features/features.rst` content-scope validation.
+paths:
+  /generation/templates:
+    get:
+      summary: List template assets used by generation workflows
+      responses:
+        '200':
+          description: Template assets in migration scope
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateAsset'
+
+  /generation/render/code:
+    post:
+      summary: Render code-generation template with migration context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateRenderContext'
+      responses:
+        '200':
+          description: Rendered code artifact metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderResult'
+
+  /generation/render/docs:
+    post:
+      summary: Render documentation-generation template with migration context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateRenderContext'
+      responses:
+        '200':
+          description: Rendered documentation artifact metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderResult'
+
+  /docs/features/index:
+    patch:
+      summary: Replace generated section while preserving manual documentation content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratedDocumentationBlock'
+      responses:
+        '200':
+          description: Documentation update summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentationUpdateResult'
+        '409':
+          description: Marker mismatch or invalid block boundaries
+
+  /validation/parity:
+    post:
+      summary: Validate semantic output parity for migration cases
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/GenerationParityCase'
+      responses:
+        '200':
+          description: Parity validation summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationSummary'
+
+  /validation/doc-sync:
+    post:
+      summary: Validate generated documentation is synchronized before commit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentationSyncCheck'
+      responses:
+        '200':
+          description: Documentation synchronization result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentationSyncResult'
+
+  /validation/packaging/templates:
+    get:
+      summary: Validate packaged template asset manifest
+      responses:
+        '200':
+          description: Template packaging validation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackagingTemplateManifest'
+
+  /validation/docs-boundary:
+    post:
+      summary: Validate scope boundaries for docs/features/features.rst
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeaturesIndexScopePolicy'
+      responses:
+        '200':
+          description: Scope-boundary validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocsBoundaryValidationResult'
+
+components:
+  schemas:
+    TemplateAsset:
+      type: object
+      required:
+        - templateId
+        - relativePath
+        - engine
+        - packaged
+      properties:
+        templateId:
+          type: string
+        relativePath:
+          type: string
+        engine:
+          type: string
+          enum: [jinja2]
+        packaged:
+          type: boolean
+
+    TemplateRenderContext:
+      type: object
+      required:
+        - contextId
+        - templateId
+        - variables
+        - renderMode
+      properties:
+        contextId:
+          type: string
+        templateId:
+          type: string
+        variables:
+          type: object
+          additionalProperties: true
+        renderMode:
+          type: string
+          enum: [code_generation, docs_generation]
+
+    GeneratedDocumentationBlock:
+      type: object
+      required:
+        - startMarker
+        - endMarker
+        - entries
+        - contentHash
+      properties:
+        startMarker:
+          type: string
+        endMarker:
+          type: string
+        entries:
+          type: array
+          items:
+            type: string
+        contentHash:
+          type: string
+
+    RenderResult:
+      type: object
+      required:
+        - templateId
+        - outputPath
+        - rendered
+      properties:
+        templateId:
+          type: string
+        outputPath:
+          type: string
+        rendered:
+          type: boolean
+
+    DocumentationUpdateResult:
+      type: object
+      required:
+        - generatedBlockUpdated
+        - manualPrefixPreserved
+        - manualSuffixPreserved
+      properties:
+        generatedBlockUpdated:
+          type: boolean
+        manualPrefixPreserved:
+          type: boolean
+        manualSuffixPreserved:
+          type: boolean
+
+    GenerationParityCase:
+      type: object
+      required:
+        - caseId
+        - inputFixture
+        - expectedOutputSnapshot
+        - parityMode
+        - coversSpecialContent
+      properties:
+        caseId:
+          type: string
+        inputFixture:
+          type: string
+        expectedOutputSnapshot:
+          type: string
+        parityMode:
+          type: string
+          enum: [semantic]
+        coversSpecialContent:
+          type: boolean
+
+    DocumentationSyncCheck:
+      type: object
+      required:
+        - checkId
+        - trigger
+        - generatedDocsChanged
+      properties:
+        checkId:
+          type: string
+        trigger:
+          type: string
+          enum: [pre_commit, manual, ci]
+        generatedDocsChanged:
+          type: boolean
+
+    DocumentationSyncResult:
+      type: object
+      required:
+        - status
+        - requiresRegeneration
+      properties:
+        status:
+          type: string
+          enum: [pass, fail]
+        requiresRegeneration:
+          type: boolean
+
+    ValidationSummary:
+      type: object
+      required:
+        - totalCases
+        - passedCases
+        - failedCases
+      properties:
+        totalCases:
+          type: integer
+          minimum: 0
+        passedCases:
+          type: integer
+          minimum: 0
+        failedCases:
+          type: integer
+          minimum: 0
+
+    PackagingTemplateManifest:
+      type: object
+      required:
+        - manifestId
+        - includedAssets
+        - removedAssets
+      properties:
+        manifestId:
+          type: string
+        includedAssets:
+          type: array
+          items:
+            type: string
+        removedAssets:
+          type: array
+          items:
+            type: string
+
+    FeaturesIndexScopePolicy:
+      type: object
+      required:
+        - documentPath
+        - allowGeneratedNavigation
+        - allowUserFacingContext
+        - allowInternalImplementationNotes
+        - allowConversionHistoryNotes
+      properties:
+        documentPath:
+          type: string
+          enum: [docs/features/features.rst]
+        allowGeneratedNavigation:
+          type: boolean
+        allowUserFacingContext:
+          type: boolean
+        allowInternalImplementationNotes:
+          type: boolean
+        allowConversionHistoryNotes:
+          type: boolean
+
+    DocsBoundaryValidationResult:
+      type: object
+      required:
+        - status
+        - violations
+      properties:
+        status:
+          type: string
+          enum: [pass, fail]
+        violations:
+          type: array
+          items:
+            type: string
