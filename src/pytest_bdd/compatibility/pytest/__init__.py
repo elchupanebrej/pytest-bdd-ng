@@ -1,33 +1,36 @@
-"""Compatibility module for pytest"""
+"""Compatibility module for pytest."""
 
 from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, NoReturn, Protocol, cast
 
-import py
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+    from os import PathLike
+
+    from _pytest.scope import Scope, _ScopeName
+
 import pytest
-from _pytest.compat import NotSetType
-from _pytest.config import Config, ExitCode, PytestPluginManager
-from _pytest.config.argparsing import Parser
-from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
-from _pytest.main import Session, wrap_session
-from _pytest.mark import Mark, MarkDecorator, MarkMatcher
-from _pytest.mark import expression as _mark_expression
-from _pytest.nodes import Collector
-from _pytest.pytester import RunResult
-from _pytest.python import Metafunc
-from _pytest.reports import TestReport
-from _pytest.runner import CallInfo
-from _pytest.terminal import TerminalReporter
+from _pytest.compat import NotSetType  # noqa: PLC2701
+from _pytest.config import Config, ExitCode, PytestPluginManager  # noqa: PLC2701
+from _pytest.config.argparsing import Parser  # noqa: PLC2701
+from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func  # noqa: PLC2701
+from _pytest.main import Session, wrap_session  # noqa: PLC2701
+from _pytest.mark import Mark, MarkDecorator, MarkMatcher  # noqa: PLC2701
+from _pytest.mark import expression as _mark_expression  # noqa: PLC2701
+from _pytest.nodes import Collector  # noqa: PLC2701
+from _pytest.pytester import RunResult  # noqa: PLC2701
+from _pytest.python import Metafunc  # noqa: PLC2701
+from _pytest.reports import TestReport  # noqa: PLC2701
+from _pytest.runner import CallInfo  # noqa: PLC2701
+from _pytest.stash import Stash  # noqa: PLC2701
+from _pytest.terminal import TerminalReporter  # noqa: PLC2701
 
 from pytest_bdd.util.packaging import compare_distribution_version
 
 __all__ = [
-    "PYTEST7",
-    "PYTEST61",
-    "PYTEST62",
     "PYTEST81",
     "PYTEST83",
     "CallInfo",
@@ -49,121 +52,120 @@ __all__ = [
     "PytestPluginManager",
     "RunResult",
     "Session",
+    "Stash",
     "TerminalReporter",
     "TestReport",
     "Testdir",
-    "assert_outcomes",
     "call_fixture_func",
-    "get_config_root_path",
     "wrap_session",
 ]
 
 
 # region pytest version dependent imports
-def is_pytest_version_greater_or_equal(version: str):
+def is_pytest_version_greater_or_equal(version: str) -> bool:
     return compare_distribution_version("pytest", version, ge)
 
 
-PYTEST61, PYTEST62, PYTEST7, PYTEST8, PYTEST81, PYTEST83 = map(
+PYTEST8, PYTEST81, PYTEST83 = map(
     is_pytest_version_greater_or_equal,
     [
-        "6.1",
-        "6.2",
-        "7.0",
         "8.0",
         "8.1",
         "8.3",
     ],
 )
-
-
-if PYTEST7:
-    from pytest import Testdir  # noqa: PT013
-else:
-    from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
-
-if PYTEST62:
-    from pytest import FixtureRequest  # noqa: PT013
-else:
-    from _pytest.fixtures import FixtureRequest
 # endregion
+
+FixtureRequest = pytest.FixtureRequest
+Testdir = pytest.Testdir
 
 if TYPE_CHECKING:  # pragma: no cover
     from _pytest.nodes import Item as BaseItem
 
     class Item(BaseItem):
+        """Represent item state."""
+
         _request: FixtureRequest
 
 else:
-    from _pytest.nodes import Item
+    from _pytest.nodes import Item  # noqa: PLC2701
 
 
 class Module(pytest.Module):
-    @classmethod
-    def build(cls, parent, file_path):
-        if hasattr(cls, "from_parent"):
-            collector = cls.from_parent(
-                parent,
-                **({"path": Path(file_path)} if PYTEST7 else {"fspath": py.path.local(file_path)}),  # noqa: PTH124
-            )
-        else:
-            collector = cls(parent=parent, fspath=py.path.local(file_path))  # noqa: PTH124
-        return collector
+    """Represent a pytest module with path helpers."""
 
-    def get_path(self):
+    @classmethod
+    def build(cls, parent: Collector, file_path: str | PathLike[str]) -> Module:
+        """
+        Build module instance.
+
+        Returns:
+            Module instance configured with the given file path.
+
+        """
+        return cls.from_parent(parent, path=Path(file_path))
+
+    def get_path(self) -> Path:
+        """
+        Get the module's path.
+
+        Returns:
+            Path to the module file.
+
+        """
         return getattr(self, "path", Path(self.fspath))
 
 
-def assert_outcomes(
-    result: RunResult,
-    passed: int = 0,
-    skipped: int = 0,
-    failed: int = 0,
-    errors: int = 0,
-    xpassed: int = 0,
-    xfailed: int = 0,
-) -> None:
-    """Compatibility function for result.assert_outcomes"""
-    result.assert_outcomes(
-        errors=errors,
-        passed=passed,
-        skipped=skipped,
-        failed=failed,
-        xpassed=xpassed,
-        xfailed=xfailed,
-    )
-
-
-def get_config_root_path(config: Config) -> Path:
-    return Path(getattr(cast(Config, config), "rootpath" if PYTEST61 else "rootdir"))
-
-
-def fail(reason, *, pytrace=True):
+def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
     __tracebackhide__ = True
-    if PYTEST7:
-        return pytest.fail(reason, pytrace=pytrace)
-    return pytest.fail(msg=reason, pytrace=pytrace)
+    pytest.fail(reason, pytrace=pytrace)
 
 
-def is_set(obj):
+def is_set(obj: object) -> bool:
     return not isinstance(obj, NotSetType)
-
-
-def get_metafunc_call_arg(call, arg):
-    return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
 def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
 
 
-def build_fixture_def(request, *args, **kwargs):
-    return FixtureDef(
-        *args,
-        **kwargs,
-        **({"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}),
-        **({"_ispytest": True} if PYTEST8 else {}),
-    )
+class _LegacyFixtureDefFactory(Protocol):
+    def __call__(  # noqa: PLR0913, PLR0917
+        self,
+        fixturemanager: object,
+        baseid: str | None,
+        argname: str,
+        func: Callable[[], object],
+        scope: _ScopeName | Scope | Callable[[str, Config], _ScopeName] | None,
+        params: Sequence[object] | None,
+        ids: tuple[object | None, ...] | Callable[[object], object | None] | None = None,
+        *,
+        _ispytest: bool = False,
+    ) -> FixtureDef[object]: ...
+
+
+def build_fixture_def(  # noqa: PLR0913
+    request: FixtureRequest,
+    *,
+    baseid: str | None,
+    argname: str,
+    func: Callable[[], object],
+    scope: _ScopeName | Scope | Callable[[str, Config], _ScopeName] | None,
+    params: Sequence[object] | None,
+) -> FixtureDef[object]:
+    if PYTEST81:
+        return FixtureDef(
+            request.config,
+            baseid,
+            argname,
+            func,
+            scope,
+            params,
+            None,
+            _ispytest=PYTEST8,
+        )
+    legacy_fixture_def = cast("_LegacyFixtureDefFactory", FixtureDef)
+    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)  # noqa: SLF001
 
 
 Expression = _mark_expression.Expression
