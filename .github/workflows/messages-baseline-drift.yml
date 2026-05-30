@@ -1,0 +1,86 @@
+---
+name: Messages Baseline Drift
+
+"on":
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  baseline-drift:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install uv
+
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Run dedicated runtime-required coverage audit gate
+        env:
+          PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT: "1"
+        run: |
+          bash scripts/run_messages_coverage_audit.sh
+
+      - name: Verify baseline snapshot exists
+        run: |
+          base="specs/008-maximize-messages-coverage/contracts"
+          test -f "$base/capabilities-baseline-previous.json"
+
+      - name: Generate current capability snapshot
+        run: |
+          base="specs/008-maximize-messages-coverage/contracts"
+          python -m pytest_bdd.model.coverage.inventory \
+            --schema-dir messages/jsonschema/src \
+            --output "$base/capabilities-baseline-current.json"
+
+      - name: Run baseline diff
+        run: |
+          base="specs/008-maximize-messages-coverage/contracts"
+          python -m pytest_bdd.script.message_capability_governance diff \
+            --previous-baseline v32.previous \
+            --current-baseline v32.current \
+            --previous "$base/capabilities-baseline-previous.json" \
+            --current "$base/capabilities-baseline-current.json" \
+            --output "$base/baseline-diff.json"
+
+      - name: Fail on capability deltas
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          diff_path = Path(
+              "specs/008-maximize-messages-coverage/contracts/baseline-diff.json"
+          )
+          payload = json.loads(diff_path.read_text(encoding="utf-8"))
+          changed = (
+              payload.get("added_capability_ids", [])
+              + payload.get("changed_capability_ids", [])
+              + payload.get("removed_capability_ids", [])
+          )
+          if changed:
+              count = len(changed)
+              raise SystemExit(
+                  f"Baseline drift detected: {count} capability delta(s)."
+              )
+          PY
+
+      - name: Upload baseline diff artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: messages-baseline-diff
+          path: |
+            specs/008-maximize-messages-coverage/contracts/baseline-diff.json
