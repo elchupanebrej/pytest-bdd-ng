@@ -1,27 +1,39 @@
-from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+"""Provide parser helpers."""
 
-from attr import attrib, attrs
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from attrs import define, field
+from cucumber_messages import GherkinDocument  # type:ignore[attr-defined, import-untyped]
 
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import IdGenerator
 
-if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.model.gherkin_document import Feature
+
+@define
+class ParsedFeature:
+    """Parsed feature result — bundles gherkin document, filename, and raw source data."""
+
+    gherkin_document: GherkinDocument
+    filename: str
+    raw_data: str
 
 
 @runtime_checkable
-@attrs
+@define
 class ParserProtocol(Protocol):
-    id_generator: IdGenerator | None = attrib(default=None, kw_only=True)
+    """Define the parser protocol contract."""
+
+    id_generator: IdGenerator | None = field(default=None, kw_only=True)
 
     def parse(
         self,
-        config: Config | HasPytestBDDIdGenerator,
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
-        *args,
-        **kwargs,
-    ) -> tuple["Feature", str]:  # pragma: no cover
+        *args: object,
+        **kwargs: object,
+    ) -> ParsedFeature:  # pragma: no cover
+        """Parse parse."""
         ...

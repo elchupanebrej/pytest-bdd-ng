@@ -1,11 +1,12 @@
-import json
-from itertools import filterfalse
-from json import loads as json_loads
-from operator import attrgetter
-from typing import Any, cast
+"""Provide model builder helpers."""
 
-from attr import attrib, attrs
+from collections.abc import Iterable, Iterator, Sequence
+from operator import attrgetter
+from typing import Generic, TypeVar, cast
+
+from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    Comment,
     DataTable,
     DocString,
     Examples,
@@ -21,77 +22,98 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
     Tag,
 )
-from gherkin.pickles.compiler import Compiler
-
-from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
-from pytest_bdd.model.message_converter import message_converter
 
 from .model import Join as StructJoin
 from .model import StepPrototype as StructStep
 from .model import Table as StructTable
 
+ModelT = TypeVar("ModelT")
 
-@attrs
-class _ASTBuilder:
-    model: Any
 
-    def build(self, *args, **kwargs):  # pragma: no cover
+@define
+class _ASTBuilder(Generic[ModelT]):
+    model: ModelT
+
+    def build(self, id_generator: object) -> object:  # pragma: no cover
         raise NotImplementedError
 
 
-@attrs
-class GherkinDocumentBuilder(_ASTBuilder):
-    model: StructStep = attrib()
+@define
+class GherkinDocumentBuilder(_ASTBuilder[StructStep]):
+    """Represent gherkin document builder state."""
 
-    def build(self, id_generator):
+    model: StructStep = field()
+
+    def build(self, id_generator: object) -> GherkinDocument:
+        """
+        Build gherkin document.
+
+        Returns:
+            Gherkin document.
+
+        """
+        comments = [
+            Comment(
+                location=Location(column=1, line=index + 1),
+                text=comment,
+            )
+            for index, comment in enumerate(self.model.comments or [])
+        ]
         return GherkinDocument(
-            comments=[],
+            comments=comments,
             uri=None,
             feature=StepToFeatureASTBuilder(self.model).build(id_generator=id_generator),
         )
 
-    def build_feature(self, filename, uri, id_generator):
+    def build_feature(self, filename: str, uri: str | None, id_generator: object) -> GherkinDocument:  # noqa: ARG002
+        """
+        Build feature with filename and URI.
+
+        Returns:
+            Gherkin document with feature.
+
+        """
         gherkin_document = self.build(id_generator=id_generator)
         gherkin_document.uri = uri
-
-        gherkin_document_serialized = json.dumps(message_converter.to_dict(gherkin_document))
-
-        scenarios_data = Compiler().compile(json_loads(gherkin_document_serialized))
-        pickles = GherkinDocumentFeature.load_pickles(scenarios_data)
-
-        feature = GherkinDocumentFeature(  # type: ignore[call-arg]
-            gherkin_document=gherkin_document,
-            uri=uri,
-            pickles=pickles,
-            filename=filename,
-        )
-
-        feature.fill_registry()
-
-        return feature
+        return gherkin_document
 
 
-@attrs
-class StepToFeatureASTBuilder(_ASTBuilder):
-    model: StructStep = attrib()
+@define
+class StepToFeatureASTBuilder(_ASTBuilder[StructStep]):
+    """
+    Represent step to feature astbuilder state.
 
-    def build(self, id_generator):
+    Yields:
+        Generated values.
+
+    """
+
+    model: StructStep = field()
+
+    def build(self, id_generator: object) -> Feature:
+        """
+        Build feature AST.
+
+        Returns:
+            Feature AST.
+
+        """
         return Feature(
             children=self._build_children(id_generator=id_generator),
             description=self.model.description or "",
-            language="EN",
-            location=Location(column=0, line=0),
+            language="en",
+            location=Location(column=1, line=1),
             tags=[],
             name=self.model.name or "",
             keyword="Feature",
         )
 
-    def _build_children(self, id_generator):
-        def _():
+    def _build_children(self, id_generator: object) -> list[FeatureChild]:
+        def _() -> Iterator[FeatureChild]:
             for route in self.model.routes:
                 if route.steps:
 
-                    def steps_gen(steps):
+                    def steps_gen(steps: Iterable[StructStep]) -> Iterator[Step]:
                         previous_step_keyword_type = None
                         for step in steps:
                             step_keyword_type = (
@@ -100,68 +122,22 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 else step.keyword_type
                             )
                             yield Step(
-                                id=next(id_generator),
-                                keyword=(
-                                    step.type if isinstance(step.type, str) else cast(PickleStepType, step.type).value
+                                id=next(cast("Iterator[str]", id_generator)),
+                                keyword=self._step_keyword(step),
+                                location=Location(column=1, line=1),
+                                text=self._step_action(step),
+                                keyword_type=(
+                                    step_keyword_type.value
+                                    if step_keyword_type is not None
+                                    else StepKeywordType.unknown.value
                                 ),
-                                location=Location(column=0, line=0),
-                                text=step.action,
-                                keyword_type=step_keyword_type.value,
-                                **(
-                                    (
-                                        lambda rows: (
-                                            {
-                                                "data_table": DataTable(
-                                                    rows=rows,
-                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
-                                                ),  # type: ignore[call-arg]
-                                            }
-                                            if rows
-                                            else {}
-                                        )
-                                    )(
-                                        [
-                                            *filterfalse(
-                                                lambda row: row is None,
-                                                (
-                                                    (
-                                                        (
-                                                            lambda cells: (
-                                                                TableRow(
-                                                                    id=next(id_generator),
-                                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
-                                                                    cells=cells,
-                                                                )  # type: ignore[call-arg]
-                                                                if cells
-                                                                else None
-                                                            )
-                                                        )(
-                                                            [
-                                                                *(
-                                                                    TableCell(
-                                                                        location=Location(
-                                                                            column=0,
-                                                                            line=0,
-                                                                        ),
-                                                                        value=parameter,
-                                                                    )
-                                                                    for parameter in row_values
-                                                                ),
-                                                            ],
-                                                        )
-                                                    )
-                                                    for row_values in StructJoin(tables=step.data).rowed_values
-                                                ),
-                                            ),
-                                        ],
-                                    )
-                                ),
+                                **self._build_data_table(step, id_generator),
                                 **(
                                     {
                                         "doc_string": DocString(
                                             content=step.description,
                                             delimiter="\n",
-                                            location=Location(column=0, line=0),
+                                            location=Location(column=1, line=1),
                                         ),
                                     }
                                     if step.description
@@ -170,7 +146,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                             )
                             previous_step_keyword_type = step_keyword_type
 
-                    steps = [*steps_gen(filter(lambda step: step.action is not None, route.steps))]
+                    steps = [*steps_gen(filter(lambda step: self._step_action(step) is not None, route.steps))]
 
                     yield FeatureChild(
                         scenario=Scenario(
@@ -180,9 +156,9 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                                 if route.example_table.values
                                 else []
                             ),
-                            id=next(id_generator),
+                            id=next(cast("Iterator[str]", id_generator)),
                             keyword="Scenario",
-                            location=Location(column=0, line=0),
+                            location=Location(column=1, line=1),
                             name=next(
                                 filter(bool, map(attrgetter("name"), reversed(route.steps))),
                                 "",
@@ -190,11 +166,11 @@ class StepToFeatureASTBuilder(_ASTBuilder):
                             tags=[
                                 *(
                                     Tag(
-                                        id=next(id_generator),
-                                        location=Location(column=0, line=0),
+                                        id=next(cast("Iterator[str]", id_generator)),
+                                        location=Location(column=1, line=1),
                                         name=tag_name,
                                     )
-                                    for tag_name in route.tags
+                                    for tag_name in route.tags or []
                                 ),
                             ],
                             steps=steps,
@@ -203,27 +179,87 @@ class StepToFeatureASTBuilder(_ASTBuilder):
 
         return list(_())
 
+    @staticmethod
+    def _step_keyword(step: StructStep) -> str:
+        return step.type if isinstance(step.type, str) else cast("PickleStepType", step.type).value
 
-@attrs
-class ExampleASTBuilder(_ASTBuilder):
-    model: StructJoin | StructTable = attrib()
+    @staticmethod
+    def _step_action(step: StructStep) -> str | None:
+        return cast("str | None", getattr(step, "action", None))
 
-    def build(self, id_generator):
+    @staticmethod
+    def _build_data_table(step: StructStep, id_generator: object) -> dict[str, DataTable]:
+        rows = [
+            row
+            for row in (
+                StepToFeatureASTBuilder._build_data_table_row(row_values, id_generator)
+                for row_values in StructJoin(tables=step.data).rowed_values
+            )
+            if row is not None
+        ]
+        return (
+            {
+                "data_table": DataTable(
+                    rows=rows,
+                    location=Location(column=1, line=1),  # type: ignore[call-arg]
+                ),  # type: ignore[call-arg]
+            }
+            if rows
+            else {}
+        )
+
+    @staticmethod
+    def _build_data_table_row(row_values: Sequence[object], id_generator: object) -> TableRow | None:
+        cells = [
+            TableCell(
+                location=Location(
+                    column=1,
+                    line=1,
+                ),
+                value=parameter,
+            )
+            for parameter in row_values
+        ]
+        return (
+            TableRow(
+                id=next(cast("Iterator[str]", id_generator)),
+                location=Location(column=1, line=1),  # type: ignore[call-arg]
+                cells=cells,
+            )  # type: ignore[call-arg]
+            if cells
+            else None
+        )
+
+
+@define
+class ExampleASTBuilder(_ASTBuilder[StructJoin | StructTable]):
+    """Represent example astbuilder state."""
+
+    model: StructJoin | StructTable = field()
+
+    def build(self, id_generator: object) -> Examples:
+        """
+        Build examples AST.
+
+        Returns:
+            Examples AST.
+
+        """
         return Examples(
             description=self.model.description,
-            id=next(id_generator),
+            id=next(cast("Iterator[str]", id_generator)),
             keyword="Examples",
-            location=Location(column=0, line=0),
+            location=Location(column=1, line=1),
             name=self.model.name,
             table_body=[
                 *(
                     TableRow(
-                        id=next(id_generator),
-                        location=Location(column=0, line=0),
+                        id=next(cast("Iterator[str]", id_generator)),
+                        location=Location(column=1, line=1),
                         cells=[
                             *(
                                 TableCell(
-                                    location=Location(column=0, line=0),
+                                    location=Location(column=1, line=1),
                                     value=str(parameter),
                                 )
                                 for parameter in row_values
@@ -236,23 +272,23 @@ class ExampleASTBuilder(_ASTBuilder):
             tags=[
                 *(
                     Tag(
-                        id=next(id_generator),
-                        location=Location(column=0, line=0),
+                        id=next(cast("Iterator[str]", id_generator)),
+                        location=Location(column=1, line=1),
                         name=tag_name,
                     )
-                    for tag_name in self.model.tags
+                    for tag_name in self.model.tags or []
                 ),
             ],
             table_header=TableRow(
-                id=next(id_generator),
-                location=Location(column=0, line=0),
+                id=next(cast("Iterator[str]", id_generator)),
+                location=Location(column=1, line=1),
                 cells=[
                     *(
                         TableCell(
-                            location=Location(column=0, line=0),
+                            location=Location(column=1, line=1),
                             value=parameter,
                         )
-                        for parameter in self.model.parameters
+                        for parameter in self.model.parameters or []
                     ),
                 ],
             ),

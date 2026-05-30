@@ -1,20 +1,37 @@
+"""Provide parser helpers."""
+
+from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
+from typing import Protocol, cast
 
-from attr import attrib, attrs
+from attrs import define, field
+from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.enum import StrEnum
-from pytest_bdd.compatibility.parser import ParserProtocol
+from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.types.protocol import HasPytestBDDIdGenerator
+from pytest_bdd.types.protocol import HasPytestStash
 
 from .model import Step
 from .model_builder import GherkinDocumentBuilder
 
 
-@attrs
+class Loader(Protocol):
+    """Represent loader state."""
+
+    def __call__(self, content: str) -> object:
+        """Handle call."""
+        ...
+
+
+@define
 class StructBDDParser(ParserProtocol):
+    """Represent struct bddparser state."""
+
     class KIND(StrEnum):
+        """Supported struct BDD source formats."""
+
         HOCON = "hocon"
         HJSON = "hjson"
         JSON = "json"
@@ -22,83 +39,124 @@ class StructBDDParser(ParserProtocol):
         TOML = "toml"
         YAML = "yaml"
 
-    kind = attrib(kw_only=True)
-    loader = attrib(kw_only=True)
+    kind: KIND | str | None = field(kw_only=True)
+    loader: Loader | None = field(kw_only=True)
 
     @kind.default
-    def kind_default(self):
+    def kind_default(self) -> str | None:
+        """
+        Get default kind.
+
+        Returns:
+            Default kind value.
+
+        """
         return self.KIND.YAML.value if getattr(self, "loader", None) is None else None
 
     @loader.default
-    def loader_default(self):
+    def loader_default(self) -> Loader | None:
+        """
+        Get default loader.
+
+        Returns:
+            Loader or None.
+
+        """
         return self.build_loader()
 
     def parse(
         self,
-        config: Config | HasPytestBDDIdGenerator,  # noqa: ARG002 hookspec
+        config: Config | HasPytestStash,
         path: Path,
         uri: str,
-        *args,
-        **kwargs,
-    ):
-        encoding = kwargs.pop("encoding", "utf-8")
-        mode = kwargs.pop("mode", "r")
+        *args: object,
+        **kwargs: object,
+    ) -> ParsedFeature:
+        """
+        Parse struct BDD file.
+
+        Returns:
+            ParsedFeature with gherkin document, filename, and file content.
+
+        """
+        _ = config
+        encoding = cast("str", kwargs.pop("encoding", "utf-8"))
+        mode = cast("str", kwargs.pop("mode", "r"))
         with path.open(mode=mode, encoding=encoding) as feature_file:
-            content = feature_file.read()
+            content = cast("str", feature_file.read())
         filename = str(path.as_posix())
-        raw_step = self.loader(content, *args, **kwargs)
+        raw_step = cast("Loader", self.loader)(content, *args, **kwargs)
         step = Step.model_validate(raw_step)
-        return GherkinDocumentBuilder(model=step).build_feature(filename, uri, self.id_generator), content  # type: ignore[call-arg]
+        gherkin_document = GherkinDocumentBuilder(model=step).build_feature(
+            filename,
+            uri,
+            self.id_generator,
+        )
+        return ParsedFeature(
+            gherkin_document=gherkin_document,
+            filename=filename,
+            raw_data=content,
+        )
 
-    # TODO make loaders part of public API
-    def build_loader(self):
+    # TODO: make loaders part of public API
+    def build_loader(self) -> Loader | None:  # noqa: PLR0911
+        """
+        Build loader based on kind.
+
+        Returns:
+            Loader function or None.
+
+        """
         if self.kind is self.KIND.YAML:
-            from yaml import FullLoader
-            from yaml import load as load_yaml
+            from yaml import FullLoader  # noqa: PLC0415 -- lazy format dispatch
+            from yaml import load as load_yaml  # noqa: PLC0415 -- lazy format dispatch
 
-            return partial(load_yaml, Loader=FullLoader)
+            return cast("Loader", partial(load_yaml, Loader=FullLoader))
         if self.kind is self.KIND.TOML:
-            from pytest_bdd.compatibility.tomllib import loads as load_toml
+            from pytest_bdd.compatibility.tomllib import loads as load_toml  # noqa: PLC0415 -- lazy format dispatch
 
-            return load_toml
+            return cast("Loader", load_toml)
         if self.kind is self.KIND.JSON:
-            from json import loads as load_json
+            from json import loads as load_json  # noqa: PLC0415 -- lazy format dispatch
 
-            return load_json
+            return cast("Loader", load_json)
         if self.kind is self.KIND.JSON5:
-            from json5 import loads as load_json5
+            from json5 import loads as load_json5  # noqa: PLC0415 -- lazy format dispatch
 
-            return load_json5
+            return cast("Loader", load_json5)
         if self.kind is self.KIND.HJSON:
-            from hjson import loads as load_hjson
+            from hjson import loads as load_hjson  # noqa: PLC0415 -- lazy format dispatch
 
-            return load_hjson
+            return cast("Loader", load_hjson)
         if self.kind is self.KIND.HOCON:
-            from json import loads
+            from json import loads  # noqa: PLC0415 -- lazy format dispatch
 
-            from pyhocon import ConfigFactory, HOCONConverter
+            from pyhocon import ConfigFactory, HOCONConverter  # noqa: PLC0415 -- lazy format dispatch
 
-            def load_hocon(
-                s,
-                hocon_parse_args=(),
-                hocon_parse_kwargs=None,
-                hocon_to_json_args=(),
-                hocon_to_json_kwargs=None,
-                json_args=(),
-                json_kwargs=None,
-            ):
+            def load_hocon(  # noqa: PLR0913, PLR0917
+                s: str,
+                hocon_parse_args: Sequence[object] = (),
+                hocon_parse_kwargs: Mapping[str, object] | None = None,
+                hocon_to_json_args: Sequence[object] = (),
+                hocon_to_json_kwargs: Mapping[str, object] | None = None,
+                json_args: Sequence[object] = (),
+                json_kwargs: Mapping[str, object] | None = None,
+            ) -> object:
                 hocon_to_json_kwargs = hocon_to_json_kwargs or {}
                 hocon_parse_kwargs = hocon_parse_kwargs or {}
                 json_kwargs = json_kwargs or {}
-                return loads(
-                    HOCONConverter.to_json(
-                        ConfigFactory.parse_string(s, *hocon_parse_args, **hocon_parse_kwargs),
-                        *hocon_to_json_args,
-                        **hocon_to_json_kwargs,
+                return cast(
+                    "object",
+                    loads(
+                        HOCONConverter.to_json(
+                            ConfigFactory.parse_string(s, *hocon_parse_args, **hocon_parse_kwargs),
+                            *hocon_to_json_args,
+                            **hocon_to_json_kwargs,
+                        ),
+                        *json_args,
+                        **json_kwargs,  # type: ignore[arg-type]
                     ),
-                    *json_args,
-                    **json_kwargs,
                 )
 
-            return load_hocon
-        return None
+            return cast("Loader", load_hocon)
+        return Nothing.value_or(None)

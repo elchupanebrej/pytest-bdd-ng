@@ -1,15 +1,21 @@
+"""Provide model helpers."""
+
+import builtins
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from enum import Enum
-from functools import partial
 from inspect import getfile
 from itertools import chain, product, starmap
-from operator import attrgetter, eq, is_not
+from operator import attrgetter, eq
 from pathlib import Path
-from typing import Annotated, Any, Literal, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Annotated, Literal, NamedTuple, TypeAlias, TypeVar, Union, cast
 
-from attr import attrib, attrs
-from cucumber_messages import Source, SourceMediaType, StepKeywordType  # type:ignore[attr-defined, import-untyped]
+from attrs import define, field
+from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
+    Source,
+    SourceMediaType,
+    StepKeywordType,
+)
 from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
     AfterValidator,
     BaseModel,
@@ -22,13 +28,23 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
 
 from pytest_bdd.compatibility.typing import Self
 from pytest_bdd.mimetype import Mimetype
+from pytest_bdd.scenario import scenarios
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
+from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.parser import ParsedFeature
+    from pytest_bdd.compatibility.pytest import Config
+    from pytest_bdd.scenario import ScenarioDecorator, ScenarioTest
+    from pytest_bdd.types.protocol import HasPytestStash
 
 # mypy: disable-error-code="typeddict-unknown-key, typeddict-item"
 
 
 class Keyword(Enum):
+    """Represent keyword state."""
+
     Given = "Given"
     When = "When"
     Then = "Then"
@@ -38,6 +54,8 @@ class Keyword(Enum):
 
 
 class SubKeyword(Enum):
+    """Represent sub keyword state."""
+
     Step = "Step"
     Alternative = "Alternative"
 
@@ -57,41 +75,69 @@ KEYWORD_TO_TYPE: Mapping[Keyword | str | None, StepKeywordType] = defaultdict(
 
 
 class Node(BaseModel):
+    """Represent node state."""
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
     )
 
-    tags: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Tags")
+    tags: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Tags")
     name: str | None = Field(None, alias="Name")
     description: str | None = Field(None, alias="Description")
-    comments: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Comments")
+    comments: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Comments")
 
 
 class Table(Node):
+    """Represent table state."""
+
     type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
-    parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
-    values: Sequence[Sequence[Any]] | None = Field(default_factory=cast(Callable, list), alias="Values")
+    parameters: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Parameters")
+    values: Sequence[Sequence[object]] | None = Field(default_factory=cast("Callable", list), alias="Values")
 
     @property
-    def columned_values(self):
-        return self.values if self.type == "Columned" else list(zip(*self.values, strict=False))
+    def columned_values(self) -> Sequence[Sequence[object]]:
+        """Handle columned values."""
+        values = self.values or []
+        return values if self.type == "Columned" else list(zip(*values, strict=False))
 
     @property
-    def rowed_values(self):
-        return self.values if self.type == "Rowed" else list(zip(*self.values, strict=False))
+    def rowed_values(self) -> Sequence[Sequence[object]]:
+        """Handle rowed values."""
+        values = self.values or []
+        return values if self.type == "Rowed" else list(zip(*values, strict=False))
 
 
 class SubTable(Node):
+    """Represent sub table state."""
+
     sub_table: Table = Field(..., alias="Table")
 
 
 @AfterValidator
-def convert_sub_tables_to_tables(value):
+def convert_sub_tables_to_tables(value: object) -> object:
+    """
+    Convert sub tables to tables.
+
+    Args:
+        value: Input value that may be a SubTable.
+
+    Returns:
+        SubTable converted to Table, or original value.
+
+    """
     return value.sub_table if isinstance(value, SubTable) else value
 
 
 class Join(BaseModel):
+    """
+    Represent join state.
+
+    Yields:
+        Generated values.
+
+    """
+
     model_config = ConfigDict(
         extra="forbid",
         populate_by_name=True,
@@ -105,43 +151,49 @@ class Join(BaseModel):
     __hash__ = id
 
     @property
-    def tags(self):
-        return list(dict.fromkeys(chain.from_iterable(map(attrgetter("tags"), self.tables))))
+    def tags(self) -> list[str]:
+        """Handle tags."""
+        return list(dict.fromkeys(chain.from_iterable(table.tags or [] for table in self._tables())))
 
     @property
-    def name(self):
-        return "\n".join(filter(partial(is_not, None), list(chain(map(attrgetter("name"), self.tables)))))
+    def name(self) -> str:
+        """Handle name."""
+        return "\n".join(table.name for table in self._tables() if table.name is not None)
 
     @property
-    def description(self):
-        return "\n".join(
-            filter(
-                partial(is_not, None),
-                chain.from_iterable(map(deepattrgetter("description", skip_missing=True), self.tables)),
-            ),
-        )
+    def description(self) -> str:
+        """Handle description."""
+        descriptions = chain.from_iterable(map(deepattrgetter("description", skip_missing=True), self.tables))
+        return "\n".join(str(description) for description in descriptions if description is not None)
 
     @property
-    def comments(self):
-        return list(chain.from_iterable(map(attrgetter("comments"), self.tables)))
+    def comments(self) -> list[str]:
+        """Handle comments."""
+        return list(chain.from_iterable(table.comments or [] for table in self._tables()))
 
     @property
-    def parameters(self):
-        return list(dict.fromkeys(chain.from_iterable(map(attrgetter("parameters"), self.tables))))
+    def parameters(self) -> list[str]:
+        """Handle parameters."""
+        return list(dict.fromkeys(chain.from_iterable(table.parameters or [] for table in self._tables())))
 
     @property
-    def type(self):
+    def type(self) -> Literal["Rowed"]:
+        """Handle type."""
         return "Rowed"
 
     @property
-    def values(self):
-        def _():
+    def values(self) -> list[list[object]]:
+        """Return rows with parameterized table values expanded."""
+
+        def _() -> Iterator[list[object]]:
             filled_tables = list(filter(attrgetter("parameters"), self.tables))
-            if filled_tables:
-                filled_tables_parameters = list(chain.from_iterable(map(attrgetter("parameters"), self.tables)))
+            if filled_tables:  # noqa: PLR1702
+                filled_tables_parameters = list(
+                    chain.from_iterable(table.parameters or [] for table in self._tables()),
+                )
                 for filled_tables_values in (
                     list(chain.from_iterable(tables_values))
-                    for tables_values in product(*map(attrgetter("rowed_values"), filled_tables))
+                    for tables_values in product(*map(attrgetter("rowed_values"), map(self._table, filled_tables)))
                 ):
                     if all(
                         all(
@@ -165,48 +217,85 @@ class Join(BaseModel):
                     ):
 
                         def values_gen(
-                            parameters=self.parameters,
-                            filled_tables_parameters=filled_tables_parameters,
-                            filled_tables_values=filled_tables_values,
-                        ):
+                            parameters: Sequence[str] = self.parameters,
+                            filled_tables_parameters: Sequence[str] = filled_tables_parameters,
+                            filled_tables_values: Sequence[object] = filled_tables_values,
+                        ) -> Iterator[object]:
                             for parameter in parameters:
                                 for table_parameter, value in zip(
-                                    filled_tables_parameters, filled_tables_values, strict=False
+                                    filled_tables_parameters,
+                                    filled_tables_values,
+                                    strict=False,
                                 ):
                                     if parameter == table_parameter:
                                         yield value
                                         break
 
-                        values = list(values_gen())
-                        yield values
+                        yield list(values_gen())
             else:
                 yield from (
                     list(chain.from_iterable(values_combination))
-                    for values_combination in product(*map(attrgetter("rowed_values"), self.tables))
+                    for values_combination in product(*map(attrgetter("rowed_values"), self._tables()))
                 )
 
         return list(_())
 
+    @staticmethod
+    def _table(table: Union[Table, "Join", SubTable]) -> Union[Table, "Join"]:
+        return table.sub_table if isinstance(table, SubTable) else table
+
+    def _tables(self) -> Iterator[Union[Table, "Join"]]:
+        return map(self._table, self.tables)
+
     @property
-    def columned_values(self):
+    def columned_values(self) -> list[tuple[object, ...]]:
+        """Handle columned values."""
         return list(zip(*self.values, strict=False))
 
     @property
-    def rowed_values(self):
-        return self.values
+    def rowed_values(self) -> list[list[object]]:
+        """Handle rowed values."""
+        return cast("list[list[object]]", self.values)
+
+
+TableNode: TypeAlias = Table | Join
+StepPrototypeT = TypeVar("StepPrototypeT", bound="StepPrototype")
 
 
 @BeforeValidator
-def before_convert_to_step(value):
+def before_convert_to_step(value: object) -> object:
+    """
+    Convert value to Step before validation.
+
+    Args:
+        value: Input value (string or dict).
+
+    Returns:
+        Step object or original value.
+
+    """
     if isinstance(value, str):
         return Step(action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
-        return Step(type=next(iter(value.keys())), action=next(iter(value.values())))
+        return Step(
+            type=cast("StepStepKeywordType | None", next(iter(value.keys()))),
+            action=cast("str | None", next(iter(value.values()))),
+        )
     return value
 
 
 @AfterValidator
-def select_step_keyword_type(value):
+def select_step_keyword_type(value: str) -> Keyword | str:
+    """
+    Select step keyword type from string.
+
+    Args:
+        value: Keyword string.
+
+    Returns:
+        Keyword enum or original string.
+
+    """
     try:
         return Keyword(value)
     except ValueError:
@@ -214,7 +303,17 @@ def select_step_keyword_type(value):
 
 
 @AfterValidator
-def after_convert_sub_steps_to_steps(value):
+def after_convert_sub_steps_to_steps(value: object) -> object:
+    """
+    Convert SubStep to Step after validation.
+
+    Args:
+        value: Input value that may be a SubStep.
+
+    Returns:
+        SubStep converted to Step, or original value.
+
+    """
     return value.sub_step if isinstance(value, SubStep) else value
 
 
@@ -222,6 +321,14 @@ StepStepKeywordType = Keyword | Annotated[str, select_step_keyword_type]
 
 
 class StepPrototype(Node):
+    """
+    Represent step prototype state.
+
+    Yields:
+        Generated values.
+
+    """
+
     steps: Sequence[
         Annotated[
             Annotated[Union["SubStep", "Alternative", "StepPrototype"], before_convert_to_step],
@@ -241,22 +348,39 @@ class StepPrototype(Node):
     keyword_type: StepKeywordType | None = Field(StepKeywordType.unknown)
 
     class Route(NamedTuple):
+        """Step route with inherited tags, steps, and example table."""
+
         tags: Sequence[str] | None
         steps: list["StepPrototype"]
-        example_table: Union[Table, "Join", SubTable]
+        example_table: TableNode
 
     @model_validator(mode="after")  # type: ignore[misc] # migration to pydantic 2
     def set_keyword_type(self) -> Self:
+        """
+        Set keyword type based on step type.
+
+        Returns:
+            Self with keyword_type set.
+
+        """
         self.keyword_type = KEYWORD_TO_TYPE[self.type]
         return self  # type: ignore[return-value] # migration to pydantic 2
 
     @property
-    def routes(self):
-        for routes in (
+    def routes(self) -> Iterator[Route]:
+        """
+        Handle routes.
+
+        Yields:
+            Generated values.
+
+        """
+        for route_items in (
             product(*map(attrgetter("routes"), self.steps))
             if self.steps
             else [[self.Route([], [], Table(parameters=[], values=[]))]]
         ):
+            routes = list(cast("Sequence[StepPrototype.Route]", route_items))
             steps = [self, *chain.from_iterable(map(attrgetter("steps"), routes))]
 
             if self.examples:
@@ -265,13 +389,13 @@ class StepPrototype(Node):
                         tables=[
                             *map(attrgetter("example_table"), routes),
                             example_candidate,
-                        ]
+                        ],
                     )
                     tags = list(
                         {
-                            *chain.from_iterable(map(attrgetter("tags"), routes)),
+                            *chain.from_iterable(route.tags or [] for route in routes),
                             *example_table.tags,
-                            *self.tags,
+                            *(self.tags or []),
                         },
                     )
 
@@ -284,10 +408,10 @@ class StepPrototype(Node):
                 example_table = Join(tables=[*map(attrgetter("example_table"), routes)])
                 tags = list(
                     {
-                        *chain.from_iterable(map(attrgetter("tags"), routes)),
+                        *chain.from_iterable(route.tags or [] for route in routes),
                         *example_table.tags,
-                        *self.tags,
-                    }
+                        *(self.tags or []),
+                    },
                 )
 
                 yield self.Route(
@@ -297,25 +421,50 @@ class StepPrototype(Node):
                 )
 
     @classmethod
-    def build_by_action(cls, action, *args, **kwargs):
-        return cls(*args, **kwargs, action=action)
+    def build_by_action(
+        cls: builtins.type[StepPrototypeT],
+        action: str | None,
+        *args: object,
+        **kwargs: object,
+    ) -> StepPrototypeT:
+        """
+        Build step prototype by action.
 
-    @attrs
+        Returns:
+            Step prototype instance.
+
+        """
+        return cast("StepPrototypeT", cls(*args, **kwargs, action=action))  # type: ignore[call-arg]
+
+    @define
     class Locator(ScenarioLocatorFilterMixin):
-        step: "StepPrototype" = attrib()
-        filename = attrib()
-        uri = attrib()
-        mimetype = attrib()
+        """Scenario locator for a struct BDD step prototype."""
 
-        def resolve_features(self, config):
-            from pytest_bdd.plugin.struct_bdd.model_builder import (
+        step: "StepPrototype" = field()
+        filename: str = field()
+        uri: str = field()
+        mimetype: SourceMediaType | Mimetype | str = field()
+
+        def resolve_features(
+            self,
+            config: "Config | HasPytestStash",
+        ) -> Iterator["tuple[ParsedFeature, Source]"]:
+            """
+            Resolve features.
+
+            Yields:
+                Generated values.
+
+            """
+            from pytest_bdd.compatibility.parser import ParsedFeature  # noqa: PLC0415
+            from pytest_bdd.plugin.struct_bdd.model_builder import (  # noqa: PLC0415 -- circular import with model_builder.py, resolved via lazy load
                 GherkinDocumentBuilder,
             )
 
-            feature = GherkinDocumentBuilder(self.step).build_feature(
+            gherkin_document = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename,
                 uri=self.uri,
-                id_generator=config.pytest_bdd_id_generator,
+                id_generator=IdGenerator.from_stash(config.stash),
             )
 
             if isinstance(self.mimetype, SourceMediaType):
@@ -324,20 +473,36 @@ class StepPrototype(Node):
                 media_type = self.mimetype.value
             else:
                 media_type = str(self.mimetype)
+            source_data = Path(self.filename).read_text(encoding="utf-8")
             try:
                 feature_source = Source(
                     uri=self.uri,
-                    data=Path(self.filename).read_text(encoding="utf-8"),
+                    data=source_data,
                     media_type=media_type,
                 )
-                yield feature, feature_source
             except ValidationError:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+                feature_source = Source(
+                    uri=f"file:{Path(self.filename).as_posix()}",
+                    data=source_data,
+                    media_type=media_type,
+                )
+            yield (
+                ParsedFeature(
+                    gherkin_document=gherkin_document,
+                    filename=self.filename,
+                    raw_data=source_data,
+                ),
+                feature_source,
+            )
 
-    def as_test(self, filename):
-        from pytest_bdd.scenario import scenarios
+    def as_test(self, filename: str | Path) -> "ScenarioTest":
+        """
+        Convert struct BDD model to pytest scenario test.
 
+        Returns:
+            Scenario test function.
+
+        """
         return scenarios(
             locators=[
                 self.Locator(
@@ -350,9 +515,14 @@ class StepPrototype(Node):
             return_test_decorator=False,
         )
 
-    def as_test_decorator(self, filename):
-        from pytest_bdd.scenario import scenarios
+    def as_test_decorator(self, filename: str | Path) -> "ScenarioDecorator":
+        """
+        Convert struct BDD model to pytest scenario decorator.
 
+        Returns:
+            Scenario decorator.
+
+        """
         return scenarios(
             locators=[
                 self.Locator(
@@ -365,11 +535,26 @@ class StepPrototype(Node):
             return_test_decorator=True,
         )
 
-    def __call__(self, func):
+    def __call__(self, func: Callable[..., object]) -> Callable[..., object]:
+        """
+        Apply decorator to function.
+
+        Returns:
+            Decorated function.
+
+        """
         return self.as_test_decorator(getfile(func))(func)
 
 
 class Alternative(Node):
+    """
+    Represent alternative state.
+
+    Yields:
+        Generated values.
+
+    """
+
     steps: Sequence[
         Annotated[
             Annotated[Union["SubStep", "Alternative", "StepPrototype"], before_convert_to_step],
@@ -378,45 +563,68 @@ class Alternative(Node):
     ] = Field(default_factory=list, alias="Alternative")
 
     @property
-    def routes(self):
+    def routes(self) -> Iterator[StepPrototype.Route]:
+        """
+        Handle routes.
+
+        Yields:
+            Generated values.
+
+        """
         yield from chain.from_iterable(map(attrgetter("routes"), self.steps))
 
 
 class Step(StepPrototype):
+    """Represent step state."""
+
     type: StepStepKeywordType | None = Field(default=Keyword.Star, alias="Type")
     action: str | None = Field(None, alias="Action")
 
 
 class SubStep(BaseModel):
+    """Represent sub step state."""
+
     sub_step: Step = Field(..., alias="Step")
 
 
 class StarStep(StepPrototype):
+    """Represent star step state."""
+
     type: StepStepKeywordType = Field(Keyword.Star, alias="Type")
     action: str | None = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
+    """Represent given step state."""
+
     type: StepStepKeywordType = Field(Keyword.Given, alias="Type")
     action: str | None = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
+    """Represent when step state."""
+
     type: StepStepKeywordType = Field(Keyword.When, alias="Type")
     action: str | None = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
+    """Represent then step state."""
+
     type: StepStepKeywordType = Field(Keyword.Then, alias="Type")
     action: str | None = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
+    """Represent and step state."""
+
     type: StepStepKeywordType = Field(Keyword.And, alias="Type")
     action: str | None = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
+    """Represent but step state."""
+
     type: StepStepKeywordType = Field(Keyword.But, alias="Type")
     action: str | None = Field(alias=Keyword.But.value)
 
