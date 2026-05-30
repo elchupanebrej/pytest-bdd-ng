@@ -3,9 +3,13 @@ env
 
 *.rej
 *.py[cod]
+*.pyc
 /.env
+.env*
+*.log
 *.orig
 **/__pycache__
+__pycache__/
 
 # C extensions
 *.so
@@ -13,8 +17,11 @@ env
 # Packages
 *.egg
 *.egg-info
+*.egg-info/
 dist
+dist/
 build
+build/
 _build
 eggs
 parts
@@ -31,8 +38,16 @@ pip-log.txt
 
 # Unit test / coverage reports
 .coverage
+.coverage.*
 .tox
+coverage/
+htmlcov/
 nosetests.xml
+coverage.json
+
+# Documentation build artifacts
+docs/_build/
+docs/doctrees/
 
 # Translations
 *.mo
@@ -42,6 +57,8 @@ nosetests.xml
 .project
 .pydevproject
 .pytest_cache
+.mypy_cache/
+.ruff_cache/
 .ropeproject
 
 # Sublime
@@ -49,6 +66,7 @@ nosetests.xml
 
 #PyCharm
 /.idea
+.idea/
 
 # virtualenv
 /.Python
@@ -56,12 +74,22 @@ nosetests.xml
 /include
 /share
 /local
+
+# Python virtual environments
+.venv/
+.venv-linux/
+venv/
+/uv.lock
+
+# AI agent directories
 /.agent/
 /.agents/
 /.claude/
 /.cline/
 /.codex/
+/.gemini/
 /.specify/
+/.opencode/
 /.windsurf/
 /skills-lock.json
 
@@ -72,7 +100,16 @@ Thumbs.db
 *.swp
 .vscode/
 
-# Python virtual environments
-.venv/
-venv/
-/.gemini/
+# Node workspace artifacts
+node_modules/
+/artifacts/
+
+# Local live-reporting artifacts
+/messages.ndjson
+/output.txt
+/result.html
+/test_stream.ndjson
+/pytest-bdd-remote-artifacts-*/
+
+.tox/
+.worktrees/
