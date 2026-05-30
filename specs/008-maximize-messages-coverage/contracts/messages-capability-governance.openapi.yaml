@@ -1,0 +1,542 @@
+---
+openapi: 3.1.0
+info:
+  title: Messages Capability Governance Contract
+  version: 1.1.0
+  description: >-
+    Contract for capability inventory synchronization, deterministic mapping
+    validation, baseline drift comparison, and post-factum governance reports
+    over real NDJSON runtime evidence.
+servers:
+  - url: https://governance.local
+paths:
+  /coverage/capabilities/sync:
+    post:
+      summary: Synchronize relevant capabilities from approved baseline
+      operationId: syncCapabilities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilitySyncRequest'
+      responses:
+        '200':
+          description: Synchronization completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilitySyncResponse'
+  /coverage/mappings/validate:
+    post:
+      summary: Validate deterministic outcome mapping for fixed readiness matrix
+      operationId: validateOutcomeMappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingValidationRequest'
+      responses:
+        '200':
+          description: Mapping validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingValidationResult'
+  /coverage/baseline/diff:
+    post:
+      summary: Compare current baseline against prior approved baseline
+      operationId: diffBaseline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineDiffRequest'
+      responses:
+        '200':
+          description: Baseline diff report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineDiffResponse'
+  /coverage/checklist/render:
+    post:
+      summary: Render release governance checklist for sign-off
+      operationId: renderGovernanceChecklist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistRenderRequest'
+      responses:
+        '200':
+          description: Checklist rendered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistRenderResponse'
+  /coverage/governance/report:
+    post:
+      summary: Generate governance report from real NDJSON evidence
+      operationId: generateGovernanceReport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GovernanceReportRequest'
+      responses:
+        '200':
+          description: Governance report generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GovernanceReportResponse'
+
+components:
+  schemas:
+    CapabilityStatus:
+      type: string
+      enum:
+        - Implemented
+        - Partly-Applicable
+        - Pending
+        - Non-Implementable
+        - Not-Applicable
+        - Not-Acceptable
+
+    MatrixProfile:
+      type: string
+      enum:
+        - fixed_release_readiness_v1
+
+    BaselineCadence:
+      type: string
+      enum:
+        - weekly
+
+    MessageCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - baseline_release
+        - name
+        - description
+        - relevance
+        - source_reference
+      properties:
+        capability_id:
+          type: string
+        baseline_release:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        relevance:
+          type: string
+          enum:
+            - relevant
+            - out_of_scope
+        source_reference:
+          type: string
+
+    CapabilitySyncRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - baseline_release
+        - source_entries
+      properties:
+        baseline_release:
+          type: string
+        source_entries:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+
+    CapabilitySyncResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - total_relevant
+        - total_out_of_scope
+        - duplicate_capability_ids
+      properties:
+        total_relevant:
+          type: integer
+          minimum: 0
+        total_out_of_scope:
+          type: integer
+          minimum: 0
+        duplicate_capability_ids:
+          type: array
+          items:
+            type: string
+
+    OutcomeMappingRule:
+      type: object
+      additionalProperties: false
+      required:
+        - mapping_id
+        - outcome_scope
+        - outcome_status
+        - capability_ids
+        - priority
+      properties:
+        mapping_id:
+          type: string
+        outcome_scope:
+          type: string
+          enum:
+            - run
+            - scenario
+            - step
+            - hook
+            - attachment
+        outcome_status:
+          type: string
+          enum:
+            - passed
+            - failed
+            - skipped
+            - undefined
+            - interrupted
+            - retry
+        capability_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        priority:
+          type: integer
+          minimum: 0
+        mapping_rationale:
+          type: string
+
+    MappingValidationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - matrix_profile
+        - observed_outcomes
+        - mapping_rules
+      properties:
+        matrix_profile:
+          $ref: '#/components/schemas/MatrixProfile'
+        observed_outcomes:
+          type: array
+          items:
+            type: string
+        mapping_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutcomeMappingRule'
+
+    MappingValidationResult:
+      type: object
+      additionalProperties: false
+      required:
+        - total_outcomes
+        - mapped_outcomes
+        - ambiguous_terms
+        - coverage_ratio
+      properties:
+        total_outcomes:
+          type: integer
+          minimum: 0
+        mapped_outcomes:
+          type: integer
+          minimum: 0
+        ambiguous_terms:
+          type: array
+          items:
+            type: string
+        coverage_ratio:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    BaselineDiffRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - cadence
+        - previous_release
+        - current_release
+      properties:
+        cadence:
+          $ref: '#/components/schemas/BaselineCadence'
+        previous_release:
+          type: string
+        current_release:
+          type: string
+
+    BaselineDiffResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - added_capability_ids
+        - changed_capability_ids
+        - removed_capability_ids
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        added_capability_ids:
+          type: array
+          items:
+            type: string
+        changed_capability_ids:
+          type: array
+          items:
+            type: string
+        removed_capability_ids:
+          type: array
+          items:
+            type: string
+
+    ChecklistRenderRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - release_target
+        - decisions
+      properties:
+        release_target:
+          type: string
+        decisions:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - capability_id
+              - status
+            properties:
+              capability_id:
+                type: string
+              status:
+                $ref: '#/components/schemas/CapabilityStatus'
+              open_risk:
+                type: string
+                nullable: true
+
+    ChecklistRenderResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - release_target
+        - blockers
+        - deferred
+        - approved
+      properties:
+        release_target:
+          type: string
+        blockers:
+          type: integer
+          minimum: 0
+        deferred:
+          type: integer
+          minimum: 0
+        approved:
+          type: integer
+          minimum: 0
+
+    GovernanceReportRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - baseline_release
+        - messages_file
+      properties:
+        baseline_release:
+          type: string
+        messages_file:
+          type: string
+          description: Absolute path to NDJSON envelope stream.
+        schema_file:
+          type: string
+          description: Optional governance report schema path.
+        decisions_file:
+          type: string
+          description: Optional decisions JSON path.
+        mandatory_capabilities_file:
+          type: string
+          description: Optional path to governance-scope capability IDs.
+        runtime_required_capabilities_file:
+          type: string
+          description: Optional path to runtime-required capability IDs.
+        require_fully_governed:
+          type: boolean
+          default: false
+        require_runtime_required_covered:
+          type: boolean
+          default: false
+        require_non_runtime_classified:
+          type: boolean
+          default: false
+
+    GovernanceReportSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - total_capabilities
+        - implemented_capabilities
+        - blocked_capabilities
+        - deferred_capabilities
+        - coverage_percentage
+        - runtime_required_total
+        - runtime_required_covered
+        - runtime_required_missing
+        - non_runtime_required_total
+        - non_runtime_covered
+        - non_runtime_classified
+        - mandatory_scope_violations
+      properties:
+        total_capabilities:
+          type: integer
+          minimum: 0
+        implemented_capabilities:
+          type: integer
+          minimum: 0
+        blocked_capabilities:
+          type: integer
+          minimum: 0
+        deferred_capabilities:
+          type: integer
+          minimum: 0
+        coverage_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+        runtime_required_total:
+          type: integer
+          minimum: 0
+        runtime_required_covered:
+          type: integer
+          minimum: 0
+        runtime_required_missing:
+          type: integer
+          minimum: 0
+        non_runtime_required_total:
+          type: integer
+          minimum: 0
+        non_runtime_covered:
+          type: integer
+          minimum: 0
+        non_runtime_classified:
+          type: integer
+          minimum: 0
+        mandatory_scope_violations:
+          type: integer
+          minimum: 0
+
+    GovernanceCapabilityRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - status
+        - disposition
+        - mandatory_scope
+        - runtime_required
+        - observed_runtime
+      properties:
+        capability_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/CapabilityStatus'
+        disposition:
+          type: string
+          enum:
+            - approved
+            - blocked
+            - deferred
+        mandatory_scope:
+          type: boolean
+        runtime_required:
+          type: boolean
+        observed_runtime:
+          type: boolean
+        rationale:
+          type: string
+          description: >-
+            Decision rationale. For Partly-Applicable this must explain
+            language/runtime model mismatch. For Non-Implementable this must
+            describe an objective hard technical limitation.
+        hard_limitation:
+          type: string
+          description: >-
+            Explicit hard technical limitation statement for objectively
+            unreachable runtime capabilities.
+        decision_owner:
+          type: string
+        reviewed_at:
+          type: string
+          format: date-time
+        evidence_refs:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        open_risk:
+          type: string
+        recheck_trigger:
+          type: string
+      allOf:
+        - if:
+            properties:
+              status:
+                enum:
+                  - Partly-Applicable
+                  - Pending
+                  - Non-Implementable
+                  - Not-Applicable
+                  - Not-Acceptable
+          then:
+            required:
+              - rationale
+              - decision_owner
+              - reviewed_at
+              - evidence_refs
+        - if:
+            properties:
+              status:
+                const: Non-Implementable
+          then:
+            required:
+              - hard_limitation
+              - recheck_trigger
+
+    GovernanceReportResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - generated_at
+        - baseline_release
+        - summary
+        - capabilities
+      properties:
+        version:
+          type: string
+          enum:
+            - '1.1'
+        generated_at:
+          type: string
+          format: date-time
+        baseline_release:
+          type: string
+        summary:
+          $ref: '#/components/schemas/GovernanceReportSummary'
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/GovernanceCapabilityRecord'
