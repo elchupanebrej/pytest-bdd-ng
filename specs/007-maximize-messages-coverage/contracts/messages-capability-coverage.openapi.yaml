@@ -1,0 +1,459 @@
+---
+openapi: 3.1.0
+info:
+  title: Messages Capability Coverage Contract
+  version: 1.1.0
+  description: >-
+    Design-time contract for complete capability inventory, status governance,
+    deterministic mapping validation, weekly baseline diff, and release checklist rendering.
+servers:
+  - url: https://governance.local
+paths:
+  /coverage/capabilities/sync:
+    post:
+      summary: Sync relevant capabilities from pinned upstream baseline
+      operationId: syncCapabilities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilitySyncRequest'
+      responses:
+        '200':
+          description: Capability sync completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilitySyncResponse'
+  /coverage/decisions/upsert:
+    post:
+      summary: Create or update capability status decision
+      operationId: upsertCapabilityDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CapabilityDecisionRequest'
+      responses:
+        '200':
+          description: Decision accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CapabilityDecisionResponse'
+  /coverage/mappings/validate:
+    post:
+      summary: Validate deterministic outcome mappings using fixed matrix profile
+      operationId: validateOutcomeMappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MappingValidationRequest'
+      responses:
+        '200':
+          description: Mapping validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MappingValidationResult'
+  /coverage/baseline/diff:
+    post:
+      summary: Run weekly baseline diff and report capability deltas
+      operationId: diffBaselines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaselineDiffRequest'
+      responses:
+        '200':
+          description: Baseline diff generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaselineDiffResponse'
+  /coverage/checklist/render:
+    post:
+      summary: Render release governance checklist for sign-off
+      operationId: renderGovernanceChecklist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChecklistRenderRequest'
+      responses:
+        '200':
+          description: Checklist produced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistRenderResponse'
+components:
+  schemas:
+    CapabilityStatus:
+      type: string
+      enum:
+        - Implemented
+        - Non-Implementable
+        - Not-Acceptable
+        - Not-Applicable
+        - Pending
+    MatrixProfile:
+      type: string
+      enum:
+        - fixed_release_readiness_v1
+    BaselineCadence:
+      type: string
+      enum:
+        - weekly
+    MessageCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - baseline_release
+        - name
+        - description
+        - category
+        - relevance
+        - source_reference
+      properties:
+        capability_id:
+          type: string
+        baseline_release:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum:
+            - core
+            - lifecycle
+            - hook
+            - attachment
+            - parameter
+            - metadata
+        relevance:
+          type: string
+          enum:
+            - relevant
+            - out_of_scope
+        source_reference:
+          type: string
+    CapabilityDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - status
+        - release_target
+      properties:
+        capability_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/CapabilityStatus'
+        rationale:
+          type: string
+          nullable: true
+        decision_owner:
+          type: string
+          nullable: true
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        release_target:
+          type: string
+    CapabilitySyncRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - baseline_release
+        - source_entries
+      properties:
+        baseline_release:
+          type: string
+        source_entries:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+    CapabilitySyncResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - total_relevant
+        - total_out_of_scope
+        - duplicate_capability_ids
+      properties:
+        total_relevant:
+          type: integer
+          minimum: 0
+        total_out_of_scope:
+          type: integer
+          minimum: 0
+        duplicate_capability_ids:
+          type: array
+          items:
+            type: string
+    CapabilityDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - decision
+      properties:
+        decision:
+          $ref: '#/components/schemas/CapabilityDecision'
+    CapabilityDecisionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - accepted
+        - missing_required_evidence_fields
+        - violations
+      properties:
+        accepted:
+          type: boolean
+        missing_required_evidence_fields:
+          type: array
+          items:
+            type: string
+            enum:
+              - rationale
+              - decision_owner
+              - evidence_refs
+              - reviewed_at
+        violations:
+          type: array
+          items:
+            type: string
+    OutcomeMappingRule:
+      type: object
+      additionalProperties: false
+      required:
+        - mapping_id
+        - outcome_scope
+        - outcome_status
+        - capability_ids
+        - priority
+        - mapping_rationale
+      properties:
+        mapping_id:
+          type: string
+        outcome_scope:
+          type: string
+          enum:
+            - run
+            - scenario
+            - step
+            - hook
+            - attachment
+        outcome_status:
+          type: string
+          enum:
+            - passed
+            - failed
+            - skipped
+            - undefined
+            - interrupted
+        capability_ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        priority:
+          type: integer
+          minimum: 0
+        mapping_rationale:
+          type: string
+    MappingValidationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - matrix_profile
+        - mappings
+        - observed_outcomes
+      properties:
+        matrix_profile:
+          $ref: '#/components/schemas/MatrixProfile'
+        mappings:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OutcomeMappingRule'
+        observed_outcomes:
+          type: array
+          minItems: 7
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - outcome_scope
+              - outcome_status
+              - is_retry
+              - is_parallel_worker
+            properties:
+              outcome_scope:
+                type: string
+                enum:
+                  - run
+                  - scenario
+                  - step
+                  - hook
+                  - attachment
+              outcome_status:
+                type: string
+                enum:
+                  - passed
+                  - failed
+                  - skipped
+                  - undefined
+                  - interrupted
+              is_retry:
+                type: boolean
+              is_parallel_worker:
+                type: boolean
+    MappingValidationResult:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - matrix_profile
+        - ambiguous_outcomes
+        - unmapped_outcomes
+        - missing_required_matrix_cases
+      properties:
+        status:
+          type: string
+          enum:
+            - pass
+            - fail
+        matrix_profile:
+          $ref: '#/components/schemas/MatrixProfile'
+        ambiguous_outcomes:
+          type: array
+          items:
+            type: string
+        unmapped_outcomes:
+          type: array
+          items:
+            type: string
+        missing_required_matrix_cases:
+          type: array
+          items:
+            type: string
+    BaselineDiffRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - cadence
+        - previous_baseline
+        - current_baseline
+        - previous_capabilities
+        - current_capabilities
+      properties:
+        cadence:
+          $ref: '#/components/schemas/BaselineCadence'
+        previous_baseline:
+          type: string
+        current_baseline:
+          type: string
+        previous_capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+        current_capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+    BaselineDiffResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cadence
+        - added_capability_ids
+        - changed_capability_ids
+        - removed_capability_ids
+      properties:
+        cadence:
+          $ref: '#/components/schemas/BaselineCadence'
+        added_capability_ids:
+          type: array
+          items:
+            type: string
+        changed_capability_ids:
+          type: array
+          items:
+            type: string
+        removed_capability_ids:
+          type: array
+          items:
+            type: string
+    ChecklistRenderRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - release_target
+        - capabilities
+        - decisions
+      properties:
+        release_target:
+          type: string
+        capabilities:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/MessageCapability'
+        decisions:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CapabilityDecision'
+    ChecklistEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - capability_id
+        - status
+        - release_blocker
+      properties:
+        capability_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/CapabilityStatus'
+        comment_required:
+          type: boolean
+        comment:
+          type: string
+          nullable: true
+        release_blocker:
+          type: boolean
+    ChecklistRenderResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - checklist_name
+        - entries
+        - unresolved_blockers
+      properties:
+        checklist_name:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChecklistEntry'
+        unresolved_blockers:
+          type: integer
+          minimum: 0
