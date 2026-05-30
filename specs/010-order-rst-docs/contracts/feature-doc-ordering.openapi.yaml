@@ -1,0 +1,318 @@
+---
+# yamllint disable rule:line-length
+openapi: 3.0.3
+info:
+  title: Feature Documentation Ordering Contract
+  version: 1.0.0
+  description: >-
+    Design-time contract for ordered feature-documentation generation, template
+    rendering responsibilities, deterministic prefix validation, and markdown
+    heading normalization for generated RST pages.
+paths:
+  /generation/templates:
+    get:
+      summary: List templates used by ordered feature-documentation generation
+      responses:
+        '200':
+          description: Ordered feature-documentation templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentationTemplate'
+
+  /generation/index:
+    post:
+      summary: Render the generated feature-doc index from prepared scopes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratedIndexDocument'
+      responses:
+        '200':
+          description: Generated index render result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexRenderResult'
+
+  /generation/page:
+    post:
+      summary: Render one generated RST page for a source topic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratedPage'
+      responses:
+        '200':
+          description: Generated page render result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageRenderResult'
+
+  /validation/ordering-prefixes:
+    post:
+      summary: Validate required unique numeric prefixes within one scope
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NavigationScope'
+      responses:
+        '200':
+          description: Prefix validation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderingValidationResult'
+        '422':
+          description: Missing or duplicate prefix detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderingValidationError'
+
+  /conversion/markdown-headings:
+    post:
+      summary: Normalize heading levels for markdown-backed feature pages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkdownHeadingNormalizationRequest'
+      responses:
+        '200':
+          description: Heading normalization result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownHeadingNormalizationResult'
+
+components:
+  schemas:
+    DocumentationTemplate:
+      type: object
+      required:
+        - templateId
+        - relativePath
+        - responsibility
+      properties:
+        templateId:
+          type: string
+        relativePath:
+          type: string
+        responsibility:
+          type: string
+          enum:
+            - index_wrapper
+            - section_toctree
+            - include_page
+            - page_title
+
+    DocumentationSourceTopic:
+      type: object
+      required:
+        - topicId
+        - sourcePath
+        - scopePath
+        - sourceKind
+        - orderingPrefix
+        - displayLabel
+        - generatedPagePath
+        - codeType
+      properties:
+        topicId:
+          type: string
+        sourcePath:
+          type: string
+        scopePath:
+          type: string
+        sourceKind:
+          type: string
+          enum: [gherkin, markdown_gherkin, struct_bdd, section_directory]
+        orderingPrefix:
+          type: integer
+          minimum: 0
+        displayLabel:
+          type: string
+        generatedPagePath:
+          type: string
+        codeType:
+          type: string
+          enum: [gherkin, yaml, rst]
+
+    NavigationScope:
+      type: object
+      required:
+        - scopeId
+        - scopePath
+        - depth
+        - headingLabel
+        - entries
+        - ordered
+      properties:
+        scopeId:
+          type: string
+        scopePath:
+          type: string
+        depth:
+          type: integer
+          minimum: 1
+        headingLabel:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentationSourceTopic'
+        ordered:
+          type: boolean
+
+    GeneratedPage:
+      type: object
+      required:
+        - pageId
+        - topic
+        - outputPath
+        - readerTitle
+        - headingLevel
+        - contentMode
+      properties:
+        pageId:
+          type: string
+        topic:
+          $ref: '#/components/schemas/DocumentationSourceTopic'
+        outputPath:
+          type: string
+        readerTitle:
+          type: string
+        headingLevel:
+          type: integer
+          minimum: 1
+        contentMode:
+          type: string
+          enum: [include, converted_markdown]
+
+    GeneratedIndexDocument:
+      type: object
+      required:
+        - documentPath
+        - introBlock
+        - autoGeneratedStartMarker
+        - autoGeneratedEndMarker
+        - sections
+        - suffixBlock
+      properties:
+        documentPath:
+          type: string
+        introBlock:
+          type: string
+        autoGeneratedStartMarker:
+          type: string
+        autoGeneratedEndMarker:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/NavigationScope'
+        suffixBlock:
+          type: string
+
+    OrderingValidationResult:
+      type: object
+      required:
+        - valid
+        - scopePath
+      properties:
+        valid:
+          type: boolean
+          enum: [true]
+        scopePath:
+          type: string
+
+    OrderingValidationError:
+      type: object
+      required:
+        - errorCode
+        - scopePath
+        - sourcePath
+        - message
+      properties:
+        errorCode:
+          type: string
+          enum: [missing_ordering_prefix, duplicate_ordering_prefix]
+        scopePath:
+          type: string
+        sourcePath:
+          type: string
+        message:
+          type: string
+
+    MarkdownHeadingNormalizationRequest:
+      type: object
+      required:
+        - requestId
+        - sourcePath
+        - headingShift
+        - preferredConverter
+      properties:
+        requestId:
+          type: string
+        sourcePath:
+          type: string
+        headingShift:
+          type: integer
+          minimum: 1
+        preferredConverter:
+          type: string
+          enum: [pandoc, other_existing_step]
+
+    MarkdownHeadingNormalizationResult:
+      type: object
+      required:
+        - requestId
+        - normalized
+        - preferredConverter
+      properties:
+        requestId:
+          type: string
+        normalized:
+          type: boolean
+        preferredConverter:
+          type: string
+          enum: [pandoc, other_existing_step]
+
+    IndexRenderResult:
+      type: object
+      required:
+        - documentPath
+        - rendered
+        - manualIntroPreserved
+        - manualSuffixPreserved
+      properties:
+        documentPath:
+          type: string
+        rendered:
+          type: boolean
+        manualIntroPreserved:
+          type: boolean
+        manualSuffixPreserved:
+          type: boolean
+
+    PageRenderResult:
+      type: object
+      required:
+        - outputPath
+        - rendered
+      properties:
+        outputPath:
+          type: string
+        rendered:
+          type: boolean
