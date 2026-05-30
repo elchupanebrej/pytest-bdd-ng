@@ -1,5 +1,27 @@
 [run]
 branch = true
-include =
-    pytest_bdd/*
-    tests/*
+source = pytest_bdd
+omit =
+    */_gherkin_go/*
+    */.ruff/*
+    */script/*
+    */testing/*
+    */types/*
+    */compatibility/*
+    */entrypoint.py
+    */plugin/cucumber_*/*
+    */plugin/gherkin_terminal_reporter/*
+
+[report]
+fail_under = 70
+show_missing = true
+omit =
+    */_gherkin_go/*
+    */.ruff/*
+    */script/*
+    */testing/*
+    */types/*
+    */compatibility/*
+    */entrypoint.py
+    */plugin/cucumber_*/*
+    */plugin/gherkin_terminal_reporter/*
