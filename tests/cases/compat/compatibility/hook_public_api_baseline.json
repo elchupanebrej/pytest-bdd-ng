@@ -1,0 +1,24 @@
+{
+  "baseline_reference": "016-strict-non-null/additive-only",
+  "symbols": [
+    "decorator:after_mark",
+    "decorator:after_tag",
+    "decorator:around_mark",
+    "decorator:around_tag",
+    "decorator:before_mark",
+    "decorator:before_tag",
+    "hook:pytest_bdd_after_scenario",
+    "hook:pytest_bdd_after_step",
+    "hook:pytest_bdd_attach",
+    "hook:pytest_bdd_before_scenario",
+    "hook:pytest_bdd_before_step",
+    "hook:pytest_bdd_before_step_call",
+    "hook:pytest_bdd_get_step_caller",
+    "hook:pytest_bdd_get_step_dispatcher",
+    "hook:pytest_bdd_match_step_definition_to_step",
+    "hook:pytest_bdd_run_scenario",
+    "hook:pytest_bdd_run_step",
+    "hook:pytest_bdd_step_error",
+    "hook:pytest_bdd_step_func_lookup_error"
+  ]
+}

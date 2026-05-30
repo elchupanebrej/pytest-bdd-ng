@@ -1,0 +1,228 @@
+---
+version: 1
+description: >-
+  Required coverage tree for pytest-bdd-ng emitted cucumber-messages payloads.
+payloads:
+  meta:
+    protocol_version: required
+    implementation:
+      name: required
+      version: required
+    runtime:
+      name: required
+      version: required
+    os:
+      name: required
+      version: required
+    cpu:
+      name: required
+      version: required
+
+  source:
+    uri: required
+    data: required
+    media_type: required
+
+  gherkin_document:
+    uri: required
+    feature:
+      name: required
+      language: required
+      location:
+        line: required
+        column: required
+      tags:
+        id: required
+        name: required
+        location:
+          line: required
+      children:
+        scenario:
+          id: required
+          name: required
+          keyword: required
+          location:
+            line: required
+          tags:
+            id: required
+            name: required
+            location:
+              line: required
+          steps:
+            id: required
+            keyword: required
+            text: required
+            location:
+              line: required
+            data_table:
+              location:
+                line: required
+              rows:
+                id: required
+                location:
+                  line: required
+                cells:
+                  value: required
+                  location:
+                    line: required
+            doc_string:
+              content: required
+              delimiter: required
+              media_type: required
+              location:
+                line: required
+
+  pickle:
+    id: required
+    uri: required
+    name: required
+    language: required
+    ast_node_ids: required
+    tags:
+      ast_node_id: required
+      name: required
+    steps:
+      ast_node_ids: required
+      id: required
+      text: required
+      type: required
+      argument:
+        data_table:
+          rows:
+            cells:
+              value: required
+        doc_string:
+          content: required
+          media_type: required
+
+  step_definition:
+    id: required
+    source_reference:
+      uri: required
+      location:
+        line: required
+    pattern:
+      source: required
+      type: required
+
+  parameter_type:
+    id: required
+    name: required
+    regular_expressions: required
+    prefer_for_regular_expression_match: required
+    use_for_snippets: required
+    source_reference:
+      uri: required
+      location:
+        line: required
+
+  hook:
+    id: required
+    source_reference:
+      uri: required
+      location:
+        line: required
+    tag_expression: required
+
+  test_run_started:
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_case:
+    id: required
+    pickle_id: required
+    test_steps:
+      id: required
+      hook_id: required
+      pickle_step_id: required
+      step_definition_ids: required
+      step_match_arguments_lists:
+        step_match_arguments:
+          parameter_type_name: required
+          group:
+            start: required
+            value: required
+
+  test_case_started:
+    id: required
+    test_case_id: required
+    attempt: required
+    worker_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_step_started:
+    test_case_started_id: required
+    test_step_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_step_finished:
+    test_case_started_id: required
+    test_step_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+    test_step_result:
+      status: required
+      duration:
+        seconds: required
+        nanos: required
+
+  test_case_finished:
+    test_case_started_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+    will_be_retried: required
+
+  test_run_finished:
+    timestamp:
+      seconds: required
+      nanos: required
+    success: required
+
+  attachment:
+    test_case_started_id: required
+    test_step_id: required
+    test_run_hook_started_id: required
+    media_type: required
+    content_encoding: required
+    body: required
+    file_name: required
+
+  external_attachment: optional
+
+  test_run_hook_started:
+    hook_id: required
+    id: required
+    test_run_started_id: required
+    worker_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+
+  test_run_hook_finished:
+    test_run_hook_started_id: required
+    timestamp:
+      seconds: required
+      nanos: required
+    result:
+      status: required
+      message: required
+      duration:
+        seconds: required
+        nanos: required
+      exception:
+        type: required
+        message: required
+        stack_trace: required
+
+  parse_error: optional
+
+  suggestion: optional
+
+  undefined_parameter_type: optional
