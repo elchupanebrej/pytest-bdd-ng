@@ -1,5 +1,7 @@
 import json
 import pathlib
+import re
+import xml.etree.ElementTree as ET  # noqa: S405 - parses trusted formatter output generated inside pytester.
 
 from pytest_bdd import given, parsers, step, then
 from pytest_bdd.testing.cucumber_formatters import install_fake_node, run_pytest_via_real_entrypoint
@@ -51,12 +53,18 @@ def run_pytest_usage_json(testdir):
 
 @then(parsers.parse("Progress output shows {state}"))
 def progress_output_shows(pytest_result, state):
-    assert state in pytest_result.stdout
+    stdout = pytest_result.stdout.str()
+    assert re.search(r"^Feature:\s+Test feature", stdout, re.MULTILINE), stdout
+    assert re.search(r"Scenario:\s+Test scenario", stdout), stdout
+    assert state in stdout
 
 
 @then(parsers.parse("Snippet output suggests step definition for {step_text}"))
 def snippet_output_suggests(pytest_result, step_text):
-    assert step_text in pytest_result.stdout
+    stdout = pytest_result.stdout.str()
+    assert step_text in stdout
+    assert re.search(r"@(given|when|then|step)\(", stdout), stdout
+    assert re.search(r"def .+\(", stdout), stdout
 
 
 @then(parsers.parse("Summary output contains {statistic}"))
@@ -65,9 +73,10 @@ def summary_output_contains(pytest_result, statistic):
 
 
 @then(parsers.parse("Usage output shows {count} step definitions used"))
-def usage_output_shows(pytest_result, count):  # noqa: ARG001 - count is part of step text contract
-    # This is a basic assertion to check if the usage info is logged
-    assert "Usage" in pytest_result.stdout
+def usage_output_shows(pytest_result, count):
+    stdout = pytest_result.stdout.str()
+    assert re.search(rf"\b{re.escape(count)}\b", stdout), stdout
+    assert "Usage" in stdout
 
 
 @then("Usage JSON is valid")
@@ -76,3 +85,42 @@ def usage_json_is_valid(testdir):
     with pathlib.Path(str(usage_json_path)).open(encoding="utf-8") as f:
         data = json.load(f)
     assert isinstance(data, dict)
+    assert data, data
+
+
+def _junit_root(testdir, file_path: str) -> ET.Element:
+    report_path = pathlib.Path(str(testdir.tmpdir.join(file_path)))
+    return ET.parse(report_path).getroot()  # noqa: S314 - pytester-owned generated XML.
+
+
+@then(parsers.parse('JUnit XML report "{file_path}" has suite totals:'))
+def junit_xml_report_has_suite_totals(testdir, file_path, step):
+    root = _junit_root(testdir, file_path)
+    header = step.argument.data_table.rows[0].cells
+    values = step.argument.data_table.rows[1].cells
+    expected = {cell.value: int(values[index].value) for index, cell in enumerate(header)}
+    assert int(root.attrib["tests"]) == expected["tests"]
+    assert int(root.attrib.get("failures", "0")) == expected["failures"]
+
+
+@then(parsers.parse('JUnit XML report "{file_path}" contains testcase for "{scenario_name}"'))
+def junit_xml_report_contains_testcase(testdir, file_path, scenario_name):
+    root = _junit_root(testdir, file_path)
+    names = [node.attrib.get("name") for node in root.iter("testcase")]
+    assert scenario_name in names
+
+
+@then(parsers.parse('JUnit XML report "{file_path}" contains failure for "{scenario_name}"'))
+def junit_xml_report_contains_failure(testdir, file_path, scenario_name):
+    root = _junit_root(testdir, file_path)
+    failures = [
+        testcase
+        for testcase in root.iter("testcase")
+        if testcase.attrib.get("name") == scenario_name and testcase.find("failure") is not None
+    ]
+    assert failures
+
+
+@then(parsers.parse('JUnit XML report "{file_path}" is valid XML'))
+def junit_xml_report_is_valid_xml(testdir, file_path):
+    assert _junit_root(testdir, file_path).tag == "testsuite"

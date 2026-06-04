@@ -9,6 +9,7 @@ import string
 import subprocess  # noqa: S404
 import sys
 from functools import reduce
+from html.parser import HTMLParser
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -104,6 +105,21 @@ def _resolve_test_output_path(testdir: "Testdir", file_path: Path) -> Path:
     if file_path.is_absolute():
         return file_path
     return Path(str(testdir.tmpdir)) / file_path
+
+
+class _HTMLTextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.text_parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        stripped = data.strip()
+        if stripped:
+            self.text_parts.append(stripped)
+
+    @property
+    def text(self) -> str:
+        return "\n".join(self.text_parts)
 
 
 @given(
@@ -239,7 +255,7 @@ def _require_docker():
 
 
 @step(
-    re.compile(r"run pytest across xdist workers over (?P<remote_mode>\w+) gateway"),
+    re.compile(r"run pytest across xdist workers over (?P<remote_mode>\w+) gateway(?: with CLI options:)?"),
     target_fixture="remote_xdist_result",
 )
 def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
@@ -268,7 +284,8 @@ def _run_remote_xdist(remote_mode: str, tmp_path: Path, attach):
 
 
 @then("the distributed run succeeds and a consolidated NDJSON report is produced")
-def _assert_remote_run_succeeds(remote_xdist_result):
+@then("the distributed run succeeds and a consolidated NDJSON report is produced:")
+def _assert_remote_run_succeeds(remote_xdist_result, step=None):
     from contract.messages.message_stream_assertions import (
         count_payload_kinds,
         gateway_modes_for_payloads,
@@ -295,11 +312,21 @@ def _assert_remote_run_succeeds(remote_xdist_result):
     payload_counts = count_payload_kinds(messages)
     worker_ids = worker_ids_for_payloads(messages, CucumberTestCaseStarted)
     gateway_modes = gateway_modes_for_payloads(messages, CucumberTestCaseStarted)
+    expected: dict[str, int] = {}
+    data_table = (
+        getattr(step.argument, "data_table", None) if step is not None and getattr(step, "argument", None) else None
+    )
+    if data_table is not None:
+        header = [cell.value for cell in data_table.rows[0].cells]
+        values = [int(cell.value) for cell in data_table.rows[1].cells]
+        expected = dict(zip(header, values, strict=True))
 
     assert validation_result.status == "pass"
     assert payload_counts["meta"] == 1
     assert payload_counts["test_run_started"] == 1
     assert payload_counts["test_run_finished"] == 1
+    if "tests" in expected:
+        assert payload_counts["test_case_started"] == expected["tests"]
     assert len(worker_ids) >= 2
     assert remote_mode in gateway_modes
 
@@ -432,6 +459,24 @@ def _(file_path: Path, line_count: int, testdir: "Testdir"):
 )
 def _(file_path: Path, testdir):
     assert _resolve_test_output_path(testdir, file_path).stat().st_size != 0
+
+
+@then(
+    re.compile(r'HTML report "(?P<file_path>[^"]+)" contains scenario outcomes:'),
+    converters={"file_path": Path},
+)
+def _(file_path: Path, testdir, step):
+    report_path = _resolve_test_output_path(testdir, file_path)
+    parser = _HTMLTextParser()
+    parser.feed(report_path.read_text(encoding="utf-8"))
+    report_text = parser.text.lower()
+
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    for row in data_table.rows[1:]:
+        scenario = row.cells[0].value.lower()
+        status = row.cells[1].value.lower()
+        assert scenario in report_text, parser.text
+        assert status in report_text, parser.text
 
 
 @then(parsers.parse('File "{file_path}" contains the line "{line}"'))

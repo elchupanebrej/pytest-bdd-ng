@@ -133,7 +133,7 @@ Installation
 
    - ``test``: pytest-xdist, execnet, pytest-httpserver, and other test dependencies
    - ``testtypes``: type checking dependencies (mypy, type stubs)
-   - ``doc-gen``: documentation generation tools (pypandoc, Jinja2, Sphinx)
+   - ``doc-gen``: documentation generation tools (Jinja2, MyST, Sphinx)
    - ``struct-bdd``: YAML/JSON/HOCON/TOML structured BDD support
 
 Architecture Overview
@@ -410,11 +410,14 @@ The project uses ATDD/BDD: acceptance tests in ``features/`` before implementati
    ``tests/cases/e2e/conftest.py`` using ``@given``, ``@when``, ``@then``
    decorators.
 
-3. **Generate documentation**: Render feature docs to RST:
+3. **Generate documentation**: Build the Sphinx HTML documentation:
 
    .. code-block:: bash
 
-      make features-docs
+      make docs
+
+   The Sphinx build reads Markdown sources directly and mirrors feature files at
+   build time.
 
 4. **Run E2E tests**: Execute the BDD test suite:
 
@@ -650,14 +653,6 @@ These commands are defined in ``pyproject.toml`` and can be run with ``uv run``:
   Make targets: ``make compat-list`` and
   ``make compat-check PYTHON_FACTOR=314 PYTEST_FACTOR=latest``.
 
-- ``bdd_tree_to_rst`` regenerates ordered feature documentation.
-
-  .. code-block:: bash
-
-     uv run bdd_tree_to_rst features docs/features
-
-  Make target: ``make features-docs``.
-
 - ``render_cucumber_formatters`` replays formatter outputs from an existing
   cucumber messages NDJSON stream.
 
@@ -727,8 +722,8 @@ Available Commands
 - ``uv sync --extra test --extra testtypes --extra doc-gen --extra struct-bdd`` - Create or refresh the development environment
 - ``uv run <command>`` - Run commands in the project environment
 - ``uv run compatibility_matrix --list --compatible-only`` - Inspect the supported compatibility matrix
-- ``uv run bdd_tree_to_rst features docs/features`` - Regenerate feature RST documentation
 - ``uv run render_cucumber_formatters --messages-ndjson <path> ...`` - Replay formatter outputs from NDJSON
+- ``make docs`` - Build the Sphinx HTML documentation
 - ``make test`` - Run the default feasible test suite for the current machine
 - ``uvx --with tox-uv tox -l`` - List supported tox environments
 - ``uvx --with tox-uv tox`` - Run the full tox matrix using ``tox-uv``

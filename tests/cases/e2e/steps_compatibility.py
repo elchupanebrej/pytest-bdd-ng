@@ -3,7 +3,6 @@ import sys
 import pytest
 
 from pytest_bdd import given, parsers, then
-from pytest_bdd.compatibility.enum import StrEnum
 from pytest_bdd.compatibility.pytest import Expression
 
 
@@ -24,13 +23,3 @@ def _pytest_version_compatibility_holds():
 def _pytest_mark_expression_is(expression):
     expression = expression.strip('"').strip("'")
     return Expression.compile(expression)
-
-
-@then("StrEnum behavior is consistent")
-def strenum_behavior_is_consistent():
-    class TestEnum(StrEnum):
-        A = "a"
-
-    assert TestEnum.A == "a"
-    assert TestEnum.A.value == "a"
-    assert isinstance(TestEnum.A, str)

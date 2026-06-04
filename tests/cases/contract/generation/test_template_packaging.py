@@ -17,9 +17,9 @@ def test_template_assets_are_available_through_package_resources() -> None:
     template_package = files("pytest_bdd.template")
 
     assert template_package.joinpath("test.py.jinja2").is_file()
-    assert template_package.joinpath("features_index.rst.jinja2").is_file()
-    assert template_package.joinpath("features_section.rst.jinja2").is_file()
-    assert template_package.joinpath("feature_include.rst.jinja2").is_file()
+    assert not template_package.joinpath("features_index.rst.jinja2").is_file()
+    assert not template_package.joinpath("features_section.rst.jinja2").is_file()
+    assert not template_package.joinpath("feature_include.rst.jinja2").is_file()
 
 
 def test_pyproject_package_data_lists_jinja2_assets() -> None:
@@ -28,9 +28,9 @@ def test_pyproject_package_data_lists_jinja2_assets() -> None:
     template_assets = pyproject["tool"]["setuptools"]["package-data"]["pytest_bdd.template"]
 
     assert "test.py.jinja2" in template_assets
-    assert "features_index.rst.jinja2" in template_assets
-    assert "features_section.rst.jinja2" in template_assets
-    assert "feature_include.rst.jinja2" in template_assets
+    assert "features_index.rst.jinja2" not in template_assets
+    assert "features_section.rst.jinja2" not in template_assets
+    assert "feature_include.rst.jinja2" not in template_assets
     assert "test.py.mak" not in template_assets
 
 
@@ -70,16 +70,13 @@ def test_main_workflow_checks_generated_message_schemas_without_pre_commit() -> 
     assert "sync_messages_contract_schemas" not in pre_commit_config
 
 
-def test_feature_doc_pre_commit_hook_is_scoped_to_feature_inputs() -> None:
-    """Verify feature doc hook does not run for unrelated commits."""
+def test_feature_doc_pre_commit_hook_is_removed() -> None:
+    """Verify obsolete feature doc hook is removed."""
     pre_commit_config = (PROJECT_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    obsolete_script = "bdd_tree" + "_to_rst"
 
-    hook_start = pre_commit_config.index("      - id: generate-feature-doc")
-    hook_end = pre_commit_config.index("      - id: validate-feature-headings")
-    hook_config = pre_commit_config[hook_start:hook_end]
-
-    assert "files: >-" in hook_config
-    assert "^(features/|src/pytest_bdd/script/bdd_tree_to_rst.py|src/pytest_bdd/template/)" in hook_config
+    assert "generate-feature-doc" not in pre_commit_config
+    assert obsolete_script not in pre_commit_config
 
 
 def test_pyproject_declares_jinja2_and_removes_mako_runtime_dependency() -> None:

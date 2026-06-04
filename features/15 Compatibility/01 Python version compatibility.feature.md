@@ -25,14 +25,24 @@
 * When run pytest
 * Then Pytest version compatibility holds
 
-## Scenario: StrEnum behavior is consistent across Python versions
-* Then StrEnum behavior is consistent
-
 ## Scenario: Pytest mark expression parsing works
+* Given File "test_mark_expression.py" with content:
+    ```python
+    import pytest
+
+    @pytest.mark.smoke
+    def test_smoke_selected():
+        pass
+
+    @pytest.mark.smoke
+    @pytest.mark.slow
+    def test_slow_rejected():
+        pass
+    ```
 * Given Pytest mark expression is "smoke and not slow"
 * When run pytest
-    | cli_args | -m | smoke and not slow |
+    | cli_args | test_mark_expression.py | -m | smoke and not slow |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
-    | 0      |
+    | 1      |

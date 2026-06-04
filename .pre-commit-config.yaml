@@ -4,7 +4,7 @@
 default_language_version:
   python: python3.14
 ci:
-  skip: [generate-feature-doc, validate-feature-headings, mypy]
+  skip: [validate-feature-headings, mypy]
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.15
@@ -50,16 +50,6 @@ repos:
         args: [--autofix]
   - repo: local
     hooks:
-      - id: generate-feature-doc
-        name: generate-feature-doc
-        entry: >-
-          uv run --python 3.14 --extra doc-gen python
-          src/pytest_bdd/script/bdd_tree_to_rst.py features docs/features
-        language: python
-        additional_dependencies: ["uv"]
-        files: >-
-          ^(features/|src/pytest_bdd/script/bdd_tree_to_rst.py|src/pytest_bdd/template/)
-        pass_filenames: false
       - id: validate-feature-headings
         name: validate-feature-headings
         entry: >-

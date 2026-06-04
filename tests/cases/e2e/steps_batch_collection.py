@@ -1,41 +1,34 @@
-from pytest_bdd import given, parsers, step, then
-from tests.cases.e2e.conftest import data_table_to_dicts
+from pytest_bdd import given, parsers, then
 
 
-@step("run pytest with batch collection", target_fixture="pytest_result")
-def run_pytest_with_batch_collection(testdir, step):
-    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
-    options_dict = data_table_to_dicts(data_table)
-    cli_args = list(options_dict.get("cli_args", []))
-    return testdir.runpytest_inprocess(*cli_args)
+def _merge_pytest_ini_options(testdir, **options: str) -> None:
+    ini_path = testdir.tmpdir.join("pytest.ini")
+    existing = ini_path.read() if ini_path.check(file=1) else "[pytest]\n"
+    lines = [line for line in existing.splitlines() if line.strip()]
+    if not lines or lines[0].strip() != "[pytest]":
+        lines.insert(0, "[pytest]")
+    option_names = set(options)
+    kept = [lines[0], *[line for line in lines[1:] if line.split("=", 1)[0].strip() not in option_names]]
+    kept.extend(f"{key} = {value}" for key, value in options.items())
+    ini_path.write("\n".join(kept) + "\n")
 
 
 @given("Batch collection cache is enabled")
 def batch_collection_cache_enabled(testdir):
-    testdir.makeini("""
-[pytest]
-bdd_features_base_dir = .
-    """)
+    _merge_pytest_ini_options(testdir, bdd_features_base_dir=".")
 
 
 @then(parsers.parse("Batch collection processes {count} files"))
 def batch_collection_processes(pytest_result, count):
-    # Depending on how batch collection logs this, we might check stdout
-    pass
-
-
-@given("Batch collection flag is set", target_fixture="cli_args")
-def batch_collection_flag_is_set(step):
-    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
-    if data_table:
-        return [row.cells[0].value for row in data_table.rows]
-    return ["--features-base-dir=."]
+    pytest_result.assert_outcomes(passed=int(count))
 
 
 @then("Batch collection cache is used")
-def batch_collection_cache_is_used(pytest_result):
-    # Check stdout for cache hit
-    pass
+def batch_collection_cache_is_used(pytest_result, testdir):
+    pytest_result.assert_outcomes(passed=3)
+    second_result = testdir.runpytest_inprocess()
+    second_result.assert_outcomes(passed=3)
+    assert testdir.tmpdir.join(".pytest_cache").check(dir=1)
 
 
 @then("Batch collection processes many scenarios correctly")
@@ -47,16 +40,9 @@ def batch_collection_processes_many(pytest_result):
 
 @given("Batch collection is disabled")
 def batch_collection_disabled(testdir):
-    testdir.makeini("""
-[pytest]
-bdd_batch_collect = false
-bdd_features_base_dir = .
-    """)
+    _merge_pytest_ini_options(testdir, bdd_batch_collect="false", bdd_features_base_dir=".")
 
 
 @given("Batch collection is enabled")
 def batch_collection_enabled(testdir):
-    testdir.makeini("""
-[pytest]
-bdd_features_base_dir = .
-    """)
+    _merge_pytest_ini_options(testdir, bdd_features_base_dir=".")

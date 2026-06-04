@@ -1,10 +1,10 @@
 Documentation Generation Notes
 ==============================
 
-Scope Boundary for ``docs/features/features.rst``
+Scope Boundary for ``docs/features/features.md``
 -------------------------------------------------
 
-``docs/features/features.rst`` is reserved for feature-file-driven generated
+``docs/features/features.md`` is reserved for feature-file-driven generated
 navigation and short user-facing context.
 
 This file must not contain:

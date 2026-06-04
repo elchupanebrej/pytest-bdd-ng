@@ -16,8 +16,6 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-      - name: Install pandoc
-        uses: r-lib/actions/setup-pandoc@v2
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip build twine

@@ -34,17 +34,17 @@
     ```
 
 ## Scenario: Batch collection processes multiple files
-* When run pytest with batch collection
+* When run pytest
 * Then Batch collection processes 3 files
 
 ## Scenario: Batch collection cache is used on second run
 * Given Batch collection cache is enabled
-* When run pytest with batch collection
+* When run pytest
 * Then Batch collection cache is used
 
-## Scenario: Batch collection flag controls batch size
-* Given Batch collection flag is set
-* When run pytest with batch collection
+## Scenario: Batch collection flag can disable batch mode
+* When run pytest
+    | cli_args | --disable-batch-collection |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
@@ -56,7 +56,7 @@
     from pytest_bdd import scenarios
     scenarios("empty_dir")
     ```
-* When run pytest with batch collection
+* When run pytest
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
@@ -72,7 +72,7 @@
     from pytest_bdd import scenarios
     scenarios("malformed.feature.md")
     ```
-* When run pytest with batch collection
+* When run pytest
     | cli_args | test_malformed.py |
 * Then pytest outcome must contain tests with statuses:
     | failed |

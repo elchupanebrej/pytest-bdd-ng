@@ -1,43 +1,54 @@
-from pytest_bdd import given, parsers, step, then
+import ast
+
+from pytest_bdd import then
 
 
-@step("run pytest with code generator", target_fixture="pytest_result")
-def run_pytest_code_generator(testdir, request):
-    try:
-        feature_file = request.getfixturevalue("feature_file")
-        return testdir.runpytest_inprocess("--generate-missing", "--feature", str(feature_file))
-    except LookupError:
-        feature_files = [f for f in testdir.tmpdir.listdir() if f.check(file=1) and f.basename.endswith(".feature.md")]
-        if feature_files:
-            return testdir.runpytest_inprocess("--generate-missing", "--feature", str(feature_files[0]))
-        return testdir.runpytest_inprocess("--generate-missing")
-
-
-@then(parsers.parse("Generated code contains {pattern}"))
-def generated_code_contains(pytest_result, pattern):
+def _generated_python_module(pytest_result) -> ast.Module:
     stdout = pytest_result.stdout.str()
-    # Normalize pattern to check for step decorators
-    if pattern == "@step":
-        assert "@given" in stdout or "@when" in stdout or "@then" in stdout or "@step" in stdout
-    elif pattern == "def _":
-        # Code generator may produce descriptive names like def this_step_does_not_exist()
-        assert "def " in stdout
-    else:
-        assert pattern in stdout
+    code_lines = [
+        line for line in stdout.splitlines() if line.startswith(("from ", "import ", "@", "def ", "    ", "raise "))
+    ]
+    code = "\n".join(code_lines)
+    try:
+        return ast.parse(code)
+    except SyntaxError as exc:
+        message = f"Generated output is not valid Python:\n{stdout}"
+        raise AssertionError(message) from exc
+
+
+def _step_decorators(module: ast.Module) -> list[tuple[str, str]]:
+    decorators: list[tuple[str, str]] = []
+    for node in module.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call):
+                continue
+            if not isinstance(decorator.func, ast.Name):
+                continue
+            if not decorator.args or not isinstance(decorator.args[0], ast.Constant):
+                continue
+            decorators.append((decorator.func.id, str(decorator.args[0].value)))
+    return decorators
+
+
+@then("generated Python code matches oracle:")
+def generated_python_code_matches_oracle(pytest_result, step):
+    actual = _generated_python_module(pytest_result)
+    expected = ast.parse(step.argument.doc_string.content)
+
+    assert sorted(_step_decorators(actual)) == sorted(_step_decorators(expected))
+
+
+@then("generated Python code defines functions:")
+def generated_python_code_defines_functions(pytest_result, step):
+    module = _generated_python_module(pytest_result)
+    expected = [row.cells[0].value for row in step.argument.data_table.rows[1:]]
+    actual = [node.name for node in module.body if isinstance(node, ast.FunctionDef)]
+    assert actual == expected
 
 
 @then("Generated code is printed to stdout")
 def generated_code_is_printed(pytest_result):
     assert pytest_result.ret == 0
-    assert len(pytest_result.stdout.str()) > 0
-
-
-@given("Feature file with undefined steps", target_fixture="feature_file")
-def feature_file_with_undefined_steps(testdir):
-    return testdir.makefile(
-        ".feature.md",
-        undefined="""# Feature: Undefined
-## Scenario: Missing steps
-* Given this step does not exist
-""",
-    )
+    assert _generated_python_module(pytest_result).body

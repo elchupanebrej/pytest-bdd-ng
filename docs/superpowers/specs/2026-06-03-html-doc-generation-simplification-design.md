@@ -5,8 +5,8 @@
 The current documentation pipeline converts feature files (`.feature.md`, Markdown/GFM Gherkin) to
 HTML in two stages:
 
-1. **Pre-build step** (`make features-docs` → `bdd_tree_to_rst`): Walks `features/`, calls
-   `pypandoc` (which shells out to the `pandoc` binary) to convert each `.feature.md` → `.feature.rst`,
+1. **Pre-build step** (legacy feature-doc make target → legacy RST converter): Walks `features/`, calls
+   Pandoc through Python wrappers to convert each `.feature.md` → `.feature.rst`,
    and writes Jinja2-rendered RST toctree index files into `docs/features/`. These RST artifacts are
    committed to the repository.
 
@@ -15,11 +15,11 @@ HTML in two stages:
 ### Pain Points
 
 - **System binary dependency**: `pandoc` must be installed on every dev machine and CI node.
-- **Heavy dep group**: `doc-gen` pulls in `pandoc`, `panflute`, `pypandoc`, `sphinx>=7`, `myst-parser`.
+- **Heavy dep group**: `doc-gen` pulls in Pandoc conversion wrappers plus `sphinx>=7`, `myst-parser`.
 - **RST is a leaky abstraction**: Feature files are Markdown, but the intermediate representation is RST. Developers must reason about two markup languages.
 - **Committed generated artifacts**: `docs/features/**/*.rst` are generated files that live in git, causing noisy diffs whenever the feature tree changes.
-- **Two-step workflow**: Forgetting `make features-docs` before `sphinx-build` produces stale docs.
-- **~570-line script**: `src/pytest_bdd/script/bdd_tree_to_rst.py` is complex for what is essentially a tree-walk + format conversion.
+- **Two-step workflow**: Forgetting the legacy feature-doc make target before `sphinx-build` produces stale docs.
+- **~570-line script**: the legacy RST converter is complex for what is essentially a tree-walk + format conversion.
 - **Root files in RST**: `README.rst`, `DOCUMENTATION.rst`, `AUTHORS.rst`, `LICENSE.rst`, `CHANGES.rst` require the `.. include::` workaround with `:parser: myst_parser.sphinx_` for the `.md` siblings.
 
 ## Goal
@@ -63,7 +63,7 @@ HTML (ReadTheDocs, alabaster theme, same URL)
 
 A Sphinx extension that hooks into `builder-inited`. It:
 
-1. Walks `features/` using the same ordering-prefix logic from `bdd_tree_to_rst.py`
+1. Walks `features/` using the same ordering-prefix logic from the legacy RST converter
    (numeric prefix `NN`, `NN-`, or `NN_` on files and directories, duplicate/missing prefix validation).
 2. **Copies** each `.feature.md` file to a mirrored path under `docs/features/`
    (e.g., `features/01 Tutorial/01 Launch.feature.md` → `docs/features/01 Tutorial/01 Launch.feature.md`).
@@ -77,7 +77,7 @@ The copy-at-build-time sub-approach is chosen over path cross-references because
 - Sphinx source discovery works without reconfiguration.
 - The pattern mirrors the current behaviour (files appear under `docs/features/`) but without the RST conversion step.
 
-**Ordering prefix rules** (preserved from `bdd_tree_to_rst.py`):
+**Ordering prefix rules** (preserved from the legacy RST converter):
 - Every file and directory directly under a feature directory must have a numeric prefix (`NN`, `NN-`, or `NN_`).
 - Duplicate prefixes at the same level are a hard error.
 - Missing prefixes on siblings are a hard error.
@@ -100,13 +100,13 @@ The copy-at-build-time sub-approach is chosen over path cross-references because
 ````
 
 The extension preserves intro text before the generated block and suffix text after it (same
-idempotence contract as the current `bdd_tree_to_rst.py`).
+idempotence contract as the legacy RST converter).
 
 ---
 
 ### Jinja2 RST Templates (Deleted)
 
-The following template files are removed (they only served `bdd_tree_to_rst.py`):
+The following template files are removed (they only served the legacy RST converter):
 
 - `src/pytest_bdd/template/feature_include.rst.jinja2`
 - `src/pytest_bdd/template/features_index.rst.jinja2`
@@ -116,20 +116,20 @@ The `test.py.jinja2` template (used by the code generator plugin, unrelated to d
 
 ---
 
-### `bdd_tree_to_rst.py` (Deleted)
+### Legacy RST converter (Deleted)
 
-`src/pytest_bdd/script/bdd_tree_to_rst.py` is deleted.
+The legacy RST converter script is deleted.
 
 The entry point in `pyproject.toml` is removed:
 ```toml
 # REMOVE:
-bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
+legacy_converter = "legacy.module:main"
 ```
 
 The ordering-prefix validation logic (the `OrderedSource`, `OrderingValidationError`, prefix parsing
 functions) is **extracted** into a small shared utility module
 `src/pytest_bdd/script/_feature_tree.py` so the Sphinx extension can import it without depending
-on the full `bdd_tree_to_rst` stack. This keeps the validation logic in one place and testable.
+on the full legacy RST conversion stack. This keeps the validation logic in one place and testable.
 
 ---
 
@@ -184,8 +184,8 @@ extensions = [
 source_suffix = [".rst", ".md"]   # keep .rst for any remaining legacy files
 ```
 
-The `import pypandoc` and `ensure_pandoc_installed()` calls are removed from `conf.py` (currently
-not present but referenced via the `bdd_tree_to_rst` import chain).
+The Pandoc-wrapper imports and `ensure_pandoc_installed()` calls are removed from `conf.py` (currently
+not present but referenced via the legacy converter import chain).
 
 ---
 
@@ -236,8 +236,8 @@ tutorial/index
 # Before:
 doc-gen = [
   'pandoc',
-  'panflute',
-  'pypandoc',
+  'legacy-pandoc-wrapper-a',
+  'legacy-pandoc-wrapper-b',
   'sphinx>=7.0',
   'myst-parser'
 ]
@@ -258,7 +258,7 @@ chain but should be declared).
 ### `.gitignore`
 
 Add entries to ignore the copied feature files:
-```gitignore
+```text
 # Sphinx build-time feature file copies
 docs/features/**/*.feature.md
 docs/features/**/*.feature.gherkin
@@ -271,17 +271,17 @@ The `docs/features/features.md` index file and any subdirectory `index.md` files
 
 ### `Makefile`
 
-The `features-docs` target is removed (the step no longer exists as a separate action).
-The `make features-docs` step is also removed from any CI/CD workflows that call it.
+The legacy feature-doc target is removed (the step no longer exists as a separate action).
+The legacy feature-doc make step is also removed from any CI/CD workflows that call it.
 
-The `doc-gen` UV extra in `UV_SYNC_EXTRAS` can drop `pandoc`/`panflute`/`pypandoc` references.
+The `doc-gen` UV extra in `UV_SYNC_EXTRAS` can drop Pandoc conversion wrapper references.
 
 ---
 
 ### `setuptools.package-data` (Deleted Templates)
 
 Remove the deleted templates from `pyproject.toml`:
-```toml
+```text
 # REMOVE from pytest_bdd.template:
 "feature_include.rst.jinja2",
 "features_index.rst.jinja2",
@@ -317,7 +317,7 @@ the project via `python: install: - path: .`. The `doc-gen` extra will be picked
 | MODIFY | `pyproject.toml` |
 | MODIFY | `Makefile` |
 | MODIFY | `.gitignore` |
-| DELETE | `src/pytest_bdd/script/bdd_tree_to_rst.py` |
+| DELETE | legacy RST converter script |
 | DELETE | `src/pytest_bdd/template/feature_include.rst.jinja2` |
 | DELETE | `src/pytest_bdd/template/features_index.rst.jinja2` |
 | DELETE | `src/pytest_bdd/template/features_section.rst.jinja2` |
@@ -336,7 +336,7 @@ the project via `python: install: - path: .`. The `doc-gen` extra will be picked
 2. `docs/_build/html/features/features.html` exists and contains section headings matching the `features/` directory tree.
 3. Feature Markdown content (Gherkin steps, tables) is rendered as HTML — not shown as raw code blocks.
 4. `grep -r "pandoc" docs/_build/` — returns nothing (pandoc not invoked).
-5. `python -c "import pypandoc"` is not a requirement for the doc build.
+5. Importing a Pandoc Python wrapper is not a requirement for the doc build.
 6. `docs/features/` contains no `.rst` files after build.
 
 ### Manual
@@ -344,4 +344,4 @@ the project via `python: install: - path: .`. The `doc-gen` extra will be picked
 1. Review ReadTheDocs preview build — all pages present, navigation matches previous structure.
 2. Spot-check `CHANGES.md` rendering — headings, code blocks, and links render correctly.
 3. Spot-check `README.md` on PyPI preview — badge links, code blocks, installation instructions intact.
-4. Verify `make features-docs` removal does not break CI (search `.github/workflows/` for references).
+4. Verify legacy feature-doc make target removal does not break CI (search `.github/workflows/` for references).

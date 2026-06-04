@@ -6,7 +6,7 @@
 	env-check env-check-tox env-check-powershell env-check-wsl2 env-check-docker env-check-docker-linux \
 	env-check-docker-windows env-check-windows env-check-browser validate-test-all-backends env-install env-install-docker \
 	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
-	clean compat-list compat-check validate-headings features-docs render-formatters local-pr-gate \
+	clean compat-list compat-check validate-headings docs render-formatters local-pr-gate \
 	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas \
 	tox env-install-npm check-message-schemas validate-github-actions
 
@@ -35,7 +35,6 @@ UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-
 PYTHON_FACTOR ?= 314
 PYTEST_FACTOR ?= latest
 FEATURES_ROOT ?= features
-FEATURE_DOCS_OUTPUT ?= docs/features
 MESSAGES_NDJSON ?= .tmp/messages.ndjson
 FORMATTER_ARGS ?= --cucumber-summary
 TOX_NDJSON_GLOB ?= .tox/*.messages.ndjson
@@ -345,8 +344,8 @@ pre-commit: env-check
 validate-headings: env-check
 	uv run python -m pytest_bdd.script.validate_feature_headings --root-path $(FEATURES_ROOT)
 
-features-docs: env-check
-	uv run bdd_tree_to_rst $(FEATURES_ROOT) $(FEATURE_DOCS_OUTPUT)
+docs: env-check
+	uv run --extra doc-gen sphinx-build -b html docs docs/_build/html
 
 render-formatters: env-check
 	uv run render_cucumber_formatters --messages-ndjson $(MESSAGES_NDJSON) $(FORMATTER_ARGS)

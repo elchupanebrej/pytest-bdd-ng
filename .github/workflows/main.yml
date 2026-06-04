@@ -53,8 +53,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "*"
-      - name: Install pandoc
-        uses: r-lib/actions/setup-pandoc@v2
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.2.0
       - name: Install npm dependencies
@@ -104,8 +102,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "*"
-      - name: Install pandoc
-        uses: r-lib/actions/setup-pandoc@v2
       - name: Set up uv
         uses: astral-sh/setup-uv@v8.2.0
       - name: Verify Docker toolchain
