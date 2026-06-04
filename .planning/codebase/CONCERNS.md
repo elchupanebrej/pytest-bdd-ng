@@ -64,7 +64,6 @@ focus: concerns
 - `src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime.py` — 549 lines
 - `src/pytest_bdd/plugin/struct_bdd/model.py` — 498 lines
 - `src/pytest_bdd/plugin/pickle_runner/plugin.py` — 473 lines
-- `src/pytest_bdd/script/bdd_tree_to_rst.py` — 440 lines
 - `src/pytest_bdd/plugin/code_generator/plugin.py` — 412 lines (518 total)
 - Impact: Accumulation of large modules increases onboarding time and defect rate.
 
@@ -85,10 +84,10 @@ focus: concerns
 - Recommendations: Convert all `subprocess.check_output(..., shell=True)` calls to use list-based arguments without shell. Example: `subprocess.check_output(["npm", "list", "-g", package_name])`.
 
 **Jinja2 Without Autoescape:**
-- Risk: Two instances of `Environment(autoescape=False, keep_trailing_newline=True)` in `src/pytest_bdd/plugin/code_generator/plugin.py` (line 48) and `src/pytest_bdd/script/bdd_tree_to_rst.py` (line 39). If template input ever includes untrusted content (e.g., from feature file text), XSS/HTML injection is possible.
-- Files: `src/pytest_bdd/plugin/code_generator/plugin.py`, `src/pytest_bdd/script/bdd_tree_to_rst.py`
-- Current mitigation: Marked `# noqa: S701`. These templates generate Python code and RST, not HTML, so the autoescape concern is partially mitigated. However, RST can embed raw HTML, so the `bdd_tree_to_rst.py` usage is higher risk.
-- Recommendations: Use `autoescape=True` and selectively disable for non-HTML code generation with explicit `| safe` filters, or document clearly why autoescape is not needed.
+- Risk: `Environment(autoescape=False, keep_trailing_newline=True)` in `src/pytest_bdd/plugin/code_generator/plugin.py` (line 48). If template input ever includes untrusted content, generated Python code could be affected.
+- Files: `src/pytest_bdd/plugin/code_generator/plugin.py`
+- Current mitigation: Marked `# noqa: S701`. The template generates Python code, not HTML.
+- Recommendations: Document clearly why autoescape is not needed for code generation.
 
 **Subprocess Argument Injection in `live_formatter_runtime.py`:**
 - Risk: `src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py` spawns Node.js subprocesses with user-configurable formatter arguments. While these use list-based `subprocess.run()` (marked `# noqa: S603`), the formatter arguments are constructed from configuration values. If an attacker can control configuration (e.g., via a malicious `pyproject.toml` or `tox.ini`), arbitrary commands could be injected.
@@ -190,12 +189,6 @@ focus: concerns
 - Risk: If struct-bdd optional dependencies are not installed, the entire test suite for this plugin is skipped. This means CI must run with struct-bdd installed to get coverage, but that's an optional dependency.
 - Priority: Medium.
 
-**`bdd_tree_to_rst.py` — Script-Level Code:**
-- What's not tested: The `main()` function and CLI entrypoint at `src/pytest_bdd/script/bdd_tree_to_rst.py` lines 531-567 are marked `# pragma: no cover`. The script's core logic at line 460 has `# TODO: move side effect from this method`.
-- Files: `src/pytest_bdd/script/bdd_tree_to_rst.py`
-- Risk: The RST generation pipeline from BDD feature trees could be fragile without CLI-level integration tests.
-- Priority: Low (documentation generation path).
-
 **`parsers.py` — Parser Build Fallback:**
 - What's not tested: The `ParserBuildValueError` raise at line 678 is marked `# pragma: no cover`. This means no test exercises the case where ALL four parsers fail to build.
 - Files: `src/pytest_bdd/parsers.py`
@@ -204,7 +197,7 @@ focus: concerns
 
 **`# pragma: no cover` — 37 Instances:**
 - What's not tested: 37 code branches marked `# pragma: no cover` across the source, including `TYPE_CHECKING` blocks, `__name__ == "__main__"` guards, `NotImplementedError` raises in abstract methods, and CLI entrypoint functions.
-- Files: See full list in analysis above. Highlights: `src/pytest_bdd/parsers.py` (9 instances), `src/pytest_bdd/scenario_locator.py` (5 instances), `src/pytest_bdd/tag_expression.py` (2 instances), `src/pytest_bdd/script/bdd_tree_to_rst.py` (2 instances).
+- Files: See full list in analysis above. Highlights: `src/pytest_bdd/parsers.py` (9 instances), `src/pytest_bdd/scenario_locator.py` (5 instances), `src/pytest_bdd/tag_expression.py` (2 instances).
 - Risk: Some `# pragma: no cover` may mask genuinely untested production code (not just `TYPE_CHECKING`/`__main__` guards). Each should be reviewed.
 - Priority: Medium.
 

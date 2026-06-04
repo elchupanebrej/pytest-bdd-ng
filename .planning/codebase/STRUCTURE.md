@@ -139,16 +139,13 @@ pytest-bdd/
 │   │   ├── url.py, webloc.py
 │   │   └── toolz_test.py
 │   ├── script/                   # CLI entry point scripts
-│   │   ├── bdd_tree_to_rst.py    # Feature docs -> RST
+│   │   ├── _feature_tree.py      # Shared feature docs ordering-prefix validation
 │   │   ├── compatibility_matrix.py
 │   │   ├── render_cucumber_formatters.py
 │   │   ├── validate_feature_headings.py
 │   │   ├── sync_messages_contract_schemas.py
 │   │   └── message_capability_governance.py
-│   └── template/                 # Jinja2 templates for code/doc generation
-│       ├── feature_include.rst.jinja2
-│       ├── features_index.rst.jinja2
-│       ├── features_section.rst.jinja2
+│   └── template/                 # Jinja2 templates for code generation
 │       └── test.py.jinja2
 ├── tests/                        # Test suite
 │   ├── unit/                     # Fast in-memory unit tests
@@ -186,7 +183,10 @@ pytest-bdd/
 │       ├── plan.md
 │       ├── tasks.md
 │       └── ...
-├── docs/                         # Generated RST documentation
+├── docs/                         # Sphinx documentation
+│   └── ext/                      # Local Sphinx extensions
+│       ├── __init__.py
+│       └── feature_tree.py       # Feature Markdown validation/copy extension
 ├── gherkin_go/                   # Go source for gherkin parser shared library
 ├── scripts/                      # Dev/CI helper scripts
 ├── pyproject.toml                # Project config, deps, pytest/ruff settings
@@ -226,7 +226,7 @@ pytest-bdd/
 
 **src/pytest_bdd/_gherkin_go/**: Optional Go Gherkin parser backend. Private sub-package (underscore prefix). Uses ctypes to call a Go shared library compiled from `gherkin_go/` CGo source. The Python fallback (`gherkin.parser.Parser` in `parser.py`) is always available.
 
-**src/pytest_bdd/script/**: CLI entry points installed as console scripts via `[project.scripts]`. Standalone tools for documentation generation, compatibility matrix, and formatter template rendering.
+**src/pytest_bdd/script/**: CLI entry points installed as console scripts via `[project.scripts]`. Standalone tools for documentation generation, compatibility matrix, and formatter template rendering. Shared script-adjacent helpers such as `_feature_tree.py` keep feature documentation ordering validation importable without depending on conversion scripts.
 
 **src/pytest_bdd/template/**: Jinja2 templates used for code generation (step definition stubs) and documentation generation (RST feature docs).
 
@@ -241,7 +241,7 @@ pytest-bdd/
 
 **specs/**: Non-executable specification artifacts managed by SpecKit (`/speckit.specify`, `/speckit.plan`, `/speckit.tasks`). Each feature has its own numbered directory with spec.md, plan.md, tasks.md, research.md, data-model.md.
 
-**docs/**: Generated RST documentation (auto-generated from `features/` files, do not edit manually). Served via ReadTheDocs.
+**docs/**: Sphinx documentation served via ReadTheDocs. Local extensions live under `docs/ext/`; `feature_tree.py` validates ordered `features/` sources, copies Markdown feature files into the Sphinx source tree during build, and generates MyST toctree content.
 
 **gherkin_go/**: Go source code for the Gherkin parser shared library. Compiled via `go build -buildmode=c-shared` during `python setup.py build_go`. Uses `cucumber/gherkin/go` and `cucumber/messages/go` Go modules.
 

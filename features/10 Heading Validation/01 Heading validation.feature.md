@@ -3,13 +3,13 @@
 
 ## Scenario: Empty feature heading is detected
 * Given Feature file has empty heading
-* When run heading validation
-* Then Heading validation reports EMPTY_HEADING_TITLE_CODE
+* When collect feature files
+* Then heading validation skips invalid heading
 
 ## Scenario: Empty scenario heading is detected
 * Given Feature file has empty scenario heading
-* When run heading validation
-* Then Heading validation reports EMPTY_HEADING_TITLE_CODE
+* When collect feature files
+* Then heading validation skips invalid heading
 
 ## Scenario: Valid headings pass validation
 * Given File "valid.feature.md" with content:

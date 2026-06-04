@@ -188,8 +188,7 @@ focus: arch
 - Responsibilities: Expose BDD decorators, scenario binding, step definition keywords, and warnings
 
 **CLI Scripts:**
-- Location: `[project.scripts]` in `pyproject.toml` (lines 173-176)
-- `bdd_tree_to_rst` -> `script/bdd_tree_to_rst.py` -- generates RST documentation from feature file tree
+- Location: `[project.scripts]` in `pyproject.toml`
 - `compatibility_matrix` -> `script/compatibility_matrix.py` -- Python/pytest version compatibility matrix generation
 - `render_cucumber_formatters` -> `script/render_cucumber_formatters.py` -- generate formatter adapter templates
 

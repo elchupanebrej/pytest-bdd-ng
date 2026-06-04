@@ -79,12 +79,12 @@ dependencies = [
   "typing-extensions;python_version<'3.11.0'"
 ]
 description = "BDD for pytest"
-license = {file = "LICENSE.rst"}
+license = {file = "LICENSE.md"}
 maintainers = [
   {name = "Konstantin Goloveshko", email = "kostya.goloveshko@gmail.com"}
 ]
 name = "pytest-bdd-ng"
-readme = {file = "README.rst", content-type = "text/x-rst"}
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
 version = "2.3.1"
 
@@ -113,10 +113,8 @@ async = [
   "aiofiles"
 ]
 doc-gen = [
-  'pandoc',
-  'panflute',
-  'pypandoc',
   'sphinx>=7.0',
+  'sphinxcontrib-mermaid',
   'myst-parser'
 ]
 full = [
@@ -170,7 +168,6 @@ testtypes = [
 ]
 
 [project.scripts]
-bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
 compatibility_matrix = "pytest_bdd.script.compatibility_matrix:main"
 render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 
@@ -451,9 +448,6 @@ pytest_bdd = [
   "junit.cjs.j2"
 ]
 "pytest_bdd.template" = [
-  "feature_include.rst.jinja2",
-  "features_index.rst.jinja2",
-  "features_section.rst.jinja2",
   "test.py.jinja2"
 ]
 "pytest_bdd.testing" = [

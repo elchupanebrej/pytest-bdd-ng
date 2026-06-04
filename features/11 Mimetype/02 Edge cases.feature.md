@@ -1,18 +1,14 @@
 # Feature: Mimetype detection edge cases
   Verify mimetype resolution for struct_bdd formats and additional suffix combinations.
 
-## Scenario: StructBDD hjson extension resolves correctly
-* Given File extension is .bdd.hjson
-* Then Mimetype resolves to application/x.struct_bdd+hjson
+## Scenario Outline: StructBDD extension resolves correctly
+* Given File extension is <extension>
+* Then Mimetype resolves to <mimetype>
 
-## Scenario: StructBDD json5 extension resolves correctly
-* Given File extension is .bdd.json5
-* Then Mimetype resolves to application/x.struct_bdd+json5
-
-## Scenario: StructBDD toml extension resolves correctly
-* Given File extension is .bdd.toml
-* Then Mimetype resolves to application/x.struct_bdd+toml
-
-## Scenario: StructBDD hocon extension resolves correctly
-* Given File extension is .bdd.hocon
-* Then Mimetype resolves to application/x.struct_bdd+hocon
+### Examples:
+    | extension  | mimetype                       |
+    |------------|--------------------------------|
+    | .bdd.hjson | application/x.struct_bdd+hjson |
+    | .bdd.json5 | application/x.struct_bdd+json5 |
+    | .bdd.toml  | application/x.struct_bdd+toml  |
+    | .bdd.hocon | application/x.struct_bdd+hocon |

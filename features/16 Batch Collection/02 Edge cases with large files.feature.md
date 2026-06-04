@@ -28,5 +28,5 @@
     ```
 
 ## Scenario: Batch collection discovers multiple feature files via directory scan
-* When run pytest with batch collection
+* When run pytest
 * Then Batch collection processes 2 files

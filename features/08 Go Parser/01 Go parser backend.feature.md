@@ -23,7 +23,8 @@
 
 ## Scenario: Parse succeeds when Go library is available
 * Given Go parser shared library is built
-* When run pytest with Go backend
+* When run pytest with environment:
+    | PYTEST_BDD_GHERKIN_BACKEND | go |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
@@ -31,7 +32,8 @@
 
 ## Scenario: Falls back to Python parser when Go unavailable
 * Given Go parser is not available
-* When run pytest with Python backend
+* When run pytest with environment:
+    | PYTEST_BDD_GHERKIN_BACKEND | python |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
@@ -46,7 +48,8 @@
     ```ini
     [pytest]
     ```
-* When run pytest with Python backend
+* When run pytest with environment:
+    | PYTEST_BDD_GHERKIN_BACKEND | python |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|

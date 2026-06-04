@@ -19,6 +19,7 @@
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str((Path("ext")).resolve()))
 sys.path.insert(0, str((Path("..") / "src").resolve()))
 
 import pytest_bdd
@@ -36,6 +37,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.mermaid",
     "myst_parser",
+    "feature_tree",
 ]
 
 # Napoleon settings for Google-style docstrings (D-02)
@@ -48,13 +50,17 @@ napoleon_use_rtype = True
 templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = [".rst", ".md"]
+source_suffix = {
+    ".rst": "restructuredtext",
+    ".md": "markdown",
+}
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 
 # The master toctree document.
 master_doc = "index"
+root_doc = "index"
 
 # General information about the project.
 project = "Pytest-BDD-NG"

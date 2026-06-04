@@ -13,16 +13,13 @@ def feature_file_empty_scenario_heading(testdir):
     testdir.makefile(".feature.md", empty_scenario_heading=content)
 
 
-@then("Heading validation reports EMPTY_HEADING_TITLE_CODE")
-def heading_validation_reports_empty_heading(pytest_result):
-    stdout = pytest_result.stdout.str()
-    stderr = pytest_result.stderr.str()
-    combined = stdout + stderr
-    assert "skipped" in combined.lower() or "EMPTY_HEADING_TITLE" in combined
+@then("heading validation skips invalid heading")
+def heading_validation_skips_invalid_heading(pytest_result):
+    pytest_result.assert_outcomes(skipped=1)
 
 
-@step("run heading validation", target_fixture="pytest_result")
-def run_heading_validation(testdir):
+@step("collect feature files", target_fixture="pytest_result")
+def collect_feature_files(testdir):
     return testdir.runpytest_inprocess()
 
 

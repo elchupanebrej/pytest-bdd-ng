@@ -66,5 +66,10 @@ through its explicit public lifecycle contract.
     | passed | failed |
     |--------|--------|
     | 3      | 1      |
-
-* And File "out.html" is not empty
+* And HTML report "out.html" contains scenario outcomes:
+    | scenario  | status |
+    |-----------|--------|
+    | Pass one  | passed |
+    | Pass two  | passed |
+    | Pass three| passed |
+    | Fail four | failed |

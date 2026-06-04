@@ -23,16 +23,21 @@
     ```
 
 ## Scenario: JUnit XML output contains test suite structure
-* When run pytest with JUnit reporter
+* When run pytest
+    | cli_args | --cucumber-junit=report.xml |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|
     | 2      |
-* And File "report.xml" contains the line "<testsuite"
+* And JUnit XML report "report.xml" has suite totals:
+    | tests | failures |
+    |-------|----------|
+    | 2     | 1        |
 
 ## Scenario: JUnit XML contains test case elements
-* When run pytest with JUnit reporter
-* Then File "report.xml" contains the line "<testcase"
+* When run pytest
+    | cli_args | --cucumber-junit=report.xml |
+* Then JUnit XML report "report.xml" contains testcase for "passing scenario"
 
 ## Scenario: JUnit XML contains failure element on failed test
 * Given File "test.feature.md" with content:
@@ -48,9 +53,11 @@
     def _fail():
         assert False
     ```
-* When run pytest with JUnit reporter
-* Then File "report.xml" contains the line "<failure"
+* When run pytest
+    | cli_args | --cucumber-junit=report.xml |
+* Then JUnit XML report "report.xml" contains failure for "failing scenario"
 
 ## Scenario: JUnit XML output is valid XML
-* When run pytest with JUnit reporter
-* Then File "report.xml" contains the line "<?xml version="
+* When run pytest
+    | cli_args | --cucumber-junit=report.xml |
+* Then JUnit XML report "report.xml" is valid XML

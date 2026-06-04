@@ -106,7 +106,7 @@ focus: tech
 |-------|----------|---------|
 | `allure` | `allure-python-commons`, `allure-pytest` | Allure reporting integration |
 | `async` | `aiofiles` | Async file I/O |
-| `doc-gen` | `pandoc`, `panflute`, `pathlib2`, `pypandoc` | Feature documentation generation to RST |
+| `doc-gen` | `sphinx>=7.0`, `sphinxcontrib-mermaid`, `myst-parser` | Sphinx/MyST documentation generation |
 | `struct-bdd` | `hjson`, `json5`, `pyhocon`, `tomli`, `PyYAML`, `types-PyYAML` | YAML/JSON/HOCON/TOML BDD support |
 | `test` | `deepdiff`, `execnet`, `GitPython`, `PyHamcrest`, `pytest-httpserver`, `pytest-order`, `pytest-xdist`, `python-coveralls`, `jq` | Test suite dependencies |
 | `test-playwright` | `playwright` | Browser acceptance tests |
@@ -134,7 +134,7 @@ Consumer at runtime via Node.js subprocess (not npm-managed in repo, installed v
 **Project Configuration:**
 - `pyproject.toml` — Single source of truth for build config, project metadata, tool settings (mypy, pytest, ruff, setuptools). 454 lines.
 - `tox.ini` — Multi-environment test matrix: Python 3.10-3.14 × pytest 7.0-9.x/latest × coverage/mypy/messages/xdist/ruff/formatters × OS (linux, macos, windows). 120 lines.
-- `.pre-commit-config.yaml` — Pre-commit hooks: ruff, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-toml, tox-ini-fmt, yamllint, markdownlint, pretty-format-toml, generate-feature-doc, validate-feature-headings. 64 lines.
+- `.pre-commit-config.yaml` — Pre-commit hooks: ruff, trailing-whitespace, end-of-file-fixer, check-yaml, check-added-large-files, check-toml, tox-ini-fmt, yamllint, markdownlint, pretty-format-toml, validate-feature-headings. 64 lines.
 
 **Tool Configuration (all in `pyproject.toml`):**
 - `[tool.mypy]` — Lines 182-226. `check_untyped_defs=true`, `pydantic.mypy` plugin, per-module type checking overrides.
@@ -152,7 +152,7 @@ Consumer at runtime via Node.js subprocess (not npm-managed in repo, installed v
 **.env file present** (`C:\Users\bulky\Projects\pytest-bdd\.env`) — Contains environment configuration (contents not inspected per security policy).
 
 **CI Configuration:**
-- `.github/workflows/main.yml` — Main test matrix: Python 3.10-3.14 × pypy3.11 × ubuntu/windows/macos. Installs tox, uv, pandoc, Node.js, npm packages. Runs tox, codecov, build check with twine.
+- `.github/workflows/main.yml` — Main test matrix: Python 3.10-3.14 × pypy3.11 × ubuntu/windows/macos. Installs tox, uv, Node.js, npm packages. Runs tox, codecov, build check with twine.
 - `.github/workflows/messages-baseline-drift.yml` — Weekly cron (Mondays 4AM) checking message capability baseline for drift.
 
 ## Build System
@@ -173,12 +173,11 @@ uvx --with twine twine check dist/*  # Validate built packages
 - Go shared libraries: `src/pytest_bdd/_gherkin_go/*.so`, `*.dll`, `*.dylib`
 - JSON schemas: `src/pytest_bdd/model/message_jsonschema/*.json`
 - Jinja2 templates: `src/pytest_bdd/plugin/gherkin_message_reporter/resources/templates/*.j2`
-- Feature templates: `src/pytest_bdd/template/*.jinja2`
+- Code generation template: `src/pytest_bdd/template/test.py.jinja2`
 
 ## CLI Entry Points
 
 Defined in `pyproject.toml:173-176` under `[project.scripts]`:
-- `bdd_tree_to_rst` — Converts feature files to RST documentation
 - `compatibility_matrix` — Lists/checks compatibility matrix
 - `render_cucumber_formatters` — Renders Cucumber formatter output from NDJSON
 
@@ -202,7 +201,6 @@ Registered in `pyproject.toml:86-104` under `[project.entry-points.pytest11]`:
 - Python 3.10+ (3.14 recommended for active development, `Makefile:17`)
 - uv package manager
 - Node.js with npm (for formatter bridge and HTML reports)
-- pandoc (for documentation generation)
 - Go 1.21+ (only if building Go gherkin parser from source)
 - Git (for GitPython scripts and pre-commit hooks)
 - Docker/Compose (optional, for xdist remote acceptance tests)

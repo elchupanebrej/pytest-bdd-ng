@@ -412,4 +412,20 @@ Plans:
 **Plans:** 1/1 plans complete
 
 Plans:
+
 - [x] TBD (run /gsd-plan-phase 18 to break down) (completed 2026-06-02)
+
+### Phase 19: HTML doc generation simplification
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 18
+**Plans:** 4/4 plans complete
+
+Plans:
+
+- [x] TBD (run /gsd-plan-phase 19 to break down) (completed 2026-06-04)
+
+**Cross-cutting constraints:**
+
+- D-02: Do not keep the old generated RST pipeline as a fallback.

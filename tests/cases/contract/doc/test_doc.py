@@ -1,175 +1,160 @@
-"""Provide test doc helpers."""
+"""Provide feature documentation contract tests."""
 
-import sys
+from __future__ import annotations
+
+import importlib.util
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
 
-from pytest_bdd.script.bdd_tree_to_rst import OrderingValidationError, convert, main
+from pytest_bdd.compatibility.tomllib import loads
+from pytest_bdd.script._feature_tree import OrderingValidationError, walk_feature_tree
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from collections.abc import Callable
+    from types import ModuleType
+
+REPO_ROOT = Path(__file__).parents[4]
+FEATURE_TREE_EXTENSION = REPO_ROOT / "docs" / "ext" / "feature_tree.py"
 
 
-AUTO_GENERATED_START_MARKER = ".. BEGIN AUTO-GENERATED FEATURES TREE"
-AUTO_GENERATED_END_MARKER = ".. END AUTO-GENERATED FEATURES TREE"
+class FakeSphinxApp:
+    """Minimal Sphinx app for extension contract tests."""
+
+    def __init__(self, confdir: Path) -> None:
+        """Initialize fake app."""
+        self.confdir = str(confdir)
+        self.connected_events: list[tuple[str, Callable[..., object]]] = []
+
+    def connect(self, event: str, callback: Callable[..., object]) -> None:
+        """Record connected callbacks."""
+        self.connected_events.append((event, callback))
 
 
-def write_feature_source(path: Path, content: str) -> None:
+def load_feature_tree_extension() -> ModuleType:
+    """Load the local Sphinx feature-tree extension module."""
+    spec = importlib.util.spec_from_file_location("feature_tree", FEATURE_TREE_EXTENSION)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write_feature_source(path: Path, content: str = "# Feature: Example\n") -> None:
     """Write feature source."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(dedent(content), encoding="utf-8")
 
 
 def create_ordered_feature_tree(features_path: Path) -> None:
-    """Create ordered feature tree."""
-    write_feature_source(
-        features_path / "01 Tutorial" / "01 Launch.feature",
-        # language=gherkin
-        """\
-        Feature: Launch tutorial
-        """,
-    )
-    write_feature_source(
-        features_path / "02 Feature" / "01 Basics.feature",
-        # language=gherkin
-        """\
-        Feature: Basics
-        """,
-    )
+    """Create ordered Markdown feature tree."""
     write_feature_source(
         features_path / "02 Feature" / "02 Markdown parsing.feature.md",
-        # language=markdown
         """\
         # Feature: Markdown parsing
-        Some feature description
 
         ## Scenario: Parse markdown
         * Given markdown feature content
         """,
     )
     write_feature_source(
-        features_path / "02 Feature" / "03 Load" / "01 Autoload.feature",
-        # language=gherkin
+        features_path / "01 Tutorial" / "01 Launch.feature.md",
         """\
-        Feature: Autoload
+        # Feature: Launch tutorial
+
+        ## Scenario: Launch
+        * Given tutorial feature content
+        """,
+    )
+    write_feature_source(
+        features_path / "02 Feature" / "01 Basics.feature.md",
+        """\
+        # Feature: Basics
+        """,
+    )
+    write_feature_source(
+        features_path / "02 Feature" / "03 Load" / "01 Autoload.feature.md",
+        """\
+        # Feature: Autoload
         """,
     )
 
 
-def assert_in_order(text: str, *parts: str) -> None:
-    """Assert in order."""
-    positions = [text.index(part) for part in parts]
-    assert positions == sorted(positions)
+def test_feature_tree_rejects_missing_ordering_prefix(tmp_path: Path) -> None:
+    """Verify shared ordering utility rejects missing ordering prefix."""
+    features_path = tmp_path / "features"
+    write_feature_source(features_path / "01 Tutorial" / "Launch.feature.md")
+
+    with pytest.raises(OrderingValidationError, match="missing_ordering_prefix"):
+        walk_feature_tree(features_path)
 
 
-LATEST_PY313_LINUX_ONLY = pytest.mark.skipif(
-    not (
-        all(
-            [
-                sys.version_info.major == 3,
-                sys.version_info.minor == 13,
-                sys.platform.startswith("linux"),
-            ],
-        )
-    ),
-    reason="Verify only on the latest python version and linux environment",
-)
+def test_feature_tree_rejects_duplicate_ordering_prefix(tmp_path: Path) -> None:
+    """Verify shared ordering utility rejects duplicate ordering prefix."""
+    features_path = tmp_path / "features"
+    write_feature_source(features_path / "01 Tutorial" / "01 Launch.feature.md")
+    write_feature_source(features_path / "01 Tutorial" / "01 Install.feature.md")
+
+    with pytest.raises(OrderingValidationError, match="duplicate_ordering_prefix"):
+        walk_feature_tree(features_path)
 
 
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_orders_prefixed_sections_and_entries(testdir: "Testdir") -> None:
-    """Verify doc generation orders prefixed sections and entries."""
+def test_feature_tree_extension_registers_builder_hook() -> None:
+    """Verify Sphinx extension registers builder-inited hook."""
+    extension = load_feature_tree_extension()
+    app = FakeSphinxApp(REPO_ROOT / "docs")
 
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
+    metadata = extension.setup(app)
+
+    assert metadata == {
+        "version": "1.0",
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }
+    assert app.connected_events == [("builder-inited", extension.prepare_feature_tree)]
+
+
+def test_feature_tree_extension_generates_markdown_toctrees(tmp_path: Path) -> None:
+    """Verify feature-tree extension generates MyST toctree output."""
+    docs_path = tmp_path / "docs"
+    features_path = tmp_path / "features"
+    docs_features_path = docs_path / "features"
+    docs_features_path.mkdir(parents=True)
     create_ordered_feature_tree(features_path)
 
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
+    extension = load_feature_tree_extension()
+    extension.prepare_feature_tree(FakeSphinxApp(docs_path))
 
-    with TemporaryDirectory() as temp_dirname:
-        temp_path = Path(temp_dirname)
-        convert(features_path.resolve(), output_path.resolve(), temp_path)
+    rendered_index = (docs_features_path / "features.md").read_text(encoding="utf-8")
 
-        assert (temp_path / "features.rst").read_text() == dedent(
-            # language=rst
-            """\
-            Features
-            ========
-
-            .. NOTE:: This page is generated from feature files under ``features/``.
-                      Manual edits should be limited to this introduction block.
-                      The navigation tree below is regenerated automatically.
-
-            .. BEGIN AUTO-GENERATED FEATURES TREE
-
-            Tutorial
-            --------
-            .. toctree::
-                :maxdepth: 2
-
-                01 Tutorial/01 Launch
-
-            Feature
-            -------
-            .. toctree::
-                :maxdepth: 2
-
-                02 Feature/01 Basics
-                02 Feature/02 Markdown parsing.feature
-
-            Load
-            ~~~~
-            .. toctree::
-                :maxdepth: 2
-
-                02 Feature/03 Load/01 Autoload
-
-            .. END AUTO-GENERATED FEATURES TREE
-            """,
-        )
-
-        launch_page = (temp_path / "01 Tutorial" / "01 Launch.rst").read_text()
-        basics_page = (temp_path / "02 Feature" / "01 Basics.rst").read_text()
-
-        assert launch_page.startswith("Launch\n")
-        assert ".. include:: ../../features/01 Tutorial/01 Launch.feature" in launch_page
-        assert basics_page.startswith("Basics\n")
-        assert ".. include:: ../../features/02 Feature/01 Basics.feature" in basics_page
-        assert (temp_path / "02 Feature" / "02 Markdown parsing.feature.rst").exists()
+    assert "```{toctree}\n:maxdepth: 2\n\n01 Tutorial/01 Launch.feature\n```" in rendered_index
+    assert "02 Feature/01 Basics.feature" in rendered_index
+    assert "02 Feature/02 Markdown parsing.feature" in rendered_index
+    assert "02 Feature/03 Load/01 Autoload.feature" in rendered_index
+    assert ".feature.md" not in rendered_index
+    assert (docs_features_path / "01 Tutorial" / "01 Launch.feature.md").exists()
 
 
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_preserves_manual_sections_and_positions(testdir: "Testdir") -> None:
-    """Verify doc generation preserves manual sections and positions."""
-
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
+def test_feature_tree_extension_preserves_manual_text_around_generated_markers(tmp_path: Path) -> None:
+    """Verify feature-tree extension preserves manual intro and suffix."""
+    docs_path = tmp_path / "docs"
+    features_path = tmp_path / "features"
+    docs_features_path = docs_path / "features"
+    docs_features_path.mkdir(parents=True)
     create_ordered_feature_tree(features_path)
-
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-    (output_path / "features.rst").write_text(
+    (docs_features_path / "features.md").write_text(
         dedent(
-            # language=rst
             """\
-            Features
-            ========
+            # Features
 
             Manual introduction line.
 
-            .. BEGIN AUTO-GENERATED FEATURES TREE
-            Legacy section
-            --------------
-            .. toctree::
-                :maxdepth: 2
-
-                features/legacy
-            .. END AUTO-GENERATED FEATURES TREE
+            % BEGIN AUTO-GENERATED FEATURES TREE
+            Old generated entry
+            % END AUTO-GENERATED FEATURES TREE
 
             Manual suffix line.
             """,
@@ -177,216 +162,115 @@ def test_doc_generation_preserves_manual_sections_and_positions(testdir: "Testdi
         encoding="utf-8",
     )
 
-    with TemporaryDirectory() as temp_dirname:
-        temp_path = Path(temp_dirname)
-        convert(features_path.resolve(), output_path.resolve(), temp_path)
+    extension = load_feature_tree_extension()
+    extension.prepare_feature_tree(FakeSphinxApp(docs_path))
 
-        rendered_index = (temp_path / "features.rst").read_text()
+    rendered_index = (docs_features_path / "features.md").read_text(encoding="utf-8")
 
-        assert "Manual introduction line." in rendered_index
-        assert "Manual suffix line." in rendered_index
-        assert "Legacy section" not in rendered_index
-        assert_in_order(
-            rendered_index,
-            "Manual introduction line.",
-            AUTO_GENERATED_START_MARKER,
-            "Tutorial",
-            AUTO_GENERATED_END_MARKER,
-            "Manual suffix line.",
-        )
+    assert "Manual introduction line." in rendered_index
+    assert "Manual suffix line." in rendered_index
+    assert "Old generated entry" not in rendered_index
+    assert rendered_index.index("Manual introduction line.") < rendered_index.index(
+        "% BEGIN AUTO-GENERATED FEATURES TREE",
+    )
+    assert rendered_index.index("% END AUTO-GENERATED FEATURES TREE") < rendered_index.index("Manual suffix line.")
 
 
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_without_markers_preserves_intro_prefix_for_ordered_headings(testdir: "Testdir") -> None:
-    """Verify doc generation without markers preserves intro prefix for ordered headings."""
+def test_feature_tree_extension_raises_hard_sphinx_error_on_validation_failure(tmp_path: Path) -> None:
+    """Verify feature-tree extension raises hard Sphinx error on validation failure."""
+    docs_path = tmp_path / "docs"
+    docs_path.mkdir()
+    features_path = tmp_path / "features"
+    write_feature_source(features_path / "01 Tutorial" / "01 Launch.feature.md")
+    write_feature_source(features_path / "01 Tutorial" / "01 Install.feature.md")
 
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
-    create_ordered_feature_tree(features_path)
+    extension = load_feature_tree_extension()
 
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-    (output_path / "features.rst").write_text(
-        dedent(
-            # language=rst
-            """\
-            Features
-            ========
+    with pytest.raises(extension.ExtensionError, match="duplicate_ordering_prefix"):
+        extension.prepare_feature_tree(FakeSphinxApp(docs_path))
 
-            Manual intro without markers.
 
-            Feature
-            -------
-            .. toctree::
-                :maxdepth: 2
+def test_docs_migration_uses_markdown_package_metadata_and_includes() -> None:
+    """Verify documentation metadata and include pages use Markdown sources."""
+    pyproject = loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    docs_include = (REPO_ROOT / "docs" / "include.md").read_text(encoding="utf-8")
 
-                features/legacy-feature
+    assert pyproject["project"]["readme"] == {
+        "file": "README.md",
+        "content-type": "text/markdown",
+    }
+    assert "```{include} ../README.md" in docs_include
+    assert "```{include} ../DOCUMENTATION.md" in docs_include
+    assert "```{include} ../AUTHORS.md" in docs_include
+    assert "```{include} ../LICENSE.md" in docs_include
+    assert "```{include} ../CHANGES.md" in docs_include
+    assert ".rst" not in docs_include
 
-            Tutorial
-            --------
-            .. toctree::
-                :maxdepth: 2
 
-                features/legacy-tutorial
-            """,
-        ),
+def test_obsolete_docs_generation_pipeline_is_removed_from_active_paths() -> None:
+    """Verify active build, hook, tox, CI, and packaging paths do not reference old generator."""
+    old_generator = "bdd_tree" + "_to_rst"
+    old_target = "features" + "-docs"
+    old_doc_dependency = "py" + "pandoc"
+    old_doc_filter = "pan" + "flute"
+    forbidden = (old_generator, old_target, old_doc_dependency, old_doc_filter)
+    active_paths = (
+        "pyproject.toml",
+        "Makefile",
+        ".pre-commit-config.yaml",
+        "tox.ini",
+        ".github/workflows/main.yml",
+        ".github/workflows/release.yaml",
+    )
+
+    for relative_path in active_paths:
+        content = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert not any(term in content for term in forbidden), relative_path
+
+
+def test_docs_make_target_runs_sphinx_html_build() -> None:
+    """Verify Makefile exposes the Sphinx HTML documentation build."""
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "docs: env-check" in makefile
+    assert "uv run --extra doc-gen sphinx-build -b html docs docs/_build/html" in makefile
+
+
+def test_legacy_rst_sources_and_feature_rst_artifacts_are_absent() -> None:
+    """Verify replaced RST sources and generated feature RST artifacts are absent."""
+    replaced_rst_sources = (
+        "README.rst",
+        "DOCUMENTATION.rst",
+        "AUTHORS.rst",
+        "LICENSE.rst",
+        "CHANGES.rst",
+        "docs/index.rst",
+        "docs/include.rst",
+    )
+
+    for relative_path in replaced_rst_sources:
+        assert not (REPO_ROOT / relative_path).exists(), relative_path
+
+    assert not list((REPO_ROOT / "docs" / "features").rglob("*.rst"))
+
+
+def test_transient_feature_copy_artifacts_are_gitignored() -> None:
+    """Verify copied feature docs are treated as transient documentation build artifacts."""
+    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+
+    assert "docs/features/**/*.feature.md" in gitignore
+    assert "docs/features/**/*.feature.gherkin" in gitignore
+    assert "docs/features/**/*.bdd.yaml" in gitignore
+
+
+def test_manual_uat_tracks_blocking_rendering_checks() -> None:
+    """Verify manual rendering checks remain explicit merge gates."""
+    uat = (REPO_ROOT / ".planning" / "phases" / "19-html-doc-generation-simplification" / "19-UAT.md").read_text(
         encoding="utf-8",
     )
 
-    with TemporaryDirectory() as temp_dirname:
-        temp_path = Path(temp_dirname)
-        convert(features_path.resolve(), output_path.resolve(), temp_path)
-
-        rendered_index = (temp_path / "features.rst").read_text()
-
-        assert "Manual intro without markers." in rendered_index
-        assert "features/legacy-feature" not in rendered_index
-        assert "features/legacy-tutorial" not in rendered_index
-        assert_in_order(
-            rendered_index,
-            "Manual intro without markers.",
-            "Tutorial\n--------",
-            "Feature\n-------",
-            "Load\n~~~~",
-        )
-
-
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_is_idempotent_with_existing_generated_markers(testdir: "Testdir") -> None:
-    """Verify doc generation is idempotent with existing generated markers."""
-
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
-    create_ordered_feature_tree(features_path)
-
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-    (output_path / "features.rst").write_text(
-        dedent(
-            # language=rst
-            """\
-            Features
-            ========
-
-            Manual prefix.
-
-            .. BEGIN AUTO-GENERATED FEATURES TREE
-            Old section
-            ----------
-            .. toctree::
-                :maxdepth: 2
-
-                features/legacy
-            .. END AUTO-GENERATED FEATURES TREE
-            """,
-        ),
-        encoding="utf-8",
-    )
-
-    with TemporaryDirectory() as temp_first, TemporaryDirectory() as temp_second:
-        first_path = Path(temp_first)
-        second_path = Path(temp_second)
-
-        convert(features_path.resolve(), output_path.resolve(), first_path)
-        (output_path / "features.rst").write_text((first_path / "features.rst").read_text(), encoding="utf-8")
-        convert(features_path.resolve(), output_path.resolve(), second_path)
-
-        assert (first_path / "features.rst").read_text() == (second_path / "features.rst").read_text()
-
-
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_rejects_missing_ordering_prefix(testdir: "Testdir") -> None:
-    """Verify doc generation rejects missing ordering prefix."""
-
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
-    write_feature_source(
-        features_path / "01 Tutorial" / "Launch.feature",
-        # language=gherkin
-        """\
-        Feature: Launch tutorial
-        """,
-    )
-
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-
-    with TemporaryDirectory() as temp_dirname:
-        temp_path = Path(temp_dirname)
-        with pytest.raises(OrderingValidationError, match="missing_ordering_prefix"):
-            convert(features_path.resolve(), output_path.resolve(), temp_path)
-
-
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_rejects_duplicate_ordering_prefix(testdir: "Testdir") -> None:
-    """Verify doc generation rejects duplicate ordering prefix."""
-
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
-    write_feature_source(
-        features_path / "01 Tutorial" / "01 Launch.feature",
-        # language=gherkin
-        """\
-        Feature: Launch tutorial
-        """,
-    )
-    write_feature_source(
-        features_path / "01 Tutorial" / "01 Install.feature",
-        # language=gherkin
-        """\
-        Feature: Install tutorial
-        """,
-    )
-
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-
-    with TemporaryDirectory() as temp_dirname:
-        temp_path = Path(temp_dirname)
-        with pytest.raises(OrderingValidationError, match="duplicate_ordering_prefix"):
-            convert(features_path.resolve(), output_path.resolve(), temp_path)
-
-
-@LATEST_PY313_LINUX_ONLY
-def test_doc_generation_cli_fails_when_generated_docs_are_stale(
-    testdir: "Testdir",
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Verify doc generation cli fails when generated docs are stale."""
-
-    features_path = Path(testdir.tmpdir) / "features"
-    features_path.mkdir()
-    create_ordered_feature_tree(features_path)
-
-    output_path = Path(testdir.tmpdir) / "output"
-    output_path.mkdir()
-    (output_path / "features.rst").write_text(
-        dedent(
-            # language=rst
-            """\
-            Features
-            ========
-
-            .. BEGIN AUTO-GENERATED FEATURES TREE
-            .. toctree::
-                :maxdepth: 2
-
-                features/legacy
-            .. END AUTO-GENERATED FEATURES TREE
-            """,
-        ),
-        encoding="utf-8",
-    )
-
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "bdd_tree_to_rst.py",
-            str(features_path),
-            str(output_path),
-        ],
-    )
-
-    with pytest.raises(SystemExit, match="Documentation is generated and overwritten; Diff:"):
-        main()
+    assert "ReadTheDocs preview" in uat
+    assert "README/PyPI rendering" in uat
+    assert "CHANGES rendering" in uat
+    assert "BLOCKING - pending" in uat
+    assert "Do not merge Phase 19" in uat

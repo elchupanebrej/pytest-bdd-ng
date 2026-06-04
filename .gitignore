@@ -48,6 +48,9 @@ coverage.json
 # Documentation build artifacts
 docs/_build/
 docs/doctrees/
+docs/features/**/*.feature.md
+docs/features/**/*.feature.gherkin
+docs/features/**/*.bdd.yaml
 
 # Translations
 *.mo

@@ -5,7 +5,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY pyproject.toml README.rst /app/
+COPY pyproject.toml README.md /app/
 COPY src /app/src/
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -e '.[test]' pytest-xdist
