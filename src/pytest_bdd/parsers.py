@@ -106,23 +106,23 @@ class StepParser(StepParserProtocol, ABC):
 
         :return: `dict` of step arguments
         """
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @property
     @abstractmethod
     def arguments(self) -> Collection[str]:
         """Get step argument names from the given step name."""
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @abstractmethod
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         """Match given name with the step name."""
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @abstractmethod
     def __str__(self) -> str:
         """Match given name with the step name."""
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @classmethod
     def build(cls, parserlike: StepParserLike) -> "StepParser":
@@ -167,7 +167,7 @@ class re(StepParser):  # noqa:N801 intentional API
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @__init__.register
     def _(self, pattern: str, *args: object, **kwargs: object) -> None:
@@ -540,7 +540,7 @@ class cucumber_expression(_CucumberExpression):  # noqa: N801 intentional API
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @__init__.register
     def _(
@@ -588,7 +588,7 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
             NotImplementedError: If the operation cannot be completed.
 
         """
-        raise NotImplementedError  # pragma: no cover -- D-11: abstract method, only called via concrete subclass implementations
+        raise NotImplementedError  # pragma: no cover -- abstract subclass hook
 
     @__init__.register
     def _(

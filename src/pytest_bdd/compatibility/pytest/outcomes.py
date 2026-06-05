@@ -1,5 +1,5 @@
 """Provide outcomes helpers."""
 
-from _pytest.outcomes import Failed  # noqa: PLC2701
+from _pytest.outcomes import Failed
 
 __all__ = ["Failed"]

@@ -46,25 +46,32 @@ class QualityGateVisitor(ast.NodeVisitor):
         self.violations: list[Violation] = []
         self._function_stack: list[str] = []
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+    def visit(self, node: ast.AST) -> None:
+        """Visit AST node with quality gate dispatch."""
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            self._visit_function_def(node)
+            return
+        if isinstance(node, ast.Return):
+            self._visit_return(node)
+            return
+        if isinstance(node, ast.ExceptHandler):
+            self._visit_except_handler(node)
+            return
+        super().visit(node)
+
+    def _visit_function_def(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Visit function body with hook exemption context."""
         self._function_stack.append(node.name)
         self.generic_visit(node)
         self._function_stack.pop()
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        """Visit async function body with hook exemption context."""
-        self._function_stack.append(node.name)
-        self.generic_visit(node)
-        self._function_stack.pop()
-
-    def visit_Return(self, node: ast.Return) -> None:
+    def _visit_return(self, node: ast.Return) -> None:
         """Detect explicit return None outside pytest hooks."""
         if self._is_none_return(node) and not self._current_function_is_hook():
             self.violations.append(Violation(self.path, node.lineno, RETURN_NONE_MESSAGE))
         self.generic_visit(node)
 
-    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+    def _visit_except_handler(self, node: ast.ExceptHandler) -> None:
         """Detect unlogged except Exception handlers."""
         if self._is_exception_handler(node) and not self._has_noqa(node) and not self._has_exception_logging(node):
             self.violations.append(Violation(self.path, node.lineno, EXCEPT_EXCEPTION_MESSAGE))
@@ -185,7 +192,8 @@ def main(argv: list[str] | None = None) -> int:
 
     plugin_root = Path("src/pytest_bdd/plugin")
     if plugin_root.is_dir():
-        violations.extend(_check_plugin_patterns(plugin_root))
+        for v in _check_plugin_patterns(plugin_root):
+            violations.append(Violation(v.path, v.line or 0, v.message))
 
     for violation in violations:
         sys.stdout.write(f"{violation.path}:{violation.line}: {violation.message}\n")

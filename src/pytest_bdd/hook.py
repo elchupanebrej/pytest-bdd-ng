@@ -9,10 +9,10 @@ from itertools import count, product, starmap
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
-from _pytest.mark import Mark  # noqa: PLC2701
 from decopatch import function_decorator
 from makefun import wraps
 
+from pytest_bdd.compatibility.pytest import Mark
 from pytest_bdd.model.run import Run
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression, TagExpressionType
 

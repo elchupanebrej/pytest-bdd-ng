@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from inspect import getframeinfo, getsourcelines, signature
-from sys import _getframe  # noqa: PLC2701
 from typing import TYPE_CHECKING, Protocol, cast
+
+from pytest_bdd.compatibility.sys import get_frame
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -69,7 +70,7 @@ def get_caller_module_locals(stacklevel: int = 1) -> dict[str, object]:
         Caller's module locals dictionary.
 
     """
-    return _getframe(stacklevel).f_locals
+    return get_frame(stacklevel).f_locals
 
 
 def get_caller_module_path(stacklevel: int = 1) -> str:
@@ -83,5 +84,5 @@ def get_caller_module_path(stacklevel: int = 1) -> str:
         Path to the caller's module file.
 
     """
-    frame = _getframe(stacklevel)
+    frame = get_frame(stacklevel)
     return getframeinfo(frame, context=0).filename

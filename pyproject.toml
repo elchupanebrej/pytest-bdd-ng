@@ -185,6 +185,7 @@ install_types = false
 plugins = [
   "pydantic.mypy"
 ]
+python_version = "3.14"
 show_error_codes = true
 warn_return_any = true
 warn_unused_configs = true
@@ -194,6 +195,8 @@ ignore_missing_imports = true
 module = [
   "attr.*",
   "ci_environment.*",
+  "coverage",
+  "coverage.*",
   "cucumber_messages",
   "cucumber_expressions.*",
   "cucumber_tag_expressions.*",
@@ -223,6 +226,12 @@ module = [
   "pytest_bdd.plugin.gherkin_message_reporter.*"
 ]
 
+[[tool.mypy.overrides]]
+ignore_errors = true
+module = [
+  "tests.*"
+]
+
 [tool.pytest.ini_options]
 addopts = "-p pytester --order-scope=session"
 bdd_allow_empty_scenarios = false
@@ -249,6 +258,8 @@ markers = [
   "browser: mark browser-backed acceptance tests",
   "surplus: mark test testing non-standard API",
   "technical_nonconvertible: mark technical regression tests that must remain in pytest suite",
+  "e2e_deferred_conversion: mark test for deferred e2e conversion",
+  "e2e_convert_candidate: mark test for e2e conversion candidate",
   "xdist: mark tests that exercise pytest-xdist/distributed execution flows",
   "timeout: per-test timeout from pytest-timeout",
   "order: execution ordering marker from pytest-order"
@@ -386,7 +397,7 @@ section-order = [
 
 [tool.ruff.lint.mccabe]
 # Flag errors (`C901`) whenever the complexity level exceeds.
-max-complexity = 10  # TODO target is 6
+max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # F401: ~2 errors
@@ -397,6 +408,7 @@ max-complexity = 10  # TODO target is 6
 "src/pytest_bdd/_gherkin_go/_build.py" = ["PLR6301", "S404", "S603", "S607"]  # PLR6301: setuptools Command.run override; S404/S603/S607: subprocess for go build is intentional
 "src/pytest_bdd/_gherkin_go/_types.py" = ["N818"]  # N818: GherkinGoNotAvailable is a domain-specific name, not a naming error
 "src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
+"src/pytest_bdd/compatibility/*" = ["PLC2701"]  # Compatibility shims, so private imports are alowed
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["RUF"]  # RUF067 preview rule not recognized by pre-commit ruff v0.12.0
 "src/pytest_bdd/script/message_capability_governance/*" = ["PLC0415", "SLF001", "TC003"]  # PLC0415: lazy imports for monkeypatch compatibility; SLF001: package-internal _repo_root/_candidate_repo_roots access for monkeypatching; TC003: Path used at runtime in function bodies
 "src/pytest_bdd/testing/cucumber_formatters.py" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101"]  # Test support helper intentionally mirrors pytest-style assertions and dynamic hook objects

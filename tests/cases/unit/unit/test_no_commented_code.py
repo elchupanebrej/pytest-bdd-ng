@@ -20,8 +20,9 @@ class TestNoCommentedCode:
 
     def test_ruff_era001_clean(self):
         """ruff ERA001 reports zero violations in src/pytest_bdd/."""
-        result = subprocess.run(  # noqa: S603
-            [sys.executable, "-m", "ruff", "check", "src/pytest_bdd/", "--select", "ERA001"],
+        ruff_command = [str(Path(sys.executable)), "-m", "ruff", "check", "src/pytest_bdd/", "--select", "ERA001"]
+        result = subprocess.run(  # noqa: S603 - command arguments are fixed by the test
+            ruff_command,
             check=False,
             capture_output=True,
             text=True,

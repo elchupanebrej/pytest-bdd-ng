@@ -98,7 +98,7 @@ class DefaultMapping(defaultdict[object, object]):
             if not isinstance(bool_or_items, Mapping):
                 items = zip(*tee(iter(bool_or_items)), strict=False)
         else:
-            items = {...: ...} if bool_or_items else {...: DefaultMapping.Skip}
+            items = cast("dict[object, object]", {...: ...} if bool_or_items else {...: DefaultMapping.Skip})
         return cls(items, warm_up_keys=warm_up_keys)
 
 

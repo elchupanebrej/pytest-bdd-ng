@@ -74,6 +74,27 @@ def fetch_schema_tree(destination: Path) -> None:
         copy_schema_tree(repo_path / SCHEMA_REPOSITORY_FOLDER, destination)
 
 
+def _are_files_equal(file1: Path, file2: Path) -> bool:
+    """
+    Compare two files, ignoring line endings and trailing whitespaces.
+
+    Args:
+        file1: First file path.
+        file2: Second file path.
+
+    Returns:
+        True if the normalized contents are equal, False otherwise.
+
+    """
+    try:
+        content1 = file1.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip()
+        content2 = file2.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip()
+    except (OSError, UnicodeDecodeError):
+        return filecmp.cmp(file1, file2, shallow=False)
+    else:
+        return content1 == content2
+
+
 def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
     """
     Collect schema drift between expected and actual schema directories.
@@ -92,7 +113,7 @@ def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
     changed = [
         f"changed: {relative_path}"
         for relative_path in sorted(expected_files.keys() & actual_files.keys())
-        if not filecmp.cmp(expected_files[relative_path], actual_files[relative_path], shallow=False)
+        if not _are_files_equal(expected_files[relative_path], actual_files[relative_path])
     ]
     missing = [f"missing: {relative_path}" for relative_path in sorted(expected_files.keys() - actual_files.keys())]
     extra = [f"extra: {relative_path}" for relative_path in sorted(actual_files.keys() - expected_files.keys())]

@@ -191,6 +191,15 @@ def test_live_formatter_bridge_loads_from_packaged_template_asset() -> None:
     assert "class UsageFormatterAdapter" in usage_source
 
 
+def test_live_formatter_bridge_uses_module_file_url_descriptors() -> None:
+    """Verify module formatters are passed to cucumber-js as descriptors."""
+    template_source = load_live_formatter_bridge_template()
+
+    assert "pathToFileURL" in template_source
+    assert "return pathToFileURL" in template_source
+    assert "return loaded && loaded.default ? loaded.default : loaded;" not in template_source
+
+
 def test_runtime_materialization_only_writes_requested_formatter_assets(tmp_path: Path) -> None:
     """Verify runtime materialization only writes requested formatter assets."""
     script_path, formatter_specs = materialize_live_formatter_runtime(tmp_path, "progress", "usage")
