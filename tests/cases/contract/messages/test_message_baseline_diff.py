@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from pytest_bdd.model.message_baseline_diff import (
     WEEKLY_CADENCE,
@@ -18,7 +18,7 @@ from .message_capability_fixtures import make_capability
 
 def test_next_weekly_run_at_adds_seven_days() -> None:
     """Verify next weekly run at adds seven days."""
-    last_run = datetime(2026, 2, 1, 10, 0, tzinfo=UTC)
+    last_run = datetime(2026, 2, 1, 10, 0, tzinfo=timezone.utc)
 
     next_run = next_weekly_run_at(last_run)
 
@@ -30,12 +30,12 @@ def test_is_weekly_run_due_true_when_now_reaches_next_run() -> None:
     schedule = BaselineComparisonSchedule(
         schedule_id="weekly-mainline",
         cadence=WEEKLY_CADENCE,
-        last_run_at=datetime(2026, 2, 1, 9, 0, tzinfo=UTC),
-        next_run_at=datetime(2026, 2, 8, 9, 0, tzinfo=UTC),
+        last_run_at=datetime(2026, 2, 1, 9, 0, tzinfo=timezone.utc),
+        next_run_at=datetime(2026, 2, 8, 9, 0, tzinfo=timezone.utc),
     )
 
-    assert is_weekly_run_due(schedule, now=datetime(2026, 2, 8, 9, 0, tzinfo=UTC)) is True
-    assert is_weekly_run_due(schedule, now=datetime(2026, 2, 8, 8, 59, tzinfo=UTC)) is False
+    assert is_weekly_run_due(schedule, now=datetime(2026, 2, 8, 9, 0, tzinfo=timezone.utc)) is True
+    assert is_weekly_run_due(schedule, now=datetime(2026, 2, 8, 8, 59, tzinfo=timezone.utc)) is False
 
 
 def test_build_baseline_diff_detects_added_changed_removed_capabilities() -> None:
@@ -56,7 +56,7 @@ def test_build_baseline_diff_detects_added_changed_removed_capabilities() -> Non
         current_baseline="v32.0.1",
         previous_capabilities=previous,
         current_capabilities=current,
-        generated_at=datetime(2026, 2, 25, 12, 0, tzinfo=UTC),
+        generated_at=datetime(2026, 2, 25, 12, 0, tzinfo=timezone.utc),
     )
 
     assert diff.added_capability_ids == ("cap-4",)
@@ -69,8 +69,8 @@ def test_execute_weekly_baseline_diff_runs_only_when_due() -> None:
     schedule = BaselineComparisonSchedule(
         schedule_id="weekly-mainline",
         cadence=WEEKLY_CADENCE,
-        last_run_at=datetime(2026, 2, 1, 9, 0, tzinfo=UTC),
-        next_run_at=datetime(2026, 2, 8, 9, 0, tzinfo=UTC),
+        last_run_at=datetime(2026, 2, 1, 9, 0, tzinfo=timezone.utc),
+        next_run_at=datetime(2026, 2, 8, 9, 0, tzinfo=timezone.utc),
     )
     previous = [make_capability("cap-1", description="stable")]
     current = [make_capability("cap-1", description="changed")]
@@ -81,7 +81,7 @@ def test_execute_weekly_baseline_diff_runs_only_when_due() -> None:
         current_baseline="v32.0.1",
         previous_capabilities=previous,
         current_capabilities=current,
-        now=datetime(2026, 2, 8, 8, 0, tzinfo=UTC),
+        now=datetime(2026, 2, 8, 8, 0, tzinfo=timezone.utc),
     )
     due_result = execute_weekly_baseline_diff(
         schedule=schedule,
@@ -89,7 +89,7 @@ def test_execute_weekly_baseline_diff_runs_only_when_due() -> None:
         current_baseline="v32.0.1",
         previous_capabilities=previous,
         current_capabilities=current,
-        now=datetime(2026, 2, 8, 10, 0, tzinfo=UTC),
+        now=datetime(2026, 2, 8, 10, 0, tzinfo=timezone.utc),
     )
 
     assert not_due_result.due is False

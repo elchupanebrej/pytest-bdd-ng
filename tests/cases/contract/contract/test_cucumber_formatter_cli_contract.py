@@ -6,8 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import tomllib
 
+from pytest_bdd.compatibility.tomllib import loads
 from pytest_bdd.plugin.cucumber_json.const import CucumberJson
 from pytest_bdd.plugin.gherkin_message_reporter import entrypoint as formatter_entrypoint
 from pytest_bdd.plugin.gherkin_message_reporter.plugin import (
@@ -211,7 +211,7 @@ def test_entrypoint_addhooks_only_registers_hookspecs() -> None:
 def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
     """Verify formatter plugins have independent pytest11 entrypoints."""
     pyproject_path = Path(__file__).resolve().parents[4] / "pyproject.toml"
-    pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    pyproject = loads(pyproject_path.read_text(encoding="utf-8"))
     pytest11_entrypoints = pyproject["project"]["entry-points"]["pytest11"]
 
     for plugin in _catalog().plugins:

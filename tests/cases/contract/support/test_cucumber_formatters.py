@@ -91,3 +91,8 @@ def test_fake_node_windows_shim_prefers_path_python_under_pypy(monkeypatch) -> N
     )
 
     assert cucumber_formatters._fake_node_python_executable() == r"C:\Python311\python.exe"
+
+
+def test_cucumber_formatter_support_does_not_import_returns() -> None:
+    """Verify fake formatter support avoids PyPy-incompatible returns import."""
+    assert "returns.maybe" not in Path(cucumber_formatters.__file__).read_text(encoding="utf-8")

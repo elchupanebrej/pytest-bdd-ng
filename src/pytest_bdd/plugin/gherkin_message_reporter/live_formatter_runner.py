@@ -27,15 +27,57 @@ from pytest_bdd.util.npm_resource import find_resource
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Any
 
     from cucumber_messages import Envelope as Message
+
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 
 logger = logging.getLogger(__name__)
 
 
+def _resolve_npm_formatter_resource(
+    package_name: str,
+    resource_path: str,
+    *,
+    additional_roots: tuple[Path, ...] = (),
+) -> Path:
+    """
+    Resolve a required npm formatter resource.
+
+    Returns:
+        Resolved resource path.
+
+    Raises:
+        RuntimeError: If the resource cannot be found.
+
+    """
+    match = next(
+        find_resource(
+            package_name,
+            resource_path,
+            additional_roots=additional_roots,
+        ),
+        None,
+    )
+    if match is None:
+        message = f"Npm package '{package_name}' does not contain required formatter asset '{resource_path}'."
+        raise RuntimeError(message)
+    return Path(match)
+
+
 class LiveFormatterRunnerMixin:
     """Provide live formatter startup and render orchestration behavior."""
+
+    if TYPE_CHECKING:
+        reporter: GherkinMessageReporter
+        _resolve_runnable_cucumber_formatter_requests: Callable[..., Any]
+        _augment_node_env_for_live_terminal_stream: Callable[..., Any]
+        _record_live_formatter_failure: Callable[..., Any]
+        _warn_about_missing_cucumber_formatter_packages: Callable[..., Any]
+        _build_cucumber_formatter_payload: Callable[..., Any]
+        _ensure_node_packages_available: Callable[..., Any]
 
     def _render_cucumber_formatter_runtime_assets(
         self,
@@ -105,36 +147,12 @@ class LiveFormatterRunnerMixin:
             encoding="utf-8",
         )
         try:
-            self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001
-                [node_executable, str(script_path), str(payload_path)],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=str(Path(self.reporter.config.rootpath)),
-                env=node_env,
+            self._spawn_live_formatter_subprocess(
+                node_executable=node_executable,
+                script_path=script_path,
+                payload_path=payload_path,
+                node_env=node_env,
             )
-            if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001
-                self.reporter._live_formatter_stdout_thread = Thread(  # noqa: SLF001
-                    target=relay_live_formatter_output,
-                    args=(self.reporter._live_formatter_process.stdout, sys.stdout),  # noqa: SLF001
-                    daemon=True,
-                )
-                self.reporter._live_formatter_stdout_thread.start()  # noqa: SLF001
-            if self.reporter._live_formatter_process.stderr is not None:  # noqa: SLF001
-                self.reporter._live_formatter_stderr_thread = Thread(  # noqa: SLF001
-                    target=relay_live_formatter_output,
-                    args=(self.reporter._live_formatter_process.stderr, sys.stderr),  # noqa: SLF001
-                    daemon=True,
-                )
-                self.reporter._live_formatter_stderr_thread.start()  # noqa: SLF001
-            if self.reporter._live_formatter_process.poll() is not None:  # noqa: SLF001
-                self._record_live_formatter_failure(
-                    "Live cucumber formatter session exited early with code "
-                    f"{self.reporter._live_formatter_process.returncode} during startup.",  # noqa: SLF001
-                )
-                return
-            self.reporter._live_formatter_session_started = True  # noqa: SLF001
         except OSError:
             logger.exception(
                 "Unable to execute Node.js while streaming to cucumber formatters for %s.",
@@ -142,6 +160,99 @@ class LiveFormatterRunnerMixin:
             )
             self._record_live_formatter_failure(
                 f"Unable to execute Node.js while starting the live cucumber formatter session for {formatter_labels}.",
+            )
+
+    def _spawn_live_formatter_subprocess(
+        self,
+        *,
+        node_executable: str,
+        script_path: Path,
+        payload_path: Path,
+        node_env: dict[str, str],
+    ) -> None:
+        self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001
+            [node_executable, str(script_path), str(payload_path)],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=str(Path(self.reporter.config.rootpath)),
+            env=node_env,
+        )
+        if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001
+            self.reporter._live_formatter_stdout_thread = Thread(  # noqa: SLF001
+                target=relay_live_formatter_output,
+                args=(self.reporter._live_formatter_process.stdout, sys.stdout),  # noqa: SLF001
+                daemon=True,
+            )
+            self.reporter._live_formatter_stdout_thread.start()  # noqa: SLF001
+        if self.reporter._live_formatter_process.stderr is not None:  # noqa: SLF001
+            self.reporter._live_formatter_stderr_thread = Thread(  # noqa: SLF001
+                target=relay_live_formatter_output,
+                args=(self.reporter._live_formatter_process.stderr, sys.stderr),  # noqa: SLF001
+                daemon=True,
+            )
+            self.reporter._live_formatter_stderr_thread.start()  # noqa: SLF001
+        if self.reporter._live_formatter_process.poll() is not None:  # noqa: SLF001
+            self._record_live_formatter_failure(
+                "Live cucumber formatter session exited early with code "
+                f"{self.reporter._live_formatter_process.returncode} during startup.",  # noqa: SLF001
+            )
+            return
+        self.reporter._live_formatter_session_started = True  # noqa: SLF001
+
+    def _execute_cucumber_formatter_subprocess(
+        self,
+        *,
+        node_executable: str,
+        node_env: dict[str, str],
+        runnable_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
+        envelopes: list[Message],
+    ) -> subprocess.CompletedProcess[str]:
+        with tempfile.TemporaryDirectory(prefix="pytest-bdd-cucumber-formatters-") as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            script_path = temp_dir / "render_cucumber_formatters.js"
+            payload_path = temp_dir / "formatter_payload.json"
+            runtime_assets = self._render_cucumber_formatter_runtime_assets(runnable_requests)
+            for relative_path, rendered_asset in runtime_assets.items():
+                asset_path = temp_dir / relative_path
+                asset_path.parent.mkdir(parents=True, exist_ok=True)
+                asset_path.write_text(rendered_asset, encoding="utf-8")
+            normalized_messages_path = temp_dir / "formatter_messages.ndjson"
+            normalized_messages_path.write_text(
+                "".join(
+                    f"{json.dumps(envelope_dict)}\n"
+                    for envelope_dict in normalize_formatter_envelope_dicts(
+                        [
+                            ExecutionMessageAdapter.serialize_to_dict(
+                                envelope,
+                                profile=MessageSerializationProfile.schema_compatible,
+                            )
+                            for envelope in envelopes
+                        ],
+                    )
+                ),
+                encoding="utf-8",
+            )
+            payload_path.write_text(
+                json.dumps(
+                    self._build_cucumber_formatter_payload(
+                        envelopes=envelopes,
+                        formatter_requests=runnable_requests,
+                        messages_path=normalized_messages_path,
+                    ),
+                ),
+                encoding="utf-8",
+            )
+            return subprocess.run(  # noqa: S603
+                [node_executable, str(script_path), str(payload_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=str(Path(self.reporter.config.rootpath)),
+                env=node_env,
             )
 
     def _run_requested_cucumber_formatters(
@@ -183,49 +294,12 @@ class LiveFormatterRunnerMixin:
             )
 
         try:
-            with tempfile.TemporaryDirectory(prefix="pytest-bdd-cucumber-formatters-") as temp_dir_name:
-                temp_dir = Path(temp_dir_name)
-                script_path = temp_dir / "render_cucumber_formatters.js"
-                payload_path = temp_dir / "formatter_payload.json"
-                runtime_assets = self._render_cucumber_formatter_runtime_assets(runnable_requests)
-                for relative_path, rendered_asset in runtime_assets.items():
-                    asset_path = temp_dir / relative_path
-                    asset_path.parent.mkdir(parents=True, exist_ok=True)
-                    asset_path.write_text(rendered_asset, encoding="utf-8")
-                normalized_messages_path = temp_dir / "formatter_messages.ndjson"
-                normalized_messages_path.write_text(
-                    "".join(
-                        f"{json.dumps(envelope_dict)}\n"
-                        for envelope_dict in normalize_formatter_envelope_dicts(
-                            [
-                                ExecutionMessageAdapter.serialize_to_dict(
-                                    envelope,
-                                    profile=MessageSerializationProfile.schema_compatible,
-                                )
-                                for envelope in envelopes
-                            ],
-                        )
-                    ),
-                    encoding="utf-8",
-                )
-                payload_path.write_text(
-                    json.dumps(
-                        self._build_cucumber_formatter_payload(
-                            envelopes=envelopes,
-                            formatter_requests=runnable_requests,
-                            messages_path=normalized_messages_path,
-                        ),
-                    ),
-                    encoding="utf-8",
-                )
-                completed = subprocess.run(  # noqa: S603
-                    [node_executable, str(script_path), str(payload_path)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                    cwd=str(Path(self.reporter.config.rootpath)),
-                    env=node_env,
-                )
+            completed = self._execute_cucumber_formatter_subprocess(
+                node_executable=node_executable,
+                node_env=node_env,
+                runnable_requests=runnable_requests,
+                envelopes=envelopes,
+            )
         except OSError:
             logger.exception(
                 "Unable to execute Node.js while rendering cucumber formatter output for %s.",
@@ -273,33 +347,28 @@ class LiveFormatterRunnerMixin:
         """Handle generate html report."""
         if self.reporter.is_disabled:
             return
-        script_path = Path(
-            next(
-                find_resource(
-                    self.reporter.npm_formatter_package,
-                    str(Path("dist") / "main.js"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
-                ),
-            ),
+        script_path = _resolve_npm_formatter_resource(
+            self.reporter.npm_formatter_package,
+            str(Path("dist") / "main.js"),
+            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
         )
-        css_path = Path(
-            next(
-                find_resource(
-                    self.reporter.npm_formatter_package,
-                    str(Path("dist") / "main.css"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
-                ),
-            ),
+        css_path = _resolve_npm_formatter_resource(
+            self.reporter.npm_formatter_package,
+            str(Path("dist") / "main.css"),
+            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
         )
-        template_path = Path(
-            next(
-                find_resource(
-                    self.reporter.npm_formatter_package,
-                    str(Path("src") / "index.mustache.html"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
-                ),
-            ),
-        )
+        try:
+            template_path = _resolve_npm_formatter_resource(
+                self.reporter.npm_formatter_package,
+                str(Path("src") / "index.mustache.html"),
+                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+            )
+        except RuntimeError:
+            template_path = _resolve_npm_formatter_resource(
+                self.reporter.npm_formatter_package,
+                str(Path("src") / "index.mustache"),
+                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+            )
         template = template_path.read_text(encoding="utf-8")
         icon = ""
         if "{{icon}}" in template:

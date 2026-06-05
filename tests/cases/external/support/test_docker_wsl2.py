@@ -383,7 +383,7 @@ def test_fails_when_docker_desktop_not_installed():
     with (
         patch("pytest_bdd.testing.docker.docker_daemon_available", return_value=(False, None)),
         patch("pytest_bdd.testing.docker._resolve_tool_path", return_value=None),
-        pytest.raises(pytest.fail.Exception, match="Docker Desktop not installed"),
+        pytest.raises(pytest.skip.Exception, match="Docker Desktop not installed"),
     ):
         require_docker_daemon()
 
@@ -394,7 +394,7 @@ def test_fails_when_wsl2_alpine_not_found():
         patch("pytest_bdd.testing.docker.docker_daemon_available", return_value=(False, None)),
         patch("pytest_bdd.testing.docker._resolve_tool_path", return_value="/usr/bin/docker"),
         patch("pytest_bdd.testing.docker._alpine_wsl2_available", return_value=False),
-        pytest.raises(pytest.fail.Exception, match="WSL2 Alpine dist not found"),
+        pytest.raises(pytest.skip.Exception, match="WSL2 Alpine dist not found"),
     ):
         require_docker_daemon()
 
@@ -718,7 +718,7 @@ def test_run_in_controller_uses_explicit_exec_env_values():
         assert "PYTEST_REMOTE_MODE=ssh" in exec_args
         assert "PYTEST_BDD_TRANSPORT_FAIL_WORKERS=gw1" in exec_args
         assert "VERIFY_EXPECT_CONTROLLER_ONLY=1" in exec_args
-        assert "PYTEST_REMOTE_FAKE_NODE_ROOT=/artifacts/fake-node-runtime" in exec_args
+        assert "PYTEST_REMOTE_FAKE_NODE_ROOT=/fake-node-runtime" in exec_args
 
 
 def test_wsl2_backend_routes_cleanup_through_wsl():
@@ -867,6 +867,7 @@ def test_controller_entrypoint_has_no_external_imports():
         "pytest",
         "execnet",
         "time",
+        "contextlib",
     }
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

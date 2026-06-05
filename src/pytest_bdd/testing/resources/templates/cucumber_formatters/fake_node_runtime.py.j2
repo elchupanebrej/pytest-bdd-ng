@@ -80,8 +80,7 @@ def _find_formatters(payload):
         for value in node.values():
             if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
                 if any(
-                    any(key in item for key in ("kind", "specifier", "formatter", "name", "type"))
-                    for item in value
+                    any(key in item for key in ("kind", "specifier", "formatter", "name", "type")) for item in value
                 ):
                     return value
     raise SystemExit("fake node could not locate formatter specifications in payload")
@@ -135,6 +134,8 @@ def _write_capture(payload, *, mode, envelopes, emitted_console_before_close):
         "emittedConsoleBeforeClose": emitted_console_before_close,
         "consoleWriteCount": console_write_count,
         "consoleFormatterNames": console_formatter_names,
+        "ppid": os.getppid(),
+        "argv": sys.argv,
     }
     capture_path.write_text(json.dumps(capture_payload, sort_keys=True), encoding="utf-8")
 
@@ -183,9 +184,7 @@ def _emit_formatter_outputs_from_file(payload):
     if messages_path is None:
         raise SystemExit("fake node could not locate an NDJSON messages path in payload")
     envelopes = [
-        json.loads(line)
-        for line in Path(messages_path).read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in Path(messages_path).read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     return _finalize_outputs(
         payload,
@@ -207,8 +206,7 @@ def _emit_formatter_outputs_from_stream(payload):
             continue
         formatter_name = _normalize_name(formatter_spec)
         pending_console_chunks[formatter_name] = _split_console_output(
-            formatter_name,
-            _render_output_for_request(formatter_spec)
+            formatter_name, _render_output_for_request(formatter_spec)
         )
     for line in sys.stdin:
         if not line.strip():
@@ -262,9 +260,7 @@ def main():
         raise SystemExit(_check_package())
     if len(sys.argv) >= 3:
         payload = json.loads(Path(sys.argv[-1]).read_text(encoding="utf-8"))
-        missing = [
-            package_name for package_name in _required_packages(payload) if not _package_installed(package_name)
-        ]
+        missing = [package_name for package_name in _required_packages(payload) if not _package_installed(package_name)]
         if missing:
             sys.stderr.write(f"missing package: {', '.join(missing)}\n")
             raise SystemExit(1)

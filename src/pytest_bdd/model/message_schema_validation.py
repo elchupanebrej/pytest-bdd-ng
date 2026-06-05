@@ -30,7 +30,7 @@ def _build_schema_validator() -> tuple[object | None, str | None]:
     except (FileNotFoundError, OSError, TypeError, ValueError, json.JSONDecodeError) as exc:
         return Nothing.value_or(None), f"Unable to load Envelope.json schema: {exc}"
 
-    registry = Registry()
+    registry: Registry = Registry()
     for schema_path in sorted(schema_dir.glob("*.json")):
         contents = json.loads(schema_path.read_text(encoding="utf-8"))
         resource = Resource.from_contents(contents)
@@ -91,7 +91,9 @@ def validate_envelope_dict_against_schema(
         )
     if validator is None:
         return ()
-    return tuple(_schema_violation(error) for error in validator.iter_errors(clean_envelope_dict))
+    from typing import Any  # noqa: PLC0415
+
+    return tuple(_schema_violation(error) for error in cast("Any", validator).iter_errors(clean_envelope_dict))
 
 
 def validate_envelope_against_schema(

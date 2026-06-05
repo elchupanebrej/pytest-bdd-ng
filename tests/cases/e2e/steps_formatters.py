@@ -65,7 +65,7 @@ def summary_output_contains(pytest_result, statistic):
 
 
 @then(parsers.parse("Usage output shows {count} step definitions used"))
-def usage_output_shows(pytest_result, count):
+def usage_output_shows(pytest_result, count):  # noqa: ARG001 - count is part of step text contract
     # This is a basic assertion to check if the usage info is logged
     assert "Usage" in pytest_result.stdout
 
@@ -73,6 +73,6 @@ def usage_output_shows(pytest_result, count):
 @then("Usage JSON is valid")
 def usage_json_is_valid(testdir):
     usage_json_path = testdir.tmpdir.join("standalone-usage.json")
-    with pathlib.Path(str(usage_json_path)).open() as f:
+    with pathlib.Path(str(usage_json_path)).open(encoding="utf-8") as f:
         data = json.load(f)
     assert isinstance(data, dict)

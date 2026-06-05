@@ -87,7 +87,7 @@ def compatibility_kit_repo(tmpdir):
 
 def runpytest_with_message_reporter(testdir: "Testdir", *args: str):
     """Handle runpytest with message reporter."""
-    return testdir.runpytest_subprocess(*args)
+    return testdir.runpytest_subprocess(*args, str(testdir.tmpdir))
 
 
 def unfold_message(message: Message):

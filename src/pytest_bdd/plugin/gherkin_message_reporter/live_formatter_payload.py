@@ -9,11 +9,15 @@ if TYPE_CHECKING:
     from cucumber_messages import Envelope as Message
 
     from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
     from pytest_bdd.types.json import JSONArray, JSONObject
 
 
 class LiveFormatterPayloadMixin:
     """Provide live formatter payload construction behavior."""
+
+    if TYPE_CHECKING:
+        reporter: GherkinMessageReporter
 
     @staticmethod
     def _resolve_formatter_expression_constructor_name(pattern_type: object | None) -> str:

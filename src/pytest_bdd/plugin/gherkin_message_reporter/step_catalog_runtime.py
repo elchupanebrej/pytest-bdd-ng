@@ -23,14 +23,13 @@ from cucumber_messages import (
     TestCase,
     TestStep,
 )
-from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.compatibility.pytest import Config, FixtureLookupError, FixtureRequest
 from pytest_bdd.model.run import Run
 from pytest_bdd.parsers import _CucumberExpression
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
-from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.steps import Definition, StepDefinitionManager
 from pytest_bdd.util.inspect_extra import get_first_source_line
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import deepattrgetter
@@ -197,7 +196,7 @@ class StepCatalogService(ReporterServiceBase):
     def _build_step_match_arguments_lists(
         *,
         request: FixtureRequest,
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
         step_text: str,
     ) -> list[StepMatchArgumentsList]:
         parser = step_definition.parser
@@ -259,7 +258,7 @@ class StepCatalogService(ReporterServiceBase):
     def _build_parameter_type_source_reference(config: Config, parameter_type: object) -> SourceReference | None:
         transformer = getattr(parameter_type, "transformer", None)
         if transformer is None:
-            return Nothing.value_or(None)
+            return None
 
         with suppress(OSError, TypeError, ValueError):
             source_file = getfile(transformer)
@@ -279,7 +278,7 @@ class StepCatalogService(ReporterServiceBase):
                     method_name=str(getattr(transformer, "__name__", "transformer")),
                 ),
             )
-        return Nothing.value_or(None)
+        return None
 
     def _register_parameter_types(self, config: Config, request: FixtureRequest) -> None:
         try:

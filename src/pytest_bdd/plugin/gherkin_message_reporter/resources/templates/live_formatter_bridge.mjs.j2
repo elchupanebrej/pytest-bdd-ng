@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { EventEmitter } = require('node:events');
 const cucumber = require('@cucumber/cucumber');
 const cucumberExpressions = require(
@@ -17,11 +18,7 @@ function loadFormatterSpecifier(formatterRequest) {
     if (typeof runtimeModulePath !== 'string' || !runtimeModulePath) {
       throw new Error(`Formatter ${formatterRequest.formatter} declared runtime.kind=module without modulePath.`);
     }
-    const loaded = require(path.join(__dirname, runtimeModulePath));
-    if (typeof runtime.exportName === 'string' && runtime.exportName && loaded && loaded[runtime.exportName]) {
-      return loaded[runtime.exportName];
-    }
-    return loaded && loaded.default ? loaded.default : loaded;
+    return pathToFileURL(path.join(__dirname, runtimeModulePath)).toString();
   }
   const specifier = runtime.specifier || formatterRequest.formatter;
   if (typeof specifier !== 'string' || !specifier) {

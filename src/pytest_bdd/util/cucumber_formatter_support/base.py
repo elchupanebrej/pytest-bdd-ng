@@ -30,7 +30,7 @@ def _load_template_asset(package: str, template_name: str) -> str:
         Template content as string.
 
     """
-    return files(package).joinpath(template_name).read_text(encoding="utf-8")
+    return str(files(package).joinpath(template_name).read_text(encoding="utf-8"))
 
 
 def load_formatter_adapter_support_template() -> str:

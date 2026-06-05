@@ -6,8 +6,6 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
-from returns.maybe import Nothing
-
 from pytest_bdd.compatibility.importlib.resources import files
 from pytest_bdd.model.cucumber_formatter_contract import (
     CucumberFormatterRenderResult,
@@ -176,7 +174,7 @@ def _resolve_formatter_request_hook(config: Config) -> _FormatterRequestHook | N
                 "was not configured."
             )
             raise RuntimeError(msg)
-        return Nothing.value_or(None)
+        return None
     return cast("_FormatterRequestHook", hook)
 
 
@@ -298,7 +296,7 @@ def load_formatter_adapter_support_template() -> str:
         Template content.
 
     """
-    return _load_formatter_adapter_support_template()
+    return cast("str", _load_formatter_adapter_support_template())
 
 
 def load_formatter_adapter_template(template_name: str) -> str:
@@ -309,7 +307,7 @@ def load_formatter_adapter_template(template_name: str) -> str:
         Template content.
 
     """
-    return _load_formatter_adapter_template(template_name)
+    return cast("str", _load_formatter_adapter_template(template_name))
 
 
 def render_live_formatter_bridge() -> str:

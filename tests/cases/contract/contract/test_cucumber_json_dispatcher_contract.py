@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tomllib
-
+from pytest_bdd.compatibility.tomllib import loads
 from pytest_bdd.plugin.cucumber_json_dispatcher.const import CucumberJsonDispatcher
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -14,7 +13,7 @@ DISPATCHER_DIR = REPO_ROOT / "src" / "pytest_bdd" / "plugin" / "cucumber_json_di
 
 def test_dispatcher_entry_point_in_pyproject() -> None:
     pyproject_path = REPO_ROOT / "pyproject.toml"
-    pyproject = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    pyproject = loads(pyproject_path.read_text(encoding="utf-8"))
     pytest11 = pyproject["project"]["entry-points"]["pytest11"]
 
     assert "pytest-bdd-cucumber-json-dispatcher" in pytest11

@@ -1,0 +1,1 @@
+"""Docker test assets package."""

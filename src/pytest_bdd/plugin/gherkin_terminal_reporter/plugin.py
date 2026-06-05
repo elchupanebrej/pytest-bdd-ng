@@ -70,5 +70,5 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
         return None
 
 
-class GherkinTerminalReporterPlugin(GherkinTerminalReporter):
+class GherkinTerminalReporterPlugin(GherkinTerminalReporter):  # type: ignore[misc]
     """Represent gherkin terminal reporter plugin state."""

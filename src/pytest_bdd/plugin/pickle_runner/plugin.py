@@ -33,8 +33,8 @@ from pytest_bdd.model.run_access import (
     resolve_step_runtime_enrichment,
 )
 from pytest_bdd.model.scenario_collection import PYTEST_BDD_MARK
-from pytest_bdd.model.scenario_run import StepRun
-from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.model.scenario_run import ScenarioRun, StepRun
+from pytest_bdd.steps import Definition, Matcher
 from pytest_bdd.util.inspect_extra import get_args
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.pytest_extra import inject_fixture
@@ -297,18 +297,12 @@ class PickleRunner:
 
         return dispatcher
 
-    def pytest_bdd_run_step(  # noqa: PLR0914, PLR0915
+    def pytest_bdd_run_step(
         self,
         request: FixtureRequest,
         run: Run,
     ) -> None:
-        """
-        Handle the pytest bdd run step pytest hook.
-
-        Raises:
-            StepDefinitionNotFoundError: If no step definition matches the step.
-
-        """
+        """Handle the pytest bdd run step pytest hook."""
         __tracebackhide__ = True
         scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_run_step")
         gherkin_document = require_feature_object(run, hook_name="pytest_bdd_run_step")
@@ -343,110 +337,176 @@ class PickleRunner:
         pickle.__dict__["description"] = scenario_description
 
         try:
-            hook_kwargs = {
-                "request": request,
-                "run": run,
-            }
+            self._run_step_body(
+                request=request,
+                run=run,
+                gherkin_document=gherkin_document,
+                pickle=pickle,
+                step=step,
+                previous_step=previous_step,
+                scenario_run=scenario_run,
+            )
+        finally:
+            # TODO: Seems that this field must be put into scenario run
+            pickle.__dict__["description"] = None
 
-            try:
-                step_definition = self._match_to_step(run)
-            except exceptions.StepDefinitionNotFoundError as exception:
-                self._invoke_bdd_hook(
-                    hook_name="pytest_bdd_step_func_lookup_error",
-                    request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
-                    status=RunStatus.failed,
-                    exception=exception,
-                )
-                raise
-            else:
-                hook_kwargs["step_func"] = step_definition.func
-                hook_kwargs["step_definition"] = step_definition
+    def _run_step_body(  # noqa: PLR0913
+        self,
+        *,
+        request: FixtureRequest,
+        run: Run,
+        gherkin_document: GherkinDocument,
+        pickle: Pickle,
+        step: PickleStep,
+        previous_step: object,
+        scenario_run: ScenarioRun,
+    ) -> None:
+        hook_kwargs: dict[str, object] = {
+            "request": request,
+            "run": run,
+            "step_func_args": {},
+        }
 
-            self._invoke_bdd_hook(
-                hook_name="pytest_bdd_before_step",
+        step_definition = self._match_step_or_report_lookup_error(
+            request=request,
+            run=run,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+        )
+        hook_kwargs["step_func"] = step_definition.func
+        hook_kwargs["step_definition"] = step_definition
+
+        self._invoke_bdd_hook(
+            hook_name="pytest_bdd_before_step",
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+            step_func=step_definition.func,
+        )
+
+        step_params = step_definition.get_parameters(request, step)
+        step_run = scenario_run.step_run
+        if step_run is None:
+            msg = "Step run is unavailable in _run_step_body; step context was not initialized."
+            raise RuntimeError(msg)
+        step_run.parameters = step_params
+
+        try:
+            self._run_step_call(
+                hook_kwargs=hook_kwargs,
                 request=request,
                 gherkin_document=gherkin_document,
                 pickle=pickle,
                 step=step,
                 previous_step=previous_step,
-                step_func=step_definition.func,
+                step_definition=step_definition,
+                step_params=step_params,
             )
+        except Exception as exception:
+            logger.warning("Step execution failed for %s", step.text, exc_info=True)
+            step_run.status = RunStatus.failed
 
-            hook_kwargs["step_func_args"] = {}
-            step_params = step_definition.get_parameters(request, step)
-            scenario_run.step_run.parameters = step_params
+            self._invoke_bdd_hook(
+                hook_name="pytest_bdd_step_error",
+                request=request,
+                gherkin_document=gherkin_document,
+                pickle=pickle,
+                step=step,
+                previous_step=previous_step,
+                status=RunStatus.failed,
+                step_func=step_definition.func,
+                step_func_args=hook_kwargs["step_func_args"],
+                step_definition=step_definition,
+                exception=exception,
+            )
+            raise
 
-            try:
-                self._inject_step_parameters_as_fixtures(
-                    step_params=step_params,
-                    params_fixtures_mapping=step_definition.params_fixtures_mapping,
-                )
+    def _match_step_or_report_lookup_error(  # noqa: PLR0913
+        self,
+        *,
+        request: FixtureRequest,
+        run: Run,
+        gherkin_document: GherkinDocument,
+        pickle: Pickle,
+        step: PickleStep,
+        previous_step: object,
+    ) -> Definition:
+        try:
+            return self._match_to_step(run)
+        except exceptions.StepDefinitionNotFoundError as exception:
+            self._invoke_bdd_hook(
+                hook_name="pytest_bdd_step_func_lookup_error",
+                request=request,
+                gherkin_document=gherkin_document,
+                pickle=pickle,
+                step=step,
+                previous_step=previous_step,
+                status=RunStatus.failed,
+                exception=exception,
+            )
+            raise
 
-                step_function_kwargs = dict(self._get_step_function_kwargs(step, step_definition, step_params))
-                hook_kwargs["step_func_args"] = step_function_kwargs
+    def _run_step_call(  # noqa: PLR0913
+        self,
+        *,
+        hook_kwargs: dict[str, object],
+        request: FixtureRequest,
+        gherkin_document: GherkinDocument,
+        pickle: Pickle,
+        step: PickleStep,
+        previous_step: object,
+        step_definition: Definition,
+        step_params: Mapping[str, object],
+    ) -> None:
+        self._inject_step_parameters_as_fixtures(
+            step_params=step_params,
+            params_fixtures_mapping=step_definition.params_fixtures_mapping,
+        )
 
-                self._invoke_bdd_hook(
-                    hook_name="pytest_bdd_before_step_call",
-                    request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
-                    step_func=step_definition.func,
-                    step_func_args=step_function_kwargs,
-                    step_definition=step_definition,
-                )
+        step_function_kwargs = dict(self._get_step_function_kwargs(step, step_definition, step_params))
+        hook_kwargs["step_func_args"] = step_function_kwargs
 
-                step_caller = self._invoke_bdd_hook(
-                    hook_name="pytest_bdd_get_step_caller",
-                    request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
-                    step_func=step_definition.func,
-                    step_func_args=step_function_kwargs,
-                    step_definition=step_definition,
-                )
-                step_result = cast("_StepCaller", step_caller)()
+        self._invoke_bdd_hook(
+            hook_name="pytest_bdd_before_step_call",
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+            step_func=step_definition.func,
+            step_func_args=step_function_kwargs,
+            step_definition=step_definition,
+        )
 
-                self._inject_target_fixtures(step_definition, step_result)
-                self._invoke_bdd_hook(
-                    hook_name="pytest_bdd_after_step",
-                    request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
-                    step_func=step_definition.func,
-                    step_func_args=step_function_kwargs,
-                    step_definition=step_definition,
-                )
-            except Exception as exception:
-                logger.warning("Step execution failed for %s", step.text, exc_info=True)
-                scenario_run.step_run.status = RunStatus.failed
+        step_caller = self._invoke_bdd_hook(
+            hook_name="pytest_bdd_get_step_caller",
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+            step_func=step_definition.func,
+            step_func_args=step_function_kwargs,
+            step_definition=step_definition,
+        )
+        step_result = cast("_StepCaller", step_caller)()
 
-                self._invoke_bdd_hook(
-                    hook_name="pytest_bdd_step_error",
-                    request=request,
-                    gherkin_document=gherkin_document,
-                    pickle=pickle,
-                    step=step,
-                    previous_step=previous_step,
-                    status=RunStatus.failed,
-                    step_func=step_definition.func,
-                    step_func_args=hook_kwargs["step_func_args"],
-                    step_definition=step_definition,
-                    exception=exception,
-                )
-                raise
-        finally:
-            # TODO: Seems that this field must be put into scenario run
-            pickle.__dict__["description"] = None
+        self._inject_target_fixtures(step_definition, step_result)
+        self._invoke_bdd_hook(
+            hook_name="pytest_bdd_after_step",
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+            step_func=step_definition.func,
+            step_func_args=step_function_kwargs,
+            step_definition=step_definition,
+        )
 
     @pytest.hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(  # noqa: PLR6301 -- pytest hook, must be instance method
@@ -455,7 +515,7 @@ class PickleRunner:
         run: Run,  # noqa: ARG002
         step_func: object,  # noqa: ARG002
         step_func_args: Mapping[str, object],
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
     ) -> Callable[[], object]:
         """
         Get step caller function.
@@ -490,7 +550,7 @@ class PickleRunner:
     def _get_step_function_kwargs(
         self,
         step: PickleStep,
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
         step_params: Mapping[str, object],
     ) -> Iterator[tuple[str, object]]:
         request = self._require_request()
@@ -503,7 +563,7 @@ class PickleRunner:
                 except KeyError:
                     yield param, request.getfixturevalue(param)
 
-    def _inject_target_fixtures(self, step_definition: StepDefinitionManager.Definition, step_result: object) -> None:
+    def _inject_target_fixtures(self, step_definition: Definition, step_result: object) -> None:
         if len(step_definition.target_fixtures) == 1:
             injectable_fixtures: Iterable[tuple[str, object]] = [(step_definition.target_fixtures[0], step_result)]
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
@@ -518,18 +578,18 @@ class PickleRunner:
         for target_fixture, return_value in injectable_fixtures:
             inject_fixture(self._require_request(), str(target_fixture), return_value)
 
-    def _match_to_step(self, run: Run) -> StepDefinitionManager.Definition:
+    def _match_to_step(self, run: Run) -> Definition:
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         request = cast("FixtureRequest", self.request)
         try:
             return cast(
-                "StepDefinitionManager.Definition",
+                "Definition",
                 request.config.hook.pytest_bdd_match_step_definition_to_step(
                     request=request,
                     run=run,
                 ),
             )
-        except StepDefinitionManager.Matcher.MatchNotFoundError as exception:
+        except Matcher.MatchNotFoundError as exception:
             scenario_run = run.require_active_scenario_run(hook_name="pytest_bdd_match_step_definition_to_step")
             step_to_report = scenario_run.step_run if scenario_run.step_run is not None else step
             step_lookup_exception = exceptions.StepDefinitionNotFoundError(

@@ -7,9 +7,7 @@ import time
 from pathlib import Path
 from typing import cast
 
-from _pytest.reports import TestReport
-from _pytest.terminal import TerminalReporter
-
+from pytest_bdd.compatibility.pytest import TerminalReporter, TestReport
 from pytest_bdd.plugin.cucumber_json.model import Feature
 from pytest_bdd.types.json import JSONArray, JSONObject
 

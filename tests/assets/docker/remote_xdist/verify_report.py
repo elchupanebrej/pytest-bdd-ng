@@ -16,6 +16,8 @@ from tests.cases.contract.messages.message_stream_assertions import (
     worker_ids_for_payloads,
 )
 
+MIN_SUCCESS_WORKERS = 2
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -41,6 +43,9 @@ def main() -> int:
     """
     Run main.
 
+    Returns:
+        Process exit code.
+
     Raises:
         ValueError: If the operation cannot be completed.
 
@@ -54,27 +59,42 @@ def main() -> int:
     payload_counts = count_payload_kinds(messages)
     worker_ids = worker_ids_for_payloads(messages, CucumberTestCaseStarted)
 
-    assert validation_result.status == "pass"
-    assert payload_counts["meta"] == 1
-    assert payload_counts["test_run_started"] == 1
-    assert payload_counts["test_run_finished"] == 1
-    assert transport_mode in {"socket", "via", "ssh"}
+    require("message validation must pass", condition=validation_result.status == "pass")
+    require("expected one meta message", condition=payload_counts["meta"] == 1)
+    require("expected one test_run_started message", condition=payload_counts["test_run_started"] == 1)
+    require("expected one test_run_finished message", condition=payload_counts["test_run_finished"] == 1)
+    require(f"unexpected transport mode: {transport_mode}", condition=transport_mode in {"socket", "via", "ssh"})
     if verification_mode == "success":
-        assert len(worker_ids) >= 2
+        require("expected at least two worker ids", condition=len(worker_ids) >= MIN_SUCCESS_WORKERS)
     elif verification_mode == "partial":
-        assert len(worker_ids) == 1
+        require("expected exactly one worker id", condition=len(worker_ids) == 1)
     else:  # pragma: no cover - entrypoint contract guards valid modes
         msg = f"Unknown verification mode: {verification_mode}"
         raise ValueError(msg)
 
     captures = _load_fake_node_captures()
     if options.min_console_writes:
-        assert captures, "expected fake node captures for console-write verification"
+        require("expected fake node captures for console-write verification", condition=bool(captures))
         console_write_count = sum(int(capture.get("consoleWriteCount", 0)) for capture in captures)
-        assert console_write_count >= options.min_console_writes
+        require("too few console writes captured", condition=console_write_count >= options.min_console_writes)
     if options.expect_controller_only:
-        assert len(captures) == 1, f"expected exactly one controller-owned formatter capture, got {len(captures)}"
+        require(
+            f"expected exactly one controller-owned formatter capture, got {len(captures)}",
+            condition=len(captures) == 1,
+        )
     return 0
+
+
+def require(message: str, *, condition: bool) -> None:
+    """
+    Raise AssertionError when a verification condition fails.
+
+    Raises:
+        AssertionError: If condition is false.
+
+    """
+    if not condition:
+        raise AssertionError(message)
 
 
 if __name__ == "__main__":

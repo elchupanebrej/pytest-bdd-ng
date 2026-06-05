@@ -75,9 +75,9 @@ class DockerClusterManager:
         """Initialize the docker cluster manager."""
         self.backend = backend
         self.timeouts = timeouts or DockerTimeouts()
-        self.active_clusters = {}
-        self.artifact_dirs = {}
-        self.compose_envs = {}
+        self.active_clusters: dict[str, list[str]] = {}
+        self.artifact_dirs: dict[str, Path] = {}
+        self.compose_envs: dict[str, dict[str, str]] = {}
         self._session_start: float | None = None
         self._atexit_registered = False
 
@@ -263,8 +263,8 @@ class DockerClusterManager:
             env["PYTEST_REMOTE_EXTRA_ARGS"] = "--cucumber-progress"
             env["VERIFY_MIN_CONSOLE_WRITES"] = "2"
             env["VERIFY_EXPECT_CONTROLLER_ONLY"] = "1"
-            env["PYTEST_REMOTE_FAKE_NODE_ROOT"] = "/artifacts/fake-node-runtime"
-            env["PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR"] = "/artifacts/fake-node-runtime/fake-node-captures"
+            env["PYTEST_REMOTE_FAKE_NODE_ROOT"] = "/fake-node-runtime"
+            env["PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR"] = "/fake-node-runtime/fake-node-captures"
         else:
             env["PYTEST_REMOTE_EXTRA_ARGS"] = ""
             env["VERIFY_MIN_CONSOLE_WRITES"] = ""

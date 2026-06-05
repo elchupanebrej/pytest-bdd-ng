@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, ClassVar, TextIO, cast
 
 import pytest
 from attrs import frozen
-from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.pytest import Config, Parser, PytestPluginManager, Stash, TerminalReporter
 from pytest_bdd.model.stash_access import StashBound
@@ -120,7 +119,7 @@ def _pytest_cache_already_configured(args: list[str]) -> bool:
 def _replace_terminal_reporter_with_quiet_variant(config: Config) -> Callable[[], None] | None:
     current_reporter = config.pluginmanager.getplugin("terminalreporter")
     if current_reporter is None or current_reporter.__class__ != TerminalReporter:
-        return Nothing.value_or(None)
+        return None
 
     quiet_stream = io.StringIO()
     quiet_reporter = _QuietTerminalReporter(config, quiet_stream=quiet_stream)
@@ -158,7 +157,7 @@ def _store_reporter_state(config: Config, reporter: object) -> None:
 
 def _resolve_reporter_state(config: Config) -> object | None:
     state = _ReporterStateEntry.find_in_stash(_config_stash(config)).value_or(None)
-    return Nothing.value_or(None) if state is None else state.reporter
+    return None if state is None else state.reporter
 
 
 def _clear_reporter_state(config: Config) -> None:

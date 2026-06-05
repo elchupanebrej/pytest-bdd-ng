@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-try:
-    from enum import StrEnum
-except ImportError:  # pragma: no cover - Python < 3.11 compatibility
-    from str_enum import StrEnum
+from pytest_bdd.compatibility.enum import StrEnum
 
 
 class StashFailure(StrEnum):
