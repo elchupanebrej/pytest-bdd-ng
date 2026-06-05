@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from pytest_bdd.compatibility.enum import StrEnum
+
+pytestmark = [pytest.mark.unit]
 
 
 class CompatibilityEnum(StrEnum):

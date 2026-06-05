@@ -7,6 +7,8 @@ from attrs import define
 
 from pytest_bdd.tag_expression import MarksTagExpression
 
+pytestmark = [pytest.mark.unit]
+
 
 @define
 class Mark:

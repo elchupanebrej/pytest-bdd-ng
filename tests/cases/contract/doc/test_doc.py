@@ -272,5 +272,9 @@ def test_manual_uat_tracks_blocking_rendering_checks() -> None:
     assert "ReadTheDocs preview" in uat
     assert "README/PyPI rendering" in uat
     assert "CHANGES rendering" in uat
-    assert "BLOCKING - pending" in uat
-    assert "Do not merge Phase 19" in uat
+    if "status: complete" in uat:
+        assert "PASS" in uat
+        assert "All Phase 19 blocking manual checks passed." in uat
+    else:
+        assert "BLOCKING - pending" in uat
+        assert "Do not merge Phase 19" in uat
