@@ -1,5 +1,6 @@
 """Provide feature locator helpers."""
 
+import platform
 from collections.abc import Callable, Iterable
 from contextlib import suppress
 from inspect import signature
@@ -21,7 +22,12 @@ from pytest_bdd.compatibility.pytest import Config, Mark
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model.scenario_collection import FeatureBaseLoad
 from pytest_bdd.scenario import Args, FeaturePathType, scenarios
-from pytest_bdd.scenario_locator import FileScenarioLocator, ScenarioLocatorFilterT, UrlScenarioLocator
+from pytest_bdd.scenario_locator import (
+    FileScenarioLocator,
+    PyPyUrlScenarioLocator,
+    ScenarioLocatorFilterT,
+    UrlScenarioLocator,
+)
 from pytest_bdd.types.failure_reasons import FeatureLocatorFailure
 from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.util.other import StringRepresentable
@@ -213,7 +219,7 @@ class ScenarioLocatorBuilder:
             return Nothing
 
         return Some(
-            FileScenarioLocator(  # type: ignore[call-arg]
+            FileScenarioLocator(
                 feature_paths=file_locator_feature_paths,
                 filter_=filter_,
                 features_base_dir=features_base_dir,
@@ -250,8 +256,13 @@ class ScenarioLocatorBuilder:
         if not url_locator_feature_paths:
             return Nothing
 
+        if platform.python_implementation() == "PyPy":
+            locator_class: type[UrlScenarioLocator] = PyPyUrlScenarioLocator
+        else:
+            locator_class = UrlScenarioLocator
+
         return Some(
-            UrlScenarioLocator(  # type: ignore[call-arg]
+            locator_class(  # type: ignore[call-arg]
                 url_paths=url_locator_feature_paths,
                 filter_=filter_,
                 encoding=feature_locator_args.get("encoding"),

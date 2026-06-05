@@ -250,3 +250,70 @@ def test_filter_mixin_with_none_filter_passes_all() -> None:
 
     results = list(locator.filter_scenarios(_document(), [pickle], _config()))
     assert len(results) == 1
+
+
+def test_pypy_url_locator_used_on_pypy() -> None:
+    """Verify PyPyUrlScenarioLocator is built instead of UrlScenarioLocator on PyPy."""
+    import platform
+
+    from pytest_bdd.feature_locator import ScenarioLocatorBuilder
+    from pytest_bdd.scenario import FeaturePathType
+    from pytest_bdd.scenario_locator import PyPyUrlScenarioLocator, UrlScenarioLocator
+
+    config = _config()
+    config.getini = lambda _ini: ""
+    config.rootpath = Path()
+    builder = ScenarioLocatorBuilder(config=config)
+    feature_locator_args = {
+        "feature_paths": ["https://example.test/feature.feature"],
+        "filter_": None,
+        "return_test_decorator": None,
+        "encoding": None,
+        "features_base_dir": None,
+        "features_base_url": None,
+        "features_path_type": FeaturePathType.URL,
+        "features_mimetype": None,
+        "parser_type": None,
+        "parse_args": None,
+        "locators": None,
+    }
+
+    # Case 1: When python_implementation() returns "PyPy"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(platform, "python_implementation", lambda: "PyPy")
+        locators = list(builder.build_for_feature_locator_args(feature_locator_args))
+        assert len(locators) == 1
+        assert isinstance(locators[0], PyPyUrlScenarioLocator)
+
+    # Case 2: When python_implementation() returns "CPython"
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(platform, "python_implementation", lambda: "CPython")
+        locators = list(builder.build_for_feature_locator_args(feature_locator_args))
+        assert len(locators) == 1
+        assert isinstance(locators[0], UrlScenarioLocator)
+        assert not isinstance(locators[0], PyPyUrlScenarioLocator)
+
+
+def test_pypy_url_locator_fetches_via_urllib(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify PyPyUrlScenarioLocator uses urllib.request.urlopen to fetch features."""
+    import urllib.request
+    from unittest.mock import MagicMock
+
+    from pytest_bdd.scenario_locator import PyPyUrlScenarioLocator
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_response.headers.get_content_type.return_value = "text/x.cucumber.gherkin+plain"
+    mock_response.read.return_value = b"Feature: PyPy Fetched\n"
+
+    mock_urlopen = MagicMock(return_value=mock_response)
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
+
+    locator = PyPyUrlScenarioLocator(url_paths=["https://example.test/pypy.feature"])
+    responses = locator._fetch_feature_responses(["https://example.test/pypy.feature"])
+
+    assert len(responses) == 1
+    content_type, content_text = responses[0]
+    assert content_type == "text/x.cucumber.gherkin+plain"
+    assert content_text == "Feature: PyPy Fetched\n"
+    mock_urlopen.assert_called_once()

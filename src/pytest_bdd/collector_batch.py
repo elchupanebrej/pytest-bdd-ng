@@ -7,7 +7,7 @@ import logging
 import multiprocessing
 import os
 from pathlib import Path  # noqa: TC003
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from attrs import define, field
 from cucumber_messages import GherkinDocument
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 CollectorParseResult = Result[object, CollectorFailure]
 
 try:
-    import aiofiles
+    import aiofiles  # type: ignore[import-untyped]
 
     _aiofiles_available = True
 except ImportError:
@@ -77,12 +77,17 @@ class FeatureBatchParser(StashBound):
         Returns:
             The number of pending paths after registration.
 
-        Raises:
-            RuntimeError: If the batch has already been flushed.
-
         """
         if self._flushed:
-            raise RuntimeError(_REGISTER_AFTER_FLUSH_MSG)
+            try:
+                content = path.read_bytes()
+                _, doc = _parse_feature_file(path, content)
+                self._cache[path] = doc
+            except OSError:
+                logger.warning("Failed to read feature file during late registration: %s", path, exc_info=True)
+            except Exception:
+                logger.exception("Failed to parse feature file during late registration: %s", path)
+            return len(self._pending)
         self._pending.append(path)
         return len(self._pending)
 
@@ -274,7 +279,7 @@ def _parse_python(text: str) -> dict:
     parser = CucumberIOBaseParser(ast_builder=AstBuilder())
     raw_dict = parser.parse(text)
     del parser
-    return raw_dict
+    return cast("dict", raw_dict)
 
 
 def _documents_equivalent(go_doc: dict, python_doc: dict) -> bool:
