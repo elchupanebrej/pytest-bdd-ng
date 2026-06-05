@@ -27,14 +27,16 @@ def file_extension(testdir, ext):
 def mimetype_resolves_to(file_path, mimetype):
     ext = file_path.suffix
     matched = _SUFFIX_TO_MIMETYPE.get(Suffix(ext))
-    assert matched and matched.value == mimetype
+    assert matched
+    assert matched.value == mimetype
 
 
 @then(parsers.parse("Suffix resolves to {suffix}"))
 def suffix_resolves_to(file_path, suffix):
     ext = file_path.suffix
     matched = Suffix(ext)
-    assert matched and matched.value == suffix
+    assert matched
+    assert matched.value == suffix
 
 
 @given("Mimetype hook override is set")

@@ -92,7 +92,7 @@
 
 * When run pytest
 
-    | cli_args | -k | test_report.py | --cucumberjson=out.json | -s |
+    | cli_args | -k | test_report.py | --cucumber-json=out.json | -s |
 
 * Then pytest outcome must contain tests with statuses:
 

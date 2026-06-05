@@ -436,13 +436,13 @@ def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> Non
         _write_barrier_state(state_path, state)
 
 
-def _read_barrier_state(state_path: Path) -> _BarrierState:
-    if not state_path.exists():
-        return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
+def _read_barrier_state_once(state_path: Path) -> _BarrierState | None:
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
+    except json.JSONDecodeError:
+        return None
     if not isinstance(payload, dict):
         return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
     return {
@@ -451,6 +451,26 @@ def _read_barrier_state(state_path: Path) -> _BarrierState:
         "finished": _coerce_int_mapping(payload.get("finished")),
         "finished_nodeids": _coerce_string_list(payload.get("finished_nodeids")),
     }
+
+
+def _read_barrier_state(state_path: Path) -> _BarrierState:
+    if not state_path.exists():
+        return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
+
+    attempts = 50
+    for attempt in range(attempts):
+        try:
+            state = _read_barrier_state_once(state_path)
+        except (PermissionError, OSError):  # noqa: PERF203
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.01)
+        else:
+            if state is not None:
+                return state
+            time.sleep(0.01)
+
+    return {"groups": [], "expected": {}, "finished": {}, "finished_nodeids": []}
 
 
 def _coerce_string_list(value: object) -> list[str]:
@@ -473,10 +493,28 @@ def _coerce_int_mapping(value: object) -> dict[str, int]:
     return result
 
 
+def _replace_with_retry(temp_path: Path, state_path: Path) -> None:
+    attempts = 50
+    for attempt in range(attempts):
+        try:
+            temp_path.replace(state_path)
+        except (PermissionError, OSError):  # noqa: PERF203
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.01)
+        else:
+            break
+
+
 def _write_barrier_state(state_path: Path, state: _BarrierState) -> None:
     temp_path = state_path.with_suffix(f".{os.getpid()}.tmp")
     temp_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
-    temp_path.replace(state_path)
+    try:
+        _replace_with_retry(temp_path, state_path)
+    except Exception:
+        with suppress(FileNotFoundError):
+            temp_path.unlink()
+        raise
 
 
 def _is_terminal_report(report: pytest.TestReport) -> bool:

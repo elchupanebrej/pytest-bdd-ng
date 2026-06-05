@@ -100,6 +100,7 @@ StructBDD
 
     06 StructBDD/01 Steps.feature
     06 StructBDD/02 StructBDD edge cases.feature
+    06 StructBDD/03 Deserialization.feature
 
 Report
 ------
@@ -136,6 +137,7 @@ Tag Expressions
     :maxdepth: 2
 
     09 Tag Expressions/01 Tag expression evaluation.feature
+    09 Tag Expressions/02 Edge cases.feature
 
 Heading Validation
 ------------------
@@ -150,6 +152,7 @@ Mimetype
     :maxdepth: 2
 
     11 Mimetype/01 Mimetype detection.feature
+    11 Mimetype/02 Edge cases.feature
 
 Formatters
 ----------
@@ -189,5 +192,6 @@ Batch Collection
     :maxdepth: 2
 
     16 Batch Collection/01 Batch collection edge cases.feature
+    16 Batch Collection/02 Edge cases with large files.feature
 
 .. END AUTO-GENERATED FEATURES TREE

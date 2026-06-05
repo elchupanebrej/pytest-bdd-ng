@@ -78,3 +78,39 @@ Scenario: One function can serve multiple step aliases
   ====== ======
   1      0
   ====== ======
+
+Scenario: Unknown first keyword resolves through generic step decorator
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+- Given File "keyword.feature" with content:
+
+  .. code:: gherkin
+
+     Feature: Steps are executed one by one
+       Scenario: Unknown first keyword
+         * I have a foo fixture with value "foo"
+         Then foo should have value "foo"
+
+- And File "conftest.py" with content:
+
+  .. code:: python
+
+     from pytest_bdd import step, then
+
+     @step('I have a foo fixture with value "foo"', target_fixture="foo")
+     def _foo():
+       return "foo"
+
+     @then('foo should have value "foo"')
+     def _foo_is_foo(foo):
+       assert foo == "foo"
+
+- When run pytest
+
+- Then pytest outcome must contain tests with statuses:
+
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

@@ -33,6 +33,8 @@ TEMPLATE_ENV = Environment(autoescape=False, keep_trailing_newline=True)  # noqa
 
 
 class _DirCmp(Protocol):
+    left: str
+    right: str
     diff_files: list[str]
     left_only: list[str]
     right_only: list[str]
@@ -101,6 +103,27 @@ def load_template(template_name: str) -> Template:
     return TEMPLATE_ENV.from_string(template_source)
 
 
+def files_differ_ignoring_line_endings(file1: Path, file2: Path) -> bool:
+    """
+    Check if two files differ in content, ignoring line ending differences.
+
+    Args:
+        file1: First file path.
+        file2: Second file path.
+
+    Returns:
+        True if the file contents differ, False otherwise.
+
+    """
+    try:
+        content1 = file1.read_text(encoding="utf-8").replace("\r\n", "\n")
+        content2 = file2.read_text(encoding="utf-8").replace("\r\n", "\n")
+    except OSError:
+        return True
+    else:
+        return content1 != content2
+
+
 def diff_folders(dcmp: _DirCmp) -> list[object] | None:
     """
     Compare two directory trees and return differences.
@@ -112,7 +135,14 @@ def diff_folders(dcmp: _DirCmp) -> list[object] | None:
         List of differences or None if identical.
 
     """
-    diff: list[object] = [dcmp.diff_files, dcmp.left_only, dcmp.right_only]
+    real_diff_files = []
+    for filename in dcmp.diff_files:
+        file1 = Path(dcmp.left) / filename
+        file2 = Path(dcmp.right) / filename
+        if files_differ_ignoring_line_endings(file1, file2):
+            real_diff_files.append(filename)
+
+    diff: list[object] = [real_diff_files, dcmp.left_only, dcmp.right_only]
     if any(diff):
         dcmp.report()
         return diff
@@ -477,7 +507,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:  #
             abs_path.parent.mkdir(exist_ok=True, parents=True)
             if ordered_source.kind == "markdown":
                 rst_content = pypandoc.convert_text(
-                    (features_path / rel_path).read_text(),
+                    (features_path / rel_path).read_text(encoding="utf-8"),
                     "rst",
                     format="gfm",
                     extra_args=[f"--shift-heading-level-by={offset + 1}", "--eol=lf"],
@@ -513,7 +543,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:  #
 
         processable_paths.extendleft(source.path for source in reversed(ordered_dir_sources))
 
-    index_file.write_text(render_generated_index(sections, existing_index_file), newline="\n")
+    index_file.write_text(render_generated_index(sections, existing_index_file), encoding="utf-8", newline="\n")
 
 
 def ensure_pandoc_installed() -> None:

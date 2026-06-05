@@ -6,13 +6,12 @@ from collections.abc import Callable, Iterator  # noqa: TC003
 from typing import TYPE_CHECKING, cast
 
 import pytest
-from _pytest.fixtures import FixtureRequest  # noqa: TC002
 from attrs import define, field
 from ordered_set import OrderedSet
 from returns.maybe import Maybe, Nothing, Some
 from typing_extensions import Protocol, runtime_checkable
 
-from pytest_bdd.compatibility.pytest import FixtureLookupError
+from pytest_bdd.compatibility.pytest import FixtureLookupError, FixtureRequest
 from pytest_bdd.util.toolz_extra import setdefaultattr
 
 if TYPE_CHECKING:

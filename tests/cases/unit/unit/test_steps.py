@@ -315,29 +315,34 @@ def test_step_with_fixture_dependency(testdir) -> None:
 
 def test_steps_with_unicode_content(testdir) -> None:
     """Steps can handle Unicode content in feature files."""
-    testdir.makeconftest("""
+    step_text = (
+        "\u0443 \u043c\u0435\u043d\u0435 \u0454 \u0440\u044f\u0434\u043e\u043a "
+        "\u044f\u043a\u0438\u0439 \u043c\u0456\u0441\u0442\u0438\u0442\u044c"
+    )
+    content_text = "\u044f\u043a\u0438\u0439\u0441\u044c \u043a\u043e\u043d\u0442\u0435\u043d\u0442"
+    testdir.makeconftest(f"""
         import pytest
         from pytest_bdd import given, then, parsers
 
         @pytest.fixture
         def string():
-            return {"content": ""}
+            return {{"content": ""}}
 
-        @given(parsers.parse(u"у мене є рядок який містить '{content}'"))
+        @given(parsers.parse(u"{step_text} '{{content}}'"))
         def there_is_a_string(content, string):
             string["content"] = content
 
-        @then(parsers.parse("I should see that the string equals to content '{content}'"))
+        @then(parsers.parse("I should see that the string equals to content '{{content}}'"))
         def assert_string(content, string):
             assert string["content"] == content
     """)
     testdir.makefile(
         ".feature",
-        steps="""\
+        steps=f"""\
         Feature: Unicode
             Scenario: Test
-                Given у мене є рядок який містить 'якийсь контент'
-                Then I should see that the string equals to content 'якийсь контент'
+                Given {step_text} '{content_text}'
+                Then I should see that the string equals to content '{content_text}'
     """,
     )
     result = testdir.runpytest()

@@ -7,7 +7,6 @@ from inspect import getfile, getsourcelines
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeAlias, cast
 
-from _pytest.fixtures import FixtureRequest  # noqa: TC002
 from attrs import define, field
 from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
     JavaMethod,
@@ -22,7 +21,7 @@ from cucumber_messages import PickleStep as Step  # type:ignore[attr-defined]
 from typing_extensions import Protocol
 
 from pytest_bdd.compatibility.path import resolvepath
-from pytest_bdd.compatibility.pytest import Config  # noqa: TC001
+from pytest_bdd.compatibility.pytest import Config, FixtureRequest  # noqa: TC001
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers import StepParser  # noqa: TC001
 from pytest_bdd.types.protocol import HasPytestStash  # noqa: TC001
@@ -140,7 +139,7 @@ class Definition:
                 id=self.id,
                 pattern=pattern,
                 source_reference=SourceReference(  # type: ignore[call-arg] # migration to pydantic2
-                    uri=Path(resolvepath(source_file, config.rootpath)).as_uri(),
+                    uri=Path(resolvepath(source_file, getattr(config, "rootpath", Path.cwd()))).as_uri(),
                     location=Location(line=source_line, column=1),
                     java_method=JavaMethod(
                         class_name="pytest_bdd.steps.StepDefinition",
