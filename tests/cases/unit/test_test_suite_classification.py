@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import tomllib
+
+from pytest_bdd.compatibility.tomllib import loads
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CANONICAL_GROUPS = ("unit", "integration", "contract", "e2e", "compat", "perf", "external")
@@ -21,7 +22,7 @@ pytestmark = [pytest.mark.unit]
 
 
 def _pytest_ini_options() -> dict[str, object]:
-    return tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["pytest"]["ini_options"]
+    return loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["pytest"]["ini_options"]
 
 
 def _parse_group_path_mapping(mapping: str) -> tuple[str, str]:

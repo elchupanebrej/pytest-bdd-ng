@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Mapping
 from typing import cast
 
@@ -24,7 +25,7 @@ def is_xdist_worker_process(config: Config) -> bool:
         True if running in xdist worker.
 
     """
-    return hasattr(config, "workerinput")
+    return hasattr(config, "workerinput") or os.environ.get("PYTEST_BDD_XDIST_IS_WORKER") == "1"
 
 
 def resolve_reporting_worker_identity(
