@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 17 context gathered
-last_updated: "2026-05-28T09:09:10.910Z"
-last_activity: 2026-05-28
+status: verifying
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-06-02T21:57:14.460Z"
+last_activity: 2026-06-02
 progress:
-  total_phases: 17
-  completed_phases: 15
-  total_plans: 67
-  completed_plans: 63
-  percent: 88
+  total_phases: 18
+  completed_phases: 18
+  total_plans: 64
+  completed_plans: 64
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 17 — Adapt GitHub CI to use make and validate with act
+**Current focus:** Phase 18 — split-xdist-remote-tests-into-separate-parallel-gha-executor
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
-Status: Complete
-Last activity: 2026-05-28
+Phase: 18 (split-xdist-remote-tests-into-separate-parallel-gha-executor) — READY FOR VERIFICATION
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-02
 
 Progress: [██████████] 100%
 
@@ -67,6 +67,7 @@ Updated after each plan completion
 | Phase 16 P01 | 45min | 4 tasks | 5 files |
 | Phase 17 P01 | 10min | 2 tasks | 2 files |
 | Phase 17 P02 | 10min | 3 tasks | 3 files |
+| Phase 18 P01 | 10 min | 4 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - Phase 16 added: Move vulture dead-code gate from pytest to native pre-commit hook
 - Phase 16 completed: Vulture moved from pytest wrapper to native pre-commit hook and native whitelist.
 - Phase 17 added: Adapt GitHub CI to use make and validate with act
+- Phase 18 added: Split xdist-remote tests into separate parallel GHA executor job
 
 ### Pending Todos
 
@@ -104,6 +106,8 @@ Recent decisions affecting current work:
 - [ ] Write model module tests (run.py, scenario_run.py, feature_binding.py)
 - [ ] Write steps.py testdir tests
 - [ ] Extend parser tests + pragma audit
+- [ ] Split xdist-remote tests into separate parallel GHA executor job
+- [ ] Gather failed CI logs into workflow artifact (collect-failed-logs job, per design spec 2026-06-02)
 
 ### Blockers/Concerns
 
@@ -120,6 +124,12 @@ Recent decisions affecting current work:
 |---|-------------|------|-----------|
 | 260521-bye | fix make test-all command all way down for all targets. Make fix of errors, not bypass | 2026-05-21 | [260521-bye-fix-make-test-all-command-all-way-down-f](./quick/260521-bye-fix-make-test-all-command-all-way-down-f/) |
 | 260524-qv5 | Add phase 15 failfast make tox target guide and spawn per-environment target fixers | 2026-05-24 | [260524-qv5-add-phase-15-failfast-make-tox-target-gu](./quick/260524-qv5-add-phase-15-failfast-make-tox-target-gu/) |
+| 260531-1mz | Fix all pre-commit errors and commit | 2026-05-30 | [260531-1mz-fix-all-pre-commit-errors-and-commit](./quick/260531-1mz-fix-all-pre-commit-errors-and-commit/) |
+| 260601-commit | commit changes and fix pre-commit check issues | 2026-06-01 | — |
+| 260601-rn | Rename current branch to display changes appered from commit 270e489359a56d3b1e01780dbde9d38523e9ee8e | 2026-06-01 | [260601-rn-rename-branch-to-display-changes](./quick/260601-rn-rename-branch-to-display-changes/) |
+| 260602-lhn | Seems file locator doesn't preserve file order | 2026-06-02 | [260602-lhn-seems-file-locator-doesn-t-preserve-file](./quick/260602-lhn-seems-file-locator-doesn-t-preserve-file/) |
+| 260602-ruq | Fix all 7 failing CI jobs in PR #141 run 26828896530 (subprocess UTF-8 encoding root cause) | 2026-06-02 | [260602-ruq-fix-all-failing-tests-in-pr-141-jobs-loc](./quick/260602-ruq-fix-all-failing-tests-in-pr-141-jobs-loc/) |
+| 260603-ssh | Fix xdist ssh test fails on the CI (use absolute python path /usr/local/bin/python3.14 to bypass non-interactive SSH PATH restriction) | 2026-06-03 | [260603-ssh](./quick/260603-ssh/) |
 
 ## Deferred Items
 
@@ -132,6 +142,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T20:47:29.537Z
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-adapt-github-ci-to-use-make-and-validate-with-act/17-CONTEXT.md
+Last session: 2026-06-02T21:57:13.589Z
+Stopped at: Completed 18-01-PLAN.md
+Resume file: None
