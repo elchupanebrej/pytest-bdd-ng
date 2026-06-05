@@ -39,12 +39,19 @@ def test_register_appends_and_returns_count() -> None:
     assert len(parser._pending) == 2
 
 
-def test_register_after_flush_raises() -> None:
+def test_register_after_flush_parses_dynamically(tmp_path: Path) -> None:
     parser = FeatureBatchParser()
     parser.register(Path("/fake/file.feature"))
     parser.flush()
-    with pytest.raises(RuntimeError, match="flushed"):
-        parser.register(Path("/fake/file2.feature"))
+
+    f = tmp_path / "late.feature"
+    f.write_bytes(FEATURE_TEXT)
+    count = parser.register(f)
+    assert count == 0
+    doc = parser.get(f)
+    assert doc is not None
+    assert doc.feature is not None
+    assert doc.feature.name == "Test feature"
 
 
 def test_has_pending_before_flush() -> None:

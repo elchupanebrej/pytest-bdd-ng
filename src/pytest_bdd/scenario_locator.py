@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import ssl
+import urllib.request
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import suppress
 from enum import Enum
@@ -320,31 +321,71 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         mimetype: Mimetype,
         encoding: str,
     ) -> Iterator[tuple[ParsedFeature, Source]]:
-        filename = None
+        filename = self._write_temp_feature_file(feature_content)
         try:
-            with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as f:
-                filename = f.name
-                f.write(feature_content)
-            try:
-                parse_args = self.parse_args or Args((), {})
-                parsed = parser.parse(
-                    config,
-                    Path(filename),
-                    url,
-                    *parse_args.args,
-                    **{"encoding": encoding, **parse_args.kwargs},
-                )
-            except FeatureParseError:
-                if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
-                    return
-                else:
-                    raise
+            parsed = self._parse_temp_feature(parser, config, Path(filename), url, encoding)
+            if parsed is None:
+                return
             media_type = str(mimetype) if mimetype is not None else "text/plain;charset=UTF-8"
             yield parsed, Source(uri=url, data=parsed.raw_data, media_type=media_type)
         finally:
-            if filename is not None:
-                with suppress(Exception):
-                    Path(filename).unlink()
+            with suppress(Exception):
+                Path(filename).unlink()
+
+    @staticmethod
+    def _write_temp_feature_file(feature_content: str) -> str:
+        with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as file:
+            file.write(feature_content)
+            return file.name
+
+    def _parse_temp_feature(
+        self,
+        parser: ParserProtocol,
+        config: Config | HasPytestStash,
+        path: Path,
+        url: str,
+        encoding: str,
+    ) -> ParsedFeature | None:
+        try:
+            parse_args = self.parse_args or Args((), {})
+            return parser.parse(
+                config,
+                path,
+                url,
+                *parse_args.args,
+                **{"encoding": encoding, **parse_args.kwargs},
+            )
+        except FeatureParseError:
+            if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                return None
+            raise
+
+
+@define
+class PyPyUrlScenarioLocator(UrlScenarioLocator):
+    """
+    Represent url scenario locator state on PyPy runtimes, avoiding aiohttp.
+
+    Yields:
+        Generated values.
+
+    """
+
+    def _fetch_feature_responses(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
+        import certifi  # noqa: PLC0415 -- heavy optional certifi dependency
+
+        responses: list[tuple[str, str] | BaseException] = []
+        sslcontext = ssl.create_default_context(cafile=certifi.where())
+        for url in urls:
+            try:
+                with urllib.request.urlopen(url, context=sslcontext, timeout=10) as response:  # noqa: S310
+                    content_type = response.headers.get_content_type()
+                    content_bytes = response.read()
+                    content_text = content_bytes.decode(self.encoding or "utf-8")
+                    responses.append((content_type, content_text))
+            except Exception as e:  # noqa: BLE001, PERF203
+                responses.append(e)
+        return responses
 
 
 class FileScenarioLocatorDefaults:
@@ -428,17 +469,19 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             if isinstance(feature_pathlike, Path):
                 feature_path = self.features_base_dir / feature_pathlike
                 if feature_path.is_dir():
-                    yield from filter(methodcaller("is_file"), feature_path.glob("**/*"))
+                    yield from sorted(filter(methodcaller("is_file"), feature_path.glob("**/*")))
                 else:
                     yield feature_path
             else:
                 try:
-                    yield from filter(
-                        methodcaller("is_file"),
-                        self.features_base_dir.glob(os.fspath(feature_pathlike)),
+                    yield from sorted(
+                        filter(
+                            methodcaller("is_file"),
+                            self.features_base_dir.glob(os.fspath(feature_pathlike)),
+                        ),
                     )
                 except GlobError:
-                    yield from filter(methodcaller("is_file"), self.features_base_dir.glob("**/*"))
+                    yield from sorted(filter(methodcaller("is_file"), self.features_base_dir.glob("**/*")))
 
     def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[ParsedFeature, Source]]:
         """
@@ -460,7 +503,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             already_resolved_feature_paths.add(feature_path_key)
 
-            hook_handler = config.hook
+            hook_handler = cast("Config", config).hook
             encoding = self.encoding or "utf-8"
 
             if self.mimetype is None:
@@ -501,7 +544,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     **{"encoding": encoding, **parse_args.kwargs},
                 )
             except FeatureParseError:
-                if config.getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
+                if cast("Config", config).getoption(str(PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS)):
                     continue
                 else:
                     raise

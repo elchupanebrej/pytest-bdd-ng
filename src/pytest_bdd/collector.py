@@ -11,10 +11,8 @@ from typing import cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
-from _pytest.nodes import Collector
-
 from pytest_bdd.collector_batch import FeatureBatchParser
-from pytest_bdd.compatibility.pytest import Item
+from pytest_bdd.compatibility.pytest import Collector, Item
 from pytest_bdd.compatibility.pytest import Module as PytestModule
 from pytest_bdd.scenario import FeaturePathType as PathType
 from pytest_bdd.scenario import scenarios
@@ -109,13 +107,10 @@ class FeatureFileModule(Module):
             parsed_url = urlparse(path)
         except ValueError:
             features_path_type = PathType.UNDEFINED
-        except Exception:  # noqa: BLE001
-            logger.warning("URL parsing failed for %r", path, exc_info=True)
-            features_path_type = PathType.UNDEFINED
         else:
             if parsed_url.scheme == "file":
                 features_path_type = PathType.PATH
-                path = parsed_url.path
+                path = str(parsed_url.path)
             elif parsed_url.scheme:
                 features_path_type = PathType.URL
             else:
