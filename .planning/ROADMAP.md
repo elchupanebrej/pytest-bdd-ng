@@ -403,3 +403,13 @@ Plans:
 
 - [x] 17-01-PLAN.md — Create Makefile CI command API
 - [x] 17-02-PLAN.md — Migrate GitHub CI project-command steps to Makefile targets
+
+### Phase 18: Split xdist-remote tests into separate parallel GHA executor job
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 17
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] TBD (run /gsd-plan-phase 18 to break down) (completed 2026-06-02)
