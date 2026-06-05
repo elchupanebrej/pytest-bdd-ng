@@ -12,6 +12,7 @@ from pytest_bdd.util.tests_group_ordering import (
     GroupConfig,
     GroupPathMapping,
     _read_barrier_state,
+    _write_barrier_state,
     apply_group_ordering,
     apply_order_marker,
     read_group_config,
@@ -578,3 +579,51 @@ def test_marker_filter_selects_one_group_and_empty_selection_exits_cleanly(pytes
     selected.assert_outcomes(passed=1, deselected=1)
     assert empty.ret == pytest.ExitCode.NO_TESTS_COLLECTED
     empty.assert_outcomes(deselected=2)
+
+
+def test_barrier_state_read_retries_on_permission_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify barrier state read retries on PermissionError and eventually succeeds."""
+    state_path = tmp_path / "barrier.json"
+    content = '{"groups": ["g1"], "expected": {"g1": 1}, "finished": {}, "finished_nodeids": []}'
+    state_path.write_text(content, encoding="utf-8")
+
+    original_read_text = Path.read_text
+    call_count = 0
+
+    def race_read_text(path: Path, *args: object, **kwargs: object) -> str:
+        nonlocal call_count
+        if path == state_path:
+            call_count += 1
+            if call_count < 3:
+                raise PermissionError
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", race_read_text)
+
+    state = _read_barrier_state(state_path)
+    assert call_count == 3
+    assert state["groups"] == ["g1"]
+
+
+def test_barrier_state_write_retries_on_permission_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify barrier state write retries on PermissionError and eventually succeeds."""
+    state_path = tmp_path / "barrier.json"
+
+    original_replace = Path.replace
+    call_count = 0
+
+    def race_replace(path: Path, target: Path, *args: object, **kwargs: object) -> None:
+        nonlocal call_count
+        if target == state_path:
+            call_count += 1
+            if call_count < 3:
+                raise PermissionError
+        original_replace(path, target, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "replace", race_replace)
+
+    state = {"groups": ["g1"], "expected": {"g1": 1}, "finished": {}, "finished_nodeids": []}
+    _write_barrier_state(state_path, state)  # type: ignore[arg-type]
+
+    assert call_count == 3
+    assert _read_barrier_state(state_path)["groups"] == ["g1"]

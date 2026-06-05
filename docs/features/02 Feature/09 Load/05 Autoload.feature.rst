@@ -118,3 +118,43 @@ Scenario: Explicit scenario binding still runs when autoload is disabled
   +========+
   | 1      |
   +--------+
+
+Scenario: Explicit binding supports features_base_dir while autoload is disabled
+                                                                                
+
+- Given File "steps.feature" with content:
+
+  .. code:: gherkin
+
+     Feature: Explicit
+       Scenario: Explicit from features dir
+         Given explicit step
+
+- Given File "test_explicit.py" with content:
+
+  .. code:: python
+
+     from pytest_bdd import given, scenario
+
+     @scenario("steps.feature", "Explicit from features dir", features_base_dir=".")
+     def test_explicit_from_features_dir():
+       pass
+
+     @given("explicit step")
+     def _explicit_step():
+       pass
+
+- When run pytest
+
+  ======== ==========================
+  cli_args --disable-feature-autoload
+  ======== ==========================
+  ======== ==========================
+
+- Then pytest outcome must contain tests with statuses:
+
+  ====== ======
+  passed failed
+  ====== ======
+  1      0
+  ====== ======

@@ -40,7 +40,7 @@ Background:
      scenarios(".")
 
 Scenario: Batch collection discovers multiple feature files via directory scan
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 - When run pytest with batch collection
 - Then Batch collection processes 2 files

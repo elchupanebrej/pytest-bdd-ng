@@ -72,7 +72,7 @@ def parse(text: str, *, mimetype: Mimetype) -> dict:
     json_str = parse_gherkin_markdown(text) if mimetype == Mimetype.gherkin_markdown else parse_gherkin_document(text)
 
     result = json.loads(json_str)
-    if isinstance(result, list):
+    if not isinstance(result, dict):
         raise GherkinParseError(result)
 
     _log_version()

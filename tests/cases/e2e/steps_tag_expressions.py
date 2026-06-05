@@ -27,9 +27,5 @@ def tag_expression_evaluates(tag_expression, result, marks):
     marks_clean = marks.strip('"').strip("'")
     marks_list = ast.literal_eval(marks_clean)
     mock_marks = [MockMark(m) for m in marks_list]
-    from pytest_bdd.compatibility.pytest import MarkMatcher
-
-    expr = tag_expression.expression
-    matcher = MarkMatcher.from_markers(mock_marks)
-    actual = expr.evaluate(matcher) if expr is not None else True
+    actual = tag_expression.evaluate(mock_marks)
     assert actual == expected

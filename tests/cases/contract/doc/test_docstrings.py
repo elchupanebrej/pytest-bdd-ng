@@ -11,6 +11,7 @@ def test_all_exports_have_docstrings() -> None:
         obj = getattr(pytest_bdd, name)
         actual = inspect.unwrap(obj)
         doc = actual.__doc__
-        assert doc is not None and doc.strip(), f"{name} has no docstring"
+        assert doc is not None, f"{name} has no docstring"
+        assert doc.strip(), f"{name} has no docstring"
         assert "Args:" in doc or "Parameters" in doc, f"{name} docstring missing Args/Parameters section"
         assert "Returns:" in doc or "Return:" in doc, f"{name} docstring missing Returns section"

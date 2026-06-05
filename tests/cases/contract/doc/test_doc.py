@@ -242,7 +242,13 @@ def test_doc_generation_without_markers_preserves_intro_prefix_for_ordered_headi
         assert "Manual intro without markers." in rendered_index
         assert "features/legacy-feature" not in rendered_index
         assert "features/legacy-tutorial" not in rendered_index
-        assert_in_order(rendered_index, "Manual intro without markers.", "Tutorial", "Feature", "Load")
+        assert_in_order(
+            rendered_index,
+            "Manual intro without markers.",
+            "Tutorial\n--------",
+            "Feature\n-------",
+            "Load\n~~~~",
+        )
 
 
 @LATEST_PY313_LINUX_ONLY

@@ -33,6 +33,8 @@ def _resolve_cucumber_node_path(node_executable: str) -> str:
         [node_executable, "-p", "require('path').dirname(require.resolve('@cucumber/cucumber/package.json'))"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     if completed.returncode != 0:
@@ -63,6 +65,8 @@ def _run_node_renderer(
         [node_executable, str(script_path), str(payload_path)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
         cwd=str(tmp_path),
         env=env,
@@ -160,6 +164,8 @@ def test_usage_formatter_wraps_to_terminal_width(tmp_path: Path) -> None:
         [sys.executable, "-m", "pytest", str(tmp_path / "test_demo.py"), "--messages-ndjson", str(messages_path)],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
         cwd=str(tmp_path),
         env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[4] / "src")},

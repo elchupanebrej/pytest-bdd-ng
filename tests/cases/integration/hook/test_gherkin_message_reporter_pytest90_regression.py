@@ -39,12 +39,21 @@ def test_messages_reporter_avoids_old_style_teardown_warning_in_runtest_setup(te
         """,
     )
 
+    warnings_args = []
+    try:
+        import pluggy
+
+        if hasattr(pluggy, "PluggyTeardownRaisedWarning"):
+            warnings_args = ["-W", "error::pluggy.PluggyTeardownRaisedWarning"]
+    except ImportError:
+        pass
+
     result = testdir.runpytest_subprocess(
-        "-W",
-        "error::pluggy.PluggyTeardownRaisedWarning",
-        "--messages-ndjson=messages.ndjson",
+        *warnings_args,
+        f"--messages-ndjson={testdir.tmpdir.join('../messages.ndjson')}",
         "-q",
     )
 
     result.assert_outcomes(passed=1)
-    assert "PluggyTeardownRaisedWarning" not in result.stdout.str()
+    if warnings_args:
+        assert "PluggyTeardownRaisedWarning" not in result.stdout.str()

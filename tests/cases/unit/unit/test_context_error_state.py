@@ -230,8 +230,8 @@ class TestReportingLifecycleState:
         assert result["active_test_step_id"] == "step-1"
         assert result["runtime_step_to_test_step_id"] == {"1": "pickle-1", "2": "pickle-2"}
         assert result["scenario_attempt_context"] == {"attempt": 1, "scenario": "s1"}
-        assert result["step_started_timestamp"] == 1000.0
-        assert result["step_finished_timestamp"] == 2000.0
+        assert result["step_started_timestamp"] == pytest.approx(1000.0)
+        assert result["step_finished_timestamp"] == pytest.approx(2000.0)
 
     def test_as_dict_with_none_values(self):
         """as_dict handles None values correctly."""

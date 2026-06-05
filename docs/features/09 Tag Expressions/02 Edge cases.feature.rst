@@ -13,14 +13,14 @@ Scenario: Empty tag expression evaluates to True
 - And Tag expression evaluates to True for marks "[]"
 
 Scenario: Single tag expression
-''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''
 
 - Given Tag expression "smoke"
 - Then Tag expression evaluates to True for marks "['smoke', 'login']"
 - And Tag expression evaluates to False for marks "['slow', 'login']"
 
 Scenario: Triple AND expression
-''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''
 
 - Given Tag expression "smoke and login and regression"
 - Then Tag expression evaluates to True for marks "['smoke', 'login',
@@ -28,10 +28,10 @@ Scenario: Triple AND expression
 - And Tag expression evaluates to False for marks "['smoke', 'login']"
 
 Scenario: Deeply nested parentheses
-''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''
 
-- Given Tag expression "((smoke and not slow) or (login and not slow)) and
-  regression"
+- Given Tag expression "((smoke and not slow) or (login and not slow))
+  and regression"
 - Then Tag expression evaluates to True for marks "['smoke',
   'regression']"
 - And Tag expression evaluates to True for marks "['login',

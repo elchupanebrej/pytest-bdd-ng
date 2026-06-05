@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Item, Session
     from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
+    from pytest_bdd.model.scenario_run import ScenarioRun
     from pytest_bdd.scenario_locator import ScenarioLocatorResolver
 
 
@@ -46,6 +47,24 @@ def process_session_items(
     return seen_feature_pickles_ids, non_matched_feature_pickle_steps
 
 
+def _bind_and_track_pickle(
+    item: Item,
+    seen_feature_pickles_ids: set[tuple[str, str]],
+    non_matched_feature_pickle_steps: list[tuple[tuple[FeatureRuntimeBinding, Pickle], PickleStep]],
+) -> None:
+    item_request: FixtureRequest = item._request  # noqa: SLF001
+    pickle: Pickle = item_request.getfixturevalue("pickle")
+    gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
+    feature_source: Source = item_request.getfixturevalue("feature_source")
+    feature_binding = Run.from_stash(item_request.config.stash).ensure_feature_binding(
+        gherkin_document=gherkin_document,
+        source=feature_source,
+        pickles=(pickle,),
+    )
+    seen_feature_pickles_ids.add((feature_binding.uri, pickle.name))
+    process_pickle_steps(pickle, item_request, feature_binding, non_matched_feature_pickle_steps)
+
+
 def process_single_item(
     item: Item,
     seen_feature_pickles_ids: set[tuple[str, str]],
@@ -54,17 +73,7 @@ def process_single_item(
     """Handle processing for a single test item."""
     item.session._setupstate.setup(item)  # noqa: SLF001
     try:
-        item_request: FixtureRequest = item._request  # noqa: SLF001
-        pickle: Pickle = item_request.getfixturevalue("pickle")
-        gherkin_document: GherkinDocument = item_request.getfixturevalue("gherkin_document")
-        feature_source: Source = item_request.getfixturevalue("feature_source")
-        feature_binding = Run.from_stash(item_request.config.stash).ensure_feature_binding(
-            gherkin_document=gherkin_document,
-            source=feature_source,
-            pickles=(pickle,),
-        )
-        seen_feature_pickles_ids.add((feature_binding.uri, pickle.name))
-        process_pickle_steps(pickle, item_request, feature_binding, non_matched_feature_pickle_steps)
+        _bind_and_track_pickle(item, seen_feature_pickles_ids, non_matched_feature_pickle_steps)
     finally:
         item.session._setupstate.teardown_exact(None)  # type: ignore[call-arg]  # noqa: SLF001
 
@@ -86,19 +95,34 @@ def process_pickle_steps(
     previous_step: PickleStep | None = None
     for step in pickle.steps:
         try:
-            scenario_run.step_object = step
-            scenario_run.previous_step_object = previous_step
-            scenario_root = scenario_run.run
-            if scenario_root is None:
-                continue
-            item_request.config.hook.pytest_bdd_match_step_definition_to_step(
-                request=item_request,
-                run=scenario_root,
+            _match_step_to_definition(
+                scenario_run=scenario_run,
+                step=step,
+                previous_step=previous_step,
+                item_request=item_request,
             )
-        except StepDefinitionManager.Matcher.MatchNotFoundError:
+        except StepDefinitionManager.Matcher.MatchNotFoundError:  # noqa: PERF203
             non_matched_feature_pickle_steps.append(((feature_binding, pickle), step))
         finally:
             previous_step = step
+
+
+def _match_step_to_definition(
+    *,
+    scenario_run: ScenarioRun,
+    step: PickleStep,
+    previous_step: PickleStep | None,
+    item_request: FixtureRequest,
+) -> None:
+    scenario_run.step_object = step
+    scenario_run.previous_step_object = previous_step
+    scenario_root = scenario_run.run
+    if scenario_root is None:
+        return
+    item_request.config.hook.pytest_bdd_match_step_definition_to_step(
+        request=item_request,
+        run=scenario_root,
+    )
 
 
 def collect_features_and_seen_uris(
