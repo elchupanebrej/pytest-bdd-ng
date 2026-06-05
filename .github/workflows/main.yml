@@ -3,6 +3,8 @@ name: Main testing workflow
 
 on:  # yamllint disable-line rule:truthy
   push:
+    branches:
+      - default
   pull_request:
   workflow_dispatch:
 
@@ -12,8 +14,8 @@ jobs:
     defaults:
       run:
         shell: bash
-    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - "3.10"
@@ -40,27 +42,27 @@ jobs:
           - python-version: "3.12"
             os: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: 'recursive'
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "*"
       - name: Install pandoc
         uses: r-lib/actions/setup-pandoc@v2
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.2.0
       - name: Install npm dependencies
         run: |
           make env-install-npm
       - name: Test with tox
         run: |
-          make tox
+          make tox TOX_ARGS='--skip-env "xdist-remote-.*"'
       - name: Generated messages schemas are up to date
         if: matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest'
         run: |
@@ -77,3 +79,44 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           make dist-check
+
+  test-xdist-remote:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - socket
+          - via
+          - ssh
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: 'recursive'
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "*"
+      - name: Install pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.2.0
+      - name: Verify Docker toolchain
+        run: |
+          docker --version
+          docker compose version
+          docker info
+      - name: Install npm dependencies
+        run: |
+          make env-install-npm
+      - name: Test xdist remote with tox
+        run: |
+          target_env="py314-pytestlatest-xdist-remote-${{ matrix.mode }}-lin"
+          make tox TOX_ARGS="-e ${target_env}"

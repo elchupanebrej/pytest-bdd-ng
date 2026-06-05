@@ -69,7 +69,9 @@ def _parse_targets(text: str) -> dict[str, dict[str, object]]:
             continue
 
         is_assignment = any(op in line for op in (":=", "+=", "?=", "="))
-        is_keyword = line_stripped.startswith(("export", "ifeq", "ifneq", "else", "endif", "include", "define", "undefine", "override"))
+        is_keyword = line_stripped.startswith(
+            ("export", "ifeq", "ifneq", "else", "endif", "include", "define", "undefine", "override"),
+        )
 
         if not line.startswith(("\t", " ")) and ":" in line and not is_assignment and not is_keyword:
             target_part, dependency_part = line.split(":", maxsplit=1)
