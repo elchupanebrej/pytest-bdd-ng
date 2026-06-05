@@ -48,6 +48,7 @@ ifeq ($(GITHUB_ACTIONS),true)
 else
   TOX ?= uvx --with tox-uv tox
 endif
+TOX_ARGS ?=
 MAKE_COMMAND ?= make
 TOX_LINUX_ENVS ?= py314-pytestlatest-coverage-lin,py314-pytestlatest-gherkinlatest-xdist-coverage-lin
 TOX_WINDOWS_ENVS ?= py314-pytestlatest-coverage-win,py314-pytestlatest-gherkinlatest-xdist-coverage-win
@@ -407,17 +408,17 @@ render-tox-reports-run:
 	done
 
 sync-message-schemas: env-check
-	uv run python -m pytest_bdd.script.sync_messages_contract_schemas
+	uv run --extra test python -m pytest_bdd.script.sync_messages_contract_schemas
 
 tox: env-check-tox
-	$(TOX)
+	$(TOX) $(TOX_ARGS)
 
 env-install-npm:
 	npm install --no-save @cucumber/html-formatter cucumber-html-reporter
 	npm list
 
 check-message-schemas: env-check
-	uv run python -m pytest_bdd.script.sync_messages_contract_schemas --check
+	uv run --extra test python -m pytest_bdd.script.sync_messages_contract_schemas --check
 
 validate-github-actions: check-shell
 	@command -v act >/dev/null || { echo "ERROR: act missing. Install act: https://nektosact.com/installation/"; exit 1; }
