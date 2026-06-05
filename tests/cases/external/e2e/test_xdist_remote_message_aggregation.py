@@ -201,36 +201,101 @@ def run_remote_xdist_compose(
     from pytest_bdd.testing.docker_cluster import get_cluster_manager
 
     try:
-        mgr = get_cluster_manager()
-        mgr.set_backend(require_docker_daemon())
-        repo_root = Path(__file__).resolve().parents[2]
-
-        if verify_mode == "success-live":
-            _, artifact_dir = mgr.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
-            materialize_fake_node_runtime(
-                Path(artifact_dir) / "fake-node-runtime",
-                preinstalled_packages=("@cucumber/cucumber",),
-            )
-
-        result, docker_artifact_dir = mgr.run_in_controller(
-            remote_mode,
-            FIXTURE_DIR,
-            repo_root,
-            verify_mode,
-            fail_transport_workers,
+        return _run_remote_xdist_in_controller(
+            tmp_path,
+            remote_mode=remote_mode,
+            verify_mode=verify_mode,
+            fail_transport_workers=fail_transport_workers,
+            get_cluster_manager=get_cluster_manager,
         )
-
-        docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
-        if docker_report_path.exists():
-            shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
-
-        docker_capture_dir = docker_artifact_dir / "fake-node-runtime" / "fake-node-captures"
-        if docker_capture_dir.exists():
-            shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
-
-        return result
     finally:
         os.chdir(original_cwd)
+
+
+def _run_remote_xdist_in_controller(
+    tmp_path: Path,
+    *,
+    remote_mode: str,
+    verify_mode: str,
+    fail_transport_workers: str,
+    get_cluster_manager,
+) -> subprocess.CompletedProcess[str]:
+    mgr = get_cluster_manager()
+    mgr.set_backend(require_docker_daemon())
+    repo_root = Path(__file__).resolve().parents[2]
+
+    if verify_mode == "success-live":
+        _, artifact_dir = mgr.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
+        target_path = Path(artifact_dir) / "fake-node-runtime"
+        materialize_fake_node_runtime(
+            target_path,
+            preinstalled_packages=("@cucumber/cucumber",),
+        )
+        compose_cmd = mgr.active_clusters.get(remote_mode)
+        if compose_cmd:
+            mgr._run_docker_cmd(
+                [*compose_cmd, "exec", "-T", "controller", "rm", "-rf", "/fake-node-runtime"],
+                timeout=30,
+                env=mgr.compose_envs.get(remote_mode),
+            )
+            cp_res = mgr._run_docker_cmd(
+                [
+                    *compose_cmd,
+                    "cp",
+                    str(Path(artifact_dir) / "fake-node-runtime"),
+                    "controller:/fake-node-runtime",
+                ],
+                timeout=60,
+                env=mgr.compose_envs.get(remote_mode),
+            )
+            assert cp_res.returncode == 0, (
+                f"docker compose cp fake-node-runtime failed:\nstdout: {cp_res.stdout}\nstderr: {cp_res.stderr}"
+            )
+
+    result, docker_artifact_dir = mgr.run_in_controller(
+        remote_mode,
+        FIXTURE_DIR,
+        repo_root,
+        verify_mode,
+        fail_transport_workers,
+    )
+
+    docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
+    if docker_report_path.exists():
+        shutil.copy2(docker_report_path, tmp_path / REPORT_NAME)
+    else:
+        compose_cmd = mgr.active_clusters.get(remote_mode)
+        if compose_cmd:
+            cp_res = mgr._run_docker_cmd(
+                [*compose_cmd, "cp", "controller:/artifacts/remote-xdist.ndjson", str(tmp_path / REPORT_NAME)],
+                timeout=30,
+                env=mgr.compose_envs.get(remote_mode),
+            )
+            assert cp_res.returncode == 0, (
+                f"docker compose cp report failed:\nstdout: {cp_res.stdout}\nstderr: {cp_res.stderr}"
+            )
+
+    docker_capture_dir = docker_artifact_dir / "fake-node-runtime" / "fake-node-captures"
+    if docker_capture_dir.exists():
+        shutil.copytree(docker_capture_dir, tmp_path / "fake-node-captures", dirs_exist_ok=True)
+    elif verify_mode == "success-live":
+        compose_cmd = mgr.active_clusters.get(remote_mode)
+        if compose_cmd:
+            cp_res = mgr._run_docker_cmd(
+                [
+                    *compose_cmd,
+                    "cp",
+                    "controller:/fake-node-runtime/fake-node-captures",
+                    str(tmp_path / "fake-node-captures"),
+                ],
+                timeout=30,
+                env=mgr.compose_envs.get(remote_mode),
+            )
+            assert cp_res.returncode == 0, (
+                f"docker compose cp captures failed:\nstdout: {cp_res.stdout}\nstderr: {cp_res.stderr}"
+            )
+
+    return result
 
 
 @pytest.mark.parametrize("remote_mode", REMOTE_MODES)

@@ -16,7 +16,7 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.model.run import Run
 from pytest_bdd.parsers import cucumber_expression
-from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.steps import Matcher, Registry, StepDefinitionManager
 from pytest_bdd.util.other import IdGenerator
 
 from .const import Steps
@@ -94,7 +94,7 @@ _step_registry = StepDefinitionManager.Registry()
 
 
 @pytest.fixture
-def step_registry() -> StepDefinitionManager.Registry:
+def step_registry() -> Registry:
     """
     Fixture containing registry of all user-defined steps.
 
@@ -109,7 +109,7 @@ step_registry.__pytest_bdd_step_definitions__ = _step_registry  # type: ignore[a
 
 
 @pytest.fixture
-def step_matcher(pytestconfig: Config) -> StepDefinitionManager.Matcher:
+def step_matcher(pytestconfig: Config) -> Matcher:
     """
     Fixture containing matcher to help find step definition for selected step of scenario.
 

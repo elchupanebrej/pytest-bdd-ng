@@ -80,10 +80,12 @@ def _alpine_wsl2_available() -> bool:
     stdout = result.stdout
     if isinstance(stdout, bytes):
         try:
-            stdout = stdout.decode("utf-16-le")
+            stdout_str = stdout.decode("utf-16-le")
         except UnicodeDecodeError:
-            stdout = stdout.decode(errors="replace")
-    return any("Alpine" in line and "2" in line.split()[-1] for line in stdout.splitlines())
+            stdout_str = stdout.decode(errors="replace")
+    else:
+        stdout_str = stdout
+    return any("Alpine" in line and "2" in line.split()[-1] for line in stdout_str.splitlines())
 
 
 # ── T003: Docker Desktop auto-start ───────────────────────────────────────────
@@ -148,7 +150,7 @@ def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
                 capture_output=True,
                 text=True,
             )
-        if result.returncode == 0:
+        if result.returncode == 0 and ("ostype: linux" in result.stdout.lower() or not result.stdout.strip()):
             return True
         time.sleep(2)
     return False
@@ -202,7 +204,7 @@ def docker_daemon_available() -> tuple[bool, str | None]:
             capture_output=True,
             text=True,
         )
-        if result.returncode == 0:
+        if result.returncode == 0 and ("ostype: linux" in result.stdout.lower() or not result.stdout.strip()):
             return (True, "native")
 
     # Fall back to WSL2 Alpine
@@ -215,7 +217,7 @@ def docker_daemon_available() -> tuple[bool, str | None]:
                 capture_output=True,
                 text=True,
             )
-            if result.returncode == 0:
+            if result.returncode == 0 and ("ostype: linux" in result.stdout.lower() or not result.stdout.strip()):
                 return (True, "wsl2")
 
     # Attempt to start Docker Desktop
@@ -246,15 +248,28 @@ def require_docker_daemon() -> str:
     """
     docker_daemon_available.cache_clear()
     available, backend = docker_daemon_available()
-    if available:
+    if available and backend is not None:
         return backend
 
     # Determine the specific failure reason
     docker_bin = _resolve_tool_path("docker")
     if docker_bin is None:
-        pytest.fail("Docker Desktop not installed")
+        pytest.skip("Docker Desktop not installed")
+
+    # If docker is installed, let's check if it's running but in the wrong container mode (Windows instead of Linux)
+    try:
+        result = subprocess.run(  # noqa: S603
+            [docker_bin, "info"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0 and "ostype: linux" not in result.stdout.lower() and result.stdout.strip():
+            pytest.skip("Docker daemon is running in Windows Containers mode. Linux containers are required.")
+    except OSError:
+        pass
 
     if not _alpine_wsl2_available():
-        pytest.fail("WSL2 Alpine dist not found")
+        pytest.skip("WSL2 Alpine dist not found")
 
-    pytest.fail("Docker Desktop did not start within timeout")
+    pytest.skip("Docker Desktop did not start within timeout")

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Literal, Self, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from attrs import define, field
 from returns.maybe import Nothing
@@ -11,6 +11,7 @@ from returns.result import Result
 from pytest_bdd.model.feature_binding import FeatureRuntimeBinding
 from pytest_bdd.model.message_registry import EnvelopeRegistry, IdentifiableObjectRegistry
 from pytest_bdd.model.run.refs import (
+    LifecycleKind,
     LifecycleObjectRef,
     NoPreviousStep,
     _inactive_feature_ref,
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from cucumber_messages import GherkinDocument, Pickle, PickleStep, Source
 
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Session, Stash
+    from pytest_bdd.compatibility.typing import Self
     from pytest_bdd.model.scenario_run import ScenarioRun
     from pytest_bdd.types.json import JSONArray, JSONObject, JSONValue
 
@@ -148,7 +150,7 @@ class ContextErrorState:
     message: str
     hook_name: str
     stage: RunStage
-    requested_kind: LifecycleObjectRef.kind | None = None
+    requested_kind: LifecycleKind | None = None
 
     def as_dict(self) -> JSONObject:
         """

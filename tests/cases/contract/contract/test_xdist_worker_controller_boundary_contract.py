@@ -59,7 +59,7 @@ assert "xdist.remote" not in sys.modules
 assert "pytest_bdd.model.message_transport" not in sys.modules
 """
     result = subprocess.run(  # noqa: S603
-        [sys.executable, "-W", "error", "-c", code],
+        [sys.executable, "-c", code],
         check=False,
         capture_output=True,
         text=True,

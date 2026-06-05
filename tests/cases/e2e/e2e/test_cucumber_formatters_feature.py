@@ -52,8 +52,6 @@ def _run_pytest_subprocess_with_attachments(testdir, attach, *cli_args: str):
         result,
         label="nested-pytest",
         command="pytest " + " ".join(cli_args),
-        harness_stdout="",
-        harness_stderr="",
     )
     return result
 

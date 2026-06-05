@@ -21,7 +21,6 @@ from cucumber_messages import (
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
-from returns.maybe import Nothing
 
 from pytest_bdd.model.run_access import require_step_object
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
@@ -35,7 +34,7 @@ if TYPE_CHECKING:
     from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime import LifecycleService
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
     from pytest_bdd.plugin.gherkin_message_reporter.transport_runtime import TransportService
-    from pytest_bdd.steps import StepDefinitionManager
+    from pytest_bdd.steps import Definition
 
 
 class ScenarioService(ReporterServiceBase):
@@ -91,7 +90,7 @@ class ScenarioService(ReporterServiceBase):
             if matched_name:
                 return fallback_expression, matched_name.group(1)
 
-        return Nothing.value_or(None)
+        return None
 
     def pytest_bdd_step_func_lookup_error(
         self,
@@ -282,7 +281,7 @@ class ScenarioService(ReporterServiceBase):
         step_func: object,  # noqa: ARG002
         step_func_args: Mapping[str, object],  # noqa: ARG002
         exception: Exception,
-        step_definition: StepDefinitionManager.Definition,  # noqa: ARG002
+        step_definition: Definition,  # noqa: ARG002
     ) -> None:
         """Handle the pytest bdd step error pytest hook."""
         if self.reporter.is_disabled:

@@ -234,7 +234,7 @@ def read_fake_formatter_telemetry(tmp_path: Path) -> list[dict[str, Any]]:
 
 
 def _load_support_template(template_name: str) -> str:
-    return _TEMPLATE_RESOURCE_DIR.joinpath(template_name).read_text(encoding="utf-8")
+    return str(_TEMPLATE_RESOURCE_DIR.joinpath(template_name).read_text(encoding="utf-8"))
 
 
 def _render_support_template(template_name: str, *, replacements: dict[str, str] | None = None) -> str:
@@ -384,7 +384,7 @@ def materialize_live_formatter_runtime(
             },
         )
 
-    runtime_assets = FormatterPluginCatalog.discover().render_runtime_assets(formatter_requests)
+    runtime_assets = FormatterPluginCatalog.discover().render_runtime_assets(tuple(formatter_requests))
     for relative_path, rendered_asset in runtime_assets.items():
         asset_path = root_path / relative_path
         asset_path.parent.mkdir(parents=True, exist_ok=True)

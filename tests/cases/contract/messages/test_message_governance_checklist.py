@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pytest_bdd.model.message_baseline_diff import BaselineDiffRecord
 from pytest_bdd.model.message_governance_checklist import build_governance_checklist, render_checklist_markdown
@@ -48,7 +48,7 @@ def test_build_governance_checklist_marks_newly_changed_capabilities() -> None:
         added_capability_ids=("cap-new",),
         changed_capability_ids=("cap-changed",),
         removed_capability_ids=(),
-        generated_at=datetime(2026, 2, 25, 8, 0, tzinfo=UTC),
+        generated_at=datetime(2026, 2, 25, 8, 0, tzinfo=timezone.utc),
     )
 
     checklist = build_governance_checklist(capabilities, decisions, baseline_diff=diff)

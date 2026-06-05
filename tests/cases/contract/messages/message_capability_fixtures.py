@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pytest_bdd.model.message_capability import MessageCapability
 from pytest_bdd.model.message_outcome_mapping import OutcomeMappingRule
@@ -11,7 +11,7 @@ from pytest_bdd.model.message_status_governance import CapabilityDecision
 
 def utc_now() -> datetime:
     """Handle utc now."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def make_capability(

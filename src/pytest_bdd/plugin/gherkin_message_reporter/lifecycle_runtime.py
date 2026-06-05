@@ -39,7 +39,6 @@ from cucumber_messages import (  # type:ignore[attr-defined, import-untyped]
 )
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Exception as CucumberException
-from returns.maybe import Nothing
 
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.compatibility.pytest import Config, is_set, is_testrun_success
@@ -283,6 +282,9 @@ class LifecycleService(ReporterServiceBase):
             RuntimeError: If the operation cannot be completed.
 
         """
+        if self.reporter.is_xdist_worker:
+            os.environ.pop("PYTEST_BDD_XDIST_IS_WORKER", None)
+
         if self.reporter.is_disabled:
             self._emit_disabled_warning_once()
             return
@@ -352,7 +354,7 @@ class LifecycleService(ReporterServiceBase):
     def _build_ci_message(env: Mapping[str, str]) -> Ci | None:
         ci_payload = detect_ci_environment(env)
         if ci_payload is None:
-            return Nothing.value_or(None)
+            return None
         enriched_payload = LifecycleService._enrich_ci_payload(ci_payload, env)
         return message_converter.from_dict(enriched_payload, Ci)
 
@@ -411,7 +413,7 @@ class LifecycleService(ReporterServiceBase):
             value = (env.get(name) or "").strip()
             if value:
                 return value.removeprefix("refs/heads/")
-        return Nothing.value_or(None)
+        return None
 
     @staticmethod
     def _require_run_started_id(*, config: Config) -> str:
@@ -428,9 +430,9 @@ class LifecycleService(ReporterServiceBase):
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
         scenario_run = run.active_scenario_run
         if scenario_run is None:
-            return Nothing.value_or(None), None
+            return None, None
         if not is_set(scenario_run.gherkin_document) or not is_set(scenario_run.pickle):
-            return Nothing.value_or(None), None
+            return None, None
         return scenario_run.gherkin_document, scenario_run.pickle
 
     def _emit_run_hook_definition(self, config: Config, *, hook_id: str, hook_type: HookType, hook_name: str) -> None:

@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from filelock import FileLock
-from returns.maybe import Nothing
 
 from pytest_bdd.model.cucumber_formatter_contract import CucumberFormatterRequest, NodePackageProvisionResult
 from pytest_bdd.plugin.gherkin_message_reporter.session import format_requested_cucumber_formatter_labels
@@ -20,11 +19,16 @@ from pytest_bdd.plugin.gherkin_message_reporter.session import format_requested_
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
+
 logger = logging.getLogger(__name__)
 
 
 class LiveFormatterNodeMixin:
     """Provide live formatter Node.js package resolution behavior."""
+
+    if TYPE_CHECKING:
+        reporter: GherkinMessageReporter
 
     @staticmethod
     def _prepend_node_path(env: Mapping[str, str], *node_modules_roots: Path) -> dict[str, str]:
@@ -39,7 +43,9 @@ class LiveFormatterNodeMixin:
 
     @classmethod
     def _build_node_execution_env(cls, *node_modules_roots: Path) -> dict[str, str]:
-        return cls._prepend_node_path(os.environ, *node_modules_roots)
+        env = cls._prepend_node_path(os.environ, *node_modules_roots)
+        env["NPM_CONFIG_PREFIX"] = str(Path.home() / ".npm-global")
+        return env
 
     def _node_package_installed(self, node_executable: str, package_name: str, *, env: Mapping[str, str]) -> bool:
         return self._resolve_node_package_root(node_executable, package_name, env=env) is not None
@@ -59,7 +65,7 @@ class LiveFormatterNodeMixin:
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
-            return Nothing.value_or(None)
+            return None
         return Path(completed.stdout.strip()).resolve()
 
     @staticmethod
@@ -72,7 +78,7 @@ class LiveFormatterNodeMixin:
         for index in range(len(resolved_parts) - len(package_parts) + 1):
             if resolved_parts[index : index + len(package_parts)] == package_parts:
                 return Path(*resolved_parts[:index])
-        return Nothing.value_or(None)
+        return None
 
     def _resolve_node_package_root(
         self,
@@ -90,7 +96,7 @@ class LiveFormatterNodeMixin:
             env=dict(env),
         )
         if completed.returncode != 0 or not completed.stdout.strip():
-            return Nothing.value_or(None)
+            return None
         return self._infer_node_modules_root_from_resolved_package_path(
             Path(completed.stdout.strip()).resolve(),
             package_name,
@@ -249,11 +255,11 @@ class LiveFormatterNodeMixin:
             purpose=f"cucumber formatter rendering ({formatter_labels})",
         )
         if provision_result.missing_node:
-            return Nothing.value_or(None), {}, [], {}, ()
+            return None, {}, [], {}, ()
 
         node_executable = shutil.which("node") or shutil.which("nodejs")
         if node_executable is None:
-            return Nothing.value_or(None), {}, [], {}, ()
+            return None, {}, [], {}, ()
 
         node_env = provision_result.env or self._build_node_execution_env()
         runnable_requests: list[CucumberFormatterRequest] = []

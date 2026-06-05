@@ -4,21 +4,33 @@ from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
-from typing import Any
+from typing import TYPE_CHECKING, ParamSpec, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+P = ParamSpec("P")
+R = TypeVar("R")
 
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off"})
 
 
-def coerce_captured_text(stream: Any) -> str:
-    """Handle coerce captured text."""
+def coerce_captured_text(stream: object) -> str:
+    """
+    Handle coerce captured text.
+
+    Returns:
+        Captured text as a plain string.
+
+    """
     if stream is None:
         return ""
     if isinstance(stream, str):
         return stream
     str_method = getattr(stream, "str", None)
     if callable(str_method):
-        return str_method()
+        return str(str_method())
     lines = getattr(stream, "lines", None)
     if isinstance(lines, list):
         return "\n".join(lines)
@@ -26,13 +38,12 @@ def coerce_captured_text(stream: Any) -> str:
 
 
 def attach_command_result_outputs(
-    attach,
-    result: Any,
+    attach: Callable[..., object],
+    result: object,
     *,
     label: str,
     command: str | None = None,
-    harness_stdout: str = "",
-    harness_stderr: str = "",
+    harness_outputs: tuple[str, str] = ("", ""),
 ) -> None:
     # Nested pytest/docker helper runs are harness diagnostics, not user-facing terminal
     # reporting. Keep them as attachments so the active cucumber formatter remains the
@@ -68,6 +79,7 @@ def attach_command_result_outputs(
             file_name=f"{label}.stderr.txt",
         )
 
+    harness_stdout, harness_stderr = harness_outputs
     if harness_stdout:
         attach(
             harness_stdout,
@@ -83,8 +95,14 @@ def attach_command_result_outputs(
         )
 
 
-def run_quietly(command, /, *args: Any, **kwargs: Any) -> tuple[Any, str, str]:
-    """Run quietly."""
+def run_quietly(command: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> tuple[R, str, str]:
+    """
+    Run quietly.
+
+    Returns:
+        Command result, captured stdout, and captured stderr.
+
+    """
     stdout_buffer = StringIO()
     stderr_buffer = StringIO()
     with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
@@ -92,8 +110,14 @@ def run_quietly(command, /, *args: Any, **kwargs: Any) -> tuple[Any, str, str]:
     return result, stdout_buffer.getvalue(), stderr_buffer.getvalue()
 
 
-def combined_result_output(result: Any) -> str:
-    """Handle combined result output."""
+def combined_result_output(result: object) -> str:
+    """
+    Handle combined result output.
+
+    Returns:
+        Combined stdout and stderr text.
+
+    """
     stdout = coerce_captured_text(getattr(result, "stdout", None))
     stderr = coerce_captured_text(getattr(result, "stderr", None))
     return "\n".join(part for part in (stdout, stderr) if part)
@@ -114,6 +138,9 @@ def _coerce_bool_option(raw_value: object, *, option_name: str) -> bool:
 def resolve_pytester_run_mode(options_dict: dict[str, list[object]]) -> str:
     """
     Resolve pytester run mode.
+
+    Returns:
+        Selected pytester run mode.
 
     Raises:
         ValueError: If the operation cannot be completed.

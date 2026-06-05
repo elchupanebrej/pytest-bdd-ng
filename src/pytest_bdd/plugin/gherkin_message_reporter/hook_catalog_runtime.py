@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
-from _pytest.mark import Mark  # noqa: PLC2701
 from cucumber_messages import Envelope as Message  # type:ignore[attr-defined]
 from cucumber_messages import Hook, HookType, JavaMethod, JavaStackTraceElement, Location, SourceReference
 
 from pytest_bdd.compatibility.path import resolvepath
+from pytest_bdd.compatibility.pytest import Mark
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import HookRegistration
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.tag_expression import GherkinTagExpression, MarksTagExpression
@@ -27,6 +27,23 @@ if TYPE_CHECKING:
     from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 logger = logging.getLogger(__name__)
+
+
+def _evaluate_hook_expression(
+    *,
+    kind: str,
+    expression: str,
+    request: FixtureRequest,
+    pickle: _PickleWithTags,
+) -> bool:
+    if kind == "mark":
+        mark_expression = MarksTagExpression.parse(expression)
+        return bool(mark_expression.evaluate(list(request.node.iter_markers())))
+    if kind == "tag":
+        tag_expression = GherkinTagExpression.parse(expression)
+        scenario_tags = [Mark(tag.name, args=(), kwargs={}, _ispytest=True) for tag in pickle.tags]
+        return bool(tag_expression.evaluate(scenario_tags))
+    return False
 
 
 class _ScenarioTag(Protocol):
@@ -147,18 +164,12 @@ class HookCatalogService(ReporterServiceBase):
             return True
 
         try:
-            if kind == "mark":
-                mark_expression = MarksTagExpression.parse(expression)
-                return bool(mark_expression.evaluate(list(request.node.iter_markers())))
-            if kind == "tag":
-                tag_expression = GherkinTagExpression.parse(expression)
-                scenario_tags = []
-                for tag in pickle.tags:
-                    mark = Mark(tag.name, args=(), kwargs={}, _ispytest=True)
-                    scenario_tags.append(mark)
-                return bool(tag_expression.evaluate(scenario_tags))
-        except Exception:  # noqa: BLE001
+            return _evaluate_hook_expression(
+                kind=kind,
+                expression=expression,
+                request=request,
+                pickle=pickle,
+            )
+        except ValueError:
             logger.warning("Failed to evaluate hook expression %r", expression, exc_info=True)
             return False
-
-        return False

@@ -7,7 +7,7 @@ import pytest
 
 from pytest_bdd.compatibility.pytest import FixtureRequest
 from pytest_bdd.model.run import Run
-from pytest_bdd.steps import Step, StepDefinitionManager, StepFunc
+from pytest_bdd.steps import Definition, Step, StepFunc
 
 
 class PickleRunnerHookSpec:
@@ -43,7 +43,7 @@ class PickleRunnerHookSpec:
         run: Run,
         step_func: StepFunc,
         step_func_args: dict[str, object],
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
     ) -> None:
         """Call before step function is executed."""
 
@@ -53,7 +53,7 @@ class PickleRunnerHookSpec:
         run: Run,
         step_func: StepFunc,
         step_func_args: dict[str, object],
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
     ) -> None:
         """Call after step function is successfully executed."""
 
@@ -64,7 +64,7 @@ class PickleRunnerHookSpec:
         step_func: StepFunc,
         step_func_args: dict[str, object],
         exception: Exception,
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
     ) -> None:
         """Call when step function failed to execute."""
 
@@ -81,7 +81,7 @@ class PickleRunnerHookSpec:
         self,
         request: FixtureRequest,
         run: Run,
-    ) -> StepDefinitionManager.Definition | None:
+    ) -> Definition | None:
         """Find match between scenario step and user defined step function."""
 
     @pytest.hookspec(firstresult=True)
@@ -91,7 +91,7 @@ class PickleRunnerHookSpec:
         run: Run,
         step_func: StepFunc,
         step_func_args: dict[str, object],
-        step_definition: StepDefinitionManager.Definition,
+        step_definition: Definition,
     ) -> Callable[[], object] | None:
         """Provide alternative approach to execute step."""
 

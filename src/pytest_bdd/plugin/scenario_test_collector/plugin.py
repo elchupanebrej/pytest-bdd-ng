@@ -51,7 +51,12 @@ from pytest_bdd.model.scenario_collection import (
     FeatureAutoLoad,
 )
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser, ParserProtocol
-from pytest_bdd.steps import StepDefinitionManager
+from pytest_bdd.steps import (
+    Definition,
+    Matcher,
+    NamespaceStepRegistryProtocol,
+    Registry,
+)
 from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 from pytest_bdd.util.toolz_extra import chain_map
 
@@ -169,12 +174,12 @@ def _allow_empty_scenarios(config: Config) -> bool:
 def _iter_collection_step_definitions(
     config: Config,
     module: object,
-) -> Iterator[StepDefinitionManager.Definition]:
+) -> Iterator[Definition]:
     seen_registries: set[int] = set()
     namespaces = (module, *config.pluginmanager.get_plugins())
     for namespace in namespaces:
         registry = getattr(namespace, "_step_registry", None)
-        if not isinstance(registry, StepDefinitionManager.Registry):
+        if not isinstance(registry, Registry):
             continue
         registry_id = id(registry)
         if registry_id in seen_registries:
@@ -186,9 +191,9 @@ def _iter_collection_step_definitions(
 def _build_collection_step_registry(
     config: Config,
     module: object,
-) -> StepDefinitionManager.Registry:
-    registry = StepDefinitionManager.Registry()
-    registry.registry.update(_iter_collection_step_definitions(config, module))
+) -> Registry:
+    registry = Registry()
+    registry.registry.update(list(_iter_collection_step_definitions(config, module)))
     return registry
 
 
@@ -196,10 +201,10 @@ def _scenario_has_step_match(
     config: Config,
     gherkin_document: GherkinDocument,
     pickle: Pickle,
-    step_registry: StepDefinitionManager.Registry,
+    step_registry: Registry,
 ) -> bool:
     request = cast("FixtureRequest", _CollectionFixtureRequest())
-    matcher = StepDefinitionManager.Matcher(config)
+    matcher = Matcher(config)
     previous_step: PickleStep | None = None
     feature = gherkin_document.feature
     for step in pickle.steps:
@@ -207,7 +212,7 @@ def _scenario_has_step_match(
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", PytestBDDStepDefinitionWarning)
                 matcher(request, feature, pickle, step, previous_step, step_registry)
-        except (LookupError, StepDefinitionManager.Matcher.MatchNotFoundError):
+        except (LookupError, Matcher.MatchNotFoundError):
             previous_step = step
             continue
         return True
@@ -310,8 +315,8 @@ class ScenarioTestCollector(_ModernTestCollector):
     ) -> None:
         """Handle plugin registered."""
         if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
-            StepDefinitionManager.Registry.inject_registry_fixture_and_register_steps(
-                cast("StepDefinitionManager.NamespaceStepRegistryProtocol", plugin),
+            Registry.inject_registry_fixture_and_register_steps(
+                cast("NamespaceStepRegistryProtocol", plugin),
             )
 
     @pytest.hookimpl
@@ -362,7 +367,7 @@ class ScenarioTestCollector(_ModernTestCollector):
         self,
         request: FixtureRequest,
         run: Run,
-    ) -> StepDefinitionManager.Definition:
+    ) -> Definition:
         """
         Match step definition to step.
 
@@ -374,8 +379,8 @@ class ScenarioTestCollector(_ModernTestCollector):
         pickle = require_pickle_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         step = require_step_object(run, hook_name="pytest_bdd_match_step_definition_to_step")
         previous_step = resolve_previous_step_object(run)
-        step_registry: StepDefinitionManager.Registry = request.getfixturevalue("step_registry")
-        step_matcher: StepDefinitionManager.Matcher = request.getfixturevalue("step_matcher")
+        step_registry: Registry = request.getfixturevalue("step_registry")
+        step_matcher: Matcher = request.getfixturevalue("step_matcher")
 
         return step_matcher(request, gherkin_document, pickle, step, previous_step, step_registry)
 

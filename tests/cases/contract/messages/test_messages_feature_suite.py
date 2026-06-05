@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from collections import defaultdict
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -249,7 +249,7 @@ def _generate_feature_suite_messages(
     if xdist_workers is not None:
         cli_args.extend(["-n", str(xdist_workers)])
 
-    result = testdir.runpytest_subprocess(*cli_args)
+    result = testdir.runpytest_subprocess(*cli_args, str(testdir.tmpdir))
     result.assert_outcomes(passed=2, failed=1)
 
     messages = parse_ndjson_messages(ndjson_path)
@@ -389,32 +389,32 @@ def test_feature_driven_message_suite_html_report_renders_in_browser(
 
     page_errors: list[str] = []
     console_errors: list[str] = []
-    with _serve_directory(tmp_path) as base_url, playwright_sync_api.sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        try:
-            page = browser.new_page()
-            page.on("pageerror", lambda exception: page_errors.append(str(exception)))
-            page.on(
-                "console",
-                lambda message: console_errors.append(message.text) if message.type == "error" else None,
-            )
-            page.goto(f"{base_url}/{html_report_path.name}", wait_until="load")
-            page.get_by_role("heading", name="Scenarios", exact=True).wait_for(state="visible", timeout=10000)
-            page.get_by_role("heading", name="before-test-run", exact=True).wait_for(state="visible", timeout=10000)
-            page.get_by_role("heading", name="after-test-run", exact=True).wait_for(state="visible", timeout=10000)
-            page.get_by_text("pass path", exact=True).wait_for(state="visible", timeout=10000)
-            page.get_by_text("fail path", exact=True).wait_for(state="visible", timeout=10000)
-            text_attachment_locator = page.locator("summary").filter(
-                has_text="Attached Text (text/plain;charset=UTF-8)",
-            )
-            binary_attachment_locator = page.get_by_text("Download payload.bin", exact=True)
-            text_attachment_locator.first.wait_for(state="visible", timeout=10000)
-            binary_attachment_locator.first.wait_for(state="visible", timeout=10000)
-            assert text_attachment_locator.count() >= 1
-            assert binary_attachment_locator.count() >= 1
-            assert page.locator("text=No test run hooks were executed.").count() == 0
-        finally:
-            browser.close()
+    with (
+        _serve_directory(tmp_path) as base_url,
+        playwright_sync_api.sync_playwright() as playwright,
+        closing(playwright.chromium.launch()) as browser,
+    ):
+        page = browser.new_page()
+        page.on("pageerror", lambda exception: page_errors.append(str(exception)))
+        page.on(
+            "console",
+            lambda message: console_errors.append(message.text) if message.type == "error" else None,
+        )
+        page.goto(f"{base_url}/{html_report_path.name}", wait_until="load")
+        page.get_by_role("heading", name="Scenarios", exact=True).wait_for(state="visible", timeout=10000)
+        page.get_by_role("heading", name="before-test-run", exact=True).wait_for(state="visible", timeout=10000)
+        page.get_by_role("heading", name="after-test-run", exact=True).wait_for(state="visible", timeout=10000)
+        page.get_by_text("pass path", exact=True).wait_for(state="visible", timeout=10000)
+        page.get_by_text("fail path", exact=True).wait_for(state="visible", timeout=10000)
+        text_attachment_locator = page.locator("summary").filter(
+            has_text="Attached Text (text/plain;charset=UTF-8)",
+        )
+        binary_attachment_locator = page.get_by_text("Download payload.bin", exact=True)
+        text_attachment_locator.first.wait_for(state="visible", timeout=10000)
+        binary_attachment_locator.first.wait_for(state="visible", timeout=10000)
+        assert text_attachment_locator.count() >= 1
+        assert binary_attachment_locator.count() >= 1
+        assert page.locator("text=No test run hooks were executed.").count() == 0
 
     assert page_errors == []
     assert console_errors == []

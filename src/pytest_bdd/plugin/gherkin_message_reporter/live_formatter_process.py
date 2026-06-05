@@ -7,7 +7,10 @@ import logging
 import subprocess  # noqa: S404
 import sys
 from contextlib import suppress
-from typing import IO, Protocol
+from typing import IO, TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from pytest_bdd.plugin.gherkin_message_reporter.plugin import GherkinMessageReporter
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,9 @@ class LiveFormatterProcess(Protocol):
 
 class LiveFormatterProcessMixin:
     """Provide live formatter process lifecycle behavior."""
+
+    if TYPE_CHECKING:
+        reporter: GherkinMessageReporter
 
     def _finalize_live_formatter_process(self, process: LiveFormatterProcess) -> None:
         flush_lines = self._build_live_formatter_flush_json_lines()

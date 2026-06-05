@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Self
+from typing import TYPE_CHECKING, Literal
 
 from attrs import define
 
 if TYPE_CHECKING:
+    from pytest_bdd.compatibility.typing import Self
     from pytest_bdd.types.json import JSONObject
 
 LifecycleKind = Literal["run", "feature", "scenario", "step"]

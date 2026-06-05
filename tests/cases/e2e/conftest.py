@@ -161,8 +161,7 @@ def run_pytest(testdir: "Testdir", step, attach):
         outcome,
         label="nested-pytest",
         command="pytest " + " ".join(cli_args),
-        harness_stdout=harness_stdout,
-        harness_stderr=harness_stderr,
+        harness_outputs=(harness_stdout, harness_stderr),
     )
 
     yield outcome
@@ -215,8 +214,7 @@ def _(testdir: "Testdir", step, attach):
         result,
         label="npm-install",
         command="npm install --silent " + " ".join(packages),
-        harness_stdout=harness_stdout,
-        harness_stderr=harness_stderr,
+        harness_outputs=(harness_stdout, harness_stderr),
     )
     yield result
 

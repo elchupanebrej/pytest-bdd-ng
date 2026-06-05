@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def main():
+def main() -> None:
     """Run main."""
     remote_mode = os.environ.get("PYTEST_REMOTE_MODE", "socket")
 
