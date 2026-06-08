@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 19-04-PLAN.md
-last_updated: "2026-06-04T18:18:28.141Z"
-last_activity: 2026-06-04
+status: executing
+stopped_at: Completed handoff and committed all changes (Phase 20 Pylint / docstring cleanups)
+last_updated: "2026-06-13T14:56:00Z"
+last_activity: 2026-06-13 -- Completed handoff and committed all changes
 progress:
-  total_phases: 19
+  total_phases: 20
   completed_phases: 19
-  total_plans: 67
-  completed_plans: 67
-  percent: 100
+  total_plans: 99
+  completed_plans: 98
+  percent: 95
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 19 - html-doc-generation-simplification
+**Current focus:** Phase 20 — multiple-refactorings
 
 ## Current Position
 
-Phase: 19 (html-doc-generation-simplification) - EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-06-04
+Phase: 20 (multiple-refactorings) — EXECUTING
+Plan: 1 of 32
+Status: Milestone v1.0 audit passed
+Last activity: 2026-06-13 -- remaining gaps closed; docs/api/generated moved to docs/_build
 
-Progress: [██████████] 100%
+Progress: [█████████░] 99%
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase 19]: Active contributor documentation now names make docs instead of the removed feature RST generator.
 - [Phase 19]: Remote xdist Docker assets copy README.md, matching current package metadata.
 - [Phase 19]: ReadTheDocs preview, README rendering, and CHANGES rendering remain explicit blocking UAT gates before merge.
+- [Phase 20-26]: Removed `testing` extra from pyproject.toml — pytest_bdd_testing is local-only, not on PyPI. R1 satisfied by separate package structure, not dependency declaration.
 
 ### Roadmap Evolution
 
@@ -88,16 +89,18 @@ Recent decisions affecting current work:
 - Phase 17 added: Adapt GitHub CI to use make and validate with act.
 - Phase 18 added: Split xdist-remote tests into separate parallel GHA executor job.
 - Phase 19 added: HTML doc generation simplification.
+- Phase 20 added: multiple refactorings
 
 ### Pending Todos
 
 - [ ] Improve library typing using best practices from awesome-python-typing.
 - [ ] Integrate BDD/ATDD tests into development workflow and UAT phase.
-- [x] Vulture must be run not via pytest but as pre-commit hook.
 - [ ] No TestClasses are allowed in tests - enforce via ruff rule.
 - [ ] Expand feature tests for undocumented behaviors.
 - [ ] Split xdist-remote tests into separate parallel GHA executor job.
 - [ ] Gather failed CI logs into workflow artifact.
+- [ ] Remove __init__.py usage and unify ruff rules project layout.
+- [ ] Create custom pylint rule for noqa without reason.
 
 ### Blockers/Concerns
 
@@ -111,11 +114,24 @@ Recent decisions affecting current work:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| TEST-01 | Unit test coverage at 56% (target 70%) | Deferred to next milestone | 2026-05-19 |
-| TEST-02 | 27 BDD feature test failures remain | Deferred to next milestone | 2026-05-19 |
+| TEST-01 | Unit test coverage target | Resolved: coverage report passes at 86% | 2026-06-13 |
+| TEST-02 | BDD feature test failures | Resolved: E2E slice 203 passed, 10 skipped | 2026-06-13 |
+
+## Quick Tasks Completed
+
+| Date | ID | Slug | Status | Description |
+|------|----|------|--------|-------------|
+| 2026-05-21 | 260521-bye | fix-make-test-all-command-all-way-down-f | complete | Fix make test-all command all the way down |
+| 2026-05-24 | 260524-qv5 | add-phase-15-failfast-make-tox-target-gu | complete | Add Phase 15 failfast make tox target |
+| 2026-05-31 | 260531-1mz | fix-all-pre-commit-errors-and-commit | complete | Fix all pre-commit errors and commit |
+| 2026-05-31 | 260531-mypy | re-enable-mypy-pre-commit | complete | Re-enable MyPy pre-commit hook |
+| 2026-06-01 | 260601-rn | rename-branch-to-display-changes | complete | Rename current branch to display changes |
+| 2026-06-02 | 260602-lhn | seems-file-locator-doesn-t-preserve-file | complete | Fix file locator preserving file paths |
+| 2026-06-02 | 260602-ruq | fix-all-failing-tests-in-pr-141-jobs-loc | complete | Fix all failing tests in PR 141 jobs locally |
+| 2026-06-13 | 260613-ag | handoff-and-commit | complete | Create hand-off document and commit all changes |
 
 ## Session Continuity
 
-Last session: 2026-06-04T18:17:31.162Z
-Stopped at: Completed 19-04-PLAN.md
+Last session: 2026-06-13T17:54:40+03:00
+Stopped at: Completed handoff and committed all changes (Phase 20 Pylint / docstring cleanups)
 Resume file: None

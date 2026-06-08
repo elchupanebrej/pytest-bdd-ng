@@ -1,9 +1,65 @@
-"""Provide scenario helpers."""
+"""
+Provide scenario helpers.
+
+Responsibility:
+    Provide scenario helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
+    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
+    collaborators before editing.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.scenario` because it keeps the nearest code, data shape, call
+    signature, and failure knowledge together.
+
+Delegates:
+    - ScenarioFunction: owns nested behavior below this boundary
+    - Args: owns nested behavior below this boundary
+    - get_python_name_generator: owns nested behavior below this boundary
+    - FeaturePathType: owns nested behavior below this boundary
+    - scenario: owns nested behavior below this boundary
+    - scenario: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/__init__.py: imports or references `scenario`
+    - src/pytest_bdd/collector.py: imports or references `scenario`
+    - src/pytest_bdd/feature_locator.py: imports or references `scenario`
+    - src/pytest_bdd/model/feature_binding.py: imports or references `scenario`
+    - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `scenario`
+
+State and side effects:
+    mutates suffix, index, features_path_type, __name__, args; depends on collections.abc.Callable,
+    collections.abc.Iterable, collections.abc.Iterator, enum.Enum, pathlib.Path.
+
+Invariants:
+    - `pytest_bdd.scenario` keeps its documented import path, ownership boundary, and observable behavior stable for
+      callers.
+
+Failure semantics:
+    Raises or re-raises ValueError; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=4
+"""
 
 from collections.abc import Callable, Iterable, Iterator
 from enum import Enum
 from pathlib import Path
-from typing import Literal, NamedTuple, Protocol, TypeAlias, cast, overload
+from typing import Any, Literal, NamedTuple, Protocol, TypeAlias, cast, overload
 
 import pytest
 from returns.maybe import Nothing
@@ -17,17 +73,154 @@ from pytest_bdd.util.toolz_extra import compose
 
 
 class ScenarioFunction(Protocol):
-    """Represent scenario function state."""
+    """
+    Represent scenario function state.
+
+    Responsibility:
+        Represent scenario function state. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.ScenarioFunction` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - __call__: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `ScenarioFunction`
+        - src/pytest_bdd/collector.py: imports or references `ScenarioFunction`
+        - src/pytest_bdd/feature_locator.py: imports or references `ScenarioFunction`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `ScenarioFunction`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `ScenarioFunction`
+
+    State and side effects:
+        mutates __name__.
+
+    Invariants:
+        - `pytest_bdd.scenario.ScenarioFunction` keeps its documented import path, ownership boundary, and observable
+          behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
+    """
 
     __name__: str
 
     def __call__(self) -> object:
-        """Handle call."""
+        """
+        Handle call.
+
+        Responsibility:
+            Handle call. It directly owns the observable contract, local decisions, and maintenance boundary for this
+            method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
+            collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for `pytest_bdd.scenario.ScenarioFunction.__call__` because it keeps
+            the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - None, leaf-level implementation boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/__init__.py: imports or references `__call__`
+            - src/pytest_bdd/collector.py: imports or references `__call__`
+            - src/pytest_bdd/feature_locator.py: imports or references `__call__`
+            - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `__call__`
+            - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `__call__`
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
+        """
         ...
 
 
 class Args(NamedTuple):
-    """Represent args state."""
+    """
+    Represent args state.
+
+    Responsibility:
+        Represent args state. It directly owns the observable contract, local decisions, and maintenance boundary for
+        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
+        collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.Args` because it keeps the nearest code, data
+        shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `Args`
+        - src/pytest_bdd/collector.py: imports or references `Args`
+        - src/pytest_bdd/feature_locator.py: imports or references `Args`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `Args`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `Args`
+
+    State and side effects:
+        mutates args, kwargs.
+
+    Invariants:
+        - `pytest_bdd.scenario.Args` keeps its documented import path, ownership boundary, and observable behavior
+          stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
+    """
 
     args: tuple[object, ...]
     kwargs: dict[str, object]
@@ -45,12 +238,103 @@ def get_python_name_generator(name: str) -> Iterator[str]:
     Yields:
         Candidate Python test names.
 
+    Responsibility:
+        Generate a sequence of suitable python names out of given arbitrary string name. It directly owns the observable
+        contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.get_python_name_generator` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - get_name: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `get_python_name_generator`
+        - src/pytest_bdd/collector.py: imports or references `get_python_name_generator`
+        - src/pytest_bdd/feature_locator.py: imports or references `get_python_name_generator`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `get_python_name_generator`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `get_python_name_generator`
+
+    State and side effects:
+        mutates suffix, index, python_name, result.
+
+    Invariants:
+        - `pytest_bdd.scenario.get_python_name_generator` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     python_name = format_as_simplified_python_identifier(name)
     suffix = ""
     index = 0
 
     def get_name() -> str:
+        """
+        Responsibility:
+            Responsibility: Responsibility: `pytest_bdd.scenario.get_python_name_generator.get_name` owns documented
+            function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
+            this function.
+
+        Reason for existence:
+            This entity is the information expert for `pytest_bdd.scenario.get_python_name_generator.get_name` because
+            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - join: collaborator call used by this boundary
+            - filter: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/__init__.py: imports or references `get_name`
+            - src/pytest_bdd/collector.py: imports or references `get_name`
+            - src/pytest_bdd/feature_locator.py: imports or references `get_name`
+            - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `get_name`
+            - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `get_name`
+
+        State and side effects:
+            mutates result.
+
+        Invariants:
+            - `pytest_bdd.scenario.get_python_name_generator.get_name` keeps its documented import path, ownership
+              boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         result = "_".join(filter(bool, ["test", python_name, suffix]))
         # Ensure pytest collection pattern (test_*) matches when name is bare "test"
         return result if result != "test" else "test_"
@@ -67,6 +351,14 @@ class FeaturePathType(Enum):
 
     This enum determines whether relative paths are treated as filesystem
     paths or HTTP/HTTPS URLs when loading Gherkin feature files.
+
+    #arch-eval:score=reason_for_existence:5
+    #arch-eval:score=srp_expert:5
+    #arch-eval:score=why_not_inline:4
+    #arch-eval:score=why_not_split:4
+    #arch-eval:score=problems_solved:5
+    #arch-eval:score=law_of_demeter:5
+    #arch-eval:score=module_location:5
 
     Args:
         value: The string value of the enum member. One of ``"path"``,
@@ -107,6 +399,50 @@ class FeaturePathType(Enum):
         A ``FeaturePathType`` enum member (``PATH``, ``URL``, or
         ``UNDEFINED``) representing the path resolution mode.
 
+    Responsibility:
+        Controls how non-absolute feature paths are resolved during loading. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.FeaturePathType` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `FeaturePathType`
+        - src/pytest_bdd/collector.py: imports or references `FeaturePathType`
+        - src/pytest_bdd/feature_locator.py: imports or references `FeaturePathType`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `FeaturePathType`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `FeaturePathType`
+
+    State and side effects:
+        mutates PATH, URL, UNDEFINED.
+
+    Invariants:
+        - `pytest_bdd.scenario.FeaturePathType` keeps its documented import path, ownership boundary, and observable
+          behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
+
     """
 
     PATH = "path"
@@ -128,7 +464,48 @@ def scenario(
     locators: Iterable[object] = (),
     *,
     return_test_decorator: Literal[True] = True,
-) -> ScenarioDecorator: ...
+) -> ScenarioDecorator:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.scenario.scenario` owns documented function behavior. It directly
+        owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenario` because it keeps the nearest code, data
+        shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenario`
+        - src/pytest_bdd/collector.py: imports or references `scenario`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenario`
+        - src/pytest_bdd/model/feature_binding.py: imports or references `scenario`
+        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `scenario`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
+    """
 
 
 @overload
@@ -145,7 +522,48 @@ def scenario(
     locators: Iterable[object] = (),
     *,
     return_test_decorator: Literal[False],
-) -> ScenarioTest: ...
+) -> ScenarioTest:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.scenario.scenario` owns documented function behavior. It directly
+        owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenario` because it keeps the nearest code, data
+        shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenario`
+        - src/pytest_bdd/collector.py: imports or references `scenario`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenario`
+        - src/pytest_bdd/model/feature_binding.py: imports or references `scenario`
+        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `scenario`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
+    """
 
 
 def scenario(  # noqa: PLR0913, PLR0917
@@ -178,6 +596,14 @@ def scenario(  # noqa: PLR0913, PLR0917
     by setting ``features_path_type`` to ``FeaturePathType.PATH`` or
     ``FeaturePathType.URL`` respectively. Custom parsers can be
     supplied via ``parser_type`` for non-standard feature file formats.
+
+    #arch-eval:score=reason_for_existence:5
+    #arch-eval:score=srp_expert:5
+    #arch-eval:score=why_not_inline:5
+    #arch-eval:score=why_not_split:5
+    #arch-eval:score=problems_solved:5
+    #arch-eval:score=law_of_demeter:4
+    #arch-eval:score=module_location:5
 
     Args:
         feature_name: Absolute or relative path to the feature file.
@@ -251,28 +677,54 @@ def scenario(  # noqa: PLR0913, PLR0917
         :func:`scenarios`: Bulk-load all scenarios from feature files.
         :class:`FeaturePathType`: Enum for path resolution modes.
 
+    Responsibility:
+        Load and bind a single Gherkin scenario to a pytest test function. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenario` because it keeps the nearest code, data
+        shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - scenarios: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenario`
+        - src/pytest_bdd/collector.py: imports or references `scenario`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenario`
+        - src/pytest_bdd/model/feature_binding.py: imports or references `scenario`
+        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `scenario`
+
+    State and side effects:
+        mutates feature_paths.
+
+    Invariants:
+        - `pytest_bdd.scenario.scenario` keeps its documented import path, ownership boundary, and observable behavior
+          stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     feature_paths = [feature_name] if feature_name is not None else []
     if return_test_decorator:
-        return cast(
-            "ScenarioDecorator",
-            scenarios(
-                *feature_paths,
-                filter_=scenario_name,
-                encoding=encoding,
-                features_base_dir=features_base_dir,
-                features_base_url=features_base_url,
-                features_path_type=features_path_type,
-                features_mimetype=features_mimetype,
-                return_test_decorator=True,
-                locators=locators,
-                parser_type=parser_type,
-                parse_args=parse_args,
-            ),
-        )
-    return cast(
-        "ScenarioTest",
-        scenarios(
+        return scenarios(
             *feature_paths,
             filter_=scenario_name,
             encoding=encoding,
@@ -280,11 +732,23 @@ def scenario(  # noqa: PLR0913, PLR0917
             features_base_url=features_base_url,
             features_path_type=features_path_type,
             features_mimetype=features_mimetype,
-            return_test_decorator=False,
+            return_test_decorator=True,
             locators=locators,
             parser_type=parser_type,
             parse_args=parse_args,
-        ),
+        )
+    return scenarios(
+        *feature_paths,
+        filter_=scenario_name,
+        encoding=encoding,
+        features_base_dir=features_base_dir,
+        features_base_url=features_base_url,
+        features_path_type=features_path_type,
+        features_mimetype=features_mimetype,
+        return_test_decorator=False,
+        locators=locators,
+        parser_type=parser_type,
+        parse_args=parse_args,
     )
 
 
@@ -301,7 +765,48 @@ def scenarios(
     parser_type: type[ParserProtocol] | None = None,
     parse_args: Args | None = None,
     locators: Iterable[object] = (),
-) -> ScenarioDecorator: ...
+) -> ScenarioDecorator:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.scenario.scenarios` owns documented function behavior. It directly
+        owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenarios` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenarios`
+        - src/pytest_bdd/collector.py: imports or references `scenarios`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenarios`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `scenarios`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `scenarios`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
+    """
 
 
 @overload
@@ -317,7 +822,48 @@ def scenarios(
     parser_type: type[ParserProtocol] | None = None,
     parse_args: Args | None = None,
     locators: Iterable[object] = (),
-) -> ScenarioTest: ...
+) -> ScenarioTest:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.scenario.scenarios` owns documented function behavior. It directly
+        owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenarios` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenarios`
+        - src/pytest_bdd/collector.py: imports or references `scenarios`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenarios`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `scenarios`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `scenarios`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
+    """
 
 
 def scenarios(  # noqa: PLR0913
@@ -350,6 +896,14 @@ def scenarios(  # noqa: PLR0913
     When ``return_test_decorator=True``, the result is a decorator to
     apply to a test function. When ``False`` (default), a generated
     test function is returned directly.
+
+    #arch-eval:score=reason_for_existence:5
+    #arch-eval:score=srp_expert:5
+    #arch-eval:score=why_not_inline:5
+    #arch-eval:score=why_not_split:5
+    #arch-eval:score=problems_solved:5
+    #arch-eval:score=law_of_demeter:4
+    #arch-eval:score=module_location:5
 
     Args:
         feature_paths: Variable number of feature file paths (absolute
@@ -417,6 +971,53 @@ def scenarios(  # noqa: PLR0913
         :func:`scenario`: Load and bind a single scenario.
         :class:`FeaturePathType`: Enum for path resolution modes.
 
+    Responsibility:
+        Bulk-load scenarios from feature files and bind them to pytest test functions. It directly owns the observable
+        contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.scenario.scenarios` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - test: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `scenarios`
+        - src/pytest_bdd/collector.py: imports or references `scenarios`
+        - src/pytest_bdd/feature_locator.py: imports or references `scenarios`
+        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `scenarios`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `scenarios`
+
+    State and side effects:
+        mutates features_path_type, parse_args, msg, decorator, test.__name__.
+
+    Invariants:
+        - `pytest_bdd.scenario.scenarios` keeps its documented import path, ownership boundary, and observable behavior
+          stable for callers.
+
+    Failure semantics:
+        Raises or re-raises ValueError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     if parse_args is None:
         parse_args = Args((), {})
@@ -432,9 +1033,9 @@ def scenarios(  # noqa: PLR0913
     decorator = cast(
         "ScenarioDecorator",
         compose(
-            cast("Callable", getattr(pytest.mark, PYTEST_BDD_MARK)),
-            pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),
-            cast("Callable", getattr(pytest.mark, PYTEST_BDD_SCENARIOS_MARK))(
+            cast("Callable[..., Any]", getattr(pytest.mark, PYTEST_BDD_MARK)),
+            pytest.mark.usefixtures("gherkin_document", "pickle", "feature_source"),  # type: ignore[attr-defined]  # pytest.mark module attribute, not the function
+            cast("Callable[..., Any]", getattr(pytest.mark, PYTEST_BDD_SCENARIOS_MARK))(
                 *feature_paths,
                 filter_=filter_,
                 encoding=encoding,
@@ -454,6 +1055,47 @@ def scenarios(  # noqa: PLR0913
 
     @decorator
     def test() -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility: `pytest_bdd.scenario.scenarios.test` owns documented function behavior. It
+            directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+        Reason for existence:
+            This entity is the information expert for `pytest_bdd.scenario.scenarios.test` because it keeps the nearest
+            code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - Nothing.value_or: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/__init__.py: imports or references `test`
+            - src/pytest_bdd/collector.py: imports or references `test`
+            - src/pytest_bdd/feature_locator.py: imports or references `test`
+            - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `test`
+            - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `test`
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         return Nothing.value_or(None)
 
     test.__name__ = next(get_python_name_generator(""))

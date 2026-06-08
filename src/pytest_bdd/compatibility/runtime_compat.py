@@ -1,4 +1,53 @@
-"""Runtime compatibility rules for Python/pytest version pairs."""
+"""
+Runtime compatibility rules for Python/pytest version pairs.
+
+Responsibility:
+    Runtime compatibility rules for Python/pytest version pairs. It directly owns the observable contract, local
+    decisions, and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.compatibility.runtime_compat` because it keeps the nearest
+    code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - CompatibilityMatrixEntry: owns nested behavior below this boundary
+    - MigrationCoverageSummary: owns nested behavior below this boundary
+    - _parse_python_factor: owns nested behavior below this boundary
+    - _format_python_version: owns nested behavior below this boundary
+    - _format_pytest_version: owns nested behavior below this boundary
+    - _parse_pytest_factor: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/script/compatibility_matrix.py: imports or references `runtime_compat`
+    - src/pytest_bdd/util/matrix.py: imports or references `runtime_compat`
+
+State and side effects:
+    mutates pytest_version, PYTEST_COMPATIBILITY_BOUNDS, MIN_SUPPORTED_PYTHON, MIN_SUPPORTED_PYTEST, REASON_COMPATIBLE;
+    depends on __future__.annotations, attrs.frozen, returns.maybe.Nothing.
+
+Invariants:
+    - `pytest_bdd.compatibility.runtime_compat` keeps its documented import path, ownership boundary, and observable
+      behavior stable for callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
@@ -37,7 +86,50 @@ REASON_EOL_PYTEST = "eol_pytest"
 
 @frozen
 class CompatibilityMatrixEntry:
-    """Represent compatibility matrix entry state."""
+    """
+    Represent compatibility matrix entry state.
+
+    Responsibility:
+        Represent compatibility matrix entry state. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.CompatibilityMatrixEntry`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `CompatibilityMatrixEntry`
+        - src/pytest_bdd/util/matrix.py: imports or references `CompatibilityMatrixEntry`
+
+    State and side effects:
+        mutates python_version, pytest_version, is_compatible, is_supported, reason_code.
+
+    Invariants:
+        - `pytest_bdd.compatibility.runtime_compat.CompatibilityMatrixEntry` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=3
+    """
 
     python_version: str
     pytest_version: str
@@ -51,7 +143,51 @@ class CompatibilityMatrixEntry:
 
 @frozen
 class MigrationCoverageSummary:
-    """Represent migration coverage summary state."""
+    """
+    Represent migration coverage summary state.
+
+    Responsibility:
+        Represent migration coverage summary state. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.MigrationCoverageSummary`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `MigrationCoverageSummary`
+        - src/pytest_bdd/util/matrix.py: imports or references `MigrationCoverageSummary`
+
+    State and side effects:
+        mutates total_user_facing_scenarios, user_facing_in_features, coverage_percent, threshold_percent,
+        threshold_met.
+
+    Invariants:
+        - `pytest_bdd.compatibility.runtime_compat.MigrationCoverageSummary` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=3
+    """
 
     total_user_facing_scenarios: int
     user_facing_in_features: int
@@ -70,6 +206,46 @@ def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
 
     Returns:
         Tuple of (major, minor) version or None if invalid.
+
+    Responsibility:
+        Parse a Python factor string into a version tuple. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._parse_python_factor` because
+        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - int: collaborator call used by this boundary
+        - Nothing.value_or: collaborator call used by this boundary
+        - len: collaborator call used by this boundary
+        - python_factor.isdigit: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_parse_python_factor`
+        - src/pytest_bdd/util/matrix.py: imports or references `_parse_python_factor`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if not python_factor.isdigit():
@@ -91,6 +267,47 @@ def _format_python_version(python_factor: str) -> str:
     Returns:
         Formatted version string.
 
+    Responsibility:
+        Format Python factor as version string. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._format_python_version`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _parse_python_factor: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_python_version`
+        - src/pytest_bdd/util/matrix.py: imports or references `_format_python_version`
+
+    State and side effects:
+        mutates parsed.
+
+    Invariants:
+        - `pytest_bdd.compatibility.runtime_compat._format_python_version` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     parsed = _parse_python_factor(python_factor)
     return f"{parsed[0]}.{parsed[1]}" if parsed else python_factor
@@ -105,6 +322,43 @@ def _format_pytest_version(pytest_factor: str) -> str:
 
     Returns:
         Formatted version string.
+
+    Responsibility:
+        Format pytest factor as version string. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._format_pytest_version`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - len: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_pytest_version`
+        - src/pytest_bdd/util/matrix.py: imports or references `_format_pytest_version`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if pytest_factor == "latest":
@@ -125,6 +379,46 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
 
     Returns:
         Tuple of (major, minor, patch) version or None if invalid.
+
+    Responsibility:
+        Parse a pytest factor string into a version tuple. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._parse_pytest_factor` because
+        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - int: collaborator call used by this boundary
+        - Nothing.value_or: collaborator call used by this boundary
+        - len: collaborator call used by this boundary
+        - pytest_factor.isdigit: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_parse_pytest_factor`
+        - src/pytest_bdd/util/matrix.py: imports or references `_parse_pytest_factor`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if pytest_factor == "latest":
@@ -149,6 +443,49 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
 
     Returns:
         Tuple of (is_compatible, reason_code).
+
+    Responsibility:
+        Check if a Python/pytest version pair is compatible. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.is_pair_compatible` because
+        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _parse_python_factor: collaborator call used by this boundary
+        - _parse_pytest_factor: collaborator call used by this boundary
+        - PYTEST_COMPATIBILITY_BOUNDS.get: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `is_pair_compatible`
+        - src/pytest_bdd/util/matrix.py: imports or references `is_pair_compatible`
+
+    State and side effects:
+        mutates py, pytest_version, bounds, min_version, max_version.
+
+    Invariants:
+        - `pytest_bdd.compatibility.runtime_compat.is_pair_compatible` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     py = _parse_python_factor(python_factor)

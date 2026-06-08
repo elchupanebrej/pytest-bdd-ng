@@ -67,4 +67,16 @@ repos:
         additional_dependencies: ["uv"]
         types: [python]
         pass_filenames: false
-        exclude: ^(src/pytest_bdd/\.ruff/|docs/)
+        exclude: ^docs/
+      - id: pylint
+        name: pylint-custom-rules
+        # Pylint supplements Ruff here: it loads pytest-bdd custom checkers for
+        # architecture and repository rules that Ruff cannot express.
+        entry: >-
+          uv run --python 3.14 pylint
+          src/pytest_bdd/
+          src/pytest_bdd_testing/cases/unit/
+        language: python
+        additional_dependencies: ["uv"]
+        types: [python]
+        pass_filenames: false

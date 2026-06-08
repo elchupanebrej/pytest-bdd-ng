@@ -1,0 +1,12 @@
+{
+  "already_present": 0,
+  "classes_seen": 382,
+  "docstrings_added": 0,
+  "docstrings_updated": 2054,
+  "errors": [],
+  "files_scanned": 284,
+  "functions_seen": 594,
+  "methods_seen": 794,
+  "modules_seen": 284,
+  "skipped": 0
+}

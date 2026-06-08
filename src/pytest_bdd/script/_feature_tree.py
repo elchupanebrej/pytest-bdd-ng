@@ -1,4 +1,55 @@
-"""Feature-tree ordering helpers shared by documentation tooling."""
+"""
+Feature-tree ordering helpers shared by documentation tooling.
+
+Responsibility:
+    Feature-tree ordering helpers shared by documentation tooling. It directly owns the observable contract, local
+    decisions, and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.script._feature_tree` because it keeps the nearest code, data
+    shape, call signature, and failure knowledge together.
+
+Delegates:
+    - OrderedSource: owns nested behavior below this boundary
+    - FeatureDirectory: owns nested behavior below this boundary
+    - OrderingValidationError: owns nested behavior below this boundary
+    - strip_ordering_prefix: owns nested behavior below this boundary
+    - source_display_name: owns nested behavior below this boundary
+    - classify_source_path: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - None found by static import/name scan; verify dynamic use before refactor
+
+State and side effects:
+    mutates path, kind, match, error_code, directory_rel_path; depends on __future__.annotations, re, pathlib.Path,
+    typing.Literal, attrs.frozen.
+
+Invariants:
+    - `pytest_bdd.script._feature_tree` keeps its documented import path, ownership boundary, and observable behavior
+      stable for callers.
+
+Failure semantics:
+    Raises or re-raises OrderingValidationError, ValueError; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=2
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=2
+"""
 
 from __future__ import annotations
 
@@ -15,7 +66,49 @@ ORDERING_PREFIX_PATTERN = re.compile(r"^(?P<prefix>\d+)[ _-]+(?P<label>.+)$")
 
 @frozen
 class OrderedSource:
-    """Represent a feature-tree source with parsed ordering metadata."""
+    """
+    Represent a feature-tree source with parsed ordering metadata.
+
+    Responsibility:
+        Represent a feature-tree source with parsed ordering metadata. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.OrderedSource` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates path, kind, ordering_prefix, display_name.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.OrderedSource` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=2
+    """
 
     path: Path
     kind: SourceKind
@@ -25,7 +118,49 @@ class OrderedSource:
 
 @frozen
 class FeatureDirectory:
-    """Represent an ordered feature-tree directory."""
+    """
+    Represent an ordered feature-tree directory.
+
+    Responsibility:
+        Represent an ordered feature-tree directory. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.FeatureDirectory` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates path, rel_path, files, directories.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.FeatureDirectory` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=2
+    """
 
     path: Path
     rel_path: Path
@@ -34,10 +169,102 @@ class FeatureDirectory:
 
 
 class OrderingValidationError(ValueError):
-    """Represent ordering validation failures."""
+    """
+    Represent ordering validation failures.
+
+    Responsibility:
+        Represent ordering validation failures. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
+        distinguish owned work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - __init__: owns nested behavior below this boundary
+        - __str__: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates self.error_code, self.scope_path, self.source_path, self.message.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.OrderingValidationError` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
 
     def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str) -> None:
-        """Initialize the ordering validation error."""
+        """
+        Initialize the ordering validation error.
+
+        Responsibility:
+            Initialize the ordering validation error. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError.__init__`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - super.__init__: collaborator call used by this boundary
+            - super: collaborator call used by this boundary
+            - str: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
+            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+
+        State and side effects:
+            mutates self.error_code, self.scope_path, self.source_path, self.message.
+
+        Invariants:
+            - `pytest_bdd.script._feature_tree.OrderingValidationError.__init__` keeps its documented import path,
+              ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         self.error_code = error_code
         self.scope_path = scope_path
         self.source_path = source_path
@@ -50,6 +277,43 @@ class OrderingValidationError(ValueError):
 
         Returns:
             Formatted validation error.
+
+        Responsibility:
+            Return the formatted ordering validation error. It directly owns the observable contract, local decisions,
+            and maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError.__str__`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self.scope_path.as_posix: collaborator call used by this boundary
+            - self.source_path.as_posix: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - None found by static import/name scan; verify dynamic use before refactor
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=2
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=2
 
         """
         return (
@@ -67,6 +331,48 @@ def strip_ordering_prefix(name: str) -> str:
 
     Returns:
         Name without an ordering prefix.
+
+    Responsibility:
+        Strip a numeric ordering prefix from a source name. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.strip_ordering_prefix` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - ORDERING_PREFIX_PATTERN.match: collaborator call used by this boundary
+        - match.group.strip: collaborator call used by this boundary
+        - match.group: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates match.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.strip_ordering_prefix` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     match = ORDERING_PREFIX_PATTERN.match(name)
@@ -86,6 +392,43 @@ def source_display_name(path: Path, kind: SourceKind) -> str:
     Returns:
         Human-readable display name.
 
+    Responsibility:
+        Return a display name for an ordered source path. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.source_display_name` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - strip_ordering_prefix: collaborator call used by this boundary
+        - path.with_suffix: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+
     """
     if kind == "section":
         return strip_ordering_prefix(path.name)
@@ -101,6 +444,43 @@ def classify_source_path(path: Path) -> SourceKind | None:
 
     Returns:
         Source kind, or None when path should be ignored.
+
+    Responsibility:
+        Classify a path as a processable feature-tree source. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.classify_source_path` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - path.is_dir: collaborator call used by this boundary
+        - path.name.endswith: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     if path.is_dir():
@@ -119,6 +499,43 @@ def format_scope_path(scope_rel_path: Path) -> Path:
 
     Returns:
         Empty path for root scope, otherwise original path.
+
+    Responsibility:
+        Format a relative scope path for error output. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.format_scope_path` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - scope_rel_path.as_posix: collaborator call used by this boundary
+        - Path: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     if scope_rel_path.as_posix() == ".":
@@ -140,6 +557,54 @@ def parse_ordered_source(path: Path, kind: SourceKind, scope_rel_path: Path) -> 
 
     Raises:
         OrderingValidationError: If source has no numeric ordering prefix.
+
+    Responsibility:
+        Parse an ordered feature-tree source. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.parse_ordered_source` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - ORDERING_PREFIX_PATTERN.match: collaborator call used by this boundary
+        - OrderingValidationError: collaborator call used by this boundary
+        - format_scope_path: collaborator call used by this boundary
+        - OrderedSource: collaborator call used by this boundary
+        - int: collaborator call used by this boundary
+        - match.group: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates match, error_code.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.parse_ordered_source` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises OrderingValidationError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     match = ORDERING_PREFIX_PATTERN.match(path.name)
@@ -172,6 +637,52 @@ def sort_ordered_sources(sources: list[OrderedSource], scope_rel_path: Path) -> 
 
     Raises:
         OrderingValidationError: If sibling sources share a numeric prefix.
+
+    Responsibility:
+        Sort sources by ordering prefix after validating sibling uniqueness. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.sort_ordered_sources` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - OrderingValidationError: collaborator call used by this boundary
+        - format_scope_path: collaborator call used by this boundary
+        - tuple: collaborator call used by this boundary
+        - sorted: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates seen_prefixes, previous, error_code.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.sort_ordered_sources` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises OrderingValidationError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     seen_prefixes: dict[int, OrderedSource] = {}
@@ -206,6 +717,51 @@ def collect_ordered_sources(
     Returns:
         Tuple of ordered markdown file sources and ordered child directory sources.
 
+    Responsibility:
+        Collect ordered files and directories from a feature-tree directory. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.collect_ordered_sources` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - sort_ordered_sources: collaborator call used by this boundary
+        - directory_path.relative_to: collaborator call used by this boundary
+        - sorted: collaborator call used by this boundary
+        - directory_path.iterdir: collaborator call used by this boundary
+        - classify_source_path: collaborator call used by this boundary
+        - parse_ordered_source: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates directory_rel_path, file_sources, directory_sources, kind, ordered_source.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.collect_ordered_sources` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+
     """
     directory_rel_path = directory_path.relative_to(features_path)
     file_sources: list[OrderedSource] = []
@@ -239,6 +795,54 @@ def walk_feature_tree(features_path: Path) -> tuple[FeatureDirectory, ...]:
 
     Raises:
         ValueError: If feature-tree root does not exist or is not a directory.
+
+    Responsibility:
+        Walk a feature tree in deterministic ordering-prefix order. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script._feature_tree.walk_feature_tree` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - features_path.exists: collaborator call used by this boundary
+        - features_path.is_dir: collaborator call used by this boundary
+        - ValueError: collaborator call used by this boundary
+        - pending_paths.pop: collaborator call used by this boundary
+        - directory_path.relative_to: collaborator call used by this boundary
+        - collect_ordered_sources: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates msg, ordered_directories, pending_paths, directory_path, directory_rel_path.
+
+    Invariants:
+        - `pytest_bdd.script._feature_tree.walk_feature_tree` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises ValueError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
 
     """
     if not features_path.exists() or not features_path.is_dir():

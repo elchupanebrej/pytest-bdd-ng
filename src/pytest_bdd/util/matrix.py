@@ -1,4 +1,52 @@
-"""CI and tox matrix helpers for compatibility inspection."""
+"""
+CI and tox matrix helpers for compatibility inspection.
+
+Responsibility:
+    CI and tox matrix helpers for compatibility inspection. It directly owns the observable contract, local decisions,
+    and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.util.matrix` because it keeps the nearest code, data shape,
+    call signature, and failure knowledge together.
+
+Delegates:
+    - _extract_brace_factor_values: owns nested behavior below this boundary
+    - extract_factors_from_tox_ini: owns nested behavior below this boundary
+    - expand_tox_env_names: owns nested behavior below this boundary
+    - _normalize_scenario_id: owns nested behavior below this boundary
+    - discover_feature_scenario_ids: owns nested behavior below this boundary
+    - discover_user_facing_test_scenario_ids: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/script/compatibility_matrix.py: imports or references `matrix`
+
+State and side effects:
+    mutates factor, ids, tox_env, factors, text; depends on __future__.annotations, re, itertools.product,
+    typing.TYPE_CHECKING, pytest_bdd.compatibility.runtime_compat.CompatibilityMatrixEntry.
+
+Invariants:
+    - `pytest_bdd.util.matrix` keeps its documented import path, ownership boundary, and observable behavior stable for
+      callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
@@ -18,6 +66,52 @@ if TYPE_CHECKING:
 
 
 def _extract_brace_factor_values(*, text: str, prefix: str) -> set[str]:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.util.matrix._extract_brace_factor_values` owns documented function
+        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix._extract_brace_factor_values` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - set: collaborator call used by this boundary
+        - re.findall: collaborator call used by this boundary
+        - raw_group.split: collaborator call used by this boundary
+        - raw_factor.strip: collaborator call used by this boundary
+        - factor.startswith: collaborator call used by this boundary
+        - isdigit: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_extract_brace_factor_values`
+
+    State and side effects:
+        mutates factor, factors.
+
+    Invariants:
+        - `pytest_bdd.util.matrix._extract_brace_factor_values` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
     factors: set[str] = set()
     for raw_group in re.findall(rf"{prefix}\{{([^}}]+)\}}", text):
         for raw_factor in raw_group.split(","):
@@ -35,6 +129,50 @@ def extract_factors_from_tox_ini(tox_ini_path: Path) -> tuple[list[str], list[st
 
     Returns:
         Tuple of (python_factors, pytest_factors) lists.
+
+    Responsibility:
+        Extract Python and pytest factors from tox.ini file. It directly owns the observable contract, local decisions,
+        and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.extract_factors_from_tox_ini` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - sorted: collaborator call used by this boundary
+        - set: collaborator call used by this boundary
+        - re.findall: collaborator call used by this boundary
+        - _extract_brace_factor_values: collaborator call used by this boundary
+        - tox_ini_path.read_text: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `extract_factors_from_tox_ini`
+
+    State and side effects:
+        mutates text, python_factors, pytest_factors.
+
+    Invariants:
+        - `pytest_bdd.util.matrix.extract_factors_from_tox_ini` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     text = tox_ini_path.read_text(encoding="utf-8")
@@ -54,11 +192,86 @@ def expand_tox_env_names(entries: Iterable[CompatibilityMatrixEntry]) -> list[st
     Returns:
         List of tox environment names for compatible entries.
 
+    Responsibility:
+        Expand tox env names from compatibility entries. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.expand_tox_env_names` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `expand_tox_env_names`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
+
     """
     return [entry.tox_env_name for entry in entries if entry.is_compatible and entry.tox_env_name]
 
 
 def _normalize_scenario_id(value: str) -> str:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.util.matrix._normalize_scenario_id` owns documented function
+        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix._normalize_scenario_id` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - re.sub.strip: collaborator call used by this boundary
+        - re.sub: collaborator call used by this boundary
+        - value.lower: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_normalize_scenario_id`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
@@ -68,6 +281,51 @@ def discover_feature_scenario_ids(features_root: Path) -> set[str]:
 
     Returns:
         Set of normalized scenario IDs.
+
+    Responsibility:
+        Discover feature scenario IDs from feature files. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.discover_feature_scenario_ids` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - set: collaborator call used by this boundary
+        - features_root.exists: collaborator call used by this boundary
+        - features_root.rglob: collaborator call used by this boundary
+        - file_path.is_file: collaborator call used by this boundary
+        - join.lower: collaborator call used by this boundary
+        - join: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `discover_feature_scenario_ids`
+
+    State and side effects:
+        mutates ids, suffix.
+
+    Invariants:
+        - `pytest_bdd.util.matrix.discover_feature_scenario_ids` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if not features_root.exists():
@@ -92,6 +350,51 @@ def discover_user_facing_test_scenario_ids(tests_root: Path) -> set[str]:
 
     Returns:
         Set of normalized test scenario IDs.
+
+    Responsibility:
+        Discover user-facing test scenario IDs from test files. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.discover_user_facing_test_scenario_ids`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - set: collaborator call used by this boundary
+        - tests_root.exists: collaborator call used by this boundary
+        - user_facing_dir.exists: collaborator call used by this boundary
+        - user_facing_dir.rglob: collaborator call used by this boundary
+        - ids.add: collaborator call used by this boundary
+        - _normalize_scenario_id: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `discover_user_facing_test_scenario_ids`
+
+    State and side effects:
+        mutates migrated_candidates, user_facing_dir, ids.
+
+    Invariants:
+        - `pytest_bdd.util.matrix.discover_user_facing_test_scenario_ids` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if not tests_root.exists():
@@ -130,6 +433,51 @@ def build_migration_coverage_summary(
     Returns:
         Migration coverage summary with statistics.
 
+    Responsibility:
+        Build migration coverage summary. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.build_migration_coverage_summary` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - len: collaborator call used by this boundary
+        - discover_feature_scenario_ids: collaborator call used by this boundary
+        - discover_user_facing_test_scenario_ids: collaborator call used by this boundary
+        - MigrationCoverageSummary: collaborator call used by this boundary
+        - round: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `build_migration_coverage_summary`
+
+    State and side effects:
+        mutates feature_ids, user_facing_test_ids, total_ids, in_features, total.
+
+    Invariants:
+        - `pytest_bdd.util.matrix.build_migration_coverage_summary` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     feature_ids = discover_feature_scenario_ids(features_root)
     user_facing_test_ids = discover_user_facing_test_scenario_ids(tests_root)
@@ -167,6 +515,51 @@ def build_matrix(
     Returns:
         List of compatibility matrix entries.
 
+    Responsibility:
+        Build compatibility matrix for Python/pytest combinations. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix.build_matrix` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - sorted: collaborator call used by this boundary
+        - set: collaborator call used by this boundary
+        - product: collaborator call used by this boundary
+        - is_pair_compatible: collaborator call used by this boundary
+        - entries.append: collaborator call used by this boundary
+        - CompatibilityMatrixEntry: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `build_matrix`
+
+    State and side effects:
+        mutates tox_env, entries, compatible, reason.
+
+    Invariants:
+        - `pytest_bdd.util.matrix.build_matrix` keeps its documented import path, ownership boundary, and observable
+          behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     entries: list[CompatibilityMatrixEntry] = []
     for python_factor, pytest_factor in product(sorted(set(python_factors)), sorted(set(pytest_factors))):
@@ -198,6 +591,43 @@ def _format_python_version(python_factor: str) -> str:
     Returns:
         Formatted version string.
 
+    Responsibility:
+        Format Python factor as version string. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix._format_python_version` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - len: collaborator call used by this boundary
+        - python_factor.isdigit: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_python_version`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     if not python_factor.isdigit():
         return python_factor
@@ -217,6 +647,42 @@ def _format_pytest_version(pytest_factor: str) -> str:
 
     Returns:
         Formatted version string.
+
+    Responsibility:
+        Format pytest factor as version string. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.matrix._format_pytest_version` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - len: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_pytest_version`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if pytest_factor == "latest":

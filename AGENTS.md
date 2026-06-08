@@ -91,3 +91,7 @@ DEVELOPMENT.rst           Development guidelines
   group resolution.
 - Use `attrs` library over builtin `dataclass`es
 - Project practices ATDD/BDD: when a new feature is developed, acceptance tests must be created under `features/` with appropriate skill
+- Debugging: All agents can launch with pytest pdb mcp step via `--mcp-pdb-on-fail` flag for interactive debugging (see `DEVELOPMENT.rst` § Debug MCP for details)
+    - Run test with `--mcp-pdb-on-fail`, poll `.pytest_cache/mcp-pdb/session.json` for sidecar port, connect raw TCP to remote-pdb, send pdb commands, write investigation artifacts to `.pytest_cache/mcp-pdb/artifacts/<session_id>/`, send `continue` to unblock.
+    - The `--mcp-pdb-on-fail` starts a `mcp-pdb` MCP server subprocess and blocks the test thread on `remote_pdb.set_trace()` until a client connects.
+    - Registry step discovery: `Registry.registry` is a `cached_property` (not `lru_cache` — see fix 2026-06-08). Collection code uses `__pytest_bdd_step_registry__` attribute; `_build_collection_step_registry` uses `Registry(definitions=OrderedSet(...))`.

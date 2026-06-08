@@ -1,7 +1,7 @@
 # Quickstart: Test Group Ordering
 
 **Feature**: 020-test-group-ordering
-**Date**: 2026-05-05
+**Date**: 2026-06-10
 
 ## Prerequisites
 
@@ -22,40 +22,31 @@ test = [
 
 ## 2. Configure Groups
 
-Add project-specific groups to pytest ini-style configuration. The initial example uses five generic cost tiers.
+Add project-specific groups to pytest ini-style configuration. The repository uses seven semantic groups matching the test organization:
 
 ```toml
 [tool.pytest.ini_options]
+addopts = "-p pytester --order-scope=session"
 markers = [
-    "instant: smallest in-process tests",
-    "fast: normal fast tests",
-    "medium: moderate integration tests",
-    "slow: expensive local tests",
-    "external: tests requiring external services",
+    "unit: pure in-process module tests",
+    "integration: local plugin, parser, runtime, pytester, and subprocess-light flows",
+    "contract: golden files, boundary contracts, schema contracts, and formatter parity contracts",
+    "e2e: full executable user workflows and feature-doc driven acceptance tests",
+    "compat: Python, pytest, dependency, and platform compatibility checks",
+    "perf: benchmarks and expensive performance probes",
+    "external: Docker, browser, and host-platform harnesses or acceptance wrappers",
     "order: execution ordering marker from pytest-order",
 ]
-addopts = "--order-scope=session"
-test_group_order = ["instant", "fast", "medium", "slow", "external"]
-test_group_default = "fast"
+test_group_default = "integration"
+test_group_order = ["unit", "integration", "contract", "e2e", "compat", "perf", "external"]
 test_group_paths = [
-    "tests/unit/** = instant",
-    "tests/model/** = instant",
-    "tests/args/** = fast",
-    "tests/hook/** = fast",
-    "tests/steps/** = fast",
-    "tests/feature/** = medium",
-    "tests/gherkin_integration/** = medium",
-    "tests/library/** = medium",
-    "tests/struct_bdd/** = medium",
-    "tests/allure_/** = slow",
-    "tests/compatibility/** = slow",
-    "tests/contract/** = slow",
-    "tests/doc/** = slow",
-    "tests/generation/** = slow",
-    "tests/messages/** = slow",
-    "tests/messages_coverage/** = slow",
-    "tests/scripts/** = slow",
-    "tests/e2e/** = external",
+    "src/pytest_bdd_testing/cases/unit/** = unit",
+    "src/pytest_bdd_testing/cases/integration/** = integration",
+    "src/pytest_bdd_testing/cases/contract/** = contract",
+    "src/pytest_bdd_testing/cases/e2e/** = e2e",
+    "src/pytest_bdd_testing/cases/compat/** = compat",
+    "src/pytest_bdd_testing/cases/perf/** = perf",
+    "src/pytest_bdd_testing/cases/external/** = external",
 ]
 ```
 
@@ -68,7 +59,7 @@ uv run python -m pytest
 Expected group order:
 
 ```text
-instant -> fast -> medium -> slow -> external
+unit -> integration -> contract -> e2e -> compat -> perf -> external
 ```
 
 Failures or skips in an earlier group must not prevent later groups from running.
@@ -76,32 +67,38 @@ Failures or skips in an earlier group must not prevent later groups from running
 ## 4. Run a Single Group
 
 ```bash
-uv run python -m pytest -m instant
-uv run python -m pytest -m fast
-uv run python -m pytest -m medium
-uv run python -m pytest -m slow
+uv run python -m pytest -m unit
+uv run python -m pytest -m integration
+uv run python -m pytest -m contract
+uv run python -m pytest -m e2e
+uv run python -m pytest -m compat
+uv run python -m pytest -m perf
 uv run python -m pytest -m external
 ```
 
 Pytest collects the suite, applies the configured group markers during collection, and then deselects non-matching groups through normal `-m` marker filtering.
 
-Current collect-only validation counts:
+Current collect-only validation counts (out of 1,932 total tests):
 
 ```text
-instant: 25 selected, 748 deselected
-fast: 204 selected, 569 deselected
-medium: 115 selected, 658 deselected
-slow: 265 selected, 508 deselected
-external: 164 selected, 609 deselected
+unit: 1,011 selected, 921 deselected
+integration: 320 selected, 1,612 deselected
+contract: 246 selected, 1,686 deselected
+e2e: 230 selected, 1,702 deselected
+compat: 45 selected, 1,887 deselected
+perf: 1 selected, 1,931 deselected
+external: 79 selected, 1,853 deselected
 ```
 
 In the current local Python 3.14 environment, collect-only commands without `-s` can hit an unrelated pytest capture teardown `FileNotFoundError`. Use `-s` for validation until that capture issue is fixed:
 
 ```bash
-uv run --extra full python -m pytest -m instant --collect-only -q -s
-uv run --extra full python -m pytest -m fast --collect-only -q -s
-uv run --extra full python -m pytest -m medium --collect-only -q -s
-uv run --extra full python -m pytest -m slow --collect-only -q -s
+uv run --extra full python -m pytest -m unit --collect-only -q -s
+uv run --extra full python -m pytest -m integration --collect-only -q -s
+uv run --extra full python -m pytest -m contract --collect-only -q -s
+uv run --extra full python -m pytest -m e2e --collect-only -q -s
+uv run --extra full python -m pytest -m compat --collect-only -q -s
+uv run --extra full python -m pytest -m perf --collect-only -q -s
 uv run --extra full python -m pytest -m external --collect-only -q -s
 ```
 
@@ -112,7 +109,7 @@ Use only configured group names as group markers. Other pytest markers continue 
 ```python
 import pytest
 
-pytestmark = pytest.mark.slow
+pytestmark = pytest.mark.compat
 
 @pytest.mark.external
 def test_requires_external_service():
@@ -129,7 +126,7 @@ def test_skip_marker_does_not_change_group():
 uv run python -m pytest --collect-only -q
 ```
 
-The collected order should show all `instant` assignments before `fast`, then `medium`, `slow`, and `external`. The adapter must accomplish this by applying `pytest.mark.order(N)` and leaving collection sorting to `pytest-order`.
+The collected order should show all `unit` assignments before `integration`, then `contract`, `e2e`, `compat`, `perf`, and `external`. The adapter accomplishes this by applying `pytest.mark.order(N)` and leaving collection sorting to `pytest-order`.
 
 Use `uv run --extra full python -m pytest --collect-only -q -s` in the current local environment for the same capture workaround described above.
 
@@ -138,7 +135,7 @@ Use `uv run --extra full python -m pytest --collect-only -q -s` in the current l
 Run the acceptance validation that records start/finish events while xdist is active:
 
 ```bash
-uv run python -m pytest -n auto tests/unit/test_group_ordering.py -q
+uv run python -m pytest -n auto src/pytest_bdd_testing/cases/unit/unit/test_group_ordering.py -q
 ```
 
 The validation must prove that no later-group test starts before all earlier-group tests finish. Collection-only output is not sufficient for this check.

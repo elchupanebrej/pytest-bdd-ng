@@ -1,0 +1,116 @@
+# pytest-bdd-ng architectural layer definitions
+#
+# Defines 8 layers as a directed acyclic graph (DAG) where each layer may
+# only import from layers listed in its allowed_imports (strictly lower
+# order). Layer names: foundation → utility → parsing → model →
+# step_definition → collection → runtime → reporting → extra_plugins.
+
+# Known exceptions: (from_module, to_module, justification)
+# These allow legitimate cross-layer imports that would otherwise trigger BLQ1301/BLQ1302.
+[[exceptions]]
+from_module = "pytest_bdd.model"
+justification = "model layer imports gherkin for pickle compilation — required for FeatureRuntimeBinding.ensure_pickles()"
+to_module = "pytest_bdd.parser"
+
+[[exceptions]]
+from_module = "pytest_bdd.parsers"
+justification = "parsers.py references model types (StepDefinitionPatternType enum) for step pattern classification"
+to_module = "pytest_bdd.model"
+
+[layers.collection]
+allowed_imports = ["foundation", "utility", "parsing", "model", "step_definition"]
+description = "Test discovery and scenario collection. May import from foundation through step_definition."
+modules = [
+  "pytest_bdd.collector",
+  "pytest_bdd.feature_locator",
+  "pytest_bdd.scenario_locator",
+  "pytest_bdd.scenario"
+]
+order = 5
+
+[layers.extra_plugins]
+allowed_imports = ["foundation", "utility", "parsing", "model", "step_definition", "collection", "runtime", "reporting"]
+description = "Optional extra plugins (struct BDD, code generator, allure). May import from all lower layers."
+modules = [
+  "pytest_bdd.plugin.struct_bdd",
+  "pytest_bdd.plugin.code_generator",
+  "pytest_bdd.plugin.allure_logger"
+]
+order = 8
+
+[layers.foundation]
+allowed_imports = []
+description = "Compatibility shims, types, constants, and MIME helpers. Imports from stdlib and third-party only."
+modules = [
+  "pytest_bdd.compatibility",
+  "pytest_bdd.types",
+  "pytest_bdd.const",
+  "pytest_bdd.mimetype"
+]
+order = 0
+
+[layers.model]
+allowed_imports = ["foundation", "utility"]
+description = "Domain model objects (Run, ScenarioRun, StashBound). May import from foundation and utility. Exception: may import from parsing for gherkin pickle compilation."
+modules = [
+  "pytest_bdd.model"
+]
+order = 3
+
+[layers.parsing]
+allowed_imports = ["foundation", "utility"]
+description = "Gherkin parsing and batch collection. May import from foundation and utility."
+modules = [
+  "pytest_bdd.parser",
+  "pytest_bdd.parsers",
+  "pytest_bdd.collector_batch",
+  "pytest_bdd._gherkin_go"
+]
+order = 2
+
+[layers.reporting]
+allowed_imports = ["foundation", "utility", "parsing", "model", "step_definition", "collection", "runtime"]
+description = "Formatter and reporting plugins. May import from all lower layers. Cross-plugin imports between reporting plugins are forbidden."
+modules = [
+  "pytest_bdd.plugin.gherkin_message_reporter",
+  "pytest_bdd.plugin.cucumber_json",
+  "pytest_bdd.plugin.cucumber_json_formatter",
+  "pytest_bdd.plugin.cucumber_json_dispatcher",
+  "pytest_bdd.plugin.cucumber_junit",
+  "pytest_bdd.plugin.cucumber_pretty",
+  "pytest_bdd.plugin.cucumber_progress",
+  "pytest_bdd.plugin.cucumber_progress_bar",
+  "pytest_bdd.plugin.cucumber_snippets",
+  "pytest_bdd.plugin.cucumber_summary",
+  "pytest_bdd.plugin.cucumber_usage",
+  "pytest_bdd.plugin.cucumber_usage_json",
+  "pytest_bdd.plugin.gherkin_terminal_reporter",
+  "pytest_bdd.plugin.scenario_reporter"
+]
+order = 7
+
+[layers.runtime]
+allowed_imports = ["foundation", "utility", "parsing", "model", "step_definition", "collection"]
+description = "Core runtime plugins (scenario execution and collection). May import from all lower layers."
+modules = [
+  "pytest_bdd.plugin.pickle_runner",
+  "pytest_bdd.plugin.scenario_test_collector"
+]
+order = 6
+
+[layers.step_definition]
+allowed_imports = ["foundation", "utility", "parsing", "model"]
+description = "Step definition registration and matching. May import from foundation, utility, parsing, and model."
+modules = [
+  "pytest_bdd.steps",
+  "pytest_bdd.hook"
+]
+order = 4
+
+[layers.utility]
+allowed_imports = ["foundation"]
+description = "Shared helpers and utilities. May import from foundation only."
+modules = [
+  "pytest_bdd.util"
+]
+order = 1

@@ -8,7 +8,8 @@
 	env-install-windows env-install-browser pre-commit coverage coveralls build dist-check release-check \
 	clean compat-list compat-check validate-headings docs render-formatters local-pr-gate \
 	messages-audit render-tox-reports render-tox-reports-run sync-message-schemas \
-	tox env-install-npm check-message-schemas validate-github-actions
+	tox env-install-npm check-message-schemas validate-github-actions \
+	lint ruff-check custom-rules format
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
 
@@ -41,7 +42,7 @@ TOX_NDJSON_GLOB ?= .tox/*.messages.ndjson
 TOX_HTML_REPORT_DIR ?= .tmp/tox-reports
 PYTEST ?= uv run $(UV_SYNC_EXTRAS) python -m pytest
 PYTEST_LOCAL_SELECTOR ?= not slow and not docker and not windows and not browser and not external
-PYTEST_UNIT_IGNORE ?= --ignore=tests/cases/unit/unit/test_dead_code.py
+PYTEST_UNIT_IGNORE ?= --ignore=src/pytest_bdd_testing/cases/unit/unit/test_dead_code.py
 ifeq ($(GITHUB_ACTIONS),true)
   TOX ?= uvx --with tox-uv --with tox-gh-actions tox
 else
@@ -83,7 +84,7 @@ tox-list: env-check
 	uvx --with tox-uv tox -l
 
 test: env-check
-	$(PYTEST) tests/cases -m "$(PYTEST_LOCAL_SELECTOR)"
+	$(PYTEST) src/pytest_bdd_testing/cases -m "$(PYTEST_LOCAL_SELECTOR)"
 
 test-all: validate-test-all-backends
 	@set -e; \
@@ -178,22 +179,22 @@ test-platform-macos:
 	fi
 
 test-unit: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/unit -m unit $(PYTEST_UNIT_IGNORE)
 
 test-integration: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/integration -m integration
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/integration -m integration
 
 test-contract: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/contract -m contract
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/contract -m contract
 
 test-e2e: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/e2e -m "e2e and not browser"
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/e2e -m "e2e and not browser"
 
 test-compat: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/compat -m compat
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/compat -m compat
 
 test-perf: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases/perf -m perf
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases/perf -m perf
 
 test-external: env-check-docker
 	@$(MAKE) --no-print-directory test-external-subprocess-output
@@ -205,44 +206,44 @@ test-external: env-check-docker
 	@$(MAKE) --no-print-directory test-external-support
 
 test-external-subprocess-output: env-check
-	$(PYTEST) tests/cases/external/e2e/test_subprocess_output_attachments.py -m external
+	$(PYTEST) src/pytest_bdd_testing/cases/external/e2e/test_subprocess_output_attachments.py -m external
 
 test-external-xdist-html: env-check
-	$(PYTEST) tests/cases/external/e2e/test_xdist_html_reporting.py -m external
+	$(PYTEST) src/pytest_bdd_testing/cases/external/e2e/test_xdist_html_reporting.py -m external
 
 test-external-xdist-message: env-check
-	$(PYTEST) tests/cases/external/e2e/test_xdist_message_aggregation.py -m external
+	$(PYTEST) src/pytest_bdd_testing/cases/external/e2e/test_xdist_message_aggregation.py -m external
 
 test-external-docker-build: env-check-docker
-	docker compose -f tests/assets/docker/remote_xdist/docker-compose.yml build
+	docker compose -f src/pytest_bdd_testing/assets/docker/remote_xdist/docker-compose.yml build
 
 test-external-remote-local: env-check
-	$(PYTEST) tests/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k "socket or via"
+	$(PYTEST) src/pytest_bdd_testing/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k "socket or via"
 
 test-external-remote-ssh: env-check-docker
-	$(PYTEST) tests/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k ssh
+	$(PYTEST) src/pytest_bdd_testing/cases/external/e2e/test_xdist_remote_message_aggregation.py -m external -k ssh
 
 test-external-support: env-check
-	$(PYTEST) tests/cases/external/support -m external
+	$(PYTEST) src/pytest_bdd_testing/cases/external/support -m external
 
 test-slow: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases -m "slow and not external and not docker"
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases -m "slow and not external and not docker"
 
 test-docker: env-check-docker
 	@$(MAKE) --no-print-directory test-docker-linux
 	@$(MAKE) --no-print-directory test-docker-windows
 
 test-docker-linux: env-check-docker
-	$(TOX) run -e $(TOX_LINUX_ENVS) -- tests/cases -m "docker and not windows"
+	$(TOX) run -e $(TOX_LINUX_ENVS) -- src/pytest_bdd_testing/cases -m "docker and not windows"
 
 test-docker-windows: env-check-docker
-	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- tests/cases -m "docker and windows"
+	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- src/pytest_bdd_testing/cases -m "docker and windows"
 
 test-windows: env-check-windows
-	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- tests/cases -m windows; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
+	$(TOX) run -e $(TOX_WINDOWS_ENVS) -- src/pytest_bdd_testing/cases -m windows; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
 test-posix: env-check
-	$(TOX) run -e $(TOX_NATIVE_ENVS) -- tests/cases -m posix; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
+	$(TOX) run -e $(TOX_NATIVE_ENVS) -- src/pytest_bdd_testing/cases -m posix; EXIT=$$?; if [ $$EXIT -ne 0 ] && [ $$EXIT -ne 5 ]; then exit $$EXIT; fi
 
 check-shell:
 	@true
@@ -351,7 +352,7 @@ render-formatters: env-check
 	uv run render_cucumber_formatters --messages-ndjson $(MESSAGES_NDJSON) $(FORMATTER_ARGS)
 
 coverage: env-check
-	uv run coverage run --source=pytest_bdd -m pytest tests/cases
+	uv run coverage run --source=pytest_bdd -m pytest src/pytest_bdd_testing/cases
 	uv run coverage report -m
 
 coveralls: coverage
@@ -371,7 +372,7 @@ local-pr-gate: env-check
 	@echo "[1/4] pre-commit"
 	uvx pre-commit run --all-files
 	@echo "[2/4] e2e tests"
-	uv run python -m pytest -q tests/cases/e2e
+	uv run python -m pytest -q src/pytest_bdd_testing/cases/e2e
 	@echo "[3/4] workflow matrix sanity"
 	@if [ -f .github/workflows/tests.yml ]; then \
 		echo "ERROR: legacy workflow .github/workflows/tests.yml exists"; \
@@ -425,3 +426,20 @@ validate-github-actions: check-shell
 
 clean:
 	-rm -rf .venv ./dist $(TOX_HTML_REPORT_DIR) .tox/*.messages.ndjson
+
+.PHONY: lint
+lint: ruff-check custom-rules
+	@echo "Lint complete."
+
+.PHONY: ruff-check
+ruff-check:
+	uv run ruff check src/ scripts/
+
+.PHONY: custom-rules
+custom-rules:
+	uv run --extra test --extra testtypes --extra doc-gen --extra struct-bdd python -m pytest src/pytest_bdd_testing/cases/unit/test_pylint_checkers.py -q --no-header
+
+
+.PHONY: format
+format:
+	uv run ruff format src/ scripts/

@@ -1,4 +1,52 @@
-"""Provide live formatter runner orchestration helpers."""
+"""
+Provide live formatter runner orchestration helpers.
+
+Responsibility:
+    Provide live formatter runner orchestration helpers. It directly owns the observable contract, local decisions, and
+    maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner` because
+    it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - _resolve_npm_formatter_resource: owns nested behavior below this boundary
+    - LiveFormatterRunnerMixin: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+      `live_formatter_runner`
+
+State and side effects:
+    mutates node_env, script_path, formatter_labels, node_executable, runnable_requests; depends on
+    __future__.annotations, json, logging, subprocess, sys.
+
+Invariants:
+    - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner` keeps its documented import path, ownership
+      boundary, and observable behavior stable for callers.
+
+Failure semantics:
+    Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
@@ -52,6 +100,54 @@ def _resolve_npm_formatter_resource(
     Raises:
         RuntimeError: If the resource cannot be found.
 
+    Responsibility:
+        Resolve a required npm formatter resource. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner._resolve_npm_formatter_resource` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - next: collaborator call used by this boundary
+        - find_resource: collaborator call used by this boundary
+        - RuntimeError: collaborator call used by this boundary
+        - Path: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+          `_resolve_npm_formatter_resource`
+
+    State and side effects:
+        mutates match, message.
+
+    Invariants:
+        - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner._resolve_npm_formatter_resource` keeps its
+          documented import path, ownership boundary, and observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     match = next(
         find_resource(
@@ -68,7 +164,56 @@ def _resolve_npm_formatter_resource(
 
 
 class LiveFormatterRunnerMixin:
-    """Provide live formatter startup and render orchestration behavior."""
+    """
+    Provide live formatter startup and render orchestration behavior.
+
+    Responsibility:
+        Provide live formatter startup and render orchestration behavior. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _render_cucumber_formatter_runtime_assets: owns nested behavior below this boundary
+        - _start_live_formatters: owns nested behavior below this boundary
+        - _spawn_live_formatter_subprocess: owns nested behavior below this boundary
+        - _execute_cucumber_formatter_subprocess: owns nested behavior below this boundary
+        - _run_requested_cucumber_formatters: owns nested behavior below this boundary
+        - run_requested_cucumber_formatters: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+          `LiveFormatterRunnerMixin`
+
+    State and side effects:
+        mutates node_env, script_path, formatter_labels, node_executable, runnable_requests.
+
+    Invariants:
+        - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin` keeps its
+          documented import path, ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
 
     if TYPE_CHECKING:
         reporter: GherkinMessageReporter
@@ -83,6 +228,54 @@ class LiveFormatterRunnerMixin:
         self,
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - getattr: collaborator call used by this boundary
+            - cast: collaborator call used by this boundary
+            - callable: collaborator call used by this boundary
+            - render_live_formatter_runtime_assets: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `_render_cucumber_formatter_runtime_assets`
+
+        State and side effects:
+            mutates render_runtime_assets, pluginmanager.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         render_runtime_assets = getattr(self.reporter, "render_runtime_assets", None)
         if callable(render_runtime_assets):
             return cast(
@@ -93,6 +286,59 @@ class LiveFormatterRunnerMixin:
         return render_live_formatter_runtime_assets(formatter_requests, pluginmanager=pluginmanager)
 
     def _start_live_formatters(self) -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self._record_live_formatter_failure: collaborator call used by this boundary
+            - format_requested_cucumber_formatter_labels: collaborator call used by this boundary
+            - self._resolve_runnable_cucumber_formatter_requests: collaborator call used by this boundary
+            - self._augment_node_env_for_live_terminal_stream: collaborator call used by this boundary
+            - self._warn_about_missing_cucumber_formatter_packages: collaborator call used by this boundary
+            - tempfile.TemporaryDirectory: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_start_live_formatters`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `_start_live_formatters`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `_start_live_formatters`
+
+        State and side effects:
+            mutates node_env, formatter_labels, node_executable, runnable_requests, missing_packages.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         if (
             self.reporter.is_disabled
             or self.reporter.is_xdist_worker
@@ -170,6 +416,57 @@ class LiveFormatterRunnerMixin:
         payload_path: Path,
         node_env: dict[str, str],
     ) -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - str: collaborator call used by this boundary
+            - Thread: collaborator call used by this boundary
+            - subprocess.Popen: collaborator call used by this boundary
+            - Path: collaborator call used by this boundary
+            - self.reporter._live_formatter_stdout_thread.start: collaborator call used by this boundary
+            - self.reporter._live_formatter_stderr_thread.start: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `_spawn_live_formatter_subprocess`
+
+        State and side effects:
+            mutates self.reporter._live_formatter_process, self.reporter._live_formatter_stdout_thread,
+            self.reporter._live_formatter_stderr_thread, self.reporter._live_formatter_session_started.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001
             [node_executable, str(script_path), str(payload_path)],
             stdin=subprocess.PIPE,
@@ -209,6 +506,56 @@ class LiveFormatterRunnerMixin:
         runnable_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
         envelopes: list[Message],
     ) -> subprocess.CompletedProcess[str]:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - str: collaborator call used by this boundary
+            - Path: collaborator call used by this boundary
+            - json.dumps: collaborator call used by this boundary
+            - tempfile.TemporaryDirectory: collaborator call used by this boundary
+            - self._render_cucumber_formatter_runtime_assets: collaborator call used by this boundary
+            - runtime_assets.items: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `_execute_cucumber_formatter_subprocess`
+
+        State and side effects:
+            mutates temp_dir, script_path, payload_path, runtime_assets, asset_path.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         with tempfile.TemporaryDirectory(prefix="pytest-bdd-cucumber-formatters-") as temp_dir_name:
             temp_dir = Path(temp_dir_name)
             script_path = temp_dir / "render_cucumber_formatters.js"
@@ -259,6 +606,56 @@ class LiveFormatterRunnerMixin:
         self,
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - CucumberFormatterRenderResult: collaborator call used by this boundary
+            - format_requested_cucumber_formatter_labels: collaborator call used by this boundary
+            - logger.warning: collaborator call used by this boundary
+            - tuple: collaborator call used by this boundary
+            - self._resolve_runnable_cucumber_formatter_requests: collaborator call used by this boundary
+            - self._augment_node_env_for_live_terminal_stream: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `_run_requested_cucumber_formatters`
+
+        State and side effects:
+            mutates node_env, formatter_labels, node_executable, runnable_requests, missing_packages.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         if not self.reporter.requested_cucumber_formatters:
             return CucumberFormatterRenderResult(success=True, rendered_formatters=())
 
@@ -340,11 +737,106 @@ class LiveFormatterRunnerMixin:
         Returns:
             Cucumber formatter render result.
 
+        Responsibility:
+            Run requested cucumber formatters. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
+            distinguish owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.run_requested_cucumber_formatters`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self._run_requested_cucumber_formatters: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `run_requested_cucumber_formatters`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `run_requested_cucumber_formatters`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `run_requested_cucumber_formatters`
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+
         """
         return self._run_requested_cucumber_formatters(envelopes)
 
     def generate_html_report(self) -> None:
-        """Handle generate html report."""
+        """
+        Handle generate html report.
+
+        Responsibility:
+            Handle generate html report. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
+            owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.generate_html_report`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - Path: collaborator call used by this boundary
+            - str: collaborator call used by this boundary
+            - _resolve_npm_formatter_resource: collaborator call used by this boundary
+            - line.strip: collaborator call used by this boundary
+            - template_path.read_text: collaborator call used by this boundary
+            - next: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `generate_html_report`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `generate_html_report`
+
+        State and side effects:
+            mutates template_path, icon, script_path, css_path, template.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.generate_html_report`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         if self.reporter.is_disabled:
             return
         script_path = _resolve_npm_formatter_resource(
@@ -403,7 +895,55 @@ class LiveFormatterRunnerMixin:
         )
 
     def check_npm_and_cucumber_packages(self) -> None:
-        """Check npm and cucumber packages."""
+        """
+        Check npm and cucumber packages.
+
+        Responsibility:
+            Check npm and cucumber packages. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
+            owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.check_npm_and_cucumber_packages`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - pytest.exit: collaborator call used by this boundary
+            - self._ensure_node_packages_available: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
+              `check_npm_and_cucumber_packages`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `check_npm_and_cucumber_packages`
+
+        State and side effects:
+            mutates provision_result, self.reporter._auto_provisioned_node_modules_roots.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.check_npm_and_cucumber_packages`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=3
+        """
         provision_result = self._ensure_node_packages_available(
             (self.reporter.npm_formatter_package,),
             purpose="HTML report generation",

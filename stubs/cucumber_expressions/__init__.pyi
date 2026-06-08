@@ -1,0 +1,16 @@
+from typing import Any
+
+class ParameterTypeRegistry:
+    parameter_types: Any
+    def define_parameter_type(self, *args: Any, **kwargs: Any) -> None: ...
+
+class CucumberExpression: ...
+class RegularExpression: ...
+
+class Group:
+    start: int
+    value: str
+    children: list[Any]
+
+class CantEscape(Exception): ...
+class UndefinedParameterTypeError(Exception): ...

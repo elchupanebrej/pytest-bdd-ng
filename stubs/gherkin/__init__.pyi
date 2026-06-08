@@ -1,0 +1,19 @@
+from typing import Any
+
+class Parser:
+    def __init__(self, ast_builder: Any | None = None) -> None: ...
+    def parse(self, token_scanner_or_str: Any, token_matcher: Any | None = None) -> Any: ...
+
+class AstBuilder:
+    def __init__(self, id_generator: Any | None = None) -> None: ...
+
+class CompositeParserException(Exception):
+    errors: list[Any]
+
+class GherkinInMarkdownTokenMatcher: ...
+
+class TokenScanner:
+    def __init__(self, source: str) -> None: ...
+
+class IdGenerator:
+    def get_next_id(self) -> str: ...

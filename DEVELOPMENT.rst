@@ -182,6 +182,42 @@ system. The main components are:
 
 For detailed internal architecture documentation, see ``docs/internal/``.
 
+Responsibility Documentation
+----------------------------
+
+Every Python module, class, function, async function, method, and async method
+under ``src/pytest_bdd/`` must expose a responsibility contract in its
+docstring. Preserve existing prose and append the contract; for missing
+docstrings, add a short summary before the contract. ``Responsibility`` and
+``Reason for existence`` must each be at least 140 characters. ``Reason for
+existence`` must explain why the entity is the information expert for its
+boundary. The contract records owned responsibility, reason for existence,
+delegates, ``Cohesion``, ``Separation``, consumers, state and side effects,
+optional function invariants, optional propagation-only failure semantics, and
+``#arch-eval`` score tags.
+
+Use these scripts when changing responsibility-bearing code:
+
+  .. code-block:: bash
+
+     uv run python scripts/inject_responsibility_docstrings.py --check
+     uv run python scripts/inject_responsibility_docstrings.py --stub
+     uv run python scripts/inject_responsibility_docstrings.py --write
+     uv run python scripts/collect_arch_scores.py src/pytest_bdd/
+     uv run python scripts/analyze_responsibility_zones.py
+     uv run pylint --load-plugins=pytest_bdd._pylint --disable=all --enable=missing-responsibility-doc,short-responsibility-doc,legacy-responsibility-doc,missing-architecture-score,unfilled-responsibility-placeholder src/pytest_bdd
+
+Use ``--stub`` to add failing ``<...>`` placeholders for newly created entities;
+replace every placeholder with real architecture prose before commit. Use
+``--write`` only when intentionally generating evidence-based prose for a broad
+documentation pass. ``collect_arch_scores.py`` regenerates
+``docs/architecture/OBJECT_MAP.md`` and
+``analyze_responsibility_zones.py`` regenerates
+``docs/architecture/RESPONSIBILITY_GAPS.md``. Keep the score values evidence
+based; low scores are acceptable when the boundary is unclear and should drive
+follow-up refactoring work. Pre-commit and CI should run the Pylint validator,
+not the generator, so unfilled skeletons remain blocking.
+
 Core Patterns
 -------------
 
@@ -266,6 +302,66 @@ No Return None in Non-Hook Code
 Outside pytest hook implementations, returning ``None`` is an antipattern.
 Use explicit sentinel values, typed ``Optional`` returns, or raise deterministic
 exceptions. This rule is enforced by Phase 2 quality gate (STAB-02).
+
+__all__ and Redundant Import Aliases are Forbidden
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To ensure strict type checking with mypy and avoid implicit re-exports, ``__all__`` is forbidden in all modules (including source modules, facade modules, compatibility helper modules, and ``__init__.py`` files), which is enforced repository-wide by the custom lint rule ``BLQ1401``.
+
+Furthermore, redundant import aliases of the form ``from X import Y as Y`` or ``import Y as Y`` (where the alias name matches the imported name) are strictly forbidden. Imports must be clean without the duplicate ``as`` alias (e.g., ``from X import Y``). This is enforced repository-wide by the custom lint rule ``BLQ1404``. To satisfy mypy strict type checking, facade and compatibility helper modules should be exempted from implicit re-export checking by configuring ``implicit_reexport = true`` overrides in ``pyproject.toml`` instead of using redundant import aliases.
+
+Imports of Test Cases Must Be from cases Package
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test modules and test cases (any module or imported name starting with ``test_`` or containing ``.test_``) must only be imported from the ``src/pytest_bdd_testing/cases/`` package. Importing test cases from any other location (such as legacy ``tests/`` paths or old ``pytest_bdd.testing`` paths) is strictly forbidden. This ensures a clean separation between the test harness/helpers and the actual test execution cases. This rule is enforced repository-wide by the custom lint rule ``BLQ1601``.
+
+Custom Pylint Checkers (Static Analysis Rules)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The project enforces custom architectural, structural, and code style constraints using a unified Pylint plugin and custom checkers package located in ``src/pytest_bdd/_pylint/``. This replaces the legacy standalone Ruff AST rule scripts to ensure faster linting by running in a single Pylint process.
+
+All custom checkers inherit from ``pylint.checkers.BaseChecker`` and implement visitor methods (e.g., ``visit_import``, ``visit_importfrom``, ``visit_return``) to inspect AST nodes provided by the ``astroid`` library.
+
+Available custom rules include:
+
+- **Quality Gates (BLQ9xx)**:
+  - ``BLQ901``: Prohibits explicit ``return None`` statements in non-hook production code.
+  - ``BLQ902``: Prohibits bare ``except Exception:`` catch-alls.
+- **Plugin Patterns (BLQ10xx)**:
+  - ``BLQ1001``: Enforces the three-file structure for plugins (``entrypoint.py``, ``plugin.py``, ``hook.py``).
+  - ``BLQ1002``: Prohibits cross-plugin imports (plugins must not import from other plugins).
+  - ``BLQ1003``: Enforces the ``StashBound`` pattern for accessing pytest config stash.
+- **File and Ignore Limits (BLQ11xx)**:
+  - ``BLQ1101``: Detects oversized files (> 400 LOC) and proposes splits.
+  - ``BLQ1102``: Enforces disciplined ``type: ignore`` comments (must include error codes and explaining comments).
+- **Architectural Layers (BLQ13xx)**:
+  - ``BLQ1301``: Prohibits downward layer violations based on boundaries defined in ``docs/architecture/layers.toml``.
+  - ``BLQ1302``: Prohibits horizontal layer violations.
+- **Namespace and Module Design (BLQ14xx)**:
+  - ``BLQ1401``: Prohibits the use of ``__all__`` in any Python module.
+  - ``BLQ1402``: Prohibits empty ``__init__.py`` files (they must be deleted per PEP 420).
+  - ``BLQ1403``: Prohibits docstring-only ``__init__.py`` files.
+  - ``BLQ1404``: Prohibits redundant import aliases (e.g., ``from X import Y as Y``).
+- **Layout and Location Rules (BLQ15xx)**:
+  - ``BLQ1501``: Enforces correct placement of package markers and layout structure.
+- **Test Import Rules (BLQ16xx)**:
+  - ``BLQ1601``: Enforces test cases are imported only from ``src/pytest_bdd_testing/cases/``.
+
+Developing and Running Checkers
+*******************************
+
+To run custom rules locally, use the Makefile target:
+
+.. code-block:: bash
+
+   make custom-rules
+
+This invokes Pylint with the custom plugin loaded. Pylint is also integrated as a pre-commit hook.
+
+When writing or modifying a custom checker:
+1. Implement or update the visitor logic under ``src/pytest_bdd/_pylint/checkers/``.
+2. Register the checker in ``src/pytest_bdd/_pylint/__init__.py``.
+3. Add unit tests to ``src/pytest_bdd_testing/cases/unit/test_pylint_checkers.py`` to verify the checker catches positive and negative cases.
 
 Specific Exception Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -716,6 +812,138 @@ The local PR gate is implemented directly in the Makefile:
 - ``make render-tox-reports`` renders one HTML report per pytest-based tox
   environment from the NDJSON artifacts written by tox.
 
+.. _debug-mcp:
+
+Debug MCP
+=========
+
+The ``--mcp-pdb-on-fail`` flag enables interactive debugging of failed
+pytest-bdd scenarios through an MCP (Model Context Protocol) bridge.  When
+a test fails, the framework pauses execution on ``remote_pdb.set_trace()``,
+exposing the Python runtime state to an external agent via a raw TCP
+connection.
+
+Architecture
+------------
+
+::
+
+  ┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+  │  AI Agent    │────▶│  mcp-pdb MCP     │     │  pytest process  │
+  │  (client)    │     │  server subproc  │     │  (test runner)   │
+  └──────┬───────┘     └────────┬─────────┘     └────────┬─────────┘
+         │                      │                        │
+         │  MCP protocol        │                        │
+         │  stdin/stdout        │                        │
+         │                      │                        │
+         │           ┌──────────▼──────────┐             │
+         │           │  mcp_pdb.main.py   │             │
+         │           │  (FastMCP app)     │             │
+         │           └──────────┬─────────┘             │
+         │                      │                        │
+         │   connect_remote_    │                        │
+         │   debug(HOST, PORT)  │                        │
+         │                      │                        │
+         │           ┌──────────▼──────────┐    ┌────────▼────────┐
+         └──────────▶│  remote-pdb TCP     │◀───│ set_trace()     │
+                     │  socket (sidecar)   │    │ blocks here     │
+                     └─────────────────────┘    └─────────────────┘
+
+Two TCP ports are allocated per session:
+
+* ``mcp_pdb.port`` — the ``mcp_pdb.main`` MCP server subprocess.
+  Fixed via ``--mcp-pdb-port=N``, auto-allocated otherwise.
+* ``sidecar.port`` — the raw TCP ``remote_pdb.RemotePdb`` debugger.
+  Always auto-allocated.  The test thread blocks here until a client
+  connects.
+
+Discovery file (``.pytest_cache/mcp-pdb/session.json``)
+--------------------------------------------------------
+
+The session metadata is written atomically at session start and updated
+when a failure is held:
+
+.. code-block:: json
+
+   {
+     "session_id": "<hex-uuid>",
+     "status": "waiting_for_failure | holding_failure",
+     "host": "127.0.0.1",
+     "mcp_pdb": {"host": "127.0.0.1", "port": 43210},
+     "sidecar": {"host": "127.0.0.1", "port": 54321},
+     "active_failure": {
+       "sequence_id": 1,
+       "nodeid": "tests/test_x.py::test_y",
+       "pytest_phase": "call",
+       "exception_type": "AssertionError",
+       "message": "boom",
+       "artifact_status": "missing",
+       "bdd": { ... }
+     }
+   }
+
+Agent Workflow — step by step
+-----------------------------
+
+1. **Start pytest** with ``--mcp-pdb-on-fail`` in a subprocess:
+
+   .. code-block:: bash
+
+      python -m pytest <test_target> --mcp-pdb-on-fail
+
+2. **Poll discovery** file every 200 ms until ``status`` becomes
+   ``"holding_failure"``.  Read ``sidecar.host``, ``sidecar.port``,
+   ``active_failure.*`` from it.
+
+3. **Connect raw TCP** to the sidecar port.  The remote-pdb will
+   immediately return the ``(Pdb)`` prompt:
+
+   .. code-block:: python
+
+      sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      sock.connect((host, port))
+      recv_until_prompt(sock)  # read until (Pdb)
+
+4. **Inspect runtime** by sending PDB commands over the socket.
+   Key commands: ``where`` (stack trace), ``list`` (source),
+   ``p <variable>`` (print value), ``a`` (arguments), ``up``/``down``
+   (frame navigation).
+
+5. **Write investigation artifacts** to
+   ``.pytest_cache/mcp-pdb/artifacts/<session_id>/`` with names
+   ``failure-{seq:04d}-{safe_nodeid}.{json,md}``.  The JSON payload
+   must follow ``InvestigationArtifact`` schema (see
+   ``src/pytest_bdd/plugin/debug_mcp/schemas.py``):
+
+   .. code-block:: json
+
+      {
+        "artifact_id":     "debug-id-001",
+        "nodeid":          "tests/test_x.py::test_y",
+        "pytest_phase":    "call",
+        "status":          "investigated",
+        "summary":         "...",
+        "inspected_commands": ["where", "list", "p value"],
+        "evidence":        ["...", "..."],
+        "suspected_cause": "...",
+        "next_action":     "...",
+        "bdd_metadata":    {}
+      }
+
+6. **Unblock** the session by sending ``continue`` (or ``c``) over the
+   socket, then close it.  The test process resumes and exits normally.
+
+7. **Verify** exit code — ``rc=1`` indicates tests failed (expected for
+   a debug scenario); ``rc=3`` indicates internal error.
+
+.. note::
+
+   The ``mcp_pdb.rpdb.set_trace()`` call blocks **indefinitely** until a
+   client connects.  There is no built-in timeout enforcement (the
+   ``mcp_pdb_timeout`` option is read but ``expire_without_client`` is
+   never invoked from ``hold_failure``).  The subprocess timeout in the
+   agent script must handle this.
+
 Available Commands
 ------------------
 
@@ -739,3 +967,22 @@ Available Commands
 - ``bash scripts/run_messages_coverage_audit.sh`` - Run the messages coverage audit workflow
 
 For more detailed information, see the internal architecture documentation in ``docs/internal/``.
+
+Documentation Maintenance
+=========================
+
+Project documentation is split by purpose:
+
+* ``README.md`` introduces the package and points users at published docs.
+* ``docs/guides/`` contains task-oriented Markdown guides.
+* ``docs/api/`` contains generated API reference pages.
+* ``docs/architecture/`` contains architecture maps and decision-support
+  material.
+* ``docs/features/`` is generated from executable feature files and should not
+  be edited by hand.
+* ``docs/adr/`` records architectural decisions.
+
+When changing user-visible behavior, update executable features under
+``features/`` and regenerate any derived feature documentation. When changing
+collection, parsing, runtime, reporting, or plugin loading behavior, update the
+matching guide or architecture page in the same change.

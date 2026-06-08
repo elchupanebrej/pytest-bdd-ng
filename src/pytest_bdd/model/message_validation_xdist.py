@@ -1,4 +1,52 @@
-"""Provide message validation xdist compatibility helpers."""
+"""
+Provide message validation xdist compatibility helpers.
+
+Responsibility:
+    Provide message validation xdist compatibility helpers. It directly owns the observable contract, local decisions,
+    and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.model.message_validation_xdist` because it keeps the nearest
+    code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - XdistReportingCompatibilityResult: owns nested behavior below this boundary
+    - validate_xdist_reporting_compatibility: owns nested behavior below this boundary
+    - validate_execnet_serializable_payload: owns nested behavior below this boundary
+    - format_xdist_transport_compatibility_error: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/model/message_validation.py: imports or references `message_validation_xdist`
+    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+      `message_validation_xdist`
+
+State and side effects:
+    mutates violations, status, reason, payload; depends on __future__.annotations, typing.Literal, attrs.frozen,
+    pytest_bdd.model.message_validation_result.MessageValidationViolation.
+
+Invariants:
+    - `pytest_bdd.model.message_validation_xdist` keeps its documented import path, ownership boundary, and observable
+      behavior stable for callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
@@ -11,7 +59,52 @@ from pytest_bdd.model.message_validation_result import MessageValidationViolatio
 
 @frozen
 class XdistReportingCompatibilityResult:
-    """Indicate whether the current distributed execution environment meets the requirements for xdist reporting."""
+    """
+    Indicate whether the current distributed execution environment meets the requirements for xdist reporting.
+
+    Responsibility:
+        Indicate whether the current distributed execution environment meets the requirements for xdist reporting. It
+        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.model.message_validation_xdist.XdistReportingCompatibilityResult` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - is_valid: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/model/message_validation.py: imports or references `XdistReportingCompatibilityResult`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `XdistReportingCompatibilityResult`
+
+    State and side effects:
+        mutates status, reason.
+
+    Invariants:
+        - `pytest_bdd.model.message_validation_xdist.XdistReportingCompatibilityResult` keeps its documented import
+          path, ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
+    """
 
     status: Literal["pass", "fail"]
     reason: str | None = None
@@ -23,6 +116,47 @@ class XdistReportingCompatibilityResult:
 
         Returns:
             True if the status is 'pass', otherwise False.
+
+        Responsibility:
+            Determine if the environment is fully compatible for xdist reporting. It directly owns the observable
+            contract, local decisions, and maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.model.message_validation_xdist.XdistReportingCompatibilityResult.is_valid` because it keeps the
+            nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - None, leaf-level implementation boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/model/message_validation.py: imports or references `is_valid`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `is_valid`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `is_valid`
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
 
         """
         return self.status == "pass"
@@ -42,6 +176,45 @@ def validate_xdist_reporting_compatibility(  # noqa: PLR0913
 
     Returns:
         An XdistReportingCompatibilityResult detailing success or the specific blocking constraint.
+
+    Responsibility:
+        Verify that the xdist plugin configuration and node topology support remote message aggregation. It directly
+        owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.model.message_validation_xdist.validate_xdist_reporting_compatibility` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - XdistReportingCompatibilityResult: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/model/message_validation.py: imports or references `validate_xdist_reporting_compatibility`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `validate_xdist_reporting_compatibility`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if not xdist_active:
@@ -79,6 +252,54 @@ def validate_execnet_serializable_payload(
 
     Returns:
         A tuple of MessageValidationViolation instances for any keys or values that break serialization constraints.
+
+    Responsibility:
+        Recursively verify that a payload dictionary only contains types that can be reliably transported via execnet.
+        It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.model.message_validation_xdist.validate_execnet_serializable_payload` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - isinstance: collaborator call used by this boundary
+        - violations.extend: collaborator call used by this boundary
+        - validate_execnet_serializable_payload: collaborator call used by this boundary
+        - tuple: collaborator call used by this boundary
+        - MessageValidationViolation: collaborator call used by this boundary
+        - join: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/model/message_validation.py: imports or references `validate_execnet_serializable_payload`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `validate_execnet_serializable_payload`
+
+    State and side effects:
+        mutates violations, payload.
+
+    Invariants:
+        - `pytest_bdd.model.message_validation_xdist.validate_execnet_serializable_payload` keeps its documented import
+          path, ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if payload is None or isinstance(payload, (str, int, float, bool)):
@@ -121,6 +342,45 @@ def format_xdist_transport_compatibility_error(reason: str) -> str:
 
     Returns:
         A formatted error string detailing the incompatibility.
+
+    Responsibility:
+        Construct a standardized error message indicating a failure in the xdist reporting transport constraints. It
+        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.model.message_validation_xdist.format_xdist_transport_compatibility_error` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/model/message_validation.py: imports or references `format_xdist_transport_compatibility_error`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `format_xdist_transport_compatibility_error`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
 
     """
     return (

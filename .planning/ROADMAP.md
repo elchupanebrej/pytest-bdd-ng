@@ -429,3 +429,102 @@ Plans:
 **Cross-cutting constraints:**
 
 - D-02: Do not keep the old generated RST pipeline as a fallback.
+
+### Phase 20: multiple refactorings
+
+**Goal:** Elevate pytest-bdd-ng from 4-star to 5-star quality across three dimensions: type safety (mypy `--strict` compliance with zero errors), architecture (no file exceeds 400 LOC, plugins core/extra split, Go parser optional, explicit layered architecture), and documentation (object map with scores, responsibility contracts for every Python entity, API reference, 10 ADRs, 5 how-to guides).
+**Requirements**: T0, T1, T2, T3, A1, A2, A3, A4, A5, D0, D1, D2, D3, D4, INIT-01, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10
+**Depends on:** Phase 19
+**Plans:** 32/32 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+ 1. `mypy --strict src/` exits 0 with all 13 strict flags enabled and zero errors
+2. 17 local stub packages ship in wheel at `stubs/`; zero `ignore_missing_imports` in pyproject.toml
+3. Custom ruff rule (BLQ11xx) enforces type:ignore discipline with error codes + explanations
+4. No file in `src/` exceeds 400 LOC; 5 named files split into packages with facade.py backward compat
+5. 18 plugins audited, categorized into 3 core + 15 extra in 4 thematic groups; zero core-to-plugin compile-time deps
+6. Go parser available via `pip install pytest-bdd[go-parser]`; `pip install pytest-bdd` is Go-free
+7. 8-layer architectural model defined in `docs/architecture/layers.toml` with enforcement rule (BLQ13xx)
+8. `docs/architecture/OBJECT_MAP.md` with architectural scores (wave 1 average ≥ 4.0)
+9. Auto-generated API reference via Sphinx autodoc at `docs/api/`; `make docs` builds without warnings
+10. 10 ADR files at `docs/adr/`; 5 how-to guides at `docs/guides/`
+11. Full test suite passes at every intermediate step; CI matrix green at phase completion
+ 12. All requirement IDs addressed; all custom ruff rules (including init_rules.py BLQ14xx) run in pre-commit
+ 13. All 48 __init__.py files have classification comments; init_rules.py exits 0; ruff rules are logically organized in pyproject.toml
+14. Every Python entity under `src/pytest_bdd/` has a filled responsibility contract in its docstring; injector, object map, gap analyzer, Pylint gate, and Sphinx build pass
+
+Plans:
+
+### Architecture (Waves 1-5)
+
+- [x] 20-01-PLAN.md — A4: Layer definition (layers.toml, LAYERS.md, layer_rules.py) + D2 ADRs 001-003 (Wave 1)
+- [x] 20-02-PLAN.md — A3: Go parser extraction to optional extra + D2 ADR 005 (Wave 2)
+- [x] 20-03-PLAN.md — A2: Plugin audit + core/extra split + D2 ADRs 004, 007 (Wave 3)
+- [x] 20-04-PLAN.md — A1: File splits (parsers, scenario_locator, message_stream_validation) + file_size_rules.py + D2 ADRs 006, 008 (Wave 4)
+- [x] 20-05-PLAN.md — A1: File splits (cucumber_formatters, tests_group_ordering, 4 remaining) + D2 ADRs 009, 010 (Wave 5)
+
+### Typing (Waves 6-9)
+
+- [x] 20-06-PLAN.md — T0: Type checker comparison report (pyright, ty, pytype vs mypy) (Wave 6)
+- [x] 20-07-PLAN.md — T1: Stub creation (17 local stubs at stubs/) + eliminate ignore_missing_imports (Wave 7)
+- [x] 20-08-PLAN.md — T2: Enable all mypy --strict flags incrementally; fix ~250-300 errors (Wave 8)
+- [x] 20-09-PLAN.md — T3: Custom ruff rule (typing_rules.py) for type:ignore enforcement (Wave 9)
+
+### Documentation (Wave 10)
+
+- [x] 20-10-PLAN.md — D0: Object map wave 1 (public API scores ≥ 4.0) + collect_arch_scores.py (Wave 10)
+- [x] 20-11-PLAN.md — D1: Auto-generated API reference via Sphinx autodoc (Wave 10)
+- [x] 20-12-PLAN.md — D3: 5 how-to guides at docs/guides/ (Wave 10)
+
+### Gap Closure (Waves 11-13)
+
+- [~] 20-13-PLAN.md — T2: Fix mypy errors — Tasks 1-2 done (800→484 errors), Task 3 remaining (Wave 11)
+- [~] 20-14-PLAN.md — A1: Split oversized files — Task 1 done (1 of 7 split), 6 remaining (Wave 12)
+
+### Package Hygiene (Wave 13)
+
+- [~] 20-15-PLAN.md — INIT-01: Tasks 1+5 done (init_rules.py + layout_rules.py created), Tasks 2-4 remaining (Wave 13)
+
+### Gap Closure Phase 2 (Waves 14-15)
+
+- [x] 20-16-PLAN.md — T2: Fix unused-ignore (64) + untyped-decorator (58) mypy errors (Wave 14)
+- [x] 20-17-PLAN.md — T2: Fix attr-defined (203) via stub enhancements for pluggy, cucumber_messages, gherkin (Wave 14)
+- [x] 20-18-PLAN.md — T2: Fix remaining mypy errors (call-arg, type-arg, arg-type, etc.) + final verify + remove xfail (Wave 15, depends on 20-16, 20-17)
+- [x] 20-19-PLAN.md — A1: Split step_catalog_runtime.py, cli.py, struct_bdd/model.py — quick/medium files (Wave 14)
+- [x] 20-20-PLAN.md — A1: Split lifecycle.py, lifecycle_runtime.py, pickle_runner/plugin.py — hard files (Wave 14)
+- [x] 20-21-PLAN.md — INIT-01: Audit __init__.py files, reorg ruff rules, merge .ruff/, fix layout_rules.py (Wave 14)
+- [x] 20-22-PLAN.md — A1: Remove xfail from test_file_size_compliance.py — A1 requirement closure (Wave 15, depends on 20-19, 20-20)
+
+### Gap Closure Phase 3 — Test Package & __init__.py Cleanup (Waves 16-17)
+
+**Requirements**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10
+**Goal:** Extract tests to independent `pytest_bdd_testing` package, fix Docker compose paths, eliminate `__all__` and empty `__init__.py`, update init_rules.py enforcement
+
+**Success Criteria** (what must be TRUE):
+
+  1. Tests live at `src/pytest_bdd_testing/` — a completely separate package at `./src` level
+  2. `testing = ["pytest_bdd_testing"]` in `[project.optional-dependencies]`
+  3. `tests/` directory at repo root fully removed
+  4. All Docker paths resolve from repo root; docker-compose context = 5 levels (correct)
+  5. Zero empty `__init__.py` files — all deleted per PEP 420
+  6. Zero `__all__` in `__init__.py` — replaced with clean imports and mypy overrides (no `as Y` aliases)
+  7. No backward-compat re-exports or transitional facade.py patterns
+  8. init_rules.py BLQ1401/1402/1403/1404 and test_import_rules.py BLQ1601 enforce new conventions
+  9. Full test suite passes from new layout; mypy strict passes; all custom lint rules pass
+
+**Plans:** 4 plans
+
+Plans:
+**Wave 1** *(R1-R4: test package extraction + Docker rework)*
+
+- [x] 20-26-PLAN.md — R1+R2: Move testing/ → pytest_bdd_testing/, rewrite imports, update pyproject.toml + Makefile (Wave 1)
+- [x] 20-27-PLAN.md — R3+R4: Delete tests/, fix Docker compose+Dockerfiles+entrypoints+Makefile (Wave 2, depends on 20-26)
+
+**Wave 2** *(R5-R9: __init__.py elimination + namespace + rules)*
+
+- [x] 20-28-PLAN.md — R5+R6+R7+R8: Replace __all__ with as-imports, delete empty __init__.py files, remove backward-compat shims, add INP001 suppressions (Wave 3, depends on 20-27)
+- [x] 20-29-PLAN.md — R9: Update init_rules.py BLQ1401/1402/1403, create unit tests, final verification (Wave 3, depends on 20-27)
+- [x] 20-30-PLAN.md — A5: Port custom static rules into unified Pylint checker plugin (Wave 3, depends on 20-29)
+- [x] 20-31-PLAN.md — A5: Enable Pylint cyclic-import and duplicate-code checks and fix violations (Wave 4, depends on 20-30)
+- [x] 20-32-PLAN.md — D4: Full responsibility documentation for every `src/pytest_bdd/` Python entity (Wave 18, depends on 20-30 and 20-31)

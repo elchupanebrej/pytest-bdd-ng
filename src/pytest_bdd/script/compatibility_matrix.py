@@ -1,4 +1,53 @@
-"""CLI for compatibility matrix inspection and validation."""
+"""
+CLI for compatibility matrix inspection and validation.
+
+Responsibility:
+    CLI for compatibility matrix inspection and validation. It directly owns the observable contract, local decisions,
+    and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.script.compatibility_matrix` because it keeps the nearest
+    code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - parse_args: owns nested behavior below this boundary
+    - _entry_payload: owns nested behavior below this boundary
+    - _emit: owns nested behavior below this boundary
+    - main: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - None found by static import/name scan; verify dynamic use before refactor
+
+State and side effects:
+    mutates parser, args, summary, payload, python_factors; depends on __future__.annotations, argparse, json, sys,
+    pathlib.Path.
+
+Invariants:
+    - `pytest_bdd.script.compatibility_matrix` keeps its documented import path, ownership boundary, and observable
+      behavior stable for callers.
+
+Failure semantics:
+    Raises or re-raises SystemExit; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=2
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=2
+"""
 
 from __future__ import annotations
 
@@ -32,6 +81,54 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     Returns:
         Parsed arguments namespace.
 
+    Responsibility:
+        Parse command-line arguments. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script.compatibility_matrix.parse_args` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - parser.add_argument: collaborator call used by this boundary
+        - Path: collaborator call used by this boundary
+        - argparse.ArgumentParser: collaborator call used by this boundary
+        - parser.parse_args: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/feature_locator.py: imports or references `parse_args`
+        - src/pytest_bdd/model/coverage/inventory.py: imports or references `parse_args`
+        - src/pytest_bdd/scenario.py: imports or references `parse_args`
+        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `parse_args`
+        - src/pytest_bdd/scenario_locator/url_locator.py: imports or references `parse_args`
+
+    State and side effects:
+        mutates parser.
+
+    Invariants:
+        - `pytest_bdd.script.compatibility_matrix.parse_args` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     parser = argparse.ArgumentParser(description="Inspect Python/pytest compatibility matrix")
     parser.add_argument("--tox-ini", type=Path, default=Path("tox.ini"), help="Path to tox.ini")
@@ -52,6 +149,43 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def _entry_payload(entry: CompatibilityMatrixEntry) -> dict[str, object]:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.script.compatibility_matrix._entry_payload` owns documented function
+        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script.compatibility_matrix._entry_payload` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=2
+    """
     return {
         "pythonVersion": entry.python_version,
         "pytestVersion": entry.pytest_version,
@@ -63,6 +197,43 @@ def _entry_payload(entry: CompatibilityMatrixEntry) -> dict[str, object]:
 
 
 def _emit(payload: str) -> None:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.script.compatibility_matrix._emit` owns documented function
+        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script.compatibility_matrix._emit` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - sys.stdout.write: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     sys.stdout.write(payload)
     sys.stdout.write("\n")
 
@@ -76,6 +247,56 @@ def main(argv: list[str] | None = None) -> int:
 
     Returns:
         Exit code.
+
+    Responsibility:
+        Run the compatibility matrix CLI. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.script.compatibility_matrix.main` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _emit: collaborator call used by this boundary
+        - json.dumps: collaborator call used by this boundary
+        - sorted: collaborator call used by this boundary
+        - join: collaborator call used by this boundary
+        - parse_args: collaborator call used by this boundary
+        - build_migration_coverage_summary: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/model/coverage/inventory.py: imports or references `main`
+        - src/pytest_bdd/script/__init__.py: imports or references `main`
+        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references `main`
+        - src/pytest_bdd/script/message_capability_governance/__main__.py: imports or references `main`
+        - src/pytest_bdd/script/message_capability_governance/cli/facade.py: imports or references `main`
+
+    State and side effects:
+        mutates args, summary, payload, python_factors, pytest_factors.
+
+    Invariants:
+        - `pytest_bdd.script.compatibility_matrix.main` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
 
     """
     args = parse_args(argv)

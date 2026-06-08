@@ -1,0 +1,3 @@
+from typing import Any
+
+def cfparse(format: str, string: str, extra_types: Any = ...) -> Any: ...

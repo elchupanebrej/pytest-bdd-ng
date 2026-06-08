@@ -1,4 +1,4 @@
-r"""
+"""
 Temporary-directory root normalisation for WSL (Windows Subsystem for Linux).
 
 Background
@@ -43,6 +43,47 @@ The fix is intentionally **idempotent and no-op on non-WSL environments**:
   and the function exits without touching anything.
 * Inside WSL with a Windows-inherited temp path the ``/mnt/`` prefix check
   succeeds and the rewrite proceeds.
+
+Responsibility:
+    Temporary-directory root normalisation for WSL (Windows Subsystem for Linux). It directly owns the observable
+    contract, local decisions, and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.util.temp_root` because it keeps the nearest code, data shape,
+    call signature, and failure knowledge together.
+
+Delegates:
+    - prefer_posix_temp_root: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `temp_root`
+
+State and side effects:
+    mutates posix_temp_root, current_temp_root, temp_root, tempfile.tempdir; depends on __future__.annotations, os,
+    tempfile, pathlib.Path.
+
+Invariants:
+    - `pytest_bdd.util.temp_root` keeps its documented import path, ownership boundary, and observable behavior stable
+      for callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=3
 """
 
 from __future__ import annotations
@@ -63,6 +104,51 @@ def prefer_posix_temp_root() -> bool:
     Returns:
         ``True`` when the environment was rewritten (WSL with Windows temp
         root detected); ``False`` when no action was needed.
+
+    Responsibility:
+        Redirect temp-file creation from an inherited Windows path to native ``/tmp``. It directly owns the observable
+        contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.util.temp_root.prefer_posix_temp_root` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - Path: collaborator call used by this boundary
+        - posix_temp_root.is_dir: collaborator call used by this boundary
+        - Path.resolve: collaborator call used by this boundary
+        - tempfile.gettempdir: collaborator call used by this boundary
+        - current_temp_root.relative_to: collaborator call used by this boundary
+        - str: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `prefer_posix_temp_root`
+
+    State and side effects:
+        mutates posix_temp_root, current_temp_root, temp_root, tempfile.tempdir.
+
+    Invariants:
+        - `pytest_bdd.util.temp_root.prefer_posix_temp_root` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     if os.name != "posix":

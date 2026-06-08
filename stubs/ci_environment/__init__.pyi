@@ -1,0 +1,3 @@
+from typing import Any
+
+def detect_ci_environment(env: Any | None = None) -> dict[str, Any] | None: ...

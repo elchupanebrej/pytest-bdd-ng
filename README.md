@@ -177,3 +177,18 @@ The step definitions would then be organized like this:
 
 The project is now open to contributions. Please open an issue for more
 details.
+
+## Project Docs
+
+Use these repository docs when choosing the next topic to read:
+
+- `docs/guides/getting-started.md` covers first install, feature binding, and a
+  minimal scenario.
+- `docs/guides/configuration.md` summarizes pytest options, optional extras,
+  plugin entry points, and documentation build settings from `pyproject.toml`
+  and `docs/conf.py`.
+- `docs/guides/testing.md` explains local test groups, tox environments, report
+  artifacts, and quality gates.
+- `docs/architecture/index.md` links the architecture overview, data flow, and
+  plugin architecture documents.
+- `docs/api/index.md` links generated API reference pages for public modules.

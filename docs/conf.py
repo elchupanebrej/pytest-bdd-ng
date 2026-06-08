@@ -46,6 +46,33 @@ napoleon_numpy_docstring = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 
+# Autodoc settings for API reference (20-11)
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": False,
+    "show-inheritance": True,
+}
+autodoc_typehints = "description"
+# Pre-existing warnings from parallel plan content not yet wired into toctrees.
+suppress_warnings = [
+    "toc.not_included",
+    "misc.highlighting_failure",
+    "myst.xref_missing",
+]
+
+
+def strip_responsibility_contracts(app, what, name, obj, options, lines):  # noqa: ANN001, ARG001
+    """Remove parse-only architecture contracts from rendered autodoc prose."""
+    for index, line in enumerate(lines):
+        if line.strip() == "Responsibility:":
+            del lines[index:]
+            break
+
+
+def setup(app):  # noqa: ANN001
+    """Register documentation build hooks."""
+    app.connect("autodoc-process-docstring", strip_responsibility_contracts)
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

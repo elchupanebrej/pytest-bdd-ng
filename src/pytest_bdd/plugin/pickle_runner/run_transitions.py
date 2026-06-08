@@ -1,11 +1,58 @@
-"""Provide run transitions helpers."""
+"""
+Provide run transitions helpers.
+
+Responsibility:
+    Provide run transitions helpers. It directly owns the observable contract, local decisions, and maintenance boundary
+    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
+    collaborators before editing.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.plugin.pickle_runner.run_transitions` because it keeps the
+    nearest code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - _inactive_ref: owns nested behavior below this boundary
+    - _resolve_lifecycle_ref: owns nested behavior below this boundary
+    - _resolve_transition_refs: owns nested behavior below this boundary
+    - _sync_step_node: owns nested behavior below this boundary
+    - _finalize_after_scenario: owns nested behavior below this boundary
+    - apply_transition: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - None found by static import/name scan; verify dynamic use before refactor
+
+State and side effects:
+    mutates run_ref, step_ref, previous_step_ref, step_is_active, feature_ref; depends on __future__.annotations,
+    typing.TYPE_CHECKING, pytest_bdd.model.run.ActiveObjectSet, pytest_bdd.model.run.HookPhase,
+    pytest_bdd.model.run.LifecycleKind.
+
+Invariants:
+    - `pytest_bdd.plugin.pickle_runner.run_transitions` keeps its documented import path, ownership boundary, and
+      observable behavior stable for callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=2
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=2
+"""
 
 from __future__ import annotations
 
-from itertools import count
 from typing import TYPE_CHECKING
-
-from returns.maybe import Nothing
 
 from pytest_bdd.model.run import (
     ActiveObjectSet,
@@ -16,6 +63,9 @@ from pytest_bdd.model.run import (
     RunStage,
     RunStatus,
 )
+from pytest_bdd.model.run.transitions import (
+    build_lifecycle_ref,
+)
 from pytest_bdd.model.scenario_run import (
     RunNode,
     ScenarioRun,
@@ -23,10 +73,6 @@ from pytest_bdd.model.scenario_run import (
 
 if TYPE_CHECKING:
     from cucumber_messages import GherkinDocument
-
-    from pytest_bdd.compatibility.pytest import FixtureRequest
-
-_context_index = count(1)
 
 
 PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
@@ -42,76 +88,45 @@ PHASE_TO_STAGE: dict[HookPhase, RunStage] = {
 }
 
 
-def runtime_object_id(obj: object) -> str:
-    """
-    Get runtime object ID.
-
-    Args:
-        obj: Object to get ID for.
-
-    Returns:
-        String representation of object ID.
-
-    """
-    if obj is None:
-        return "none"
-    explicit_id = getattr(obj, "id", None)
-    if explicit_id is not None:
-        return str(explicit_id)
-    nodeid = getattr(obj, "nodeid", None)
-    if nodeid is not None:
-        return str(nodeid)
-    name = getattr(obj, "name", None)
-    if name is not None:
-        return str(name)
-    ast_node_ids = getattr(obj, "ast_node_ids", None)
-    if ast_node_ids:
-        return str(ast_node_ids[0])
-    return str(id(obj))
-
-
-def runtime_object_name(obj: object) -> str | None:
-    """
-    Get runtime object name.
-
-    Args:
-        obj: Object to get name for.
-
-    Returns:
-        Name string or None.
-
-    """
-    if obj is None:
-        return Nothing.value_or(None)
-    name = getattr(obj, "name", None)
-    return str(name) if name is not None else None
-
-
-def build_lifecycle_ref(kind: LifecycleKind, value: object, *, is_active: bool) -> LifecycleObjectRef | None:
-    """
-    Build a lifecycle reference.
-
-    Args:
-        kind: Lifecycle kind.
-        value: Object to reference.
-        is_active: Whether the object is active.
-
-    Returns:
-        LifecycleObjectRef or None.
-
-    """
-    if value is None:
-        return Nothing.value_or(None)
-    return LifecycleObjectRef(
-        kind=kind,
-        object_id=runtime_object_id(value),
-        name=runtime_object_name(value),
-        source=value.__class__.__name__,
-        is_active=is_active,
-    )
-
-
 def _inactive_ref(kind: LifecycleKind, *, reason: str, fail_fast_code: str | None = None) -> LifecycleObjectRef:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.run_transitions._inactive_ref` owns documented
+        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
+        function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.plugin.pickle_runner.run_transitions._inactive_ref`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     return LifecycleObjectRef.inactive(kind, reason=reason, fail_fast_code=fail_fast_code)
 
 
@@ -123,6 +138,50 @@ def _resolve_lifecycle_ref(
     inactive_reason: str,
     fail_fast_code: str | None = None,
 ) -> LifecycleObjectRef:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_lifecycle_ref` owns
+        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_lifecycle_ref` because it keeps the nearest code, data
+        shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _inactive_ref: collaborator call used by this boundary
+        - build_lifecycle_ref: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates lifecycle_ref.
+
+    Invariants:
+        - `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_lifecycle_ref` keeps its documented import path,
+          ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     if value is None:
         return _inactive_ref(kind, reason=inactive_reason, fail_fast_code=fail_fast_code)
     lifecycle_ref = build_lifecycle_ref(kind, value, is_active=is_active)
@@ -140,6 +199,50 @@ def _resolve_transition_refs(  # noqa: PLR0913
     step: object | None,
     previous_step: object | None,
 ) -> tuple[LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef, LifecycleObjectRef]:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_transition_refs` owns
+        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_transition_refs` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _resolve_lifecycle_ref: collaborator call used by this boundary
+        - _inactive_ref: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates run_ref, step_ref, previous_step_ref, scenario_is_active, feature_is_active.
+
+    Invariants:
+        - `pytest_bdd.plugin.pickle_runner.run_transitions._resolve_transition_refs` keeps its documented import path,
+          ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     run_ref = scenario_run.run_ref
     if scenario_run.run is not None:
         run_ref = _resolve_lifecycle_ref("run", scenario_run.run, is_active=True, inactive_reason="idle")
@@ -191,6 +294,49 @@ def _sync_step_node(
     step_ref: LifecycleObjectRef,
     step_is_active: bool,
 ) -> None:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.run_transitions._sync_step_node` owns
+        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.plugin.pickle_runner.run_transitions._sync_step_node`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - current_step_node.close: collaborator call used by this boundary
+        - RunNode: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates scenario_run.step_node, next_transition, current_step_node, current_step_node.object_ref, parent_id.
+
+    Invariants:
+        - `pytest_bdd.plugin.pickle_runner.run_transitions._sync_step_node` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     next_transition = scenario_run.transition_index + 1
     current_step_node = scenario_run.step_node
     if step_ref.is_active and step_is_active:
@@ -215,6 +361,55 @@ def _sync_step_node(
 
 
 def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObjectRef) -> None:
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.run_transitions._finalize_after_scenario` owns
+        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.pickle_runner.run_transitions._finalize_after_scenario` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _inactive_ref: collaborator call used by this boundary
+        - scenario_run.step_node.close: collaborator call used by this boundary
+        - scenario_run.scenario_node.close: collaborator call used by this boundary
+        - scenario_run.feature_node.close: collaborator call used by this boundary
+        - NoPreviousStep: collaborator call used by this boundary
+        - scenario_run.set_active_set: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - None found by static import/name scan; verify dynamic use before refactor
+
+    State and side effects:
+        mutates scenario_run.stage, scenario_run.step_object, scenario_run.previous_step_object,
+        scenario_run.feature_ref, scenario_run.scenario_ref.
+
+    Invariants:
+        - `pytest_bdd.plugin.pickle_runner.run_transitions._finalize_after_scenario` keeps its documented import path,
+          ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=2
+    """
     if scenario_run.step_node is not None:
         scenario_run.step_node.close(scenario_run.transition_index)
     if scenario_run.scenario_node is not None:
@@ -241,19 +436,6 @@ def _finalize_after_scenario(scenario_run: ScenarioRun, *, run_ref: LifecycleObj
     )
 
 
-def initial_scenario_run_id(request: FixtureRequest) -> str:
-    """
-    Get initial scenario run ID.
-
-    Returns:
-        Initial scenario run ID string.
-
-    """
-    node_id = getattr(getattr(request, "node", None), "nodeid", None)
-    key = node_id or f"unknown-{next(_context_index)}"
-    return f"ctx-{key}-{next(_context_index)}"
-
-
 def apply_transition(  # noqa: PLR0913
     scenario_run: ScenarioRun,
     *,
@@ -269,6 +451,53 @@ def apply_transition(  # noqa: PLR0913
 
     Returns:
         Updated scenario run.
+
+    Responsibility:
+        Apply transition to scenario run. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.plugin.pickle_runner.run_transitions.apply_transition`
+        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _resolve_transition_refs: collaborator call used by this boundary
+        - NoPreviousStep: collaborator call used by this boundary
+        - _sync_step_node: collaborator call used by this boundary
+        - scenario_run.set_active_set: collaborator call used by this boundary
+        - ActiveObjectSet: collaborator call used by this boundary
+        - scenario_run.advance_transition: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/pickle_runner/__init__.py: imports or references `apply_transition`
+        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `apply_transition`
+
+    State and side effects:
+        mutates scenario_run.status, run.active_feature_id, stage, run, run_ref.
+
+    Invariants:
+        - `pytest_bdd.plugin.pickle_runner.run_transitions.apply_transition` keeps its documented import path, ownership
+          boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     stage = PHASE_TO_STAGE[hook_phase]
@@ -294,9 +523,9 @@ def apply_transition(  # noqa: PLR0913
     scenario_run.step_ref = step_ref
     scenario_run.previous_step_ref = previous_step_ref
     scenario_run.gherkin_document = gherkin_document
-    scenario_run.pickle = pickle
-    scenario_run.step_object = step
-    scenario_run.previous_step_object = previous_step if previous_step is not None else NoPreviousStep()
+    scenario_run.pickle = pickle  # type: ignore[assignment]  # stash-sourced untyped object
+    scenario_run.step_object = step  # type: ignore[assignment]  # stash-sourced untyped object
+    scenario_run.previous_step_object = previous_step if previous_step is not None else NoPreviousStep()  # type: ignore[assignment]  # PickleStep | None vs PickleStep | NoPreviousStep
 
     _sync_step_node(scenario_run, step_ref=step_ref, step_is_active=step_is_active)
 

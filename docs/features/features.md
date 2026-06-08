@@ -169,6 +169,14 @@ The navigation tree below is regenerated automatically.
 16 Batch Collection/02 Edge cases with large files.feature
 ```
 
+## Debug MCP
+
+```{toctree}
+:maxdepth: 2
+
+17 Debug MCP/01 Agentic debugging.feature
+```
+
 ### Load
 
 ```{toctree}

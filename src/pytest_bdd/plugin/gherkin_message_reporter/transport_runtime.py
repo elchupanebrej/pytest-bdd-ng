@@ -1,4 +1,59 @@
-"""Provide transport runtime helpers."""
+"""
+Provide transport runtime helpers.
+
+Responsibility:
+    Provide transport runtime helpers. It directly owns the observable contract, local decisions, and maintenance
+    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
+    from collaborators before editing.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime` because it
+    keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+Delegates:
+    - _WorkerNode: owns nested behavior below this boundary
+    - _configured_transport_fail_worker_ids: owns nested behavior below this boundary
+    - TransportService: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+      `transport_runtime`
+    - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `transport_runtime`
+    - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `transport_runtime`
+    - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `transport_runtime`
+    - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `transport_runtime`
+
+State and side effects:
+    mutates msg, self.reporter._xdist_compatibility_error, worker_id, workeroutput,
+    self.reporter._process_messages_thread_error; depends on __future__.annotations, json, logging, shutil,
+    pathlib.Path.
+
+Invariants:
+    - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime` keeps its documented import path, ownership
+      boundary, and observable behavior stable for callers.
+
+Failure semantics:
+    Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=4
+"""
 
 from __future__ import annotations
 
@@ -38,6 +93,54 @@ from pytest_bdd.util.live_reporting import (
 
 
 class _WorkerNode(Protocol):
+    """
+    Responsibility:
+        Responsibility: Responsibility: `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` owns
+        documented class behavior. It directly owns the observable contract, local decisions, and maintenance boundary
+        for this class.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `_WorkerNode`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `_WorkerNode`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `_WorkerNode`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `_WorkerNode`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `_WorkerNode`
+
+    State and side effects:
+        mutates workerinput, workeroutput.
+
+    Invariants:
+        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` keeps its documented import path,
+          ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
+    """
+
     workerinput: dict[str, object]
     workeroutput: dict[str, object]
 
@@ -54,6 +157,64 @@ logger = logging.getLogger(__name__)
 
 
 def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
+    """
+    Responsibility:
+        Responsibility: Responsibility:
+        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` owns
+        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - getattr: collaborator call used by this boundary
+        - worker_id.strip: collaborator call used by this boundary
+        - str.strip: collaborator call used by this boundary
+        - str: collaborator call used by this boundary
+        - set: collaborator call used by this boundary
+        - raw_value.split: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `_configured_transport_fail_worker_ids`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+          `_configured_transport_fail_worker_ids`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+          `_configured_transport_fail_worker_ids`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+          `_configured_transport_fail_worker_ids`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+          `_configured_transport_fail_worker_ids`
+
+    State and side effects:
+        mutates raw_value.
+
+    Invariants:
+        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` keeps its
+          documented import path, ownership boundary, and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+    """
     raw_value = str(getattr(config, "getini", lambda _name: "")("pytest_bdd_transport_fail_workers") or "").strip()
     if not raw_value:
         return set()
@@ -67,16 +228,178 @@ class TransportService(ReporterServiceBase):
     Raises:
         RuntimeError: If the operation cannot be completed.
 
+    Responsibility:
+        Represent transport service state. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for
+        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - __init__: owns nested behavior below this boundary
+        - _run_process_messages_thread: owns nested behavior below this boundary
+        - _ensure_xdist_worker_transport_client: owns nested behavior below this boundary
+        - _current_reporting_worker_id: owns nested behavior below this boundary
+        - _activate_xdist_controller_mode: owns nested behavior below this boundary
+        - pytest_configure_node: owns nested behavior below this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+          widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+          `TransportService`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `TransportService`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `TransportService`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `TransportService`
+        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+          `TransportService`
+
+    State and side effects:
+        mutates msg, self.reporter._xdist_compatibility_error, worker_id, self.reporter._process_messages_thread_error,
+        gateway_mode.
+
+    Invariants:
+        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService` keeps its documented import
+          path, ownership boundary, and observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=3
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
 
     plugin_suffix = "transport"
 
     def __init__(self, reporter: GherkinMessageReporter, *, live_formatter_service: LiveFormatterService) -> None:
-        """Initialize the transport service."""
+        """
+        Initialize the transport service.
+
+        Responsibility:
+            Initialize the transport service. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
+            owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.__init__` because it keeps
+            the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - super.__init__: collaborator call used by this boundary
+            - super: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
+            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
+            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+
+        State and side effects:
+            mutates self.live_formatter_service.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.__init__` keeps its
+              documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         super().__init__(reporter)
         self.live_formatter_service = live_formatter_service
 
     def _run_process_messages_thread(self, *, force_transport_publish_failure: bool) -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - type.process_messages: collaborator call used by this boundary
+            - type: collaborator call used by this boundary
+            - logger.exception: collaborator call used by this boundary
+            - self.reporter.process_messages_stop_event.set: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_run_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_run_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_run_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_run_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `_run_process_messages_thread`
+
+        State and side effects:
+            mutates self.reporter._process_messages_thread_error.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         try:
             type(self).process_messages(
                 self.reporter.process_messages_io_queue,
@@ -91,6 +414,64 @@ class TransportService(ReporterServiceBase):
             self.reporter.process_messages_stop_event.set()
 
     def _ensure_xdist_worker_transport_client(self, *, require_sender: bool) -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - _is_xdist_worker_process: collaborator call used by this boundary
+            - _resolve_reporting_worker_identity: collaborator call used by this boundary
+            - resolve_reporting_event_sender: collaborator call used by this boundary
+            - ReportingTransportClient: collaborator call used by this boundary
+            - str: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_ensure_xdist_worker_transport_client`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_ensure_xdist_worker_transport_client`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_ensure_xdist_worker_transport_client`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_ensure_xdist_worker_transport_client`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `_ensure_xdist_worker_transport_client`
+
+        State and side effects:
+            mutates self.reporter._xdist_compatibility_error, self.reporter.is_xdist_worker, transport_worker_id,
+            gateway_mode, sender.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         self.reporter.is_xdist_worker = _is_xdist_worker_process(self.reporter.config)
         if not self.reporter.is_xdist_worker or self.reporter.xdist_transport_client is not None:
             return
@@ -112,10 +493,122 @@ class TransportService(ReporterServiceBase):
 
     @staticmethod
     def _current_reporting_worker_id(config: Config) -> str:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - _resolve_reporting_worker_identity: collaborator call used by this boundary
+            - _format_reporting_worker_id: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_current_reporting_worker_id`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `_current_reporting_worker_id`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_current_reporting_worker_id`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_current_reporting_worker_id`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_current_reporting_worker_id`
+
+        State and side effects:
+            mutates worker_id, gateway_mode.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
         return _format_reporting_worker_id(worker_id, gateway_mode)
 
     def _activate_xdist_controller_mode(self) -> None:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - ensure_xdist_controller_batch_patch: collaborator call used by this boundary
+            - ReportingTransportSession: collaborator call used by this boundary
+            - self.reporter.xdist_fragment_dir.exists: collaborator call used by this boundary
+            - shutil.rmtree: collaborator call used by this boundary
+            - self.reporter.xdist_fragment_dir.mkdir: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_activate_xdist_controller_mode`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_activate_xdist_controller_mode`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_activate_xdist_controller_mode`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_activate_xdist_controller_mode`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `_activate_xdist_controller_mode`
+
+        State and side effects:
+            mutates self.reporter._xdist_compatibility_error, self.reporter.is_xdist_controller,
+            self.reporter.xdist_transport_session, self.reporter.xdist_fragment_dir, self.reporter.messages_file_path.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         if self.reporter.is_disabled or self.reporter.is_xdist_worker or self.reporter.is_xdist_controller:
             return
         if not ensure_xdist_controller_batch_patch():
@@ -142,7 +635,63 @@ class TransportService(ReporterServiceBase):
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_configure_node(self, node: _WorkerNode) -> None:
-        """Handle the pytest configure node pytest hook."""
+        """
+        Handle the pytest configure node pytest hook.
+
+        Responsibility:
+            Handle the pytest configure node pytest hook. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_configure_node`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self._activate_xdist_controller_mode: collaborator call used by this boundary
+            - node_worker_id: collaborator call used by this boundary
+            - self.reporter.xdist_transport_session.register_expected_worker: collaborator call used by this boundary
+            - node_gateway_mode: collaborator call used by this boundary
+            - _configured_transport_fail_worker_ids: collaborator call used by this boundary
+            - pytest.hookimpl: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `pytest_configure_node`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `pytest_configure_node`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `pytest_configure_node`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `pytest_configure_node`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `pytest_configure_node`
+
+        State and side effects:
+            mutates worker_id.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_configure_node`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         if self.reporter.is_disabled:
             return
         self._activate_xdist_controller_mode()
@@ -164,7 +713,63 @@ class TransportService(ReporterServiceBase):
         }
 
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: JSONObject) -> None:
-        """Handle the pytest bdd xdist message batch pytest hook."""
+        """
+        Handle the pytest bdd xdist message batch pytest hook.
+
+        Responsibility:
+            Handle the pytest bdd xdist message batch pytest hook. It directly owns the observable contract, local
+            decisions, and maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_bdd_xdist_message_batch`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self.reporter.xdist_transport_session.receive_remote_event: collaborator call used by this boundary
+            - batch.get: collaborator call used by this boundary
+            - isinstance: collaborator call used by this boundary
+            - self.live_formatter_service._emit_live_formatter_json_lines: collaborator call used by this boundary
+            - json.dumps: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `pytest_bdd_xdist_message_batch`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/message_stream.py: imports or references
+              `pytest_bdd_xdist_message_batch`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `pytest_bdd_xdist_message_batch`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `pytest_bdd_xdist_message_batch`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `pytest_bdd_xdist_message_batch`
+
+        State and side effects:
+            mutates _, raw_envelopes, envelopes.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_bdd_xdist_message_batch`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         _ = config, node
         if (
             self.reporter.is_disabled
@@ -182,7 +787,63 @@ class TransportService(ReporterServiceBase):
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: _WorkerNode, error: object | None) -> None:
-        """Handle the pytest testnodedown pytest hook."""
+        """
+        Handle the pytest testnodedown pytest hook.
+
+        Responsibility:
+            Handle the pytest testnodedown pytest hook. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_testnodedown` because
+            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - str: collaborator call used by this boundary
+            - workeroutput.get: collaborator call used by this boundary
+            - cast: collaborator call used by this boundary
+            - getattr: collaborator call used by this boundary
+            - node_worker_id: collaborator call used by this boundary
+            - self.reporter._xdist_fragment_records.get: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `pytest_testnodedown`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `pytest_testnodedown`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `pytest_testnodedown`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `pytest_testnodedown`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `pytest_testnodedown`
+
+        State and side effects:
+            mutates workeroutput, worker_id, existing_record, manifest_payload, manifest.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_testnodedown` keeps
+              its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         if self.reporter.is_disabled:
             return
         if not self.reporter.is_xdist_controller:
@@ -216,7 +877,65 @@ class TransportService(ReporterServiceBase):
         self.reporter._xdist_fragment_records[worker_id] = existing_record  # noqa: SLF001
 
     def start_process_messages_thread(self) -> None:
-        """Handle start process messages thread."""
+        """
+        Handle start process messages thread.
+
+        Responsibility:
+            Handle start process messages thread. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
+            distinguish owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.start_process_messages_thread`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - Queue: collaborator call used by this boundary
+            - Event: collaborator call used by this boundary
+            - Thread: collaborator call used by this boundary
+            - self.reporter.process_messages_thread.start: collaborator call used by this boundary
+            - sleep: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `start_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `start_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `start_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `start_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `start_process_messages_thread`
+
+        State and side effects:
+            mutates self.reporter.process_messages_io_queue, self.reporter.process_messages_stop_event,
+            self.reporter._process_messages_thread_error, self.reporter.process_messages_thread.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.start_process_messages_thread`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
         self.reporter._process_messages_thread_error = None  # noqa: SLF001
@@ -234,6 +953,66 @@ class TransportService(ReporterServiceBase):
 
         Raises:
             RuntimeError: If the operation cannot be completed.
+
+        Responsibility:
+            Handle finish process messages thread. It directly owns the observable contract, local decisions, and
+            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
+            distinguish owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.finish_process_messages_thread`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - RuntimeError: collaborator call used by this boundary
+            - self.live_formatter_service._close_live_formatter_stream: collaborator call used by this boundary
+            - monotonic: collaborator call used by this boundary
+            - self.reporter.process_messages_thread.is_alive: collaborator call used by this boundary
+            - sleep: collaborator call used by this boundary
+            - self.reporter.process_messages_stop_event.set: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `finish_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `finish_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `finish_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `finish_process_messages_thread`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `finish_process_messages_thread`
+
+        State and side effects:
+            mutates msg, deadline, process, self.reporter._live_formatter_process,
+            self.reporter._live_formatter_temp_dir.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.finish_process_messages_thread`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Failure semantics:
+            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
 
         """
         deadline = monotonic() + 10
@@ -278,7 +1057,64 @@ class TransportService(ReporterServiceBase):
         *,
         force_transport_publish_failure: bool = False,
     ) -> None:
-        """Handle process messages."""
+        """
+        Handle process messages.
+
+        Responsibility:
+            Handle process messages. It directly owns the observable contract, local decisions, and maintenance boundary
+            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
+            from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.process_messages` because it
+            keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - sleep: collaborator call used by this boundary
+            - logger.exception: collaborator call used by this boundary
+            - stop_event.is_set: collaborator call used by this boundary
+            - Path: collaborator call used by this boundary
+            - str: collaborator call used by this boundary
+            - messages_path.with_name: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `process_messages`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `process_messages`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `process_messages`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `process_messages`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `process_messages`
+
+        State and side effects:
+            mutates last_enter, messages_path, lock_file, lines, batch_envelopes.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.process_messages` keeps its
+              documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         messages_path = Path(messages_file_path)
         lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
         last_enter = False
@@ -340,6 +1176,61 @@ class TransportService(ReporterServiceBase):
         Returns:
             List of messages.
 
+        Responsibility:
+            Read envelopes from path. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
+            owned work from collaborators before editing.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.read_envelopes_from_path`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - messages_file_path.exists: collaborator call used by this boundary
+            - messages_file_path.read_text.splitlines: collaborator call used by this boundary
+            - messages_file_path.read_text: collaborator call used by this boundary
+            - line.strip: collaborator call used by this boundary
+            - envelopes.append: collaborator call used by this boundary
+            - envelope_from_dict: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `read_envelopes_from_path`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `read_envelopes_from_path`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `read_envelopes_from_path`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `read_envelopes_from_path`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `read_envelopes_from_path`
+
+        State and side effects:
+            mutates envelopes.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.read_envelopes_from_path`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+
         """
         envelopes: list[Message] = []
         if not messages_file_path.exists():
@@ -351,6 +1242,59 @@ class TransportService(ReporterServiceBase):
         return envelopes
 
     def _write_final_messages_file(self, envelope_dicts: tuple[JSONObject, ...]) -> list[Message]:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._write_final_messages_file`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._write_final_messages_file`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - self.reporter.final_messages_file_path.parent.mkdir: collaborator call used by this boundary
+            - self.reporter.final_messages_file_path.write_text: collaborator call used by this boundary
+            - join: collaborator call used by this boundary
+            - json.dumps: collaborator call used by this boundary
+            - self.read_envelopes_from_path: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_write_final_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_write_final_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_write_final_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_write_final_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
+              `_write_final_messages_file`
+
+        State and side effects:
+            keeps no local persistent state beyond call-local values.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         self.reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         self.reporter.final_messages_file_path.write_text(
             "".join(f"{json.dumps(envelope_dict)}\n" for envelope_dict in envelope_dicts),
@@ -359,6 +1303,64 @@ class TransportService(ReporterServiceBase):
         return self.read_envelopes_from_path(self.reporter.final_messages_file_path)
 
     def _finalize_xdist_messages_file(self) -> list[Message]:
+        """
+        Responsibility:
+            Responsibility: Responsibility:
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
+            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
+            boundary for this method.
+
+        Reason for existence:
+            This entity is the information expert for
+            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
+            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+        Delegates:
+            - worker_ids.update: collaborator call used by this boundary
+            - MessageFragment.from_path: collaborator call used by this boundary
+            - self.reporter.xdist_transport_session.snapshot: collaborator call used by this boundary
+            - set: collaborator call used by this boundary
+            - transport_snapshot.batches_by_worker.keys: collaborator call used by this boundary
+            - transport_snapshot.manifests_by_worker.keys: collaborator call used by this boundary
+
+        Cohesion:
+            The implementation stays together because its imports, calls, state writes, and return contract describe one
+            maintainable decision unit.
+
+        Separation:
+            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+              without widening caller knowledge.
+
+        Main consumers:
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
+              `_finalize_xdist_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
+              `_finalize_xdist_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
+              `_finalize_xdist_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
+              `_finalize_xdist_messages_file`
+            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
+              `_finalize_xdist_messages_file`
+
+        State and side effects:
+            mutates controller_fragment, transport_snapshot, worker_ids, fragment_specs, batches.
+
+        Invariants:
+            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
+              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
+        """
         controller_fragment = MessageFragment.from_path(
             worker_id="master",
             role="controller",

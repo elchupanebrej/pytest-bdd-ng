@@ -1,0 +1,95 @@
+{
+  "canonical_queue": [
+    {
+      "type": "readme",
+      "resolved_path": "README.md",
+      "mode": "supplement",
+      "preservation_mode": "supplement",
+      "wave": 1,
+      "status": "completed"
+    },
+    {
+      "type": "architecture",
+      "resolved_path": "docs/architecture/index.md",
+      "mode": "supplement",
+      "preservation_mode": "supplement",
+      "wave": 1,
+      "status": "completed"
+    },
+    {
+      "type": "configuration",
+      "resolved_path": "docs/guides/configuration.md",
+      "mode": "create",
+      "preservation_mode": null,
+      "wave": 1,
+      "status": "completed"
+    },
+    {
+      "type": "getting_started",
+      "resolved_path": "docs/guides/getting-started.md",
+      "mode": "create",
+      "preservation_mode": null,
+      "wave": 2,
+      "status": "completed"
+    },
+    {
+      "type": "development",
+      "resolved_path": "DEVELOPMENT.rst",
+      "mode": "supplement",
+      "preservation_mode": "supplement",
+      "wave": 2,
+      "status": "completed"
+    },
+    {
+      "type": "api",
+      "resolved_path": "docs/api/index.md",
+      "mode": "supplement",
+      "preservation_mode": "supplement",
+      "wave": 2,
+      "status": "completed"
+    },
+    {
+      "type": "testing",
+      "resolved_path": "docs/guides/testing.md",
+      "mode": "create",
+      "preservation_mode": null,
+      "wave": 3,
+      "status": "completed"
+    },
+    {
+      "type": "deployment",
+      "resolved_path": "docs/guides/deployment.md",
+      "mode": "create",
+      "preservation_mode": null,
+      "wave": 3,
+      "status": "completed"
+    },
+    {
+      "type": "contributing",
+      "resolved_path": "CONTRIBUTING.md",
+      "mode": "create",
+      "preservation_mode": null,
+      "wave": 3,
+      "status": "completed"
+    }
+  ],
+  "review_queue": [
+    {
+      "path": "docs/",
+      "type": "hand-written/generated documentation tree",
+      "status": "reviewed"
+    },
+    {
+      "path": "DOCUMENTATION.md",
+      "type": "hand-written",
+      "status": "reviewed"
+    },
+    {
+      "path": "MIGRATION.md",
+      "type": "hand-written",
+      "status": "reviewed"
+    }
+  ],
+  "gap_queue": [],
+  "created_at": "2026-06-11T00:00:00+03:00"
+}

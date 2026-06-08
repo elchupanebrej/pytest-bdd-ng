@@ -1,13 +1,196 @@
-"""Step decorator builders — given, when, then, step."""
+"""
+Step decorator builders — given, when, then, step.
+
+Responsibility:
+    Step decorator builders — given, when, then, step. It directly owns the observable contract, local decisions, and
+    maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd.steps.decorators` because it keeps the nearest code, data
+    shape, call signature, and failure knowledge together.
+
+Delegates:
+    - not_implemented: owns nested behavior below this boundary
+    - tolerant: owns nested behavior below this boundary
+    - given: owns nested behavior below this boundary
+    - when: owns nested behavior below this boundary
+    - then: owns nested behavior below this boundary
+    - step: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/plugin/code_generator/rewrite.py: imports or references `decorators`
+    - src/pytest_bdd/steps/__init__.py: imports or references `decorators`
+
+State and side effects:
+    mutates cast.__pytest_bdd_not_implemented__, definition.not_implemented, cast.__pytest_bdd_tolerant__,
+    definition.tolerant; depends on __future__.annotations, collections.abc.Iterable, collections.abc.Mapping,
+    collections.abc.Sequence, typing.Any.
+
+Invariants:
+    - `pytest_bdd.steps.decorators` keeps its documented import path, ownership boundary, and observable behavior stable
+      for callers.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence  # noqa: TC003
+from typing import Any, cast
 
 from cucumber_messages import PickleStepType
 
-from pytest_bdd.steps.definition import ConverterT, ParamsFixturesMapping, StepDecorator  # noqa: TC001
+from pytest_bdd.steps.definition import (
+    ConverterT,
+    Definition,
+    ParamsFixturesMapping,
+    StepDecorator,
+    StepFunc,
+)
 from pytest_bdd.steps.manager import StepDefinitionManager
+
+
+def not_implemented(step_func: StepFunc) -> StepFunc:
+    """
+    Mark a step definition as intentionally not implemented.
+
+    Args:
+        step_func: Step definition function.
+
+    Returns:
+        Marked step definition function.
+
+    Responsibility:
+        Mark a step definition as intentionally not implemented. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.not_implemented` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - cast: collaborator call used by this boundary
+        - getattr: collaborator call used by this boundary
+        - isinstance: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `not_implemented`
+        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `not_implemented`
+        - src/pytest_bdd/steps/__init__.py: imports or references `not_implemented`
+        - src/pytest_bdd/steps/definition.py: imports or references `not_implemented`
+
+    State and side effects:
+        mutates cast.__pytest_bdd_not_implemented__, definition.not_implemented.
+
+    Invariants:
+        - `pytest_bdd.steps.decorators.not_implemented` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
+    """
+    cast("Any", step_func).__pytest_bdd_not_implemented__ = True
+    for definition in getattr(step_func, "__pytest_bdd_step_definitions__", ()):
+        if isinstance(definition, Definition):
+            definition.not_implemented = True
+    return step_func
+
+
+def tolerant(step_func: StepFunc) -> StepFunc:
+    """
+    Mark a step definition as tolerant to failure.
+
+    Args:
+        step_func: Step definition function.
+
+    Returns:
+        Marked step definition function.
+
+    Responsibility:
+        Mark a step definition as tolerant to failure. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.tolerant` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - cast: collaborator call used by this boundary
+        - getattr: collaborator call used by this boundary
+        - isinstance: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `tolerant`
+        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `tolerant`
+        - src/pytest_bdd/steps/__init__.py: imports or references `tolerant`
+        - src/pytest_bdd/steps/definition.py: imports or references `tolerant`
+
+    State and side effects:
+        mutates cast.__pytest_bdd_tolerant__, definition.tolerant.
+
+    Invariants:
+        - `pytest_bdd.steps.decorators.tolerant` keeps its documented import path, ownership boundary, and observable
+          behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
+    """
+    cast("Any", step_func).__pytest_bdd_tolerant__ = True
+    for definition in getattr(step_func, "__pytest_bdd_step_definitions__", ()):
+        if isinstance(definition, Definition):
+            definition.tolerant = True
+    return step_func
 
 
 def given(  # noqa: PLR0913, PLR0917
@@ -113,6 +296,44 @@ def given(  # noqa: PLR0913, PLR0917
         :func:`then`: Define assertion steps.
         :func:`step`: Define liberal steps matching any keyword.
 
+    Responsibility:
+        Define a Given step that sets up preconditions for a scenario. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.given` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - StepDefinitionManager.decorator_builder: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `given`
+        - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `given`
+        - src/pytest_bdd/steps/__init__.py: imports or references `given`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.context,
@@ -200,6 +421,46 @@ def when(  # noqa: PLR0913, PLR0917
         :func:`then`: Define assertion steps.
         :func:`step`: Define liberal steps matching any keyword.
 
+    Responsibility:
+        Define a When step that describes an action or event in a scenario. It directly owns the observable contract,
+        local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.when` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - StepDefinitionManager.decorator_builder: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `when`
+        - src/pytest_bdd/plugin/cucumber_json/plugin.py: imports or references `when`
+        - src/pytest_bdd/plugin/debug_mcp/failure.py: imports or references `when`
+        - src/pytest_bdd/plugin/debug_mcp/hook.py: imports or references `when`
+        - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `when`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.action,
@@ -285,6 +546,44 @@ def then(  # noqa: PLR0913, PLR0917
         :func:`when`: Define action steps.
         :func:`step`: Define liberal steps matching any keyword.
 
+    Responsibility:
+        Define a Then step that asserts expected outcomes in a scenario. It directly owns the observable contract, local
+        decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.then` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - StepDefinitionManager.decorator_builder: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `then`
+        - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `then`
+        - src/pytest_bdd/steps/__init__.py: imports or references `then`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
+
     """
     return StepDefinitionManager.decorator_builder(
         PickleStepType.outcome,
@@ -321,12 +620,11 @@ def step(  # noqa: PLR0913, PLR0917
     applicable across multiple step types (e.g., shared utility steps
     like "I wait for the page to load").
 
-    A step decorated with ``@step`` matches when:
-    - No specific Given/When/Then step definition matches the step text.
-    - The ``liberal`` configuration is enabled (via ``liberal_steps``
-      ini option or CLI flag), allowing liberal steps to match even
-      when a keyword-specific definition exists but has a different
-      step type.
+    A step decorated with ``@step`` matches when no specific
+    Given/When/Then step definition matches the step text, or when
+    the ``liberal`` configuration is enabled (via the ``liberal_steps``
+    ini option or CLI flag) allowing liberal steps to match even when
+    a keyword-specific definition exists but has a different step type.
 
     Use ``@step`` instead of ``@given``/``@when``/``@then`` when:
     - The step definition is reusable across Given, When, and Then contexts.
@@ -389,6 +687,46 @@ def step(  # noqa: PLR0913, PLR0917
         :func:`given`: Define precondition steps (PickleStepType.context).
         :func:`when`: Define action steps (PickleStepType.action).
         :func:`then`: Define assertion steps (PickleStepType.outcome).
+
+    Responsibility:
+        Define a liberal step that can match any Gherkin keyword (Given/When/Then). It directly owns the observable
+        contract, local decisions, and maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd.steps.decorators.step` because it keeps the nearest code,
+        data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - StepDefinitionManager.decorator_builder: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/__init__.py: imports or references `step`
+        - src/pytest_bdd/model/feature_binding.py: imports or references `step`
+        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `step`
+        - src/pytest_bdd/model/run_access.py: imports or references `step`
+        - src/pytest_bdd/model/scenario_report.py: imports or references `step`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
 
     """
     return StepDefinitionManager.decorator_builder(

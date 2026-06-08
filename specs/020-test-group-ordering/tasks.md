@@ -140,8 +140,8 @@ description: "Task list for feature: Test Group Ordering"
 - [X] T041 Run `uv run python -m pytest /mnt/c/Users/bulky/Projects/pytest-bdd/tests/unit/test_group_ordering.py -q` from `/mnt/c/Users/bulky/Projects/pytest-bdd`
 - [X] T042 Run `uv run python -m pytest --collect-only -q` from `/mnt/c/Users/bulky/Projects/pytest-bdd` using `/mnt/c/Users/bulky/Projects/pytest-bdd/pyproject.toml` to validate quick collection across the existing suite
 - [X] T043 Run `uvx --with tox-uv tox -l` from `/mnt/c/Users/bulky/Projects/pytest-bdd` and ensure `/mnt/c/Users/bulky/Projects/pytest-bdd/tox.ini` environments still resolve with `pytest-order`
-- [ ] T044 Run `uvx pre-commit run --all-files` from `/mnt/c/Users/bulky/Projects/pytest-bdd` and fix any formatting, linting, or typing issues in `/mnt/c/Users/bulky/Projects/pytest-bdd/src/pytest_bdd/util/test_group_ordering.py`, `/mnt/c/Users/bulky/Projects/pytest-bdd/tests/conftest.py`, and `/mnt/c/Users/bulky/Projects/pytest-bdd/tests/unit/test_group_ordering.py`
-- [ ] T045 Run the commands documented in `/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/quickstart.md` end-to-end and update that file if observed behaviour differs
+- [X] T044 Run `uvx pre-commit run --all-files` from `/mnt/c/Users/bulky/Projects/pytest-bdd` and fix any formatting, linting, or typing issues in `/mnt/c/Users/bulky/Projects/pytest-bdd/src/pytest_bdd/util/test_group_ordering.py`, `/mnt/c/Users/bulky/Projects/pytest-bdd/tests/conftest.py`, and `/mnt/c/Users/bulky/Projects/pytest-bdd/tests/unit/test_group_ordering.py`
+- [X] T045 Run the commands documented in `/mnt/c/Users/bulky/Projects/pytest-bdd/specs/020-test-group-ordering/quickstart.md` end-to-end and update that file if observed behaviour differs
 
 ---
 

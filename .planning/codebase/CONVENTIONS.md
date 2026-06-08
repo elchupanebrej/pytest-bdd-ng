@@ -163,8 +163,10 @@ if TYPE_CHECKING:
 ## Module Design
 
 **Exports:**
-- Source modules: explicit `__all__` list in `src/pytest_bdd/__init__.py` for public API.
-- Sub-modules export by convention — no single `__all__` in most modules beyond the main entry point.
+- `__all__` is forbidden in all modules (including source modules, facade modules, compatibility helper modules, and `__init__.py` files) to ensure clean and predictable re-exports.
+- Redundant import aliases (such as `from X import Y as Y` or `import Y as Y` where the alias name matches the imported name) are forbidden by custom lint rule `BLQ1404`. Imports must be clean without the duplicate `as` alias.
+- To satisfy mypy strict type checking (`no_implicit_reexport = True` by default), facade and compatibility helper modules are exempted from strict checking by configuring `implicit_reexport = true` overrides under `[[tool.mypy.overrides]]` in `pyproject.toml` instead of using the redundant `as Y` pattern.
+- Imports of test cases (any module or imported name starting with `test_` or containing `.test_`) must strictly reside under the `src/pytest_bdd_testing/cases/` package. Importing tests from any other path is forbidden and checked by custom lint rule `BLQ1601`.
 - Lazy loading via `__getattr__` in `src/pytest_bdd/__init__.py` for `given`, `step`, `then`, `when`.
 
 **Barrel Files:** `__init__.py` files in plugin packages typically contain only a docstring. The actual plugin code lives in `entrypoint.py` or `plugin.py`.

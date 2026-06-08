@@ -1,4 +1,55 @@
-"""Low-level ctypes bridge to the Go gherkin parser shared library."""
+"""
+Low-level ctypes bridge to the Go gherkin parser shared library.
+
+Responsibility:
+    Low-level ctypes bridge to the Go gherkin parser shared library. It directly owns the observable contract, local
+    decisions, and maintenance boundary for this module.
+
+Reason for existence:
+    This entity is the information expert for `pytest_bdd._gherkin_go._bridge` because it keeps the nearest code, data
+    shape, call signature, and failure knowledge together.
+
+Delegates:
+    - _load_library: owns nested behavior below this boundary
+    - gherkin_go_available: owns nested behavior below this boundary
+    - _call_and_free: owns nested behavior below this boundary
+    - parse_gherkin_document: owns nested behavior below this boundary
+    - parse_gherkin_markdown: owns nested behavior below this boundary
+    - gherkin_go_version: owns nested behavior below this boundary
+
+Cohesion:
+    The implementation stays together because its imports, calls, state writes, and return contract describe one
+    maintainable decision unit.
+
+Separation:
+    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
+      widening caller knowledge.
+
+Main consumers:
+    - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_bridge`
+
+State and side effects:
+    mutates _lib_error, _lib, lib, result, logger; depends on __future__.annotations, ctypes, logging, sys,
+    pathlib.Path.
+
+Invariants:
+    - `pytest_bdd._gherkin_go._bridge` keeps its documented import path, ownership boundary, and observable behavior
+      stable for callers.
+
+Failure semantics:
+    Raises or re-raises OSError, RuntimeError, re-raise; callers must treat these as boundary failures.
+
+Architecture score:
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=4
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=3
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=3
+"""
 
 from __future__ import annotations
 
@@ -30,6 +81,54 @@ def _load_library() -> ctypes.CDLL:
 
     Raises:
         OSError: If the library cannot be loaded.
+
+    Responsibility:
+        Load the Go shared library from package data. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._load_library` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - OSError: collaborator call used by this boundary
+        - _PLATFORM_LIB_MAP.get: collaborator call used by this boundary
+        - Path: collaborator call used by this boundary
+        - lib_path.exists: collaborator call used by this boundary
+        - ctypes.CDLL: collaborator call used by this boundary
+        - str: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_load_library`
+
+    State and side effects:
+        mutates _lib_error, lib_name, package_dir, lib_path, _lib.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge._load_library` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises OSError, re-raise; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
 
     """
     global _lib, _lib_error  # noqa: PLW0603
@@ -75,7 +174,45 @@ def _load_library() -> ctypes.CDLL:
 
 
 def gherkin_go_available() -> bool:
-    """Check if the Go shared library is loadable."""
+    """
+    Check if the Go shared library is loadable.
+
+    Responsibility:
+        Check if the Go shared library is loadable. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.gherkin_go_available` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _load_library: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `gherkin_go_available`
+
+    State and side effects:
+        keeps no local persistent state beyond call-local values.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
     try:
         _load_library()
     except OSError:
@@ -103,6 +240,53 @@ def _call_and_free(lib: ctypes.CDLL, func: Any, *args: Any) -> str:
     Raises:
         RuntimeError: If the function returns NULL or an empty result.
 
+    Responsibility:
+        Call a Go C-exported function and manage memory. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._call_and_free` because it keeps the
+        nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - RuntimeError: collaborator call used by this boundary
+        - func: collaborator call used by this boundary
+        - ctypes.cast: collaborator call used by this boundary
+        - result.decode: collaborator call used by this boundary
+        - lib.FreeCString: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_call_and_free`
+
+    State and side effects:
+        mutates ptr, result.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge._call_and_free` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Failure semantics:
+        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     ptr = func(*args)
     if not ptr:
@@ -126,6 +310,49 @@ def parse_gherkin_document(text: str) -> str:
     Returns:
         JSON string — either a GherkinDocument object or an error array.
 
+    Responsibility:
+        Parse plain Gherkin text via Go parser. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.parse_gherkin_document` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _load_library: collaborator call used by this boundary
+        - _call_and_free: collaborator call used by this boundary
+        - text.encode: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse_gherkin_document`
+        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `parse_gherkin_document`
+
+    State and side effects:
+        mutates lib.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge.parse_gherkin_document` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     lib = _load_library()
     return _call_and_free(lib, lib.ParseGherkinDocument, text.encode("utf-8"))
@@ -141,13 +368,101 @@ def parse_gherkin_markdown(text: str) -> str:
     Returns:
         JSON string — either a GherkinDocument object or an error array.
 
+    Responsibility:
+        Parse Markdown Gherkin text via Go parser. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.parse_gherkin_markdown` because it
+        keeps the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _load_library: collaborator call used by this boundary
+        - _call_and_free: collaborator call used by this boundary
+        - text.encode: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse_gherkin_markdown`
+
+    State and side effects:
+        mutates lib.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge.parse_gherkin_markdown` keeps its documented import path, ownership boundary,
+          and observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+
     """
     lib = _load_library()
     return _call_and_free(lib, lib.ParseGherkinMarkdown, text.encode("utf-8"))
 
 
 def gherkin_go_version() -> str:
-    """Return the Go gherkin parser version string."""
+    """
+    Return the Go gherkin parser version string.
+
+    Responsibility:
+        Return the Go gherkin parser version string. It directly owns the observable contract, local decisions, and
+        maintenance boundary for this function.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.gherkin_go_version` because it keeps
+        the nearest code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - _load_library: collaborator call used by this boundary
+        - lib.Version: collaborator call used by this boundary
+        - ctypes.cast: collaborator call used by this boundary
+        - raw.decode: collaborator call used by this boundary
+        - lib.FreeCString: collaborator call used by this boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `gherkin_go_version`
+
+    State and side effects:
+        mutates lib, result, raw.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge.gherkin_go_version` keeps its documented import path, ownership boundary, and
+          observable behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
     lib = _load_library()
     result = lib.Version()
     if not result:
@@ -162,7 +477,50 @@ def gherkin_go_version() -> str:
 
 
 def _reset() -> None:
-    """Reset library state for testing. Not for production use."""
+    """
+    Reset library state for testing. Not for production use.
+
+    Responsibility:
+        Reset library state for testing. It directly owns the observable contract, local decisions, and maintenance
+        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
+        work from collaborators before editing.
+
+    Reason for existence:
+        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._reset` because it keeps the nearest
+        code, data shape, call signature, and failure knowledge together.
+
+    Delegates:
+        - None, leaf-level implementation boundary
+
+    Cohesion:
+        The implementation stays together because its imports, calls, state writes, and return contract describe one
+        maintainable decision unit.
+
+    Separation:
+        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
+          without widening caller knowledge.
+
+    Main consumers:
+        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_reset`
+
+    State and side effects:
+        mutates _lib, _lib_error.
+
+    Invariants:
+        - `pytest_bdd._gherkin_go._bridge._reset` keeps its documented import path, ownership boundary, and observable
+          behavior stable for callers.
+
+    Architecture score:
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=3
+    """
     global _lib, _lib_error  # noqa: PLW0603
     _lib = None
     _lib_error = None
