@@ -1,0 +1,29 @@
+{
+  "source_path": "C:/Users/bulky/Projects/pytest-bdd/specs/045-cck-allure-compatibility/spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "SPEC: CCK Allure Compatibility Pipeline",
+  "summary": "Technical specification for validating allure-cucumber converter against all 45 CCK sample NDJSON files with Playwright browser automation.",
+  "scope": [
+    "CCK NDJSON download",
+    "allure-cucumber converter",
+    "Allure HTML report generation",
+    "Playwright browser validation",
+    "Docker-based rendering",
+    "BDD feature scenarios",
+    "Contract test edge cases"
+  ],
+  "cross_refs": [
+    "features/17 Allure Converter/3 CCK Allure compatibility.feature.md",
+    "tests/cases/contract/cck/__init__.py",
+    "tests/cases/contract/cck/conftest.py",
+    "tests/cases/contract/cck/test_cck_allure_conversion.py",
+    "tests/cases/contract/cck/test_cck_allure_rendering.py",
+    "tests/cases/e2e/steps_cck_allure.py",
+    "src/pytest_bdd/testing/cck.py"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

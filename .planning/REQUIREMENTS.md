@@ -40,6 +40,16 @@
 - [x] **TEST-02**: Expand BDD feature tests in `features/` for undocumented behaviors and edge cases
 - [x] **TEST-03**: Add integration tests for edge cases in step matching priority and scenario execution lifecycle
 
+### CCK Compatibility
+
+- [ ] **CCK-01**: Validate allure-cucumber converter against all 45 CCK NDJSON samples (session-scoped download, per-sample conversion, Docker HTML report, Playwright browser validation)
+- [ ] **CCK-02**: CCK download via `gh api` with fallback to `raw.githubusercontent.com`, session-scoped caching
+- [ ] **CCK-03**: Docker-based Allure HTML report generation using `frankescobar/allure-docker-service:2.27.0`
+- [ ] **CCK-04**: Playwright browser validation of rendered reports (scenario names, step names, statuses visible)
+- [ ] **CCK-05**: Contract tests for 10 edge cases (empty NDJSON, single-line, failed scenarios, attachments, data tables, doc strings, rules, examples tables, hooks, retry)
+- [ ] **CCK-06**: BDD feature file at `features/17 Allure Converter/3 CCK Allure compatibility.feature.md` with step definitions
+- [ ] **CCK-07**: Parameterized Playwright tests for all 45 samples with NDJSON data extraction helpers
+
 ## v2 Requirements
 
 - Async step definitions (`async def` step functions) — highest user demand
@@ -93,6 +103,7 @@
 | TEST-01 | Phase 14 — Gap Closure | Complete |
 | TEST-02 | Phase 14 — Gap Closure | Complete |
 | TEST-03 | Phase 6 — Integration Testing | Complete |
+<<<<<<< HEAD
 | P21-MCP-01 | Phase 21 — pdb MCP integration | Complete |
 | P21-MCP-02 | Phase 21 — pdb MCP integration | Complete |
 | P21-MCP-03 | Phase 21 — pdb MCP integration | Complete |
@@ -102,11 +113,19 @@
 | P21-MCP-07 | Phase 21 — pdb MCP integration | Complete |
 | P21-BDD-01 | Phase 21 — pdb MCP integration | Complete |
 | P21-BDD-02 | Phase 21 — pdb MCP integration | Complete |
+| CCK-01 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-02 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-03 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-04 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-05 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-06 | Phase 20 — Allure Converter Wave 6 | Pending |
+| CCK-07 | Phase 20 — Allure Converter Wave 6 | Pending |
 
 **Coverage:**
 
-- v1 requirements: 17 total
-- Mapped to phases: 17
+- v1 requirements: 16 total
+- CCK requirements: 7 total
+- Mapped to phases: 23
 - Unmapped: 0
 
 ---

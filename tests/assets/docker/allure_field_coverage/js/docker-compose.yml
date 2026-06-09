@@ -1,0 +1,10 @@
+---
+services:
+  js-cucumber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./allure-results:/app/allure-results
+    environment:
+      ALLURE_OUTPUT: /app/allure-results

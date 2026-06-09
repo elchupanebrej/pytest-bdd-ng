@@ -265,6 +265,7 @@ Plans:
 | 15. Cross-platform test suite entrypoint | 3/3 | Complete   | 2026-05-23 |
 | 16. Vulture pre-commit hook | 1/1 | Complete | 2026-05-25 |
 | 17. Adapt GitHub CI to use make and validate with act | 2/2 | Complete    | 2026-05-28 |
+| 20. docs/architecture/allure.md | 7/7 | Complete | 2026-06-11 |
 
 ### Phase 12: Restructure test suite into semantic groups
 

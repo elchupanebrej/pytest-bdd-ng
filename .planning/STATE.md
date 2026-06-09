@@ -21,6 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
+<<<<<<< HEAD
 **Current focus:** Phase 20 — multiple-refactorings
 
 ## Current Position
@@ -56,6 +57,13 @@ Updated after each plan completion.
 | 19 | P02 | 37 min | 3 | 17 |
 | 19 | P03 | 36 min | 4 | 80 |
 | 19 | P04 | 75 min | 4 | 6 |
+| Phase 20 P01 | 45 min | 3 tasks | 13 files |
+
+## Quick Tasks Completed
+
+| Slug | Date | Status | Summary |
+|------|------|--------|---------|
+| 260611-allure3-docker | 2026-06-11 | complete ✓ | Replace Allure 2 with Allure 3 Docker image |
 
 ## Accumulated Context
 
@@ -89,7 +97,9 @@ Recent decisions affecting current work:
 - Phase 17 added: Adapt GitHub CI to use make and validate with act.
 - Phase 18 added: Split xdist-remote tests into separate parallel GHA executor job.
 - Phase 19 added: HTML doc generation simplification.
+<<<<<<< HEAD
 - Phase 20 added: multiple refactorings
+- Phase 20a added: docs/architecture/allure.md
 
 ### Pending Todos
 

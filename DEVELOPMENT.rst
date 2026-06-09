@@ -589,6 +589,70 @@ To create a new plugin:
    tests in ``tests/cases/integration/`` following the
    :ref:`semantic-groups` above.
 
+Allure-Cucumber Converter
+--------------------------
+
+The Allure-Cucumber Converter is a post-execution, file-in/file-out tool that
+converts Cucumber Messages NDJSON to Allure3 JSON result files. It works with
+any cucumber runner, not just pytest-bdd.
+
+**Architecture**:
+
+The converter pipeline lives in ``src/pytest_bdd/plugin/allure_cucumber/converter/``
+and follows a five-stage pipeline:
+
+1. **reader** — Reads NDJSON lines, deserializes each envelope via
+   ``ExecutionMessageAdapter.deserialize_dict()``, yields ``ExecutionProjection``
+   objects.
+2. **collector** — Groups projections by ``testCaseStartedId`` for
+   per-scenario processing.
+3. **step_tree** — Reconstructs step hierarchy from flat projections into
+   nested ``AllureStepResult`` trees.
+4. **mapper** — Maps Cucumber Message events to Allure3 model objects
+   (``AllureTestResult``, ``AllureStepResult``, ``AllureAttachment``).
+   Unmapped events become structured attachments (never silently dropped).
+5. **emitter** — Serializes Allure model objects to ``*-result.json`` and
+   ``*-container.json`` files via ``attrs.asdict()`` with timestamp
+   conversion.
+
+The ``convert()`` function in ``converter/__init__.py`` orchestrates the
+pipeline. The ``AllureCucumberPlugin`` in ``plugin.py`` calls it at
+``pytest_sessionfinish``. A standalone CLI (``allure-cucumber``) is
+available for non-Python cucumber runners.
+
+**CLI Options** (pytest plugin):
+
+- ``--allure-cucumber-output PATH`` — Output directory for Allure result JSON
+  files. Defaults to ``allure-results``.
+- ``--allure-cucumber-messages PATH`` — Path to Cucumber Messages NDJSON file.
+  If not provided, the plugin looks for ``allure-results/messages.ndjson``.
+
+**INI Options**:
+
+- ``allure_cucumber_output_dir`` — Default output directory for Allure result
+  JSON files. Overridden by ``--allure-cucumber-output``.
+
+**Standalone CLI**:
+
+.. code-block:: bash
+
+   allure-cucumber messages.ndjson --output allure-results
+
+**Testing**:
+
+Layer 1 tests use jsonschema validation, factoryboy fixtures, and hypothesis
+property-based invariants. Tests are organized under:
+
+- ``tests/cases/unit/allure/`` — Unit tests for each converter module
+- ``tests/cases/contract/allure/`` — CLI contract, converter mapping contracts,
+  golden parity, hypothesis, and schema validation tests
+- ``tests/cases/integration/allure/`` — Plugin integration tests (testdir-based)
+
+The Allure3 Events JSONSchema is committed at ``docs/allure3-events.schema.json``
+and validated via ``jsonschema.validate()`` in contract tests.
+
+For the full specification, see ``docs/architecture/allure.md``.
+
 CI Matrix
 ---------
 

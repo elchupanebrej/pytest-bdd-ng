@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/allure-framework/allure3-events.schema.json",
+  "title": "Allure3 Events Schema",
+  "description": "Schema for Allure3 test result and container JSON files (*-result.json, *-container.json). Derived from allure-js-commons TypeScript types and allure3 reader-api model.",
+  "oneOf": [
+    { "$ref": "#/$defs/TestResult" },
+    { "$ref": "#/$defs/TestResultContainer" }
+  ],
+  "$defs": {
+    "TestResult": {
+      "type": "object",
+      "required": ["uuid"],
+      "properties": {
+        "uuid": { "type": "string" },
+        "name": { "type": "string" },
+        "historyId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "testCaseId": { "type": "string" },
+        "titlePath": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "status": { "$ref": "#/$defs/Status" },
+        "statusDetails": { "$ref": "#/$defs/StatusDetails" },
+        "stage": { "$ref": "#/$defs/Stage" },
+        "description": { "type": "string" },
+        "descriptionHtml": { "type": "string" },
+        "start": { "type": "integer" },
+        "stop": { "type": "integer" },
+        "labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Label" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Link" }
+        },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StepResult" }
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attachment" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Parameter" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TestResultContainer": {
+      "type": "object",
+      "required": ["uuid"],
+      "properties": {
+        "uuid": { "type": "string" },
+        "name": { "type": "string" },
+        "children": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "description": { "type": "string" },
+        "descriptionHtml": { "type": "string" },
+        "befores": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FixtureResult" }
+        },
+        "afters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FixtureResult" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Link" }
+        },
+        "start": { "type": "integer" },
+        "stop": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "Status": {
+      "type": "string",
+      "enum": ["failed", "broken", "passed", "skipped", "unknown"]
+    },
+    "Stage": {
+      "type": "string",
+      "enum": ["scheduled", "running", "finished", "pending", "interrupted"]
+    },
+    "StatusDetails": {
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "trace": { "type": "string" },
+        "actual": { "type": "string" },
+        "expected": { "type": "string" },
+        "known": { "type": "boolean" },
+        "flaky": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "Label": {
+      "type": "object",
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Link": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["link", "issue", "tms"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Attachment": {
+      "type": "object",
+      "required": ["name", "source"],
+      "properties": {
+        "name": { "type": "string" },
+        "source": { "type": "string" },
+        "type": { "type": "string" },
+        "size": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "string" },
+        "excluded": { "type": "boolean" },
+        "mode": {
+          "type": "string",
+          "enum": ["hidden", "masked", "default"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "StepResult": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "uuid": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "$ref": "#/$defs/Status" },
+        "statusDetails": { "$ref": "#/$defs/StatusDetails" },
+        "stage": { "$ref": "#/$defs/Stage" },
+        "description": { "type": "string" },
+        "descriptionHtml": { "type": "string" },
+        "start": { "type": "integer" },
+        "stop": { "type": "integer" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StepResult" }
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attachment" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Parameter" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "FixtureResult": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "uuid": { "type": "string" },
+        "testResults": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "type": {
+          "type": "string",
+          "enum": ["before", "after"]
+        },
+        "name": { "type": "string" },
+        "status": { "$ref": "#/$defs/Status" },
+        "statusDetails": { "$ref": "#/$defs/StatusDetails" },
+        "stage": { "$ref": "#/$defs/Stage" },
+        "description": { "type": "string" },
+        "descriptionHtml": { "type": "string" },
+        "start": { "type": "integer" },
+        "stop": { "type": "integer" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/StepResult" }
+        },
+        "attachments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Attachment" }
+        },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Parameter" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -116,3 +116,17 @@ node_modules/
 
 .tox/
 .worktrees/
+
+# Allure reports and results
+/allure-results/
+/allure-report/
+
+# Temporary / scratch files
+/scratch/
+/analyze_schema*.py
+/temp_*_check.py
+/logs.zip
+/.planning/forensics/
+/gsd-*.png
+/gsd-*.svg
+/gsd-*.mmd

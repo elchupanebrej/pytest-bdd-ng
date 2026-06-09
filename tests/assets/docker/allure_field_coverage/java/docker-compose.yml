@@ -1,0 +1,10 @@
+---
+services:
+  java-cucumber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./allure-results:/app/target/allure-results
+    environment:
+      ALLURE_OUTPUT: /app/target/allure-results

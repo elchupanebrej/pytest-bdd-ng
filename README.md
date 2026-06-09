@@ -1,3 +1,4 @@
+<!-- generated-by: gsd-doc-writer -->
 # BDD library for the pytest runner
 
 [![image](http://img.shields.io/pypi/v/pytest-bdd-ng.svg)](https://pypi.python.org/pypi/pytest-bdd-ng)
@@ -177,6 +178,7 @@ The step definitions would then be organized like this:
 
 The project is now open to contributions. Please open an issue for more
 details.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Project Docs
 
@@ -192,3 +194,7 @@ Use these repository docs when choosing the next topic to read:
 - `docs/architecture/index.md` links the architecture overview, data flow, and
   plugin architecture documents.
 - `docs/api/index.md` links generated API reference pages for public modules.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
