@@ -135,6 +135,13 @@ _SCHEMA_COMPATIBLE_STEP_DEFINITION_PATTERN_TYPES: dict[str, str] = {
     "PYTEST_BDD_OTHER_EXPRESSION": "REGULAR_EXPRESSION",
 }
 
+_SCHEMA_COMPATIBLE_SOURCE_MEDIA_TYPES: dict[str, str] = {
+    "application/x.struct_bdd+yaml": "text/x.cucumber.gherkin+plain",
+    "application/x.struct_bdd+json": "text/x.cucumber.gherkin+plain",
+    "application/x.struct_bdd+hocon": "text/x.cucumber.gherkin+plain",
+    "application/x.struct_bdd+toml": "text/x.cucumber.gherkin+plain",
+}
+
 
 def normalize_envelope_dict_for_profile(
     envelope_dict: JSONObject,
@@ -208,5 +215,11 @@ def normalize_envelope_dict_for_profile(
         if isinstance(raw_type, str):
             pattern["type"] = _SCHEMA_COMPATIBLE_STEP_DEFINITION_PATTERN_TYPES.get(raw_type, raw_type)
         break
+
+    source = normalized.get("source")
+    if isinstance(source, dict):
+        raw_media_type = source.get("mediaType")
+        if isinstance(raw_media_type, str):
+            source["mediaType"] = _SCHEMA_COMPATIBLE_SOURCE_MEDIA_TYPES.get(raw_media_type, raw_media_type)
 
     return normalized

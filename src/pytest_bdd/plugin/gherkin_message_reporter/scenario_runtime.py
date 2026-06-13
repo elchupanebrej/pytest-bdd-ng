@@ -1,43 +1,4 @@
-"""
-Implement plugin module operations for pytest-bdd.
-
-Responsibility:
-    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-    consumed by the broader BDD infrastructure.
-
-Reason for existence:
-    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
-    expert for its domain concepts.
-
-Delegates:
-    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-Cohesion:
-    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-Separation:
-    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-Main consumers:
-    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-State and side effects:
-    None, keeps no persistent state beyond local scope.
-
-Invariants:
-    - All public API contracts defined by this entity must be honored by callers.
-
-Architecture score:
-    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-    #arch-eval:cohesion=4  # Internal logic focus (1-5)
-    #arch-eval:separation=4  # Distinctness from peers (1-5)
-    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-"""
+"""Provide scenario runtime helpers."""
 
 from __future__ import annotations
 
@@ -58,9 +19,7 @@ from cucumber_messages import (
     Timestamp,
     UndefinedParameterType,
 )
-from cucumber_messages import (
-    Envelope as Message,  # upstream type stubs missing this attribute
-)
+from cucumber_messages import Envelope as Message  # noqa: A005
 from cucumber_messages import Exception as CucumberException
 
 from pytest_bdd.model.run_access import require_step_object
@@ -79,46 +38,7 @@ if TYPE_CHECKING:
 
 
 class ScenarioService(ReporterServiceBase):
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
+    """Represent scenario service state."""
 
     plugin_suffix = "scenario"
 
@@ -129,92 +49,13 @@ class ScenarioService(ReporterServiceBase):
         lifecycle_service: LifecycleService,
         transport_service: TransportService,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Initialize the scenario service."""
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.transport_service = transport_service
 
     @staticmethod
     def _step_keyword_to_decorator(keyword: str | None) -> str:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         normalized = (keyword or "").strip().lower()
         if normalized.startswith("when"):
             return "when"
@@ -223,46 +64,6 @@ class ScenarioService(ReporterServiceBase):
         return "given"
 
     def _build_suggestion_snippet(self, step: object) -> str:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         decorator = self._step_keyword_to_decorator(getattr(step, "keyword", None))
         step_text = str(getattr(step, "text", "")).replace('"', '\\"')
         return f'@{decorator}("{step_text}")\ndef step_impl():\n    raise NotImplementedError\n'
@@ -273,54 +74,14 @@ class ScenarioService(ReporterServiceBase):
         exception: Exception,
         fallback_expression: str,
     ) -> tuple[str, str] | None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         explicit = getattr(exception, "undefined_parameter_type", None)
-        if isinstance(explicit, tuple) and len(explicit) == 2:  # noqa: PLR2004  -- suppressed warning
+        if isinstance(explicit, tuple) and len(explicit) == 2:
             return str(explicit[0]), str(explicit[1])
 
         for candidate in (exception, getattr(exception, "__cause__", None)):
             if isinstance(candidate, UndefinedParameterTypeError):
                 expression = str(candidate.args[1]) if len(candidate.args) > 1 else fallback_expression
-                parameter_name = str(candidate.args[2]) if len(candidate.args) > 2 else ""  # noqa: PLR2004  -- suppressed warning
+                parameter_name = str(candidate.args[2]) if len(candidate.args) > 2 else ""
                 if parameter_name:
                     return expression, parameter_name
 
@@ -337,46 +98,7 @@ class ScenarioService(ReporterServiceBase):
         run: Run,
         exception: Exception,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd step func lookup error pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_step_func_lookup_error")
@@ -391,7 +113,7 @@ class ScenarioService(ReporterServiceBase):
             pickle_step_id=str(pickle_step_id),
             snippets=[Snippet(code=self._build_suggestion_snippet(step), language="python")],
         )
-        self.lifecycle_service._emit_envelope(config, Message(suggestion=suggestion))  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(config, Message(suggestion=suggestion))
 
         undefined_parameter = self._extract_undefined_parameter_type(
             exception=exception,
@@ -399,7 +121,7 @@ class ScenarioService(ReporterServiceBase):
         )
         if undefined_parameter is not None:
             expression, parameter_name = undefined_parameter
-            self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+            self.lifecycle_service._emit_envelope(
                 config,
                 Message(
                     undefined_parameter_type=UndefinedParameterType(
@@ -414,46 +136,7 @@ class ScenarioService(ReporterServiceBase):
         request: FixtureRequest,
         run: Run,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd before scenario pytest hook."""
         if self.reporter.is_disabled:
             return
         config = request.config
@@ -462,7 +145,7 @@ class ScenarioService(ReporterServiceBase):
         if test_case_id is None:
             return
         attempt_index = getattr(request.node, "execution_count", 0)
-        worker_id = self.transport_service._current_reporting_worker_id(cast("Config", config))  # noqa: SLF001  -- suppressed warning
+        worker_id = self.transport_service._current_reporting_worker_id(cast("Config", config))
         test_case_start = TestCaseStarted(
             attempt=attempt_index,
             id=next(IdGenerator.from_stash(cast("Config", config).stash)),
@@ -476,7 +159,7 @@ class ScenarioService(ReporterServiceBase):
             "attempt_index": attempt_index,
             "worker_id": worker_id,
         }
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(
             config,
             Message(test_case_started=test_case_start),
         )
@@ -486,46 +169,7 @@ class ScenarioService(ReporterServiceBase):
         request: FixtureRequest,
         run: Run,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd after scenario pytest hook."""
         if self.reporter.is_disabled:
             return
         reporting_state = run.reporting_state
@@ -533,7 +177,7 @@ class ScenarioService(ReporterServiceBase):
         if test_case_started_id is None:
             return
         config = request.config
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(
             config,
             Message(
                 test_case_finished=TestCaseFinished(
@@ -547,46 +191,6 @@ class ScenarioService(ReporterServiceBase):
 
     @staticmethod
     def _duration_between(start_timestamp: Timestamp | None, finish_timestamp: Timestamp) -> Duration:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         if start_timestamp is None:
             return Duration(seconds=0, nanos=0)
 
@@ -601,48 +205,9 @@ class ScenarioService(ReporterServiceBase):
         self,
         request: FixtureRequest,
         run: Run,
-        step_func: object,  # noqa: ARG002  -- suppressed warning
+        step_func: object,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd before step pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_before_step")
@@ -652,12 +217,12 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001  -- suppressed warning
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
         if test_step_id is None:
             return
 
         step_start_timestamp = self.lifecycle_service.get_timestamp()
-        reporting_state.step_started_timestamp = step_start_timestamp  # type: ignore[assignment]  # Timestamp stored as JSON-compatible
+        reporting_state.step_started_timestamp = step_start_timestamp  # type: ignore[assignment]
         reporting_state.active_test_step_id = test_step_id
         test_step_started = TestStepStarted(
             test_case_started_id=test_case_started_id,
@@ -665,7 +230,7 @@ class ScenarioService(ReporterServiceBase):
             test_step_id=test_step_id,
         )
 
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(
             config,
             Message(test_step_started=test_step_started),
         )
@@ -674,48 +239,9 @@ class ScenarioService(ReporterServiceBase):
         self,
         request: FixtureRequest,
         run: Run,
-        step_func: object,  # noqa: ARG002  -- suppressed warning
+        step_func: object,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd after step pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_after_step")
@@ -725,17 +251,17 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001  -- suppressed warning
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
         if test_step_id is None:
             return
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
-        reporting_state.step_finished_timestamp = step_finish_timestamp  # type: ignore[assignment]  # Timestamp stored as JSON-compatible
+        reporting_state.step_finished_timestamp = step_finish_timestamp  # type: ignore[assignment]
         step_duration = self._duration_between(
             start_timestamp=cast("Timestamp | None", reporting_state.step_started_timestamp),
             finish_timestamp=step_finish_timestamp,
         )
 
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(
             config,
             Message(
                 test_step_finished=TestStepFinished(
@@ -748,55 +274,16 @@ class ScenarioService(ReporterServiceBase):
         )
         reporting_state.active_test_step_id = None
 
-    def pytest_bdd_step_error(  # noqa: PLR0913, PLR0917  -- suppressed warning
+    def pytest_bdd_step_error(  # noqa: PLR0913
         self,
         request: FixtureRequest,
         run: Run,
-        step_func: object,  # noqa: ARG002  -- suppressed warning
-        step_func_args: Mapping[str, object],  # noqa: ARG002  -- suppressed warning
+        step_func: object,
+        step_func_args: Mapping[str, object],
         exception: Exception,
-        step_definition: Definition,  # noqa: ARG002  -- suppressed warning
+        step_definition: Definition,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd step error pytest hook."""
         if self.reporter.is_disabled:
             return
         step = require_step_object(run, hook_name="pytest_bdd_step_error")
@@ -806,17 +293,17 @@ class ScenarioService(ReporterServiceBase):
             return
         config = request.config
 
-        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)  # noqa: SLF001  -- suppressed warning
+        test_step_id = self.lifecycle_service._resolve_test_step_id_for_runtime_step(request=request, step=step)
         if test_step_id is None:
             return
         step_finish_timestamp = self.lifecycle_service.get_timestamp()
-        reporting_state.step_finished_timestamp = step_finish_timestamp  # type: ignore[assignment]  # Timestamp stored as JSON-compatible
+        reporting_state.step_finished_timestamp = step_finish_timestamp  # type: ignore[assignment]
         step_duration = self._duration_between(
             start_timestamp=cast("Timestamp | None", reporting_state.step_started_timestamp),
             finish_timestamp=step_finish_timestamp,
         )
 
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
+        self.lifecycle_service._emit_envelope(
             config,
             Message(
                 test_step_finished=TestStepFinished(

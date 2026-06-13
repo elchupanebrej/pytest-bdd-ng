@@ -1,43 +1,4 @@
-"""
-Implement plugin module operations for pytest-bdd.
-
-Responsibility:
-    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-    consumed by the broader BDD infrastructure.
-
-Reason for existence:
-    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
-    expert for its domain concepts.
-
-Delegates:
-    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-Cohesion:
-    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-Separation:
-    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-Main consumers:
-    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-State and side effects:
-    None, keeps no persistent state beyond local scope.
-
-Invariants:
-    - All public API contracts defined by this entity must be honored by callers.
-
-Architecture score:
-    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-    #arch-eval:cohesion=4  # Internal logic focus (1-5)
-    #arch-eval:separation=4  # Distinctness from peers (1-5)
-    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-"""
+"""Provide transport runtime helpers."""
 
 from __future__ import annotations
 
@@ -66,7 +27,6 @@ from pytest_bdd.model.message_transport import (
 from pytest_bdd.plugin.gherkin_message_reporter.message_stream import ensure_xdist_controller_batch_patch
 from pytest_bdd.plugin.gherkin_message_reporter.runtime_support import (
     _format_reporting_worker_id,
-    _is_xdist_worker_process,
     _resolve_reporting_worker_identity,
 )
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
@@ -74,50 +34,10 @@ from pytest_bdd.util.live_reporting import (
     node_gateway_mode,
     node_worker_id,
 )
+from pytest_bdd.util.xdist import is_xdist_worker as worker
 
 
 class _WorkerNode(Protocol):
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
-
     workerinput: dict[str, object]
     workeroutput: dict[str, object]
 
@@ -134,46 +54,6 @@ logger = logging.getLogger(__name__)
 
 
 def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
     raw_value = str(getattr(config, "getini", lambda _name: "")("pytest_bdd_transport_fail_workers") or "").strip()
     if not raw_value:
         return set()
@@ -182,133 +62,21 @@ def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
 
 class TransportService(ReporterServiceBase):
     """
-    Implement plugin module operations for pytest-bdd.
+    Represent transport service state.
 
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
+    Raises:
+        RuntimeError: If the operation cannot be completed.
 
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     plugin_suffix = "transport"
 
     def __init__(self, reporter: GherkinMessageReporter, *, live_formatter_service: LiveFormatterService) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Initialize the transport service."""
         super().__init__(reporter)
         self.live_formatter_service = live_formatter_service
 
     def _run_process_messages_thread(self, *, force_transport_publish_failure: bool) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         try:
             type(self).process_messages(
                 self.reporter.process_messages_io_queue,
@@ -318,59 +86,19 @@ class TransportService(ReporterServiceBase):
                 force_transport_publish_failure=force_transport_publish_failure,
             )
         except Exception as exc:  # pragma: no cover - exercised via finish_process_messages_thread
-            self.reporter._process_messages_thread_error = exc  # noqa: SLF001  -- suppressed warning
+            self.reporter._process_messages_thread_error = exc
             logger.exception("Message writer thread crashed before queued envelopes were drained.")
             self.reporter.process_messages_stop_event.set()
 
     def _ensure_xdist_worker_transport_client(self, *, require_sender: bool) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
-        self.reporter.is_xdist_worker = _is_xdist_worker_process(self.reporter.config)
+        self.reporter.is_xdist_worker = worker(self.reporter.config)
         if not self.reporter.is_xdist_worker or self.reporter.xdist_transport_client is not None:
             return
         transport_worker_id, gateway_mode = _resolve_reporting_worker_identity(self.reporter.config)
         sender = resolve_reporting_event_sender(self.reporter.config)
         if sender is None:
             if require_sender:
-                self.reporter._xdist_compatibility_error = (  # noqa: SLF001  -- suppressed warning
+                self.reporter._xdist_compatibility_error = (
                     "Distributed reporting requires the xdist remote-module adapter; "
                     "worker channel sender was not installed."
                 )
@@ -380,98 +108,18 @@ class TransportService(ReporterServiceBase):
             sender=sender,
             gateway_mode=gateway_mode or None,
         )
-        self.reporter._xdist_compatibility_error = None  # noqa: SLF001  -- suppressed warning
+        self.reporter._xdist_compatibility_error = None
 
     @staticmethod
     def _current_reporting_worker_id(config: Config) -> str:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
         return _format_reporting_worker_id(worker_id, gateway_mode)
 
     def _activate_xdist_controller_mode(self) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         if self.reporter.is_disabled or self.reporter.is_xdist_worker or self.reporter.is_xdist_controller:
             return
         if not ensure_xdist_controller_batch_patch():
-            self.reporter._xdist_compatibility_error = (  # noqa: SLF001  -- suppressed warning
+            self.reporter._xdist_compatibility_error = (
                 "pytest-xdist is active but controller batch-event integration could not be installed."
             )
             return
@@ -484,7 +132,7 @@ class TransportService(ReporterServiceBase):
             shutil.rmtree(self.reporter.xdist_fragment_dir)
         self.reporter.xdist_fragment_dir.mkdir(parents=True, exist_ok=True)
         self.reporter.messages_file_path = self.reporter.xdist_fragment_dir / "controller.ndjson"
-        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001  -- suppressed warning
+        self.reporter._xdist_fragment_records["master"] = {
             "worker_id": "master",
             "role": "controller",
             "path": self.reporter.messages_file_path,
@@ -494,46 +142,7 @@ class TransportService(ReporterServiceBase):
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_configure_node(self, node: _WorkerNode) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest configure node pytest hook."""
         if self.reporter.is_disabled:
             return
         self._activate_xdist_controller_mode()
@@ -546,7 +155,7 @@ class TransportService(ReporterServiceBase):
         node.workerinput["pytest_bdd_messages_force_publish_failure"] = (
             worker_id in _configured_transport_fail_worker_ids(self.reporter.config)
         )
-        self.reporter._xdist_fragment_records[worker_id] = {  # noqa: SLF001  -- suppressed warning
+        self.reporter._xdist_fragment_records[worker_id] = {
             "worker_id": worker_id,
             "role": "worker",
             "path": None,
@@ -555,46 +164,7 @@ class TransportService(ReporterServiceBase):
         }
 
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: JSONObject) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest bdd xdist message batch pytest hook."""
         _ = config, node
         if (
             self.reporter.is_disabled
@@ -605,60 +175,21 @@ class TransportService(ReporterServiceBase):
         self.reporter.xdist_transport_session.receive_remote_event(REPORTING_BATCH_EVENT, {"batch": batch})
         raw_envelopes = batch.get("envelopes", [])
         envelopes = raw_envelopes if isinstance(raw_envelopes, list) else []
-        self.live_formatter_service._emit_live_formatter_json_lines(  # noqa: SLF001  -- suppressed warning
+        self.live_formatter_service._emit_live_formatter_json_lines(
             [json.dumps(envelope_dict) for envelope_dict in envelopes],
             source="xdist worker batch forwarding",
         )
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: _WorkerNode, error: object | None) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle the pytest testnodedown pytest hook."""
         if self.reporter.is_disabled:
             return
         if not self.reporter.is_xdist_controller:
             return
         workeroutput = cast("dict[str, object]", getattr(node, "workeroutput", {}))
         worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or node_worker_id(node))
-        existing_record = self.reporter._xdist_fragment_records.get(  # noqa: SLF001  -- suppressed warning
+        existing_record = self.reporter._xdist_fragment_records.get(
             worker_id,
             {
                 "worker_id": worker_id,
@@ -682,55 +213,16 @@ class TransportService(ReporterServiceBase):
             existing_record["complete"] = False
             existing_record["manifest_received"] = False
             existing_record["interruption_reason"] = str(error) if error is not None else None
-        self.reporter._xdist_fragment_records[worker_id] = existing_record  # noqa: SLF001  -- suppressed warning
+        self.reporter._xdist_fragment_records[worker_id] = existing_record
 
     def start_process_messages_thread(self) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle start process messages thread."""
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
-        self.reporter._process_messages_thread_error = None  # noqa: SLF001  -- suppressed warning
+        self.reporter._process_messages_thread_error = None
         self.reporter.process_messages_thread = Thread(
             target=self._run_process_messages_thread,
-            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},  # noqa: SLF001  -- suppressed warning
+            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},
             daemon=True,
         )
         self.reporter.process_messages_thread.start()
@@ -738,50 +230,17 @@ class TransportService(ReporterServiceBase):
 
     def finish_process_messages_thread(self) -> None:
         """
-        Implement plugin module operations for pytest-bdd.
+        Handle finish process messages thread.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Raises:
+            RuntimeError: If the operation cannot be completed.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         deadline = monotonic() + 10
         while self.reporter.process_messages_io_queue.unfinished_tasks:
-            if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001  -- suppressed warning
+            if self.reporter._process_messages_thread_error is not None:
                 msg = "Message writer thread crashed before queued envelopes were drained."
-                raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001  -- suppressed warning
+                raise RuntimeError(msg) from self.reporter._process_messages_thread_error
             if not self.reporter.process_messages_thread.is_alive():
                 msg = "Message writer thread stopped before queued envelopes were drained."
                 raise RuntimeError(msg)
@@ -794,24 +253,24 @@ class TransportService(ReporterServiceBase):
         if self.reporter.process_messages_thread.is_alive():
             msg = "Message writer thread did not terminate after drain signal."
             raise RuntimeError(msg)
-        if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001  -- suppressed warning
+        if self.reporter._process_messages_thread_error is not None:
             msg = "Message writer thread crashed during shutdown."
-            raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001  -- suppressed warning
-        process = self.reporter._live_formatter_process  # noqa: SLF001  -- suppressed warning
+            raise RuntimeError(msg) from self.reporter._process_messages_thread_error
+        process = self.reporter._live_formatter_process
         if process is not None:
-            self.live_formatter_service._finalize_live_formatter_process(process)  # noqa: SLF001  -- suppressed warning
-        self.live_formatter_service._join_live_formatter_threads()  # noqa: SLF001  -- suppressed warning
+            self.live_formatter_service._finalize_live_formatter_process(process)
+        self.live_formatter_service._join_live_formatter_threads()
         if process is not None:
-            self.live_formatter_service._close_live_formatter_stream(process.stdin)  # noqa: SLF001  -- suppressed warning
-            self.live_formatter_service._close_live_formatter_stream(process.stdout)  # noqa: SLF001  -- suppressed warning
-            self.live_formatter_service._close_live_formatter_stream(process.stderr)  # noqa: SLF001  -- suppressed warning
-            self.reporter._live_formatter_process = None  # noqa: SLF001  -- suppressed warning
-        if self.reporter._live_formatter_temp_dir is not None:  # noqa: SLF001  -- suppressed warning
-            self.reporter._live_formatter_temp_dir.cleanup()  # noqa: SLF001  -- suppressed warning
-            self.reporter._live_formatter_temp_dir = None  # noqa: SLF001  -- suppressed warning
+            self.live_formatter_service._close_live_formatter_stream(process.stdin)
+            self.live_formatter_service._close_live_formatter_stream(process.stdout)
+            self.live_formatter_service._close_live_formatter_stream(process.stderr)
+            self.reporter._live_formatter_process = None
+        if self.reporter._live_formatter_temp_dir is not None:
+            self.reporter._live_formatter_temp_dir.cleanup()
+            self.reporter._live_formatter_temp_dir = None
 
     @staticmethod
-    def process_messages(  # noqa: C901  -- suppressed warning
+    def process_messages(
         queue: Queue[str],
         stop_event: Event,
         messages_file_path: str | Path,
@@ -819,46 +278,7 @@ class TransportService(ReporterServiceBase):
         *,
         force_transport_publish_failure: bool = False,
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle process messages."""
         messages_path = Path(messages_file_path)
         lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
         last_enter = False
@@ -915,44 +335,11 @@ class TransportService(ReporterServiceBase):
     @staticmethod
     def read_envelopes_from_path(messages_file_path: Path) -> list[Message]:
         """
-        Implement plugin module operations for pytest-bdd.
+        Read envelopes from path.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Returns:
+            List of messages.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         envelopes: list[Message] = []
         if not messages_file_path.exists():
@@ -964,46 +351,6 @@ class TransportService(ReporterServiceBase):
         return envelopes
 
     def _write_final_messages_file(self, envelope_dicts: tuple[JSONObject, ...]) -> list[Message]:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         self.reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         self.reporter.final_messages_file_path.write_text(
             "".join(f"{json.dumps(envelope_dict)}\n" for envelope_dict in envelope_dicts),
@@ -1012,46 +359,6 @@ class TransportService(ReporterServiceBase):
         return self.read_envelopes_from_path(self.reporter.final_messages_file_path)
 
     def _finalize_xdist_messages_file(self) -> list[Message]:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         controller_fragment = MessageFragment.from_path(
             worker_id="master",
             role="controller",
@@ -1068,7 +375,7 @@ class TransportService(ReporterServiceBase):
             worker_ids.update(transport_snapshot.expected_worker_ids)
             worker_ids.update(transport_snapshot.batches_by_worker.keys())
             worker_ids.update(transport_snapshot.manifests_by_worker.keys())
-        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")  # noqa: SLF001  -- suppressed warning
+        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")
         fragment_specs = [controller_fragment]
         for worker_id in sorted(worker_ids):
             batches = () if transport_snapshot is None else transport_snapshot.batches_by_worker.get(worker_id, ())

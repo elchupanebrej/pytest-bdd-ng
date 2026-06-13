@@ -45,6 +45,7 @@ import io
 import logging
 import os
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, TextIO, cast
 
 import pytest
@@ -70,8 +71,10 @@ from .plugin import (
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from types import ModuleType
+
+    from pytest_bdd.model.message_extension import EventEnvelope
 
 _REPORTING_OUTPUT_OPTION_FLAGS = (
     "--messagesndjson",
@@ -1186,6 +1189,14 @@ def pytest_addoption(parser: Parser) -> None:
     )
     group = parser.getgroup("bdd", "Cucumber NDJSON")
     group.addoption(
+        "--cucumber-messages",
+        action="store",
+        dest="cucumber_messages_path",
+        metavar="PATH",
+        default=None,
+        help="path to a Cucumber Messages NDJSON file to replay.",
+    )
+    group.addoption(
         "--messagesndjson",
         "--messages-ndjson",
         "--messagesjsonl",
@@ -1265,6 +1276,42 @@ def pytest_configure(config: Config) -> None:
         _clear_reporter_state(config)
         raise
 
+    # Gherkin Message Replay Mode
+    try:
+        source_iterator = config.hook.pytest_cucumber_message_source(config=config)
+        if source_iterator is not None:
+            for message in source_iterator:
+                config.hook.pytest_bdd_message(config=config, message=message)
+            pytest.exit("NDJSON replay complete.", returncode=0)
+    except Exception as exc:
+        from pytest_bdd.compatibility.pytest.outcomes import Exit
+
+        if isinstance(exc, (SystemExit, Exit)):
+            raise
+        msg = f"Gherkin message replay failed: {exc}"
+        raise pytest.UsageError(msg) from exc
+
+
+@pytest.hookimpl
+def pytest_cucumber_message_source(config: Config) -> Iterator[EventEnvelope] | None:
+    """Default message source: reads from --cucumber-messages NDJSON file."""
+    path_str = getattr(config.option, "cucumber_messages_path", None)
+    if path_str is None:
+        return None
+
+    path = Path(path_str).resolve()
+    if not path.exists():
+        msg = f"Cucumber messages file not found (does not exist): {path}"
+        raise pytest.UsageError(msg)
+
+    from pytest_bdd.plugin.allure_formatter.converter.reader import read_envelopes
+
+    def envelope_generator() -> Iterator[EventEnvelope]:
+        for projection in read_envelopes(path):
+            yield projection.envelope
+
+    return envelope_generator()
+
 
 @pytest.hookimpl(optionalhook=True, tryfirst=True)
 def pytest_xdist_getremotemodule() -> ModuleType:
@@ -1308,7 +1355,7 @@ def pytest_xdist_getremotemodule() -> ModuleType:
         #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
         #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
-    from pytest_bdd.plugin.gherkin_message_reporter import xdist_worker  # noqa: PLC0415 -- optional xdist dependency
+    from pytest_bdd.plugin.gherkin_message_reporter import xdist_worker  # optional xdist dependency
 
     return xdist_worker
 

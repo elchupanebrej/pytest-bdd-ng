@@ -130,3 +130,4 @@ node_modules/
 /gsd-*.png
 /gsd-*.svg
 /gsd-*.mmd
+/.uat/

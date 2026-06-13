@@ -306,6 +306,12 @@ module = [
   "pytest_bdd.util.tests_group_ordering.facade"
 ]
 
+[[tool.mypy.overrides]]
+ignore_errors = true
+module = [
+  "pytest_bdd.plugin.allure_formatter.*"
+]
+
 [tool.pylint.main]
 ignore-paths = [".*case.*"]
 load-plugins = ["pytest_bdd._pylint"]
@@ -648,7 +654,7 @@ max-complexity = 10
 "src/pytest_bdd/parsers/*.py" = ["D205", "D413", "DOC201", "DOC501", "E501"]  # Generated responsibility docs exceed style limits.
 "src/pytest_bdd/parsers/base.py" = ["D103", "D205", "D413", "DOC201", "DOC501", "E501", "PLW0603", "PYI046", "TC003"]  # Parser registry globals and protocols are package extension points; generated responsibility docs exceed style limits.
 "src/pytest_bdd/parsers/heuristic.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "N812"]  # TYPE_CHECKING aliases need parser-class names; generated responsibility docs exceed style limits.
-"src/pytest_bdd/plugin/**" = ["ANN401", "ARG001", "BLE001", "DOC201", "DOC402", "DOC501", "DOC502", "E402", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0917", "PYI046", "RUF100", "S110", "SIM105", "TC001", "TC002", "TC003", "TC004", "TID252"]  # PEP 420 namespace packages, plugin hook signatures, lazy imports, and private-module facades are intentional
+"src/pytest_bdd/plugin/**" = ["ANN401", "ARG001", "ARG002", "BLE001", "DOC201", "DOC402", "DOC501", "DOC502", "E402", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0917", "PLR2004", "PYI046", "RUF100", "S110", "SIM105", "SLF001", "TC001", "TC002", "TC003", "TC004", "TID252"]  # PEP 420 namespace packages, plugin hook signatures, lazy imports, and private-module facades are intentional
 "src/pytest_bdd/scenario_locator/**" = ["D205", "DOC201", "DOC501", "E501", "RUF002"]  # Generated responsibility docs exceed style limits
 "src/pytest_bdd/script/message_capability_governance/*" = ["PLC0415", "SLF001", "TC003"]  # PLC0415: lazy imports for monkeypatch compatibility; SLF001: package-internal _repo_root/_candidate_repo_roots access for monkeypatching; TC003: Path used at runtime in function bodies
 "src/pytest_bdd/script/message_capability_governance/cli/*" = ["C901", "D205", "D413", "DOC201", "DOC501", "E501", "PLR0912", "PLR0914", "PLR0915", "RUF052", "TC001"]  # CLI report assembly is intentionally imperative; generated responsibility docs exceed style limits

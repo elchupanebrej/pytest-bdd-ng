@@ -435,7 +435,7 @@ class StructBDDParser(ParserProtocol):
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.kind is self.KIND.YAML:
-            from yaml import FullLoader  # type: ignore[import-untyped]  # noqa: PLC0415
+            from yaml import FullLoader  # noqa: PLC0415
             from yaml import load as load_yaml  # noqa: PLC0415
 
             return cast("Loader", partial(load_yaml, Loader=FullLoader))

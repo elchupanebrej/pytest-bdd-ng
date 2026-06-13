@@ -342,7 +342,12 @@ def pytest_configure(config: Config) -> None:
     runner = PickleRunnerPlugin()
     config.pluginmanager.register(runner, runner.plugin_name)
     Run.initialize_for_config(stash=config.stash, config=config)
-    IdGenerator().initialize_in_stash(config.stash)
+
+    worker_prefix: str | None = None
+    workerinput = getattr(config, "workerinput", None)
+    if workerinput is not None:
+        worker_prefix = str(workerinput.get("workerid", "")) or None
+    IdGenerator(prefix=worker_prefix).initialize_in_stash(config.stash)
 
 
 @given("trace")

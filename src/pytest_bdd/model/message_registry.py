@@ -282,7 +282,7 @@ class IdentifiableObjectRegistry:
         #arch-eval:locational_stability=4
     """
 
-    objects_by_id: dict[str, Identifiable] = field(factory=dict)
+    objects_by_id: dict[object, Identifiable] = field(factory=dict)
 
     def index_tree(self, root: object) -> None:
         """
@@ -337,11 +337,12 @@ class IdentifiableObjectRegistry:
             identifier = _resolve_identifiable_id(candidate)
             if identifier is None:
                 continue
-            self.objects_by_id[identifier] = cast("Identifiable", candidate)
+            composite_key = (type(candidate).__name__, identifier)
+            self.objects_by_id[composite_key] = cast("Identifiable", candidate)
 
-    def resolve(self, object_id: str) -> Identifiable:
+    def resolve(self, object_id: str, type_name: str | None = None) -> Identifiable:
         """
-        Perform a specific, focused operation within its owning class boundary.
+        Retrieve an Identifiable object from the registry by its identifier and optional type.
 
         Responsibility:
             Performs a specific, focused operation within its owning class boundary. This method is the authoritative
@@ -388,7 +389,24 @@ class IdentifiableObjectRegistry:
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
+        if type_name is not None:
+            return self.objects_by_id[type_name, object_id]
+        matching = [(k, v) for k, v in self.objects_by_id.items() if isinstance(k, tuple) and k[1] == object_id]
+        if len(matching) == 1:
+            return matching[0][1]
+        if len(matching) > 1:
+            return matching[0][1]
         return self.objects_by_id[object_id]
+
+    def resolve_typed(self, type_name: str, object_id: str) -> Identifiable:  # pylint: disable=missing-responsibility-doc,missing-architecture-score  # simple delegation
+        """
+        Retrieve an Identifiable object by exact type and identifier combination.
+
+        Returns:
+            The matched Identifiable object.
+
+        """
+        return self.objects_by_id[type_name, object_id]
 
 
 @define(slots=True)
@@ -667,6 +685,9 @@ class EnvelopeRegistry(StashBound):
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
-        registry = cls.from_stash(stash)
+        registry = cls.find_in_stash(stash).value_or(None)
+        if registry is None:
+            registry = cls()
+            registry.initialize_in_stash(stash)
         registry.add_envelope(envelope)
         return registry

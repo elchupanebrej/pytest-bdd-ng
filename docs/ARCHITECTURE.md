@@ -19,7 +19,7 @@ graph TD
     F --> G[pytest fixtures<br/>dependency injection]
     E --> H[Message Reporter<br/>NDJSON output]
     H --> I[Formatters<br/>JSON/JUnit/Pretty/Progress]
-    H --> J[Allure Converter<br/>Allure3 JSON results]
+    H --> J[Allure Formatter<br/>Allure3 JSON results]
     H --> K[Cucumber JSON<br/>legacy format]
 ```
 
@@ -65,7 +65,7 @@ src/pytest_bdd/
 │   ├── stash_access.py      # pytest.config.stash abstraction
 │   └── message_converter.py # Cucumber message conversion
 ├── plugin/                  # 18+ pytest plugins
-│   ├── allure_cucumber/     # Allure report integration
+│   ├── allure_formatter/     # Allure report integration
 │   ├── pickle_runner/       # Scenario execution runtime
 │   ├── scenario_test_collector/ # Feature autoload
 │   ├── gherkin_message_reporter/ # Live message output
@@ -95,5 +95,5 @@ All 18 plugins register via `pytest11` entry points in `pyproject.toml`. Each pl
 Key plugin groups:
 - **Core**: `scenario_test_collector`, `pickle_runner`, `gherkin_message_reporter`
 - **Formatters**: `cucumber_json`, `cucumber_junit`, `cucumber_pretty`, `cucumber_progress`, `cucumber_summary`, `cucumber_usage`
-- **Reporting**: `allure_cucumber`, `gherkin_terminal_reporter`, `scenario_reporter`
+- **Reporting**: `allure_formatter`, `gherkin_terminal_reporter`, `scenario_reporter`
 - **Extensions**: `code_generator`, `struct_bdd`

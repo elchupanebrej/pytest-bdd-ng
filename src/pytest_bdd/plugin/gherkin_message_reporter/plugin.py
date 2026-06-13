@@ -1,43 +1,4 @@
-"""
-Implement plugin module operations for pytest-bdd.
-
-Responsibility:
-    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-    consumed by the broader BDD infrastructure.
-
-Reason for existence:
-    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
-    expert for its domain concepts.
-
-Delegates:
-    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-Cohesion:
-    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-Separation:
-    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-Main consumers:
-    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-State and side effects:
-    None, keeps no persistent state beyond local scope.
-
-Invariants:
-    - All public API contracts defined by this entity must be honored by callers.
-
-Architecture score:
-    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-    #arch-eval:cohesion=4  # Internal logic focus (1-5)
-    #arch-eval:separation=4  # Distinctness from peers (1-5)
-    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-"""
+"""Provide plugin helpers."""
 
 from __future__ import annotations
 
@@ -69,9 +30,7 @@ if TYPE_CHECKING:
     from queue import Queue
     from threading import Event, Thread
 
-    from cucumber_messages import (
-        Envelope as Message,  # upstream library missing type stubs
-    )
+    from cucumber_messages import Envelope as Message
 
     from pytest_bdd.compatibility.pytest import Config, PytestPluginManager
     from pytest_bdd.model.cucumber_formatter_adapter import CucumberFormatterEnvelopeAdapter
@@ -93,47 +52,6 @@ if TYPE_CHECKING:
 
 
 class _HookNamedService(Protocol):
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
-
     plugin_name: str
 
 
@@ -143,55 +61,17 @@ CucumberFormatterConfigurationError = _CucumberFormatterConfigurationError
 
 @define(eq=False, auto_attribs=False, slots=False)
 class GherkinMessageReporter:
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
+    """Represent gherkin message reporter state."""
 
     BEFORE_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.before-test-run"
     AFTER_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.after-test-run"
+    plugin_name: ClassVar[str] = "pytest-bdd-internal-gherkin-message-reporter"
+    npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
+
     config: Config = field()
     parameter_type_registry: set[int]
     hook_registry: set[int]
     hook_registration_registry: dict[int, HookRegistration]
-    npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
-    plugin_name: str = "pytest-bdd-internal-gherkin-message-reporter"
 
     process_messages_io_queue: Queue[str]
     process_messages_stop_event: Event
@@ -215,7 +95,7 @@ class GherkinMessageReporter:
     live_formatters: tuple[CucumberFormatterRequest, ...]
     deferred_formatters: tuple[CucumberFormatterRequest, ...]
     _live_formatter_process: LiveFormatterProcess | None
-    _live_formatter_temp_dir: tempfile.TemporaryDirectory[str] | None
+    _live_formatter_temp_dir: tempfile.TemporaryDirectory | None  # type: ignore[type-arg]
     _live_formatter_lock: Lock
     _live_formatter_stdout_thread: Thread | None
     _live_formatter_stderr_thread: Thread | None
@@ -234,52 +114,13 @@ class GherkinMessageReporter:
     step_catalog_service: StepCatalogService
     scenario_service: ScenarioService
     attachment_service: AttachmentService
-    ide_binding_service: IdeBindingService
     live_formatter_service: LiveFormatterService
+    ide_binding_service: IdeBindingService
     _services: tuple[ReporterServiceBase, ...]
     _hook_services: tuple[ReporterServiceBase, ...]
 
     def __attrs_post_init__(self) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Initialize reporter runtime services."""
         self._live_formatter_lock = Lock()
         initialize_reporter_runtime(self)
         service_graph = assemble_reporter_runtime(self)
@@ -289,53 +130,13 @@ class GherkinMessageReporter:
         self.step_catalog_service = service_graph.step_catalog_service
         self.scenario_service = service_graph.scenario_service
         self.attachment_service = service_graph.attachment_service
-        self.ide_binding_service = service_graph.ide_binding_service
         self.live_formatter_service = service_graph.live_formatter_service
+        self.ide_binding_service = service_graph.ide_binding_service
         self._hook_services = cast("tuple[ReporterServiceBase, ...]", service_graph.hook_services)
         self._services = cast("tuple[ReporterServiceBase, ...]", service_graph.services)
         finalize_reporter_runtime(self)
 
     def _resolve_output_path(self, output_path: str) -> Path:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         path = Path(output_path)
         if not path.is_absolute():
             path = Path(self.config.rootpath) / path
@@ -346,46 +147,6 @@ class GherkinMessageReporter:
         cls,
         formatter_requests: list[CucumberFormatterRequest],
     ) -> list[CucumberFormatterRequest]:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
         return terminal_output_formatter_requests(formatter_requests)
 
     def activate_quiet_terminal_output(
@@ -393,47 +154,8 @@ class GherkinMessageReporter:
         *,
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
-        terminal_requests = type(self)._terminal_output_formatter_requests(list(self.requested_cucumber_formatters))  # noqa: SLF001  -- suppressed warning
+        """Handle activate quiet terminal output."""
+        terminal_requests = type(self)._terminal_output_formatter_requests(list(self.requested_cucumber_formatters))
         if not terminal_requests:
             return
         if not self._live_formatter_session_started:
@@ -443,46 +165,7 @@ class GherkinMessageReporter:
         self._restore_terminal_reporter = quiet_terminal_replacer(self.config)
 
     def restore_terminal_output(self) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle restore terminal output."""
         if self._restore_terminal_reporter is None:
             return
         self._restore_terminal_reporter()
@@ -490,88 +173,19 @@ class GherkinMessageReporter:
 
     @property
     def services(self) -> tuple[object, ...]:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=3  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle services."""
         return self._services
 
     def read_envelopes_from_path(self, messages_file_path: Path) -> list[Message]:
         """
-        Implement plugin module operations for pytest-bdd.
+        Read envelopes from a messages file.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Args:
+            messages_file_path: Path to messages NDJSON file.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
+        Returns:
+            List of message envelopes.
 
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         return self.transport_service.read_envelopes_from_path(messages_file_path)
 
@@ -580,44 +194,14 @@ class GherkinMessageReporter:
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
         """
-        Implement plugin module operations for pytest-bdd.
+        Render requested cucumber formatters.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Args:
+            envelopes: List of message envelopes.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
+        Returns:
+            Render result.
 
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         return self.live_formatter_service.run_requested_cucumber_formatters(envelopes)
 
@@ -626,44 +210,14 @@ class GherkinMessageReporter:
         messages_file_path: Path,
     ) -> CucumberFormatterRenderResult:
         """
-        Implement plugin module operations for pytest-bdd.
+        Render requested cucumber formatters from a file.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Args:
+            messages_file_path: Path to messages file.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
+        Returns:
+            Render result.
 
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         envelopes = self.read_envelopes_from_path(messages_file_path)
         return self.render_requested_cucumber_formatters(envelopes)
@@ -673,137 +227,29 @@ class GherkinMessageReporter:
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
         """
-        Implement plugin module operations for pytest-bdd.
+        Render runtime assets for formatters.
 
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
+        Args:
+            formatter_requests: List of formatter requests.
 
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
+        Returns:
+            Dictionary of rendered assets.
 
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         pluginmanager = getattr(self.config, "pluginmanager", None)
         return render_live_formatter_runtime_assets(formatter_requests, pluginmanager=pluginmanager)
 
     def register_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Register hook plugins."""
         for hook_service in self._hook_services:
             named_hook_service = cast("_HookNamedService", hook_service)
             pluginmanager.register(named_hook_service, name=named_hook_service.plugin_name)
 
     def unregister_hook_plugins(self, pluginmanager: PytestPluginManager) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle unregister hook plugins."""
         for hook_service in reversed(self._hook_services):
             named_hook_service = cast("_HookNamedService", hook_service)
-            pluginmanager.unregister(named_hook_service)
+            pluginmanager.unregister(name=named_hook_service.plugin_name)  # type: ignore[call-arg]
 
     def configure(
         self,
@@ -811,133 +257,16 @@ class GherkinMessageReporter:
         pluginmanager: PytestPluginManager,
         quiet_terminal_replacer: Callable[[Config], Callable[[], None] | None],
     ) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
-        self.live_formatter_service._start_live_formatters()  # noqa: SLF001  -- suppressed warning
+        """Configure configure."""
+        self.live_formatter_service._start_live_formatters()
         self.activate_quiet_terminal_output(quiet_terminal_replacer=quiet_terminal_replacer)
         self.register_hook_plugins(pluginmanager)
 
     def unconfigure(self, *, pluginmanager: PytestPluginManager) -> None:
-        """
-        Implement plugin module operations for pytest-bdd.
-
-        Responsibility:
-            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-            consumed by the broader BDD infrastructure.
-
-        Reason for existence:
-            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-            information expert for its domain concepts.
-
-        Delegates:
-            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-        Cohesion:
-            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-        Separation:
-            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-        Main consumers:
-            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-        State and side effects:
-            None, keeps no persistent state beyond local scope.
-
-        Invariants:
-            - All public API contracts defined by this entity must be honored by callers.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-            #arch-eval:cohesion=4  # Internal logic focus (1-5)
-            #arch-eval:separation=4  # Distinctness from peers (1-5)
-            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-        """
+        """Handle unconfigure."""
         self.restore_terminal_output()
         self.unregister_hook_plugins(pluginmanager)
 
 
 class GherkinMessageReporterPlugin(GherkinMessageReporter):
-    """
-    Implement plugin module operations for pytest-bdd.
-
-    Responsibility:
-        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
-        consumed by the broader BDD infrastructure.
-
-    Reason for existence:
-        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
-        information expert for its domain concepts.
-
-    Delegates:
-        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
-
-    Cohesion:
-        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
-
-    Separation:
-        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
-
-    Main consumers:
-        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
-
-    State and side effects:
-        None, keeps no persistent state beyond local scope.
-
-    Invariants:
-        - All public API contracts defined by this entity must be honored by callers.
-
-    Architecture score:
-        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
-        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
-        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
-        #arch-eval:cohesion=4  # Internal logic focus (1-5)
-        #arch-eval:separation=4  # Distinctness from peers (1-5)
-        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
-        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
-        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
-        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
-    """
+    """Represent gherkin message reporter plugin state."""

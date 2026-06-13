@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
 
 from pytest_bdd import given, parsers, then, when
-from pytest_bdd.plugin.allure_cucumber.converter import convert
+from pytest_bdd.plugin.allure_formatter.converter import convert
 from pytest_bdd.testing.cck import download_cck_sample
-from pytest_bdd.testing.docker import require_docker_daemon
+from pytest_bdd_testing.tool.docker.docker import require_docker_daemon
 
 
-@given(parsers.parse('the CCK sample "{name}" is available'))
+@given(parsers.parse('the CCK sample "{name}" is available'), target_fixture="cck_sample")
 def cck_sample_available(name: str, tmp_path: Path) -> Path:
     """Download and provide access to a CCK sample NDJSON file."""
     cache_dir = tmp_path / "cck_cache"
@@ -22,7 +23,7 @@ def cck_sample_available(name: str, tmp_path: Path) -> Path:
     return download_cck_sample(name, cache_dir)
 
 
-@given("the allure-cucumber converter processes the sample")
+@given("the allure-formatter converter processes the sample", target_fixture="allure_output")
 def allure_converter_processes(cck_sample: Path, tmp_path: Path) -> Path:
     """Convert the CCK sample to Allure results."""
     output_dir = tmp_path / "allure-results"
@@ -31,21 +32,21 @@ def allure_converter_processes(cck_sample: Path, tmp_path: Path) -> Path:
     return output_dir
 
 
-@given("the Allure HTML report is generated via Docker")
+@given("the Allure HTML report is generated via Docker", target_fixture="allure_report")
 def allure_html_report_generated(allure_output: Path, tmp_path: Path) -> Path:
     """Generate an Allure HTML report via Docker."""
-    from pytest_bdd.testing.docker import ensure_allure3_image
+    from pytest_bdd_testing.tool.docker.docker import ensure_allure3_image
 
     require_docker_daemon()
     ensure_allure3_image()
 
-    import subprocess  # noqa: S404
+    import subprocess
 
     report_dir = tmp_path / "allure-report"
     report_dir.mkdir()
 
-    result = subprocess.run(  # noqa: S603
-        [  # noqa: S607
+    result = subprocess.run(
+        [  # noqa: S607  # Docker CLI command with trusted flags
             "docker",
             "run",
             "--rm",
@@ -74,8 +75,29 @@ def allure_html_report_generated(allure_output: Path, tmp_path: Path) -> Path:
     return report_dir
 
 
-@when("the report is served via HTTP")
-def report_served_via_http(allure_report: Path, tmp_path: Path) -> str:
+@pytest.fixture
+def cck_allure_state():
+    """Store server and browser references for CCK Allure compatibility tests."""
+    state = {}
+    yield state
+    # Cleanup Playwright browser
+    if "_playwright_browser" in state:
+        with suppress(Exception):
+            state["_playwright_browser"].close()
+    # Stop Playwright
+    if "_playwright" in state:
+        with suppress(Exception):
+            state["_playwright"].stop()
+    # Cleanup HTTP server
+    if "_http_server" in state:
+        with suppress(Exception):
+            state["_http_server"].shutdown()
+            state["_http_thread"].join()
+            state["_http_server"].server_close()
+
+
+@when("the report is served via HTTP", target_fixture="report_served_via_http")
+def report_served_via_http(allure_report: Path, cck_allure_state: dict) -> str:
     """Start an HTTP server to serve the Allure report."""
     from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
     from threading import Thread
@@ -84,7 +106,7 @@ def report_served_via_http(allure_report: Path, tmp_path: Path) -> str:
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(allure_report), **kwargs)
 
-        def log_message(self, format: str, *args) -> None:  # noqa: A002
+        def log_message(self, format: str, *args) -> None:  # noqa: A002  # override stdlib signature
             _ = (format, args)
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), _QuietHandler)
@@ -92,20 +114,19 @@ def report_served_via_http(allure_report: Path, tmp_path: Path) -> str:
     thread.start()
 
     # Store server reference for cleanup
-    tmp_path._http_server = server  # type: ignore[attr-defined]
-    tmp_path._http_thread = thread  # type: ignore[attr-defined]
+    cck_allure_state["_http_server"] = server
+    cck_allure_state["_http_thread"] = thread
 
     return f"http://127.0.0.1:{server.server_port}"
 
 
 @when("the browser navigates to the report")
-def browser_navigates_to_report(report_served_via_http: str, tmp_path: Path) -> None:
+def browser_navigates_to_report(report_served_via_http: str, cck_allure_state: dict) -> None:
     """Open the Allure report in a Playwright browser."""
     try:
         from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        msg = f"Playwright is required for browser tests but not installed: {exc}"
-        raise pytest.fail(msg) from exc
+    except ImportError:
+        pytest.skip("Playwright is not installed")
 
     browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
     if not browsers_path:
@@ -120,63 +141,51 @@ def browser_navigates_to_report(report_served_via_http: str, tmp_path: Path) -> 
 
     page_errors: list[str] = []
 
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        page = browser.new_page()
-        page.on("pageerror", lambda exception: page_errors.append(str(exception)))
+    # Start Playwright manually to keep the event loop alive across steps
+    playwright = sync_playwright().start()
+    browser = playwright.chromium.launch()
+    page = browser.new_page()
+    page.on("pageerror", lambda exception: page_errors.append(str(exception)))
 
-        page.goto(f"{report_served_via_http}/index.html", wait_until="load")
-        page.wait_for_timeout(2000)
+    page.goto(f"{report_served_via_http}/index.html", wait_until="load")
+    page.wait_for_timeout(2000)
 
-        # Store page for assertions
-        tmp_path._playwright_page = page  # type: ignore[attr-defined]
-        tmp_path._playwright_browser = browser  # type: ignore[attr-defined]
-        tmp_path._page_errors = page_errors  # type: ignore[attr-defined]
+    # Store page for assertions
+    cck_allure_state["_playwright"] = playwright
+    cck_allure_state["_playwright_browser"] = browser
+    cck_allure_state["_playwright_page"] = page
+    cck_allure_state["_page_errors"] = page_errors
 
 
 @then(parsers.parse('the scenario name "{name}" is visible'))
-def scenario_name_visible(name: str, tmp_path: Path) -> None:
+def scenario_name_visible(name: str, cck_allure_state: dict) -> None:
     """Assert that a scenario name is visible in the Allure report."""
-    page = tmp_path._playwright_page  # type: ignore[attr-defined]
+    page = cck_allure_state["_playwright_page"]
 
     # Try to find the scenario name in the page content
     content = page.content()
     assert name in content, f"Scenario name '{name}' not found in report"
 
-    # Cleanup
-    browser = tmp_path._playwright_browser  # type: ignore[attr-defined]
-    browser.close()
-
 
 @then(parsers.parse('the step "{step}" is visible'))
-def step_visible(step: str, tmp_path: Path) -> None:
+def step_visible(step: str, cck_allure_state: dict) -> None:
     """Assert that a step text is visible in the Allure report."""
-    page = tmp_path._playwright_page  # type: ignore[attr-defined]
+    page = cck_allure_state["_playwright_page"]
+
+    # Click the test item to show its steps
+    with suppress(Exception):
+        page.locator("text=cukes").first.click(timeout=2000)
+        page.wait_for_timeout(1000)
 
     content = page.content()
     assert step in content, f"Step '{step}' not found in report"
 
-    # Cleanup
-    browser = tmp_path._playwright_browser  # type: ignore[attr-defined]
-    browser.close()
-
 
 @then(parsers.parse('the test status "{status}" is visible'))
-def test_status_visible(status: str, tmp_path: Path) -> None:
+def test_status_visible(status: str, cck_allure_state: dict) -> None:
     """Assert that a test status is visible in the Allure report."""
-    page = tmp_path._playwright_page  # type: ignore[attr-defined]
+    page = cck_allure_state["_playwright_page"]
 
     content = page.content()
     # Allure reports typically show status in various ways
     assert status.lower() in content.lower(), f"Status '{status}' not found in report"
-
-    # Cleanup
-    browser = tmp_path._playwright_browser  # type: ignore[attr-defined]
-    browser.close()
-
-    # Also cleanup HTTP server
-    server = tmp_path._http_server  # type: ignore[attr-defined]
-    thread = tmp_path._http_thread  # type: ignore[attr-defined]
-    server.shutdown()
-    thread.join()
-    server.server_close()

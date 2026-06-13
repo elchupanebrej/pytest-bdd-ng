@@ -87,8 +87,8 @@ uvx ruff format src/ tests/
 Three CLI entry points are provided:
 
 ```bash
-# Allure Cucumber converter
-allure-cucumber <ndjson-file> <output-dir>
+# Allure Formatter
+allure-formatter <ndjson-file> <output-dir>
 
 # Compatibility matrix checker
 compatibility_matrix --list --compatible-only

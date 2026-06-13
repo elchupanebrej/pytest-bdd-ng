@@ -340,51 +340,10 @@ class IdGenerator(BaseIdGenerator, StashBound):
 
     STASH_KEY: ClassVar[str] = "_pytest_bdd_id_generator"
 
-    def __init__(self) -> None:
-        """
-        Initializ a new IdGenerator instance with domain-specific context parameters, formatting a.
-        human-readable diagnosti.
-
-        Responsibility:
-            Initializes a new IdGenerator instance with domain-specific context parameters, formatting a
-            human-readable diagnostic message that includes relevant identifiers for debugging test
-            failures in pytest output and log files.
-
-        Reason for existence:
-            The __init__ of IdGenerator is the constructor boundary where raw failure context is
-            transformed into a formatted exception message. It is the single place where the diagnostic
-            message format for this error type is defined.
-
-        Delegates:
-            - super().__init__(): delegates standard initialization to the Python base class
-
-        Cohesion:
-            All logic directly supports the __init__ operation on IdGenerator instances.
-
-        Separation:
-            - Other IdGenerator methods: each method handles a distinct lifecycle aspect of the class.
-
-        Main consumers:
-            - `pytest_bdd.*`: callers that raise or catch IdGenerator implicitly invoke this method
-
-        State and side effects:
-            None, this method is stateless and only formats or stores its input arguments.
-
-        Invariants:
-            - The constructed/formatted message always includes domain context passed to this method.
-
-        Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=3
-            #arch-eval:delegation_boundary=3
-            #arch-eval:cohesion=5
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=3
-            #arch-eval:state_invariants=5
-            #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
-        """
+    def __init__(self, prefix: str | None = None) -> None:
+        """Initialize the id generator."""
         self._id_counter = 0
+        self._prefix = f"{prefix}:" if prefix else ""
 
     def __next__(self) -> str:
         """
@@ -430,7 +389,7 @@ class IdGenerator(BaseIdGenerator, StashBound):
             #arch-eval:locational_stability=3
         """
         try:
-            return str(self._id_counter)
+            return f"{self._prefix}{self._id_counter}"
         finally:
             self._id_counter += 1
 

@@ -43,4 +43,6 @@ Architecture score:
     #arch-eval:locational_stability=5
 """
 
-from _pytest.outcomes import Failed  # noqa: F401  -- intentional re-export or import for public API facade
+from _pytest.outcomes import Exit, Failed  # type: ignore[attr-defined]  # Exit not in older stubs
+
+__all__ = ["Exit", "Failed"]
