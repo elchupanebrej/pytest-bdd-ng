@@ -29,6 +29,7 @@ for all data-holding classes in pytest-bdd-ng. The pattern is:
 ```python
 from attrs import define, field
 
+
 @define(slots=True)
 class LifecycleObjectRef:
     kind: LifecycleKind

@@ -60,7 +60,7 @@ class PrefixParser(StepParser):
     ) -> dict[str, object] | None:
         if not name.startswith(self.prefix):
             return None
-        remainder = name[len(self.prefix):].strip()
+        remainder = name[len(self.prefix) :].strip()
         return {"text": remainder}
 
     @property
@@ -78,9 +78,10 @@ from pytest_bdd import given, when, then, parsers
 
 my_parser = PrefixParser("[SETUP]")
 
+
 @given(parsers.parse("the system is ready"))
-def system_ready():
-    ...
+def system_ready(): ...
+
 
 @given("[SETUP] the database is initialized", parser=my_parser)
 def database_initialized(text):
@@ -119,6 +120,7 @@ from pytest_bdd import given, scenario, then, when
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.parsers.base import StepParser
 
+
 class StartsWithParser(StepParser):
     type = StepDefinitionPatternType.pytest_bdd_other_expression
 
@@ -131,7 +133,7 @@ class StartsWithParser(StepParser):
     def parse_arguments(self, request, name, anonymous_group_names=None):
         if not name.startswith(self.expected):
             return None
-        return {"rest": name[len(self.expected):].strip()}
+        return {"rest": name[len(self.expected) :].strip()}
 
     @property
     def arguments(self):
@@ -140,19 +142,24 @@ class StartsWithParser(StepParser):
     def __str__(self):
         return self.expected
 
+
 GREET_PARSER = StartsWithParser("Greet")
+
 
 @given("Greet Alice", parser=GREET_PARSER)
 def greet_person(rest):
     return {"person": rest}
 
+
 @when("they receive a welcome message")
 def receive_welcome(greet_person):
     greet_person["message"] = f"Welcome, {greet_person['person']}!"
 
+
 @then("the message should include their name")
 def check_message(greet_person):
     assert greet_person["person"] in greet_person["message"]
+
 
 @scenario("features/greet.feature", "A custom greeting")
 def test_greet():
@@ -175,6 +182,7 @@ def arguments(self):
     if self._matched:
         return ("text",)
     return None  # TypeError during collection!
+
 
 # Correct
 @property

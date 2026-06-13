@@ -1,53 +1,57 @@
 """
-Provide cucumber message schema validation helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide cucumber message schema validation helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_schema_validation` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - _build_schema_validator: owns nested behavior below this boundary
-    - _schema_validator_state: owns nested behavior below this boundary
-    - _schema_violation: owns nested behavior below this boundary
-    - _strip_nones: owns nested behavior below this boundary
-    - validate_envelope_dict_against_schema: owns nested behavior below this boundary
-    - validate_envelope_against_schema: owns nested behavior below this boundary
+    - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a focused
+    sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+    domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+    codebase
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `message_schema_validation`
-    - src/pytest_bdd/model/message_validation.py: imports or references `message_schema_validation`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-      `message_schema_validation`
+    - message_validation: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+    public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+    handling, and stash access
 
 State and side effects:
-    mutates registry, validator, schema_dir, envelope_schema, contents; depends on __future__.annotations, json,
-    functools.cache, typing.TYPE_CHECKING, typing.cast.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_schema_validation` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Schema validator must be lazily constructed and cached via functools.cache; _strip_nones must not mutate the
+    original dict; schema loading errors must produce a single MessageValidationViolation rather than crashing
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -74,58 +78,61 @@ if TYPE_CHECKING:
 
 def _build_schema_validator() -> tuple[object | None, str | None]:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_schema_validation._build_schema_validator` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_schema_validation._build_schema_validator`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - registry.with_resource: collaborator call used by this boundary
-        - load_envelope_schema: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
-        - Registry: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
-        - schema_dir.glob: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_build_schema_validator`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_build_schema_validator`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_build_schema_validator`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates registry, schema_dir, envelope_schema, contents, resource; depends on
-        jsonschema.validators.validator_for, referencing.Registry, referencing.Resource.
-
-    Invariants:
-        - `pytest_bdd.model.message_schema_validation._build_schema_validator` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
-    from jsonschema.validators import validator_for  # noqa: PLC0415
-    from referencing import Registry, Resource  # noqa: PLC0415 -- optional referencing dependency
+    from jsonschema.validators import (  # deferred import to avoid circular dependency
+        validator_for,
+    )
+    from referencing import Registry, Resource
 
     try:
         schema_dir, envelope_schema = load_envelope_schema()
@@ -150,43 +157,54 @@ def _build_schema_validator() -> tuple[object | None, str | None]:
 @cache
 def _schema_validator_state() -> tuple[object | None, str | None]:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_schema_validation._schema_validator_state` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_schema_validation._schema_validator_state`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - _build_schema_validator: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_schema_validator_state`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_schema_validator_state`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_schema_validator_state`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -195,47 +213,52 @@ def _schema_validator_state() -> tuple[object | None, str | None]:
 
 def _schema_violation(error: ValidationError) -> MessageValidationViolation:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_schema_validation._schema_violation` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_schema_validation._schema_violation` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - tuple: collaborator call used by this boundary
-        - MessageValidationViolation: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_schema_violation`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_schema_violation`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_schema_violation`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates json_path, schema_path.
-
-    Invariants:
-        - `pytest_bdd.model.message_schema_validation._schema_violation` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -254,45 +277,54 @@ def _schema_violation(error: ValidationError) -> MessageValidationViolation:
 
 def _strip_nones(value: object) -> object:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_schema_validation._strip_nones` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_schema_validation._strip_nones` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - _strip_nones: collaborator call used by this boundary
-        - value.items: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_strip_nones`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_strip_nones`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_strip_nones`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -307,62 +339,56 @@ def validate_envelope_dict_against_schema(
     envelope_dict: Mapping[str, object],
 ) -> tuple[MessageValidationViolation, ...]:
     """
-    Validate a raw dictionary representation of a message envelope against the loaded JSON schema.
-
-    Returns:
-        A tuple of MessageValidationViolation instances mapping to specific JSON schema violations, if any.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Validate a raw dictionary representation of a message envelope against the loaded JSON schema. It directly owns
-        the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_schema_validation.validate_envelope_dict_against_schema` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - cast: collaborator call used by this boundary
-        - _strip_nones: collaborator call used by this boundary
-        - _schema_validator_state: collaborator call used by this boundary
-        - MessageValidationViolation: collaborator call used by this boundary
-        - tuple: collaborator call used by this boundary
-        - _schema_violation: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references
-          `validate_envelope_dict_against_schema`
-        - src/pytest_bdd/model/__init__.py: imports or references `validate_envelope_dict_against_schema`
-        - src/pytest_bdd/model/message_validation.py: imports or references `validate_envelope_dict_against_schema`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `validate_envelope_dict_against_schema`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates clean_envelope_dict, validator, validator_init_error; depends on typing.Any.
-
-    Invariants:
-        - `pytest_bdd.model.message_schema_validation.validate_envelope_dict_against_schema` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     clean_envelope_dict = cast("dict[str, object]", _strip_nones(envelope_dict))
     validator, validator_init_error = _schema_validator_state()
@@ -375,7 +401,7 @@ def validate_envelope_dict_against_schema(
         )
     if validator is None:
         return ()
-    from typing import Any  # noqa: PLC0415
+    from typing import Any
 
     return tuple(_schema_violation(error) for error in cast("Any", validator).iter_errors(clean_envelope_dict))
 
@@ -386,53 +412,56 @@ def validate_envelope_against_schema(
     serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
 ) -> tuple[MessageValidationViolation, ...]:
     """
-    Serialize an EventEnvelope into its dictionary representation and validate it against the JSON schema.
-
-    Returns:
-        A tuple of MessageValidationViolation instances discovered during schema validation.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Serialize an EventEnvelope into its dictionary representation and validate it against the JSON schema. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_schema_validation.validate_envelope_against_schema` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - validate_envelope_dict_against_schema: collaborator call used by this boundary
-        - ExecutionMessageAdapter.serialize_to_dict: collaborator call used by this boundary
+        - jsonschema.validators: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_validation_result: This entity is kept distinct from its peer to prevent callers from coupling to
+        multiple domain boundaries at once, ensuring each concept can evolve independently without cascading changes
+        across the codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `validate_envelope_against_schema`
-        - src/pytest_bdd/model/__init__.py: imports or references `validate_envelope_against_schema`
-        - src/pytest_bdd/model/message_validation.py: imports or references `validate_envelope_against_schema`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `validate_envelope_against_schema`
+        - message_validation: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     return validate_envelope_dict_against_schema(
         ExecutionMessageAdapter.serialize_to_dict(envelope, profile=serialization_profile),

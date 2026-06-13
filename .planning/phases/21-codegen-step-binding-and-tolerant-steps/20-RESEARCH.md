@@ -296,7 +296,14 @@ def resolve_wip_status(item, pickle, cli_value: str, default: str = "failed") ->
 ```python
 # Source: phase discretion; deterministic NDJSON fields recommended for planner
 {"type": "missing_scenario_binding", "feature": "features/example.feature", "scenario": "Checkout", "line": 12}
-{"type": "missing_step_definition", "feature": "features/example.feature", "scenario": "Checkout", "keyword": "Then", "text": "receipt is shown", "line": 18}
+{
+    "type": "missing_step_definition",
+    "feature": "features/example.feature",
+    "scenario": "Checkout",
+    "keyword": "Then",
+    "text": "receipt is shown",
+    "line": 18,
+}
 ```
 
 ### Generated Skeleton

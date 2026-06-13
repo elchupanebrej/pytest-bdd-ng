@@ -11,6 +11,8 @@
 * And File "conftest.py" with content:
     ```python
     from pytest_bdd import given
+
+
     @given("a passing step")
     def _pass():
         pass
@@ -18,6 +20,7 @@
 * And File "test_sample.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     scenarios("test.feature.md")
     ```
 

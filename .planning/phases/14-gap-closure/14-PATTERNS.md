@@ -223,12 +223,13 @@ def run_pytest_with_console_formatter(testdir, flag: str, attach):
 **Analog:** `tests/cases/e2e/e2e/test_e2e.py` lines 297-443 (non-scenario test functions)
 
 #### Extraction pattern:
+
 ```python
 """E2E tests for messages fixed release readiness matrix."""
 
 from types import SimpleNamespace
 
-from contract.messages.message_capability_fixtures import make_mapping_rule
+from pytest_bdd_testing.tool.message.capability_fixtures import make_mapping_rule
 
 from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_outcome_mappings
 
@@ -443,6 +444,7 @@ class TestTargetConstruction:
 
 ```python
 import textwrap
+
 
 def test_descriptive_name(testdir):
     """Descriptive docstring for the test."""

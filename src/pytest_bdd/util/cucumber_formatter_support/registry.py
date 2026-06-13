@@ -1,55 +1,43 @@
 """
-Provide registry helpers.
+Provides focused utility functions for the `registry` concern within pytest-bdd utility layer,
+offering helper operat.
 
 Responsibility:
-    Provide registry helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides focused utility functions for the `registry` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.registry` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    Keeping `registry` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `registry`-related helper operations within the
+    utility layer.
 
 Delegates:
-    - UnknownFormatterPluginError: owns nested behavior below this boundary
-    - _sorted_formatter_plugins: owns nested behavior below this boundary
-    - _discover_formatter_plugins_from_entrypoints: owns nested behavior below this boundary
-    - FormatterPluginCatalog: owns nested behavior below this boundary
-    - _discover_formatter_plugin_catalog: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `registry` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/model/execution_message_adapter.py: imports or references `registry`
-    - src/pytest_bdd/model/message_registry.py: imports or references `registry`
-    - src/pytest_bdd/model/message_schema_validation.py: imports or references `registry`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `registry`
-    - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `registry`
+    - `pytest_bdd.plugin.*`: imports `registry` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates message, formatter_plugins, FORMATTER_PLUGIN_ENTRYPOINT_PREFIX, plugin, plugins; depends on
-    __future__.annotations, functools.cache, typing.TYPE_CHECKING, attrs.frozen,
-    pytest_bdd.compatibility.importlib.metadata.entry_points.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.cucumber_formatter_support.registry` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises UnknownFormatterPluginError, RuntimeError; callers must treat these as boundary failures.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -75,105 +63,93 @@ FORMATTER_PLUGIN_ENTRYPOINT_PREFIX = "pytest-bdd-cucumber-formatter-"
 
 class UnknownFormatterPluginError(LookupError):
     """
-    Represent unknown formatter plugin error failures.
+    Signals a UnknownFormatterPluginError condition during pytest-bdd runtime operations, carrying
+    domain-specific contex.
 
     Responsibility:
-        Represent unknown formatter plugin error failures. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this class.
+        Signals a UnknownFormatterPluginError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.registry.UnknownFormatterPluginError` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically UnknownFormatterPluginError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - LookupError: UnknownFormatterPluginError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        UnknownFormatterPluginError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `UnknownFormatterPluginError`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `UnknownFormatterPluginError`
-        - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references
-          `UnknownFormatterPluginError`
-        - src/pytest_bdd/util/cucumber_formatters.py: imports or references `UnknownFormatterPluginError`
+        - `pytest_bdd.*`: callers catch or instantiate UnknownFormatterPluginError for error handling and type checking
 
     State and side effects:
-        mutates message.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.registry.UnknownFormatterPluginError` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
+        - Instances of UnknownFormatterPluginError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=3
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
     def __init__(self, formatter_name: str, *, known_formatters: tuple[str, ...]) -> None:
         """
-        Initialize the unknown formatter plugin error.
+        Initializ a new UnknownFormatterPluginError instance with domain-specific context parameters,.
+        formatting a human-re.
 
         Responsibility:
-            Initialize the unknown formatter plugin error. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Initializes a new UnknownFormatterPluginError instance with domain-specific context parameters,
+            formatting a human-readable diagnostic message that includes relevant identifiers for debugging
+            test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.UnknownFormatterPluginError.__init__` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of UnknownFormatterPluginError is the constructor boundary where raw failure
+            context is transformed into a formatted exception message. It is the single place where the
+            diagnostic message format for this error type is defined.
 
         Delegates:
-            - join: collaborator call used by this boundary
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on UnknownFormatterPluginError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other UnknownFormatterPluginError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch UnknownFormatterPluginError implicitly invoke this method
 
         State and side effects:
-            mutates message.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.registry.UnknownFormatterPluginError.__init__` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         message = (
             f"Unknown cucumber formatter plugin {formatter_name!r}. Known formatters: {', '.join(known_formatters)}"
@@ -185,49 +161,47 @@ def _sorted_formatter_plugins(
     formatter_plugins: list[FormatterReporterPlugin],
 ) -> tuple[FormatterReporterPlugin, ...]:
     """
+    Perform the `_sorted_formatter_plugins` operation within its module boundary, implementing a.
+    focused helper function.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.cucumber_formatter_support.registry._sorted_formatter_plugins`
-        owns documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_sorted_formatter_plugins` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.registry._sorted_formatter_plugins` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `_sorted_formatter_plugins` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - tuple: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _sorted_formatter_plugins operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `_sorted_formatter_plugins`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `_sorted_formatter_plugins`
-        - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references
-          `_sorted_formatter_plugins`
-        - src/pytest_bdd/util/cucumber_formatters.py: imports or references `_sorted_formatter_plugins`
+        - `pytest_bdd.*`: callers import and invoke _sorted_formatter_plugins for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _sorted_formatter_plugins function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return tuple(
         sorted(
@@ -239,59 +213,47 @@ def _sorted_formatter_plugins(
 
 def _discover_formatter_plugins_from_entrypoints() -> list[FormatterReporterPlugin]:
     """
+    Perform the `_discover_formatter_plugins_from_entrypoints` operation within its module.
+    boundary, implementing a focu.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugins_from_entrypoints` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_discover_formatter_plugins_from_entrypoints` operation within its module
+        boundary, implementing a focused helper function that is consumed by higher layers for its
+        specific utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugins_from_entrypoints` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_discover_formatter_plugins_from_entrypoints` exists as a standalone function because it
+        encapsulates an operation that does not require shared instance state and benefits from being
+        independently callable and testable without class instantiation overhead.
 
     Delegates:
-        - entry_points: collaborator call used by this boundary
-        - entrypoint.name.startswith: collaborator call used by this boundary
-        - entrypoint.load: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - formatter_plugins.append: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _discover_formatter_plugins_from_entrypoints operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `_discover_formatter_plugins_from_entrypoints`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references
-          `_discover_formatter_plugins_from_entrypoints`
-        - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references
-          `_discover_formatter_plugins_from_entrypoints`
-        - src/pytest_bdd/util/cucumber_formatters.py: imports or references
-          `_discover_formatter_plugins_from_entrypoints`
+        - `pytest_bdd.*`: callers import and invoke _discover_formatter_plugins_from_entrypoints for its specific utility
 
     State and side effects:
-        mutates formatter_plugins, plugin.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugins_from_entrypoints` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - The _discover_formatter_plugins_from_entrypoints function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     formatter_plugins: list[FormatterReporterPlugin] = []
     for entrypoint in entry_points(group="pytest11"):
@@ -306,63 +268,47 @@ def _discover_formatter_plugins_from_entrypoints() -> list[FormatterReporterPlug
 @frozen
 class FormatterPluginCatalog:
     """
-    Represent formatter plugin catalog state.
-
-    Raises:
-        UnknownFormatterPluginError: If the operation cannot be completed.
+    Encapsulates the FormatterPluginCatalog concern within pytest-bdd, providing a focused set of
+    collaborating operation.
 
     Responsibility:
-        Represent formatter plugin catalog state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the FormatterPluginCatalog concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        FormatterPluginCatalog is a distinct class because its methods share internal state and
+        collaborate on a cohesive task that would be awkward to express as standalone functions with
+        shared mutable parameters.
 
     Delegates:
-        - discover: owns nested behavior below this boundary
-        - by_option_attr: owns nested behavior below this boundary
-        - by_name: owns nested behavior below this boundary
-        - require_plugin: owns nested behavior below this boundary
-        - render_runtime_assets: owns nested behavior below this boundary
+        - object: FormatterPluginCatalog specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single FormatterPluginCatalog domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `FormatterPluginCatalog`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `FormatterPluginCatalog`
-        - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references `FormatterPluginCatalog`
-        - src/pytest_bdd/util/cucumber_formatters.py: imports or references `FormatterPluginCatalog`
+        - `pytest_bdd.*`: callers catch or instantiate FormatterPluginCatalog for error handling and type checking
 
     State and side effects:
-        mutates plugins, plugins_by_name, assets, rendered_assets.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises UnknownFormatterPluginError; callers must treat these as boundary failures.
+        - Instances of FormatterPluginCatalog maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
 
     plugins: tuple[FormatterReporterPlugin, ...]
@@ -370,220 +316,185 @@ class FormatterPluginCatalog:
     @classmethod
     def discover(cls) -> FormatterPluginCatalog:
         """
-        Discover formatter plugins.
-
-        Returns:
-            Formatter plugin catalog.
+        Perform the discover operation within the FormatterPluginCatalog boundary, handling its.
+        specific sub-task as part of.
 
         Responsibility:
-            Discover formatter plugins. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the discover operation within the FormatterPluginCatalog boundary, handling its
+            specific sub-task as part of the broader FormatterPluginCatalog responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.discover` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            discover is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of FormatterPluginCatalog
+            without affecting other operations.
 
         Delegates:
-            - _discover_formatter_plugin_catalog: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the discover operation on FormatterPluginCatalog instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterPluginCatalog methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `discover`
-            - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `discover`
-            - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references `discover`
-            - src/pytest_bdd/util/cucumber_formatters.py: imports or references `discover`
+            - `pytest_bdd.*`: callers that raise or catch FormatterPluginCatalog implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return _discover_formatter_plugin_catalog()
 
     def by_option_attr(self) -> dict[str, FormatterReporterPlugin]:
         """
-        Get plugins by option attribute.
-
-        Returns:
-            Dictionary mapping option attributes to plugins.
+        Perform the by_option_attr operation within the FormatterPluginCatalog boundary, handling its.
+        specific sub-task as p.
 
         Responsibility:
-            Get plugins by option attribute. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the by_option_attr operation within the FormatterPluginCatalog boundary, handling its
+            specific sub-task as part of the broader FormatterPluginCatalog responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.by_option_attr` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            by_option_attr is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of
+            FormatterPluginCatalog without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the by_option_attr operation on FormatterPluginCatalog instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterPluginCatalog methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `by_option_attr`
-            - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `by_option_attr`
-            - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references `by_option_attr`
-            - src/pytest_bdd/util/cucumber_formatters.py: imports or references `by_option_attr`
+            - `pytest_bdd.*`: callers that raise or catch FormatterPluginCatalog implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {plugin.option_attr: plugin for plugin in self.plugins}
 
     def by_name(self) -> dict[str, FormatterReporterPlugin]:
         """
-        Get plugins by name.
-
-        Returns:
-            Dictionary mapping formatter names to plugins.
+        Perform the by_name operation within the FormatterPluginCatalog boundary, handling its.
+        specific sub-task as part of .
 
         Responsibility:
-            Get plugins by name. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the by_name operation within the FormatterPluginCatalog boundary, handling its
+            specific sub-task as part of the broader FormatterPluginCatalog responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.by_name` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            by_name is a distinct method because it encapsulates a specific behavioral concern that must be
+            independently callable and potentially overridable by subclasses of FormatterPluginCatalog
+            without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the by_name operation on FormatterPluginCatalog instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterPluginCatalog methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `by_name`
-            - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `by_name`
-            - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references `by_name`
-            - src/pytest_bdd/util/cucumber_formatters.py: imports or references `by_name`
+            - `pytest_bdd.*`: callers that raise or catch FormatterPluginCatalog implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {plugin.formatter: plugin for plugin in self.plugins}
 
     def require_plugin(self, formatter_name: str) -> FormatterReporterPlugin:
         """
-        Require a plugin by formatter name.
-
-        Returns:
-            Formatter reporter plugin.
-
-        Raises:
-            UnknownFormatterPluginError: If the operation cannot be completed.
+        Perform the require_plugin operation within the FormatterPluginCatalog boundary, handling its.
+        specific sub-task as p.
 
         Responsibility:
-            Require a plugin by formatter name. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the require_plugin operation within the FormatterPluginCatalog boundary, handling its
+            specific sub-task as part of the broader FormatterPluginCatalog responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.require_plugin` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            require_plugin is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of
+            FormatterPluginCatalog without affecting other operations.
 
         Delegates:
-            - self.by_name: collaborator call used by this boundary
-            - UnknownFormatterPluginError: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - sorted: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the require_plugin operation on FormatterPluginCatalog instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterPluginCatalog methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `require_plugin`
-            - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `require_plugin`
-            - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references `require_plugin`
-            - src/pytest_bdd/util/cucumber_formatters.py: imports or references `require_plugin`
+            - `pytest_bdd.*`: callers that raise or catch FormatterPluginCatalog implicitly invoke this method
 
         State and side effects:
-            mutates plugins_by_name.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.require_plugin` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises UnknownFormatterPluginError; callers must treat these as boundary failures.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         plugins_by_name = self.by_name()
         try:
@@ -596,64 +507,48 @@ class FormatterPluginCatalog:
 
     def render_runtime_assets(self, formatter_requests: tuple[CucumberFormatterRequest, ...]) -> dict[str, str]:
         """
-        Render runtime assets.
-
-        Returns:
-            Rendered runtime assets dictionary.
+        Perform the render_runtime_assets operation within the FormatterPluginCatalog boundary,.
+        handling its specific sub-ta.
 
         Responsibility:
-            Render runtime assets. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the render_runtime_assets operation within the FormatterPluginCatalog boundary,
+            handling its specific sub-task as part of the broader FormatterPluginCatalog responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.render_runtime_assets` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            render_runtime_assets is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterPluginCatalog without affecting other operations.
 
         Delegates:
-            - render_live_formatter_bridge: collaborator call used by this boundary
-            - self.require_plugin.render_runtime_assets: collaborator call used by this boundary
-            - self.require_plugin: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - assets.update: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the render_runtime_assets operation on FormatterPluginCatalog
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterPluginCatalog methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `render_runtime_assets`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `render_runtime_assets`
-            - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/util/cucumber_formatter_support/base.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references
-              `render_runtime_assets`
+            - `pytest_bdd.*`: callers that raise or catch FormatterPluginCatalog implicitly invoke this method
 
         State and side effects:
-            mutates assets, rendered_assets.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.render_runtime_assets` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         assets = {"render_cucumber_formatters.js": render_live_formatter_bridge()}
         for formatter_request in formatter_requests:
@@ -671,60 +566,47 @@ class FormatterPluginCatalog:
 @cache
 def _discover_formatter_plugin_catalog() -> FormatterPluginCatalog:
     """
+    Perform the `_discover_formatter_plugin_catalog` operation within its module boundary,.
+    implementing a focused helper.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugin_catalog` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Performs the `_discover_formatter_plugin_catalog` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugin_catalog` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `_discover_formatter_plugin_catalog` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - _discover_formatter_plugins_from_entrypoints: collaborator call used by this boundary
-        - RuntimeError: collaborator call used by this boundary
-        - FormatterPluginCatalog: collaborator call used by this boundary
-        - _sorted_formatter_plugins: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _discover_formatter_plugin_catalog operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `_discover_formatter_plugin_catalog`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references
-          `_discover_formatter_plugin_catalog`
-        - src/pytest_bdd/util/cucumber_formatter_support/standalone.py: imports or references
-          `_discover_formatter_plugin_catalog`
-        - src/pytest_bdd/util/cucumber_formatters.py: imports or references `_discover_formatter_plugin_catalog`
+        - `pytest_bdd.*`: callers import and invoke _discover_formatter_plugin_catalog for its specific utility
 
     State and side effects:
-        mutates formatter_plugins, message.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.registry._discover_formatter_plugin_catalog` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - The _discover_formatter_plugin_catalog function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     formatter_plugins = _discover_formatter_plugins_from_entrypoints()
     if not formatter_plugins:

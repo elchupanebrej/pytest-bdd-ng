@@ -1,0 +1,31 @@
+import ast
+
+from pytest_bdd import given, parsers, then
+from pytest_bdd.tag_expression import MarksTagExpression
+
+
+@given(parsers.parse("Tag expression {expression}"), target_fixture="tag_expression")
+def tag_expression(expression):
+    expression = expression.strip('"').strip("'")
+    return MarksTagExpression.parse(expression)
+
+
+@given(parsers.parse("Complex boolean tag expression {expression}"), target_fixture="tag_expression")
+def complex_tag_expression(expression):
+    expression = expression.strip('"').strip("'")
+    return MarksTagExpression.parse(expression)
+
+
+class MockMark:
+    def __init__(self, name) -> None:
+        self.name = name
+
+
+@then(parsers.parse("Tag expression evaluates to {result} for marks {marks}"))
+def tag_expression_evaluates(tag_expression, result, marks) -> None:
+    expected = result.lower() == "true"
+    marks_clean = marks.strip('"').strip("'")
+    marks_list = ast.literal_eval(marks_clean)
+    mock_marks = [MockMark(m) for m in marks_list]
+    actual = tag_expression.evaluate(mock_marks)
+    assert actual == expected

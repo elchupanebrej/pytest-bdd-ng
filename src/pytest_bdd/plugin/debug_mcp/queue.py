@@ -1,54 +1,42 @@
 """
-Failure queue and hold lifecycle for debug MCP.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Failure queue and hold lifecycle for debug MCP. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - FailureQueue: owns nested behavior below this boundary
-    - _require_endpoint: owns nested behavior below this boundary
-    - _require_sidecar_endpoint: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/debug_mcp/hook.py: imports or references `queue`
-    - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `queue`
-    - src/pytest_bdd/plugin/debug_mcp/state.py: imports or references `queue`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `queue`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates active, self.connected, self.last_heartbeat_at, msg, self.active_failure; depends on __future__.annotations,
-    time, collections.abc.Callable, typing.TYPE_CHECKING, attrs.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.debug_mcp.queue` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
-
-Failure semantics:
-    Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -75,58 +63,44 @@ DiscoveryWriter = Callable[["DebugMcpState", SessionDiscovery], None]
 @attrs.define(slots=True)
 class FailureQueue:
     """
-    Single-active-failure debug MCP queue.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Single-active-failure debug MCP queue. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue.FailureQueue` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - hold_failure: owns nested behavior below this boundary
-        - write_holding_discovery: owns nested behavior below this boundary
-        - heartbeat: owns nested behavior below this boundary
-        - release: owns nested behavior below this boundary
-        - mark_artifact_written: owns nested behavior below this boundary
-        - expire_without_client: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/entrypoint.py: imports or references `FailureQueue`
-        - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `FailureQueue`
-        - src/pytest_bdd/plugin/debug_mcp/state.py: imports or references `FailureQueue`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates active, self.connected, self.last_heartbeat_at, self.active_failure, self.release_record.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     discovery_path: Path
@@ -142,54 +116,44 @@ class FailureQueue:
 
     def hold_failure(self, failure: QueuedFailure, *, state: DebugMcpState | None = None) -> QueuedFailure:
         """
-        Make a failure active and enter the adapter seam.
-
-        Returns:
-            Active queued failure.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Make a failure active and enter the adapter seam. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.hold_failure`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - failure.with_sequence: collaborator call used by this boundary
-            - self.write_holding_discovery: collaborator call used by this boundary
-            - _require_sidecar_endpoint: collaborator call used by this boundary
-            - self.adapter.enter_failure: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/hook.py: imports or references `hold_failure`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self._sequence, active, self.active_failure, self.release_record, self.connected.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.hold_failure` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self._sequence += 1
         active = failure.with_sequence(self._sequence)
@@ -206,52 +170,44 @@ class FailureQueue:
 
     def write_holding_discovery(self, state: DebugMcpState) -> None:
         """
-        Write discovery with active failure metadata.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Write discovery with active failure metadata. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.write_holding_discovery` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.require_active: collaborator call used by this boundary
-            - SessionDiscovery.holding: collaborator call used by this boundary
-            - active.summary.as_dict: collaborator call used by this boundary
-            - self.discovery_writer: collaborator call used by this boundary
-            - write_discovery_file: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates active, discovery.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.write_holding_discovery` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         active = self.require_active()
         discovery = SessionDiscovery.holding(state, active.summary.as_dict())
@@ -262,101 +218,88 @@ class FailureQueue:
 
     def heartbeat(self) -> None:
         """
-        Refresh connected-client lease.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Refresh connected-client lease. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.heartbeat` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.clock: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `heartbeat`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.connected, self.last_heartbeat_at.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.heartbeat` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self.connected = True
         self.last_heartbeat_at = self.clock()
 
     def release(self, *, reason: ReleaseReason = "explicit", artifact_written: bool = False) -> ReleaseRecord:
         """
-        Release active failure.
-
-        Returns:
-            Release metadata.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Release active failure. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.release` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.require_active: collaborator call used by this boundary
-            - ReleaseRecord: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `release`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates active, artifact_written, record, self.release_record, self.active_failure.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.release` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         active = self.require_active()
         artifact_written = artifact_written or active.summary.sequence_id in self.artifact_written_sequences
@@ -373,96 +316,87 @@ class FailureQueue:
 
     def mark_artifact_written(self, sequence_id: int) -> None:
         """
-        Record that an investigation artifact exists for a failure.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Record that an investigation artifact exists for a failure. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.mark_artifact_written` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.artifact_written_sequences.add: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `mark_artifact_written`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self.artifact_written_sequences.add(sequence_id)
 
     def expire_without_client(self, *, timeout_seconds: float) -> ReleaseRecord | None:
         """
-        Release active failure after no-client timeout.
-
-        Returns:
-            Release metadata when expired, else None.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Release active failure after no-client timeout. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.expire_without_client` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.clock: collaborator call used by this boundary
-            - self.release: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates active.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.expire_without_client` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         active = self.active_failure
         if active is None or self.connected:
@@ -473,49 +407,44 @@ class FailureQueue:
 
     def expire_missed_heartbeat(self, *, lease_seconds: float) -> ReleaseRecord | None:
         """
-        Release active failure after missed heartbeat lease.
-
-        Returns:
-            Release metadata when expired, else None.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Release active failure after missed heartbeat lease. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.expire_missed_heartbeat` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.clock: collaborator call used by this boundary
-            - self.release: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.active_failure is None or not self.connected or self.last_heartbeat_at is None:
             return None
@@ -525,53 +454,44 @@ class FailureQueue:
 
     def release_if_pdb_continued(self) -> ReleaseRecord | None:
         """
-        Release active failure when adapter observes raw PDB continuation.
-
-        Returns:
-            Release metadata when continued, else None.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Release active failure when adapter observes raw PDB continuation. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.release_if_pdb_continued` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.adapter.continued: collaborator call used by this boundary
-            - self.release: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates active.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.release_if_pdb_continued` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         active = self.active_failure
         if active is not None and self.adapter.continued(active):
@@ -580,58 +500,44 @@ class FailureQueue:
 
     def require_active(self) -> QueuedFailure:
         """
-        Return active failure or raise.
-
-        Returns:
-            Active queued failure.
-
-        Raises:
-            RuntimeError: If no active failure exists.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Return active failure or raise. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.require_active`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - RuntimeError: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `require_active`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates msg.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.queue.FailureQueue.require_active` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.active_failure is None:
             msg = "No active debug MCP failure."
@@ -641,48 +547,44 @@ class FailureQueue:
 
 def _require_endpoint(state: DebugMcpState) -> Endpoint:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.queue._require_endpoint` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue._require_endpoint` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - RuntimeError: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates msg.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.queue._require_endpoint` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if state.mcp_pdb_endpoint is None:
         msg = "Debug MCP mcp-pdb endpoint is unavailable."
@@ -692,49 +594,44 @@ def _require_endpoint(state: DebugMcpState) -> Endpoint:
 
 def _require_sidecar_endpoint(state: DebugMcpState) -> Endpoint:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.queue._require_sidecar_endpoint` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.queue._require_sidecar_endpoint` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - RuntimeError: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates msg.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.queue._require_sidecar_endpoint` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if state.sidecar_endpoint is None:
         msg = "Debug MCP sidecar endpoint is unavailable."

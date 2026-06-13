@@ -315,10 +315,12 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+
 class Violation(NamedTuple):
     path: Path
     line: int
     message: str
+
 
 class QualityGateVisitor(ast.NodeVisitor):
     def __init__(self, path: Path, lines: list[str]) -> None:
@@ -333,12 +335,14 @@ class QualityGateVisitor(ast.NodeVisitor):
             return
         super().visit(node)
 
+
 def check_file(path: Path) -> list[Violation]:
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     visitor = QualityGateVisitor(path, source.splitlines())
     visitor.visit(tree)
     return visitor.violations
+
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
@@ -351,6 +355,7 @@ def main(argv: list[str] | None = None) -> int:
     for v in violations:
         sys.stdout.write(f"{v.path}:{v.line}: {v.message}\n")
     return 1 if violations else 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
@@ -374,6 +379,7 @@ if __name__ == "__main__":
 ```python
 # src/pytest_bdd/parsers/facade.py
 """Backward-compatible re-exports from pytest_bdd.parsers sub-modules."""
+
 from pytest_bdd.parsers.base import StepParser  # noqa: F401
 from pytest_bdd.parsers.re_parser import re as re_parser  # noqa: F401
 from pytest_bdd.parsers.parse_parser import parse as parse_parser  # noqa: F401
@@ -383,6 +389,7 @@ from pytest_bdd.parsers.parse_parser import parse as parse_parser  # noqa: F401
 Then in `src/pytest_bdd/parsers.py` (preserved for backward compat):
 ```python
 """Backward compatibility stub — delegates to parsers/ package."""
+
 from pytest_bdd.parsers.facade import *  # noqa: F403
 ```
 
@@ -399,6 +406,7 @@ Or using `__init__.py` directly with `from pytest_bdd.parsers.facade import *`.
 # Source: src/pytest_bdd/collector_batch.py (lines 26-31, existing codebase)
 try:
     import aiofiles  # type: ignore[import-untyped]
+
     _aiofiles_available = True
 except ImportError:
     _aiofiles_available = False
@@ -410,6 +418,7 @@ def _get_go_parser():
     """Return Go parser module or None if not installed."""
     try:
         from pytest_bdd._gherkin_go import parse as _go_parse
+
         return _go_parse
     except ImportError:
         return None
@@ -517,12 +526,16 @@ mypy_path = "stubs"  # D-07: picks up stubs/ directory
 # Source: Generated via stubgen + hand-editing [CITED: mypy docs on stub files]
 from typing import Any
 
-class Envelope:
-    ...
+
+class Envelope: ...
+
+
 class GherkinDocument:
     uri: str | None
     feature: Any | None
     comments: list[Any]
+
+
 class Pickle:
     id: str
     uri: str
@@ -531,27 +544,38 @@ class Pickle:
     steps: list[Any]
     tags: list[Any]
     ast_node_ids: list[str]
+
+
 class PickleStep:
     id: str
     text: str
     type: Any
     argument: Any | None
     ast_node_ids: list[str]
+
+
 class Source:
     uri: str
     data: str
     media_type: Any
-class SourceMediaType:
-    ...
-class StepKeywordType:
-    ...
+
+
+class SourceMediaType: ...
+
+
+class StepKeywordType: ...
+
+
 class DataTable:
     rows: list[Any]
+
+
 class Location:
     line: int
     column: int
-class PickleStepType:
-    ...
+
+
+class PickleStepType: ...
 ```
 
 ### T2: mypy --strict Flags Configuration
@@ -589,6 +613,7 @@ local_partial_types = true            # Step 13
 # Source: Pattern from existing quality_gates.py + AST analysis approach
 import ast
 from collections import defaultdict
+
 
 def find_responsibility_clusters(tree: ast.Module) -> list[dict]:
     """
@@ -628,6 +653,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+
 def _get_parser():
     """Return parse function — Go or Python fallback."""
     backend = os.environ.get("PYTEST_BDD_GHERKIN_BACKEND", "auto").lower()
@@ -636,6 +662,7 @@ def _get_parser():
         # Must use Go — fail if not available
         try:
             from pytest_bdd._gherkin_go import parse as go_parse
+
             return go_parse
         except ImportError:
             raise ImportError(
@@ -646,12 +673,14 @@ def _get_parser():
     # auto or python — use Go if available, Python fallback
     try:
         from pytest_bdd._gherkin_go import parse as go_parse
+
         if go_parse:  # Will be None if library not loadable
             return go_parse
     except ImportError:
         pass
 
     from gherkin.parser import Parser
+
     return Parser().parse
 ```
 
@@ -661,19 +690,21 @@ def _get_parser():
 # Design for scripts/collect_arch_scores.py (D0 wave 1)
 # Source: SPEC.md §D0 criteria + codebase conventions
 """Collect architectural scores for all public objects."""
+
 import ast
 import sys
 from pathlib import Path
 
 SCORE_CRITERIA = [
-    "reason_for_existence",    # (0) Why does this exist?
-    "srp_expert",              # (1) Single Responsibility + Information Expert
-    "why_not_inline",          # (2) Why not inline in caller?
-    "why_not_split",           # (3) Why not split further?
-    "problems_solved",         # (4) What problems does it solve at its level?
-    "law_of_demeter",          # (5) What dependencies does it hide?
-    "module_location",         # (6) Why in this module/package?
+    "reason_for_existence",  # (0) Why does this exist?
+    "srp_expert",  # (1) Single Responsibility + Information Expert
+    "why_not_inline",  # (2) Why not inline in caller?
+    "why_not_split",  # (3) Why not split further?
+    "problems_solved",  # (4) What problems does it solve at its level?
+    "law_of_demeter",  # (5) What dependencies does it hide?
+    "module_location",  # (6) Why in this module/package?
 ]
+
 
 def score_object(obj_path: str, docstring: str | None) -> dict[str, int]:
     """Score one object. Returns {criterion: 0-5} dict."""
@@ -686,6 +717,7 @@ def score_object(obj_path: str, docstring: str | None) -> dict[str, int]:
         else:
             scores[criterion] = 0  # Unscored
     return scores
+
 
 # Output: average ≥ 4.0 for wave 1 (public API)
 # Format: docs/architecture/OBJECT_MAP.md or inline in docstrings
@@ -951,6 +983,7 @@ parsers/
 ```python
 # src/pytest_bdd/parsers/__init__.py
 """Step parser implementations for pytest-bdd-ng."""
+
 from pytest_bdd.parsers.facade import *  # noqa: F403
 
 # src/pytest_bdd/parsers/facade.py
@@ -1077,15 +1110,18 @@ def _resolve_parser(backend: str = "auto"):
     if backend == "go":
         try:
             from pytest_bdd._gherkin_go import parse
+
             return parse
         except ImportError:
             raise ImportError("go-parser extra not installed")
     # auto or python
     try:
         from pytest_bdd._gherkin_go import parse
+
         return parse
     except ImportError:
         from gherkin.parser import Parser
+
         return Parser().parse
 ```
 

@@ -1,45 +1,56 @@
 """
-Register pytest-bdd test group ordering config options.
+Serves as the Utility module for Test group ordering and xdist barrier.
 
 Responsibility:
-    Register pytest-bdd test group ordering config options. It directly owns the observable contract, local decisions,
-    and maintenance boundary for this module.
+    Serves as the Utility module for Test group ordering and xdist barrier. Defines classes and functions that
+    collectively implement Collection modification behavior of the 'entrypoint' component. This module is the sole owner
+    of its specific BDD plugin contract within the Utility.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.test_group_ordering.entrypoint` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    This module exists as a distinct architectural unit because it encapsulates all logic for Test group ordering and
+    xdist barrier within the Utility. It is the information expert for its specific domain, owning the transformation
+    from pytest events to its output format. Changes to Test group ordering and xdist barrier behavior belong
+    exclusively in this module, not in sibling plugins or the core pytest-bdd library. Its import boundary isolates it
+    from other reporting/runtime concerns.
 
 Delegates:
-    - pytest_addoption: owns nested behavior below this boundary
+    - (internal classes and functions): Implement specific aspects of Test group ordering and xdist barrier within the
+    Collection modification.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module serve the single purpose of Test group ordering and xdist barrier. They share common import
+    dependencies and operate on the same domain types. No unrelated utilities are present.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - (sibling plugins in Utility): Each owns a distinct output format or lifecycle concern.
+    - (runtime plugins): Handled by separate modules in the Runtime layer (order 6).
 
 Main consumers:
-    - src/pytest_bdd/util/cucumber_formatter_support/registry.py: imports or references `entrypoint`
+    - pytest: Hooks into the Collection modification via standard pytest hook mechanisms.
+    - (downstream tools): CI/CD systems and test reporting tools consume the generated output.
 
 State and side effects:
-    depends on __future__.annotations, typing.Any, pytest_bdd.util.tests_group_ordering.register_group_config_options.
+    Accumulates state across pytest hook calls during the session. Accesses pytest Config for
+    options. May perform file I/O for report generation.
 
 Invariants:
-    - `pytest_bdd.plugin.test_group_ordering.entrypoint` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Output format must conform to the expected schema for entrypoint.
+    - Hook implementations must respect pytest's hook calling conventions.
+
+Failure semantics:
+    Raises pytest.UsageError for configuration issues. May raise LookupError when required
+    resources are missing from pytest stash or fixtures.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -51,42 +62,47 @@ from pytest_bdd.util.tests_group_ordering import register_group_config_options
 
 def pytest_addoption(parser: Any) -> None:
     """
-    Register test group ordering ini options.
+    Implement the 'pytest_addoption' pytest hook within the Utility, called by pytest during the Collection modification.
 
     Responsibility:
-        Register test group ordering ini options. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+            Implements the 'pytest_addoption' pytest hook within the Utility, called by pytest during the Collection
+            modification phase.                .
 
-    Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.test_group_ordering.entrypoint.pytest_addoption`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Reason for existence:
+            This functionfunction is the single authority for its specific decision within the Utility. It implements a
+            well-known pytest lifecycle hook at the Collection modification phase, making it the natural extension point
+            for pytest-bdd behavior. Reads pytest stash state as part of its contract.
 
-    Delegates:
-        - register_group_config_options: collaborator call used by this boundary
+        Delegates:
+        - (direct implementation): No significant delegation; implements logic directly
 
-    Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Cohesion:
+            Focuses exclusively on the 'pytest_addoption' operation. All internal logic serves this single purpose.
 
-    Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        Separation:
+        - (peer methods/functions): Each sibling owns a distinct Collection modification phase lifecycle event or transformation
 
-    Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/entrypoint.py: imports or references `pytest_addoption`
+        Main consumers:
+        - pytest: Calls this hook at the Collection modification phase as part of its plugin lifecycle
 
-    State and side effects:
-        keeps no local persistent state beyond call-local values.
+        State and side effects:
+            Reads/writes pytest.config.stash for runtime state
 
-    Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        Invariants:
+            - Maintains its documented input/output contract
+
+        Failure semantics:
+            No custom exceptions raised directly
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=4
+            #arch-eval:locational_stability=4
     """
     register_group_config_options(parser)

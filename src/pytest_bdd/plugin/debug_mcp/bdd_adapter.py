@@ -1,51 +1,42 @@
 """
-Best-effort pytest-bdd-ng metadata extraction for debug MCP.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Best-effort pytest-bdd-ng metadata extraction for debug MCP. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - BddContextExtractor: owns nested behavior below this boundary
-    - enrich_failure_with_bdd_context: owns nested behavior below this boundary
-    - _string_or_none: owns nested behavior below this boundary
-    - _tags: owns nested behavior below this boundary
-    - _step_keyword: owns nested behavior below this boundary
-    - _example_row: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates feature, run, scenario_run, binding, pickle; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.cast, attrs, pytest_bdd.model.run.Run.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.debug_mcp.bdd_adapter` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -66,103 +57,87 @@ if TYPE_CHECKING:
 
 class BddContextExtractor:
     """
-    Extract BDD metadata from active pytest-bdd-ng runtime state.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Extract BDD metadata from active pytest-bdd-ng runtime state. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this class.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter.BddContextExtractor` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - extract: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates feature, run, scenario_run, binding, pickle.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter.BddContextExtractor` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     @staticmethod
     def extract(config: Config) -> BddMetadata | None:
         """
-        Extract BDD metadata from config stash.
-
-        Returns:
-            BDD metadata when active scenario state exists, else None.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Extract BDD metadata from config stash. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.debug_mcp.bdd_adapter.BddContextExtractor.extract` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - _string_or_none: collaborator call used by this boundary
-            - Run.find_in_stash.value_or: collaborator call used by this boundary
-            - Run.find_in_stash: collaborator call used by this boundary
-            - BddMetadata: collaborator call used by this boundary
-            - _step_keyword: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates feature, run, scenario_run, binding, pickle.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.debug_mcp.bdd_adapter.BddContextExtractor.extract` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=3  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         run = Run.find_in_stash(config.stash).value_or(None)
         scenario_run = getattr(run, "active_scenario_run", None)
@@ -190,54 +165,44 @@ class BddContextExtractor:
 
 def enrich_failure_with_bdd_context(config: Config, failure: QueuedFailure) -> QueuedFailure:
     """
-    Return queued failure with best-effort BDD metadata.
-
-    Returns:
-        Failure with BDD metadata dictionary, or original failure if none exists.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Return queued failure with best-effort BDD metadata. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.debug_mcp.bdd_adapter.enrich_failure_with_bdd_context` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - attrs.evolve: collaborator call used by this boundary
-        - BddContextExtractor.extract: collaborator call used by this boundary
-        - metadata.model_dump: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/hook.py: imports or references `enrich_failure_with_bdd_context`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates metadata.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter.enrich_failure_with_bdd_context` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     metadata = BddContextExtractor.extract(config)
     if metadata is None:
@@ -247,91 +212,88 @@ def enrich_failure_with_bdd_context(config: Config, failure: QueuedFailure) -> Q
 
 def _string_or_none(value: object) -> str | None:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.bdd_adapter._string_or_none` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter._string_or_none` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - str: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state beyond local scope.
+
+    Invariants:
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     return str(value) if value not in {None, ""} else None
 
 
 def _tags(pickle: object | None) -> list[str]:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.bdd_adapter._tags` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter._tags` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - str.lstrip: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - result.append: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates tags, result, name, text.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter._tags` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     tags = getattr(pickle, "tags", None) or ()
     result = []
@@ -345,48 +307,44 @@ def _tags(pickle: object | None) -> list[str]:
 
 def _step_keyword(binding: object | None, step: object | None) -> str | None:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.bdd_adapter._step_keyword` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter._step_keyword` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - callable: collaborator call used by this boundary
-        - resolver: collaborator call used by this boundary
-        - _string_or_none: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/struct_bdd/model_builder.py: imports or references `_step_keyword`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates resolver, ast_step.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter._step_keyword` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if binding is None or step is None:
         return None
@@ -399,46 +357,44 @@ def _step_keyword(binding: object | None, step: object | None) -> str | None:
 
 def _example_row(binding: object | None, pickle: object | None) -> dict[str, str]:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.bdd_adapter._example_row` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter._example_row` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - _call_optional: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates breadcrumb.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter._example_row` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if binding is None or pickle is None:
         return {}
@@ -450,49 +406,44 @@ def _example_row(binding: object | None, pickle: object | None) -> dict[str, str
 
 def _call_optional(target: object, method_name: str, *args: object) -> object | None:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.debug_mcp.bdd_adapter._call_optional` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.debug_mcp.bdd_adapter._call_optional` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - callable: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - method: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates method.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.debug_mcp.bdd_adapter._call_optional` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     method = getattr(target, method_name, None)
     if not callable(method):

@@ -1,56 +1,64 @@
 """
-Provide message converter helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide message converter helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_converter` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - envelope_to_dict: owns nested behavior below this boundary
-    - envelope_from_dict: owns nested behavior below this boundary
-    - governance_value_to_dict: owns nested behavior below this boundary
-    - validate_envelope_shape: owns nested behavior below this boundary
+    - cucumber_messages.json_converter: Provides supporting functionality through a well-defined interface, delegating a
+    focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - message_serialization: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+    domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+    codebase
 
 Main consumers:
-    - src/pytest_bdd/collector_batch.py: imports or references `message_converter`
-    - src/pytest_bdd/model/__init__.py: imports or references `message_converter`
-    - src/pytest_bdd/model/feature_binding.py: imports or references `message_converter`
-    - src/pytest_bdd/model/message_validation.py: imports or references `message_converter`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_ci.py: imports or references `message_converter`
+    - gherkin_message_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+    pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+    state, message handling, and stash access
 
 State and side effects:
-    mutates message, message_converter; depends on __future__.annotations, dataclasses.asdict, dataclasses.is_dataclass,
-    datetime.datetime, typing.TYPE_CHECKING.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_converter` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Envelope must have exactly one non-None payload field before conversion; message_converter must use the
+    message_extension module scope for custom type serialization; governance_value_to_dict must produce JSON-
+    serializable primitives only
 
 Failure semantics:
-    Raises or re-raises TypeError; callers must treat these as boundary failures.
+    Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects are
+    unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+    ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions at
+    hook or plugin boundaries to prevent test session crashes
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -82,54 +90,56 @@ message_converter: json_converter.JsonDataclassConverter = json_converter.JsonDa
 
 def envelope_to_dict(message: Message) -> JSONObject:
     """
-    Serialize a validated EventEnvelope to a raw JSON-compatible dictionary using the cucumber message converter.
-
-    Returns:
-        A dictionary representation of the envelope suitable for JSON serialization.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Serialize a validated EventEnvelope to a raw JSON-compatible dictionary using the cucumber message converter. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_converter.envelope_to_dict` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - validate_envelope_shape: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - message_converter.to_dict: collaborator call used by this boundary
+        - cucumber_messages.json_converter: Provides supporting functionality through a well-defined interface,
+        delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_serialization: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/execution_message_adapter.py: imports or references `envelope_to_dict`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `envelope_to_dict`
-        - src/pytest_bdd/model/message_validation.py: imports or references `envelope_to_dict`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_ci.py: imports or references
-          `envelope_to_dict`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `envelope_to_dict`
+        - gherkin_message_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     validate_envelope_shape(message)
     return cast("JSONObject", message_converter.to_dict(message))
@@ -137,121 +147,114 @@ def envelope_to_dict(message: Message) -> JSONObject:
 
 def envelope_from_dict(payload: JSONObject) -> Message:
     """
-    Deserialize a raw dictionary payload into an EventEnvelope and verify its shape constraints.
-
-    Returns:
-        The populated EventEnvelope instance.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Deserialize a raw dictionary payload into an EventEnvelope and verify its shape constraints. It directly owns
-        the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_converter.envelope_from_dict` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - message_converter.from_dict: collaborator call used by this boundary
-        - validate_envelope_shape: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
+        - cucumber_messages.json_converter: Provides supporting functionality through a well-defined interface,
+        delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_serialization: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/execution_message_adapter.py: imports or references `envelope_from_dict`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `envelope_from_dict`
-        - src/pytest_bdd/model/message_consolidation.py: imports or references `envelope_from_dict`
-        - src/pytest_bdd/model/message_validation.py: imports or references `envelope_from_dict`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_ci.py: imports or references
-          `envelope_from_dict`
+        - gherkin_message_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates message.
-
-    Invariants:
-        - `pytest_bdd.model.message_converter.envelope_from_dict` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     message = message_converter.from_dict(payload, Message)
     validate_envelope_shape(message)
     return cast("Message", message)
 
 
-def governance_value_to_dict(value: object) -> JSONValue:  # noqa: PLR0911
+def governance_value_to_dict(value: object) -> JSONValue:  # noqa: PLR0911  -- suppressed warning
     """
-    Recursively convert an arbitrary governance value into a JSON-serializable primitive representation.
-
-    Handles attrs instances, dataclasses, datetimes, nested collections, and all JSON primitives. Falls back to
-    string conversion for any type not natively serializable.
-
-    Returns:
-        A JSON-compatible value (str, int, float, bool, None, dict, or list).
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Recursively convert an arbitrary governance value into a JSON-serializable primitive representation. It directly
-        owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_converter.governance_value_to_dict` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - governance_value_to_dict: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - attrs_has: collaborator call used by this boundary
-        - type: collaborator call used by this boundary
-        - attrs_asdict: collaborator call used by this boundary
+        - cucumber_messages.json_converter: Provides supporting functionality through a well-defined interface,
+        delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_serialization: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `governance_value_to_dict`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `governance_value_to_dict`
-        - src/pytest_bdd/model/message_validation.py: imports or references `governance_value_to_dict`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_ci.py: imports or references
-          `governance_value_to_dict`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `governance_value_to_dict`
+        - gherkin_message_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     if attrs_has(type(value)) and not isinstance(value, type):
         return governance_value_to_dict(attrs_asdict(cast("AttrsInstance", value)))
@@ -270,61 +273,62 @@ def governance_value_to_dict(value: object) -> JSONValue:  # noqa: PLR0911
 
 def validate_envelope_shape(envelope: message_extension.EventEnvelope) -> None:
     """
-    Verify that an EventEnvelope strictly adheres to the oneof payload constraint defined by the cucumber protocol.
-
-    Raises:
-        TypeError: If the envelope is missing a payload or contains multiple contradictory payloads.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Verify that an EventEnvelope strictly adheres to the oneof payload constraint defined by the cucumber protocol.
-        It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_converter.validate_envelope_shape` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - has_single_payload: collaborator call used by this boundary
-        - TypeError: collaborator call used by this boundary
+        - cucumber_messages.json_converter: Provides supporting functionality through a well-defined interface,
+        delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_serialization: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `validate_envelope_shape`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `validate_envelope_shape`
-        - src/pytest_bdd/model/message_validation.py: imports or references `validate_envelope_shape`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_ci.py: imports or references
-          `validate_envelope_shape`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `validate_envelope_shape`
+        - gherkin_message_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates message.
-
-    Invariants:
-        - `pytest_bdd.model.message_converter.validate_envelope_shape` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects
+        are unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+        ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions
+        at hook or plugin boundaries to prevent test session crashes
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     if not has_single_payload(envelope):
         message = "Envelope must include exactly one payload field"

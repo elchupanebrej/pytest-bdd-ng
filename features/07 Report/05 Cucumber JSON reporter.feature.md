@@ -19,13 +19,15 @@
     ```python
     from pytest_bdd import given
 
+
     @given("a passing step")
     def _pass():
-      return "pass"
+        return "pass"
+
 
     @given("a failing step")
     def _fail():
-      raise Exception("Error")
+        raise Exception("Error")
     ```
 
 * And File "test_report.py" with content:
@@ -76,10 +78,11 @@
     ```python
     from pytest_bdd import given, parsers
 
+
     @given(parsers.parse("type {type} and value {value}"))
     def _typed_value(type, value):
-      assert type in {"str", "int"}
-      assert value
+        assert type in {"str", "int"}
+        assert value
     ```
 
 * And File "test_report.py" with content:

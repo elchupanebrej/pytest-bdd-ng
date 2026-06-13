@@ -1,51 +1,78 @@
 """
-Provide mimetype helpers.
+Owns the canonical StrEnum catalog of all MIME types (Mimetype) and file suffixes (Suffix) used throughout pytest-bdd.
 
 Responsibility:
-    Provide mimetype helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Owns the canonical StrEnum catalog of all MIME types (Mimetype) and file suffixes (Suffix) used throughout pytest-
+    bdd for content-type negotiation, feature file detection, and parser dispatch. Additionally maintains the cross-
+    reference tables (gherkin_suffixes, struct_bdd_suffixes, link_suffixes, mimetype_suffix_pairs) and registers all
+    mimetype-to-suffix mappings with Python's standard library mimetypes module so that file-type detection works
+    correctly for Gherkin (.gherkin, .feature) and struct-BDD (.bdd) files.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.mimetype` because it keeps the nearest code, data shape, call
-    signature, and failure knowledge together.
+    This module is the single source of truth for all media type identification in the plugin. Without it, mimetype
+    strings like "text/x.cucumber.gherkin+plain" and suffix strings like ".gherkin" would be duplicated across at least
+    four layers: the parser layer (choosing GherkinParser vs MarkdownGherkinParser), the scenario locator layer
+    (detecting feature files on disk), the struct_bdd plugin (handling YAML/JSON/HOCON/TOML BDD files), and URL-based
+    feature loading (content-type negotiation). The mimetypes.add_type() calls in this module are critical side effects
+    that configure Python's standard mimetypes.guess_type() to recognize pytest-bdd's custom file extensions — without
+    these, file-type detection would fail silently.
 
 Delegates:
-    - Mimetype: owns nested behavior below this boundary
-    - Suffix: owns nested behavior below this boundary
+    - mimetypes (stdlib): Registers the custom mimetype-to-suffix mappings so that Python's standard file type detection
+    can identify pytest-bdd feature files.
+    - pytest_bdd.compatibility.enum.StrEnum: Provides the string-compatible enum base class for both Mimetype and Suffix
+    enumerations.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All members are strongly cohesive because they all answer the question "what file types does pytest-bdd work with?"
+    The Mimetype enum maps human-readable type identifiers, the Suffix enum maps file extensions, and the cross-
+    reference sets and lists define which suffixes belong to which semantic category (Gherkin, struct-BDD, link files).
+    The mimetypes.add_type() loop at module bottom is a natural initialization step that uses the exact same data. No
+    member is unrelated to file-type identification.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.const: Kept separate because const.py owns pytest-specific option name strings (CLI flags, INI keys)
+    while mimetype.py owns IANA-style media type identifiers — these serve completely different consumers (pytest
+    configuration vs file-type detection) and change at different rates (option names change with plugin API, MIME types
+    are stable by specification).
+    - pytest_bdd.parser: Kept separate because the parser module owns the parsing logic (how to parse a feature file
+    given its content) while mimetype.py only owns the type identification (what type of file is this?) — the parser
+    consumes mimetype information but does not own it.
 
 Main consumers:
-    - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `mimetype`
-    - src/pytest_bdd/feature_locator.py: imports or references `mimetype`
-    - src/pytest_bdd/plugin/scenario_test_collector/hook.py: imports or references `mimetype`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `mimetype`
-    - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `mimetype`
+    - pytest_bdd.scenario_locator.file_locator.FileScenarioLocator.resolve_features: Uses Mimetype and the hook protocol
+    to determine which parser class to instantiate for a given feature file based on its detected media type.
+    - pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.resolve_features: Uses Mimetype to determine parser
+    type from URL response content-type headers.
+    - pytest_bdd.plugin.struct_bdd: Uses struct_bdd-specific Mimetype and Suffix values to detect and parse
+    YAML/JSON/HOCON/TOML BDD feature files.
+    - pytest_bdd.parser (GherkinParser, MarkdownGherkinParser): Uses Mimetype.gherkin_plain and
+    Mimetype.gherkin_markdown to register parser classes for their respective media types.
 
 State and side effects:
-    mutates markdown, yaml, hocon, toml, json5; depends on mimetypes, pytest_bdd.compatibility.enum.StrEnum.
+    Side effects at import time: calls mimetypes.add_type() for nine mimetype-suffix pairs, modifying Python's global
+    mimetypes registry. This is intentional and necessary for stdlib file-type detection to recognize custom pytest-bdd
+    file extensions. No mutable state after initialization; all enums and sets are immutable.
 
 Invariants:
-    - `pytest_bdd.mimetype` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - Every Mimetype member representing a Gherkin variant must have at least one corresponding Suffix member and a
+    registration in mimetypes via the mimetype_suffix_pairs table, otherwise file-type detection would fail for that
+    format.
+    - The gherkin_suffixes set must include Suffix.gherkin and Suffix.feature since both ".gherkin" and ".feature" are
+    valid Gherkin file extensions.
+    - struct_bdd_suffixes must include Suffix.struct_bdd since ".bdd" files are the primary container format for struct-
+    BDD documents.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:locational_stability=5
 """
 
 import mimetypes
@@ -55,52 +82,72 @@ from pytest_bdd.compatibility.enum import StrEnum
 
 class Mimetype(StrEnum):
     """
-    Represent mimetype state.
+    Owns the canonical enumeration of all IANA-style media type strings recognized by pytest-bdd for feature file format .
 
     Responsibility:
-        Represent mimetype state. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Owns the canonical enumeration of all IANA-style media type strings recognized by pytest-bdd for feature file
+        format identification. Defines three families: Gherkin variants (gherkin_plain for plaintext .feature,
+        gherkin_markdown for .feature.md markdown), struct-BDD variants (yaml, hocon, json5, json, hjson, toml), and
+        general-purpose types (python, markdown, yaml, hocon, toml, json, json5, hjson). This enum is the authoritative
+        lookup for every plugin component that needs to answer "what format is this feature file in?"
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.mimetype.Mimetype` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        Centralizing all media type strings into a single StrEnum prevents format-detection bugs caused by typo'd
+        strings scattered across multiple modules. When a new format is added (e.g., struct_bdd_hocon), only this enum
+        and its corresponding Suffix member need updating — all consumers that pattern-match on Mimetype values
+        automatically pick up the new format. The StrEnum base allows these values to be used directly in comparisons
+        and as dictionary keys without .value boilerplate, while still providing IDE autocompletion. Without this enum,
+        format string matching would rely on bare strings like "text/x.cucumber.gherkin+plain" appearing in parser
+        selection logic, scenario locator hooks, and struct-BDD plugin code — a typo in any of those locations would
+        silently break format detection.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum (from pytest_bdd.compatibility.enum): Provides the string-mixin base class that allows Mimetype
+        members to participate in string comparisons and dictionary lookups without explicit .value access.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every member represents a media type that pytest-bdd can either produce, consume, or use for parser dispatch.
+        The three families (Gherkin, struct-BDD, general-purpose) are all within the same domain of "file format
+        identification for BDD testing." The general-purpose types (python, markdown, yaml, etc.) are included because
+        they serve as default/fallback types or as basis formats for the struct-BDD variants. No member represents a
+        non-format concept.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Suffix: Kept separate as a peer enum because suffixes and mimetypes answer different questions — "what is the
+        file extension?" vs "what is the content format?" They are cross-referenced (via mimetype_suffix_pairs) but can
+        evolve independently (e.g., a new suffix could map to an existing mimetype).
+        - pytest_bdd.const: Kept separate because const.py owns pytest option name strings while Mimetype owns content-
+        type identifiers — these are unrelated domains.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `Mimetype`
-        - src/pytest_bdd/feature_locator.py: imports or references `Mimetype`
-        - src/pytest_bdd/plugin/scenario_test_collector/hook.py: imports or references `Mimetype`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `Mimetype`
-        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `Mimetype`
+        - pytest_bdd.scenario_locator.file_locator.FileScenarioLocator.resolve_features: Uses Mimetype values to
+        determine which parser class to instantiate when resolving feature files from disk.
+        - pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.resolve_features: Uses Mimetype values from URL
+        response content-type headers to determine parser dispatch.
+        - pytest_bdd.plugin.struct_bdd: Uses struct-BDD-specific Mimetype members to register and dispatch struct-BDD parsers.
+        - pytest_bdd.parser (GherkinParser, MarkdownGherkinParser): Associates themselves with specific Mimetype values
+        during parser registration.
 
     State and side effects:
-        mutates gherkin_plain, gherkin_markdown, struct_bdd_yaml, struct_bdd_hocon, struct_bdd_json5.
+        None, keeps no persistent state. Pure enumeration with no methods.
 
     Invariants:
-        - `pytest_bdd.mimetype.Mimetype` keeps its documented import path, ownership boundary, and observable behavior
-          stable for callers.
+        - All member values must be syntactically valid IANA-style media type strings (type "/" subtype, with optional
+        "+" structured suffix).
+        - Every Gherkin variant member must have a corresponding entry in the mimetype_suffix_pairs list for proper
+        file-type detection.
+        - Member naming convention must use lowercase_with_underscores for consistency across the codebase.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=5
     """
 
     gherkin_plain = "text/x.cucumber.gherkin+plain"
@@ -125,52 +172,66 @@ class Mimetype(StrEnum):
 
 class Suffix(StrEnum):
     """
-    Represent suffix state.
+    Owns the canonical enumeration of all file extensions recognized by pytest-bdd for feature file discovery, including .
 
     Responsibility:
-        Represent suffix state. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Owns the canonical enumeration of all file extensions recognized by pytest-bdd for feature file discovery,
+        including Gherkin extensions (.gherkin, .feature), struct-BDD container extensions (.bdd), link/shortcut file
+        extensions (.url, .desktop, .webloc), markdown (.md), and data format extensions (.yaml, .yml, .ndjson, .hocon,
+        .toml, .hjson, .json5). This enum is the authoritative source of truth for every file extension that the
+        scenario locator and file-type detection systems must recognize.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.mimetype.Suffix` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        Centralizing file extension strings prevents discovery bugs where one module looks for ".feature" while another
+        expects ".gherkin". When a new file format is added to the plugin, only this enum needs updating — the cross-
+        reference sets (gherkin_suffixes, struct_bdd_suffixes, link_suffixes) and the mimetype_suffix_pairs table
+        automatically propagate the change to all consumers. Without this enum, file extension strings would be
+        duplicated across scenario locators, file globs, and parser selection logic, making format additions error-prone
+        and requiring manual synchronization across multiple files.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum (from pytest_bdd.compatibility.enum): Provides the string-mixin base class that allows Suffix members
+        to be used directly in path suffixes, glob patterns, and set membership checks.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every member represents a file extension that pytest-bdd's feature discovery system may encounter. The members
+        group naturally into categories: Gherkin extensions (.gherkin, .feature), struct-BDD container (.bdd), link
+        files (.url, .desktop, .webloc), and data formats (.yaml, .yml, .ndjson, etc.). All members serve the same
+        purpose: mapping file extensions to content types for parser dispatch.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Mimetype: Kept separate because suffixes and mimetypes answer different questions — "what is the file
+        extension?" vs "what is the content format?" They form a many-to-one relationship (e.g., both .gherkin and
+        .feature map to gherkin_plain mimetype) and evolve at different rates.
+        - pytest_bdd.const: Kept separate because const.py owns pytest configuration option names, while Suffix owns
+        file extension strings — completely different domains.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `Suffix`
-        - src/pytest_bdd/feature_locator.py: imports or references `Suffix`
-        - src/pytest_bdd/plugin/scenario_test_collector/hook.py: imports or references `Suffix`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `Suffix`
-        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `Suffix`
+        - pytest_bdd.scenario_locator.file_locator.FileScenarioLocator._resolved_feature_paths: Uses suffix information
+        indirectly through file glob patterns when discovering feature files on disk.
+        - pytest_bdd.mimetype (module-level mimetype_suffix_pairs): The cross-reference list maps Suffix members to
+        Mimetype members for registration with Python's stdlib mimetypes module.
+        - pytest_bdd.plugin.struct_bdd: Uses struct_bdd_suffixes to detect .bdd files for struct-BDD processing.
 
     State and side effects:
-        mutates gherkin, feature, struct_bdd, url, desktop.
+        None, keeps no persistent state. Pure enumeration with no methods.
 
     Invariants:
-        - `pytest_bdd.mimetype.Suffix` keeps its documented import path, ownership boundary, and observable behavior
-          stable for callers.
+        - Every Suffix member must start with a dot (".") following standard file extension convention.
+        - The gherkin_suffixes set must include at least Suffix.gherkin and Suffix.feature for complete Gherkin file discovery.
+        - Suffix members used in link_suffixes must correspond to actual operating system shortcut/link file formats
+        recognized by the URL locator.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=5
     """
 
     gherkin = ".gherkin"

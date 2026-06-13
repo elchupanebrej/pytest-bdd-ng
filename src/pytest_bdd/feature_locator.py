@@ -1,53 +1,92 @@
 """
-Provide feature locator helpers.
+Builds ScenarioLocator instances from pytest marker arguments and user configuration.
 
 Responsibility:
-    Provide feature locator helpers. It directly owns the observable contract, local decisions, and maintenance boundary
-    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Builds ScenarioLocator instances from pytest marker arguments and user configuration. Defines
+    ScenarioLocatorBuilder, the central class that constructs FileScenarioLocator and UrlScenarioLocator objects by
+    resolving feature paths, base directories, base URLs, path types, and scenario filters from a combination of pytest
+    CLI options, INI configuration, and per-marker arguments. Also defines FeatureLocatorArgs (a TypedDict for the
+    parsed marker arguments) and enrich_feature_locator_args (a function that extracts bound arguments from a pytest
+    Mark using inspect.signature).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.feature_locator` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This module is the bridge between pytest's configuration system and the scenario locator subsystem. pytest markers
+    carry keyword arguments that describe what features to collect, but those arguments are raw and unvalidated.
+    ScenarioLocatorBuilder is the information expert for "how to interpret pytest marker arguments as scenario locator
+    construction parameters." It resolves defaults from pytest config (features_base_dir, features_base_url via
+    CLI/INI), normalizes FeaturePathType from strings or enums, builds scenario filters from strings or callables, and
+    dispatches to FileScenarioLocator or UrlScenarioLocator constructors. Without this module, every consumer of
+    scenario locators would need to duplicate config resolution logic.
 
 Delegates:
-    - FeatureLocatorArgs: owns nested behavior below this boundary
-    - enrich_feature_locator_args: owns nested behavior below this boundary
-    - ScenarioLocatorBuilder: owns nested behavior below this boundary
+    - enrich_feature_locator_args: Unpacks pytest Mark.args and Mark.kwargs using inspect.signature(scenarios).bind() to
+    produce a typed FeatureLocatorArgs dict.
+    - ScenarioLocatorBuilder.resolve_features_base_dir: Resolves the base directory from args, callables, or pytest
+    config (CLI/INI), returning an absolute Path.
+    - ScenarioLocatorBuilder.resolve_features_base_url: Resolves the base URL from args, callables, or pytest config,
+    returning a Maybe[str].
+    - ScenarioLocatorBuilder.resolve_features_path_type: Normalizes a FeaturePathType enum, string, or None into a
+    canonical FeaturePathType.
+    - ScenarioLocatorBuilder._create_file_locator: Constructs a FileScenarioLocator if the path type and feature paths
+    warrant it.
+    - ScenarioLocatorBuilder._create_url_locator: Constructs a UrlScenarioLocator (or PyPyUrlScenarioLocator on PyPy) if
+    the path type and feature paths warrant it.
+    - ScenarioLocatorBuilder.build_scenario_filter: Converts a filter string or callable into a ScenarioLocatorFilterT
+    callable.
+    - pytest_bdd.scenario.scenarios: Used as the signature template for binding mark arguments.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module serve the single concern of "turn pytest mark arguments into scenario locators." The
+    FeatureLocatorArgs TypedDict defines the argument schema. enrich_feature_locator_args extracts arguments from marks.
+    ScenarioLocatorBuilder owns the entire construction pipeline: resolve defaults → normalize types → filter features →
+    create locators. The separation into multiple methods is purely organizational — each method handles one aspect of
+    the resolution/construction process.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.scenario_locator: Owns the actual locator classes (FileScenarioLocator, UrlScenarioLocator) and their
+    parsing/collection logic. This module only constructs them — it does not own how they walk directories or fetch
+    URLs.
+    - pytest_bdd.scenario: Owns the scenarios() function signature and the FeaturePathType enum. This module imports
+    them for signature binding and type resolution, but does not own their definition.
+    - pytest_bdd.collector.FeatureFileModule: Uses scenario()/scenarios() directly without going through
+    ScenarioLocatorBuilder. The builder is the indirect path (via pytest marks), while FeatureFileModule is the direct
+    path (via file system collection).
 
 Main consumers:
-    - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `feature_locator`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `feature_locator`
+    - pytest_bdd.plugin.scenario_test_collector: Calls ScenarioLocatorBuilder to convert pytest marker arguments into
+    locator instances during autoload/test generation.
+    - pytest_bdd.scenario.scenarios: Imports ScenarioLocatorBuilder? No — actually scenarios() creates pytest marks, and
+    the plugin later uses the builder to consume those marks. The builder is consumed by the collection/autoload
+    pipeline, not by scenarios() directly.
 
 State and side effects:
-    mutates features_base_url, resolved_features_base_dir, feature_paths, filter_, file_locator_feature_paths; depends
-    on platform, collections.abc.Callable, collections.abc.Iterable, contextlib.suppress, inspect.signature.
+    ScenarioLocatorBuilder holds a reference to pytest Config. Its methods read from config.getoption() (CLI options),
+    config.getini() (INI config), and config.rootpath (the pytest root directory). These are read-only accesses. No
+    mutable instance state beyond the config reference. No file I/O directly — file I/O happens in the
+    FileScenarioLocator/UrlScenarioLocator that this builder constructs.
 
 Invariants:
-    - `pytest_bdd.feature_locator` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - If both features_base_dir and features_base_url are provided, scenarios() raises ValueError before the builder is
+    invoked — the builder itself does not need to check this.
+    - The resolve_features_path_type method must raise ValueError for unrecognized string values that cannot be
+    converted to FeaturePathType enum.
+    - On PyPy, UrlScenarioLocator is replaced with PyPyUrlScenarioLocator to avoid known PyPy compatibility issues.
 
 Failure semantics:
-    Raises or re-raises ValueError; callers must treat these as boundary failures.
+    ScenarioLocatorBuilder.resolve_features_path_type raises ValueError with "Unknown feature path type" if the provided
+    value is not a recognized FeaturePathType enum member or string. Other methods use Maybe/Nothing to signal absence
+    rather than raising exceptions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 import platform
@@ -88,49 +127,58 @@ FileLocatorResult = Result[FileScenarioLocator, FeatureLocatorFailure]
 
 class FeatureLocatorArgs(TypedDict):
     """
-    Represent feature locator args state.
+    Typed dictionary defining the complete argument schema for scenario locator construction, matching the parameter list.
 
     Responsibility:
-        Represent feature locator args state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Typed dictionary defining the complete argument schema for scenario locator construction, matching the parameter
+        list of the scenarios() function. Fields include: feature_paths (list of paths), filter_ (callable/string
+        filter), return_test_decorator (bool), encoding (str), features_base_dir (path/config callback),
+        features_base_url (str), features_path_type (enum/string), features_mimetype (Mimetype/string), parser_type
+        (ParserProtocol subclass), parse_args (Args named tuple), and locators (iterable of pre-built locator objects).
+        Serves as the contract between pytest mark argument extraction and locator construction.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.feature_locator.FeatureLocatorArgs` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This TypedDict formalizes the loosely-typed keyword arguments that pytest passes through marks into a
+        statically-checkable schema. It is the information expert for "what arguments do scenario locators need?"
+        Without it, each consumer (enrich_feature_locator_args, ScenarioLocatorBuilder methods) would access raw dict
+        keys with string literals, making the contract implicit and fragile. All fields are optional (with None
+        defaults) because not all arguments apply to all locator types.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - None. This is a pure data schema with no behavior.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All fields are parameters that directly influence scenario locator construction. There are no unrelated
+        configuration options or metadata fields.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - pytest_bdd.scenario.Args: A NamedTuple for parse_args specifically (args + kwargs). FeatureLocatorArgs is the
+        broader schema that includes Args as one field.
+        - pytest_bdd.scenario_locator.ScenarioLocatorOptions: The locator-level options type. FeatureLocatorArgs is the
+        higher-level argument schema from which locator options are derived.
 
     Main consumers:
-        - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `FeatureLocatorArgs`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `FeatureLocatorArgs`
+        - enrich_feature_locator_args: Returns a FeatureLocatorArgs instance by binding pytest Mark arguments to the
+        scenarios() signature.
+        - ScenarioLocatorBuilder methods: Read fields from FeatureLocatorArgs to resolve defaults and construct locators.
 
     State and side effects:
-        mutates feature_paths, filter_, return_test_decorator, encoding, features_base_dir.
+        None, keeps no persistent state. TypedDict is a type-checking construct with no runtime behavior.
 
     Invariants:
-        - `pytest_bdd.feature_locator.FeatureLocatorArgs` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - All fields default to None or empty collections, making the dict always constructible without arguments.
+        - The field names must match the parameter names of scenarios() for enrich_feature_locator_args to work correctly.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=5
     """
 
     feature_paths: list[Path | str]  # List of paths to features
@@ -148,58 +196,52 @@ class FeatureLocatorArgs(TypedDict):
 
 def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
     """
-    Retrieve and bind the arguments from the mark to their default values.
-
-    Args:
-        mark: Pytest mark with feature arguments.
-
-    Returns:
-        Feature locator arguments dictionary.
+    Extract and validates keyword arguments from a pytest Mark object by binding them to the scenarios() function signat.
 
     Responsibility:
-        Retrieve and bind the arguments from the mark to their default values. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Extracts and validates keyword arguments from a pytest Mark object by binding them to the scenarios() function
+        signature using inspect.signature.bind(). This transforms raw mark.args and mark.kwargs into a typed
+        FeatureLocatorArgs dict with all default values applied, ensuring that missing arguments are filled with their
+        documented defaults rather than remaining as None. The resulting dict is the canonical argument representation
+        consumed by ScenarioLocatorBuilder.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.feature_locator.enrich_feature_locator_args` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        pytest marks carry arguments as (args, kwargs) tuples that have no intrinsic schema. This function uses the
+        scenarios() function signature as the schema template — by binding the mark's arguments to scenarios()'s
+        signature, it validates that the argument names match and fills in defaults. This is the information expert for
+        "how to interpret a pytest mark as a set of scenario locator arguments." It is a standalone function (not a
+        ScenarioLocatorBuilder method) because it only depends on the scenarios() signature, not on builder state.
 
     Delegates:
-        - signature.bind: collaborator call used by this boundary
-        - signature: collaborator call used by this boundary
-        - raw_mark_arguments.apply_defaults: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
+        - inspect.signature(scenarios): Retrieves the function signature used as the binding template.
+        - signature.bind(*mark.args, **mark.kwargs): Binds the mark's positional and keyword arguments to the signature.
+        - bound_arguments.apply_defaults(): Fills in default values for any unbound parameters.
+        - cast(): Converts the bound arguments.arguments dict to FeatureLocatorArgs type.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single-purpose: extract typed arguments from a mark. Three lines of logic, no branching.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - ScenarioLocatorBuilder.build_for_pytest_mark: Calls enrich_feature_locator_args and then delegates to
+        build_for_feature_locator_args. The extraction and construction concerns are separated.
 
     Main consumers:
-        - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `enrich_feature_locator_args`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `enrich_feature_locator_args`
+        - ScenarioLocatorBuilder.build_for_pytest_mark: Calls this function to convert a Mark into FeatureLocatorArgs
+        before building locators.
 
     State and side effects:
-        mutates raw_mark_arguments.
-
-    Invariants:
-        - `pytest_bdd.feature_locator.enrich_feature_locator_args` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        None. Pure function with no I/O, no mutation, no config access.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=5
     """
     raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
     raw_mark_arguments.apply_defaults()
@@ -209,59 +251,77 @@ def enrich_feature_locator_args(mark: Mark) -> FeatureLocatorArgs:
 @define(slots=False)
 class ScenarioLocatorBuilder:
     """
-    A dataclass to encapsulate the logic of building scenario locators based on provided.
-
-    marks and configuration.
+    Centralized builder that constructs FileScenarioLocator and UrlScenarioLocator instances from resolved configuration.
 
     Responsibility:
-        A dataclass to encapsulate the logic of building scenario locators based on provided. It directly owns the
-        observable contract, local decisions, and maintenance boundary for this class.
+    Centralized builder that constructs FileScenarioLocator and UrlScenarioLocator instances from resolved
+    configuration. Holds a reference to pytest Config and provides a pipeline: resolve defaults from CLI/INI
+    configuration → normalize argument types → build scenario filters → create file and/or URL locators. Exposes two
+    entry points: build_for_pytest_mark (for pytest mark processing) and build_for_feature_locator_args (for direct
+    FeatureLocatorArgs). On PyPy, automatically selects PyPyUrlScenarioLocator instead of UrlScenarioLocator.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.feature_locator.ScenarioLocatorBuilder` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Without this builder, every consumer that needs scenario locators would duplicate the logic of reading pytest
+        config options, resolving base directories, normalizing path types, and selecting the appropriate locator class.
+        ScenarioLocatorBuilder is the information expert for "how to produce the correct scenario locators from this
+        pytest session's configuration." It centralizes config resolution (features_base_dir from CLI option --feature-
+        base-dir or INI option feature_base_dir; features_base_url similarly) so that locator construction is consistent
+        regardless of entry point.
 
     Delegates:
-        - default_features_base_dir: owns nested behavior below this boundary
-        - default_features_base_url: owns nested behavior below this boundary
-        - build_for_pytest_mark: owns nested behavior below this boundary
-        - build_for_feature_locator_args: owns nested behavior below this boundary
-        - resolve_features_base_dir: owns nested behavior below this boundary
-        - resolve_features_base_url: owns nested behavior below this boundary
+        - default_features_base_dir (property): Reads features_base_dir from pytest CLI/INI config, falling back to ".".
+        - default_features_base_url (property): Reads features_base_url from pytest CLI/INI config, returning Maybe.
+        - resolve_features_base_dir: Resolves the base directory from explicit args, callables, or the default property,
+        returning an absolute Path.
+        - resolve_features_base_url: Resolves the base URL from explicit args, callables, or the default property,
+        returning Maybe[str].
+        - resolve_features_path_type: Normalizes the FeaturePathType enum value from various input types.
+        - build_scenario_filter: Converts filter specifications (string or callable) into a filter callable.
+        - _create_file_locator: Constructs a FileScenarioLocator for file-based feature paths.
+        - _create_url_locator: Constructs a UrlScenarioLocator (or PyPyUrlScenarioLocator) for URL-based feature paths.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every method in this class participates in the locator construction pipeline. The entry points (build_for_*)
+        delegate to the same core methods (resolve_*, _create_*). The properties (default_features_base_dir,
+        default_features_base_url) encapsulate config reading. There is no logic unrelated to "construct scenario
+        locators from configuration."
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - pytest_bdd.scenario_locator.FileScenarioLocator / UrlScenarioLocator: Own the actual locator behavior (file
+        walking, URL fetching, caching). The builder only constructs them — it does not own their lifecycle.
+        - pytest_bdd.collector.FeatureFileModule: Takes a different path to test generation (directly calling
+        scenarios()). The builder is used by the plugin/autoload path, not by FeatureFileModule.
 
     Main consumers:
-        - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `ScenarioLocatorBuilder`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `ScenarioLocatorBuilder`
+        - pytest_bdd.plugin.scenario_test_collector: Calls build_for_pytest_mark during autoload to convert feature-file
+        marks into concrete locators.
+        - Any code that needs to programmatically construct scenario locators from FeatureLocatorArgs.
 
     State and side effects:
-        mutates resolved_features_base_dir, features_base_url, file_locator_feature_paths, url_locator_feature_paths,
-        filter_.
+        Holds config: Config — a reference to the pytest configuration. All methods read from config (getoption, getini,
+        rootpath) but do not mutate it. The config reference is set once at construction time and never changed. No
+        other mutable state.
 
     Invariants:
-        - `pytest_bdd.feature_locator.ScenarioLocatorBuilder` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The config attribute must be a valid pytest Config with accessible getoption/getini methods.
+        - On PyPy, _create_url_locator must substitute PyPyUrlScenarioLocator for UrlScenarioLocator.
+        - resolve_features_path_type must raise ValueError for unrecognized string values.
 
     Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        resolve_features_path_type raises ValueError with "Unknown feature path type" for values that are neither None,
+        str, nor FeaturePathType. Other methods use Maybe/Nothing to handle optional values gracefully without
+        exceptions.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=5
+        #arch-eval:locational_stability=5
     """
 
     config: Config
@@ -269,54 +329,50 @@ class ScenarioLocatorBuilder:
     @property
     def default_features_base_dir(self) -> str:
         """
-        Handle default features base dir.
+        Reads the default features base directory from pytest configuration, checking the CLI option (--feature-base-dir) fir.
 
         Responsibility:
-            Handle default features base dir. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Reads the default features base directory from pytest configuration, checking the CLI option (--feature-
+            base-dir) first, then the INI option (feature_base_dir), falling back to "." if neither is set. Uses
+            contextlib.suppress to silently handle missing options or configuration errors. Returns the resolved
+            directory as a string.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.default_features_base_dir` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            The base directory is a global configuration value that applies to all feature locators in a test session.
+            This property centralizes the config-reading logic so that resolve_features_base_dir doesn't need to know
+            about CLI vs INI option names or the FeatureBaseLoad enum constants. It is a property (not a method) because
+            it represents a derived attribute of the builder's config state.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - suppress: collaborator call used by this boundary
-            - self.config.getoption: collaborator call used by this boundary
-            - self.config.getini: collaborator call used by this boundary
-            - bool: collaborator call used by this boundary
+            - self.config.getoption: Reads CLI option values.
+            - self.config.getini: Reads INI configuration values.
+            - FeatureBaseLoad.Cli.DIR_OPTION / FeatureBaseLoad.Ini.DIR_OPTION: String option names used as keys.
+            - contextlib.suppress: Silently catches ValueError and KeyError if options are not configured.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: read and resolve the default base directory from config.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve_features_base_dir: Uses this property as a fallback when no explicit base_dir is provided. The
+            property is the "what is the default?" answer; resolve_features_base_dir is the "what is the final value
+            after considering explicit args and callables?" answer.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `default_features_base_dir`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `default_features_base_dir`
+            - resolve_features_base_dir: Called when features_base_dir is None (not explicitly provided).
 
         State and side effects:
-            mutates base_dir_cli, base_dir_ini.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.default_features_base_dir` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Reads from config.getoption and config.getini. No mutation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         with suppress(ValueError, KeyError):
             base_dir_cli = self.config.getoption(str(FeatureBaseLoad.Cli.DIR_OPTION))
@@ -328,55 +384,47 @@ class ScenarioLocatorBuilder:
     @property
     def default_features_base_url(self) -> Maybe[str]:
         """
-        Handle default features base url.
+        Reads the default features base URL from pytest configuration, checking the CLI option (--feature-base-url) first, th.
 
         Responsibility:
-            Handle default features base url. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Reads the default features base URL from pytest configuration, checking the CLI option (--feature-base-url)
+            first, then the INI option (feature_base_url), returning Some(url) if either is set, or Nothing if neither
+            is configured. Uses contextlib.suppress to silently handle missing options or configuration errors.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.default_features_base_url` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            The base URL, like the base directory, is a global configuration value. This property mirrors
+            default_features_base_dir but for URL-based feature locations. It returns Maybe instead of a plain string
+            because a base URL is genuinely optional — many projects only use local feature files and should not be
+            forced to configure a URL. The Maybe type makes the optionality explicit.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - suppress: collaborator call used by this boundary
-            - self.config.getoption: collaborator call used by this boundary
-            - self.config.getini: collaborator call used by this boundary
-            - bool: collaborator call used by this boundary
-            - Some: collaborator call used by this boundary
+            - self.config.getoption: Reads CLI option values.
+            - self.config.getini: Reads INI configuration values.
+            - FeatureBaseLoad.Cli.URL_OPTION / FeatureBaseLoad.Ini.URL_OPTION: String option names used as keys.
+            - contextlib.suppress: Silently catches ValueError and KeyError.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: read and resolve the default base URL from config. Mirrors default_features_base_dir in structure.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve_features_base_url: Uses this property as a fallback, then wraps the result in Maybe.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `default_features_base_url`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `default_features_base_url`
+            - resolve_features_base_url: Called when features_base_url is None.
 
         State and side effects:
-            mutates base_url_cli, base_url_ini.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.default_features_base_url` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Reads from config.getoption and config.getini. No mutation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         with suppress(ValueError, KeyError):
             base_url_cli = self.config.getoption(str(FeatureBaseLoad.Cli.URL_OPTION))
@@ -387,109 +435,99 @@ class ScenarioLocatorBuilder:
 
     def build_for_pytest_mark(self, mark: Mark) -> Iterable[object]:
         """
-        Build scenario locators for all provided marks.
-
-        Yields:
-            Scenario locators derived from the provided mark.
+        Entry point for converting a pytest Mark into an iterable of scenario locator objects.
 
         Responsibility:
-            Build scenario locators for all provided marks. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Entry point for converting a pytest Mark into an iterable of scenario locator objects. Delegates to
+            enrich_feature_locator_args to extract typed arguments from the mark, then yields all locators produced by
+            build_for_feature_locator_args. The yield-from pattern allows the method to produce zero, one, or two
+            locators (file + URL) depending on the mark's arguments.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_for_pytest_mark` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This is the primary entry point used by the scenario_test_collector plugin during autoload. It bridges the
+            pytest mark system (which uses Mark objects with raw args/kwargs) to the typed FeatureLocatorArgs system
+            used by the rest of the builder. It exists as a thin adapter method rather than being inlined in the plugin
+            to keep the mark-to-args conversion logic in the builder family.
 
         Delegates:
-            - self.build_for_feature_locator_args: collaborator call used by this boundary
-            - enrich_feature_locator_args: collaborator call used by this boundary
+            - enrich_feature_locator_args: Converts Mark → FeatureLocatorArgs.
+            - build_for_feature_locator_args: Converts FeatureLocatorArgs → Iterable[locator].
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose adapter: Mark → locators. Two lines of logic.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - build_for_feature_locator_args: The core construction method. build_for_pytest_mark is a thin mark-aware wrapper.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `build_for_pytest_mark`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `build_for_pytest_mark`
+            - pytest_bdd.plugin.scenario_test_collector: Called during autoload to process feature-file marks.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None beyond what build_for_feature_locator_args triggers. No direct config access (that happens downstream).
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         yield from self.build_for_feature_locator_args(enrich_feature_locator_args(mark))
 
     def build_for_feature_locator_args(self, feature_locator_args: FeatureLocatorArgs) -> Iterable[object]:
         """
-        Build for feature locator args.
-
-        Yields:
-            Generated values.
+        Core construction method that builds scenario locators from a typed FeatureLocatorArgs dict.
 
         Responsibility:
-            Build for feature locator args. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Core construction method that builds scenario locators from a typed FeatureLocatorArgs dict. First yields
+            any pre-built locators provided in the "locators" field. Then resolves the base directory, base URL, and
+            path type from the args (with config fallbacks). Builds a scenario filter from the filter_ field. Constructs
+            a FileScenarioLocator (via _create_file_locator) if the path type and feature paths justify it, and a
+            UrlScenarioLocator (via _create_url_locator) similarly. Yields all constructed locators.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_for_feature_locator_args` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This is the main orchestrator of the locator construction pipeline. It sequences the resolution and
+            construction steps in the correct order, ensuring dependencies are satisfied (e.g., the base directory is
+            resolved before the file locator is created). It is the information expert for "given these feature locator
+            arguments, what locators should be produced?"
 
         Delegates:
-            - feature_locator_args.get: collaborator call used by this boundary
-            - self.resolve_features_base_dir: collaborator call used by this boundary
-            - self.resolve_features_base_url.value_or: collaborator call used by this boundary
-            - self.resolve_features_base_url: collaborator call used by this boundary
-            - self.resolve_features_path_type: collaborator call used by this boundary
-            - self.build_scenario_filter.value_or: collaborator call used by this boundary
+            - resolve_features_base_dir: Resolves the base directory.
+            - resolve_features_base_url: Resolves the base URL.
+            - resolve_features_path_type: Normalizes the path type.
+            - build_scenario_filter: Constructs the filter callable.
+            - _create_file_locator: Builds a FileScenarioLocator if applicable.
+            - _create_url_locator: Builds a UrlScenarioLocator if applicable.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method is a linear pipeline: yield pre-built → resolve config → create file locator → create URL
+            locator. Every step serves the construction goal.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - build_for_pytest_mark: The mark-aware entry point that delegates to this method.
+            - The individual _create_* and resolve_* methods: Each handles one aspect of resolution or construction.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `build_for_feature_locator_args`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `build_for_feature_locator_args`
+            - build_for_pytest_mark: The primary caller.
+            - Any code with a pre-built FeatureLocatorArgs dict.
 
         State and side effects:
-            mutates features_base_dir, features_base_url, features_path_type, filter_.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_for_feature_locator_args` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Resolves paths against config.rootpath. May access config options. No mutation of instance state beyond config reads.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:locational_stability=5
         """
         yield from feature_locator_args.get("locators") or []
         features_base_dir = self.resolve_features_base_dir(feature_locator_args.get("features_base_dir"))
@@ -514,58 +552,48 @@ class ScenarioLocatorBuilder:
 
     def resolve_features_base_dir(self, features_base_dir: str | Path | Callable[[Config], str] | None) -> Path:
         """
-        Resolve the base directory for the features from the mark or config.
-
-        Returns:
-            Resolved features base directory path.
+        Resolve the features base directory to an absolute Path.
 
         Responsibility:
-            Resolve the base directory for the features from the mark or config. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Resolves the features base directory to an absolute Path. Accepts a string, Path, callable (receiving Config
+            and returning str), or None. If None, falls back to self.default_features_base_dir. If callable, invokes it
+            with self.config. If the resulting path is relative, resolves it against config.rootpath. Returns the
+            absolute Path.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_base_dir` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            The base directory can come from multiple sources: explicit argument, a callable (for dynamic resolution),
+            or pytest config defaults. This method is the single resolution point that handles all three cases and
+            guarantees an absolute Path output. It is separate from default_features_base_dir (which only handles config
+            defaults) to keep the fallback chain clean.
 
         Delegates:
-            - callable: collaborator call used by this boundary
-            - features_base_dir: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - is_absolute: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
+            - self.default_features_base_dir: Provides the default value when features_base_dir is None.
+            - self.config.rootpath: Used as the base for resolving relative paths.
+            - Path().is_absolute(): Determines whether path resolution is needed.
+            - Path().resolve(): Resolves the path to absolute form.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: resolve base directory to absolute Path. The if/elif/else chain handles the three input types.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve_features_base_url: Mirrors this method for URL resolution.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `resolve_features_base_dir`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_features_base_dir`
+            - build_for_feature_locator_args: Passes the resolved base dir to _create_file_locator.
 
         State and side effects:
-            mutates resolved_features_base_dir.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_base_dir` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Reads config.rootpath. No mutation.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         resolved_features_base_dir: str
         if features_base_dir is None:
@@ -582,57 +610,46 @@ class ScenarioLocatorBuilder:
 
     def resolve_features_base_url(self, features_base_url: str | Path | Callable[[Config], str] | None) -> Maybe[str]:
         """
-        Resolve the base URL for the features from the mark or config.
-
-        Returns:
-            Resolved features base URL or None.
+        Resolve the features base URL, returning a Maybe[str].
 
         Responsibility:
-            Resolve the base URL for the features from the mark or config. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Resolves the features base URL, returning a Maybe[str]. Accepts a string, Path, callable, or None. If None,
+            falls back to self.default_features_base_url (which returns Maybe). If callable, invokes it with
+            self.config. Returns Nothing if the final value is None (no base URL configured), or Some(url) if a URL is
+            available.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_base_url` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            Like resolve_features_base_dir, this method centralizes the resolution of a configuration value that can
+            come from multiple sources. It uses Maybe instead of a plain string to make the optionality of base URLs
+            explicit — file-only projects should not need a base URL, and downstream code
+            (build_for_feature_locator_args, _create_url_locator) uses .value_or(None) to handle the None case cleanly.
 
         Delegates:
-            - self.default_features_base_url.value_or: collaborator call used by this boundary
-            - callable: collaborator call used by this boundary
-            - features_base_url: collaborator call used by this boundary
-            - Some: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - self.default_features_base_url: Provides the default Maybe[str] when features_base_url is None.
+            - callable invocation: If features_base_url is a callable, calls it with self.config.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: resolve base URL to Maybe[str]. Mirrors resolve_features_base_dir.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve_features_base_dir: Path-based counterpart.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `resolve_features_base_url`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_features_base_url`
+            - build_for_feature_locator_args: Passes the resolved base URL to _create_url_locator.
 
         State and side effects:
-            mutates features_base_url.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_base_url` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Reads config via default_features_base_url (which calls getoption/getini). No mutation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         if features_base_url is None:
             features_base_url = self.default_features_base_url.value_or(None)
@@ -643,62 +660,51 @@ class ScenarioLocatorBuilder:
     @staticmethod
     def resolve_features_path_type(feature_path_type: FeaturePathType | str | None = None) -> FeaturePathType:
         """
-        Resolve the type of feature paths (PATH, URL, or UNDEFINED).
-
-        Returns:
-            Resolved feature path type.
-
-        Raises:
-            ValueError: If the feature path type is unknown.
+        Normaliz a FeaturePathType specification into a canonical FeaturePathType enum value.
 
         Responsibility:
-            Resolve the type of feature paths (PATH, URL, or UNDEFINED). It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Normalizes a FeaturePathType specification into a canonical FeaturePathType enum value. Accepts None
+            (returns UNDEFINED), a FeaturePathType enum value (returns as-is), or a string (converts via FeaturePathType
+            constructor). Raises ValueError for unrecognized string values that cannot be converted to a valid enum
+            member.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_path_type` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            FeaturePathType can be specified as a string (e.g., in INI config or CLI options), as an enum value (in
+            Python code), or omitted entirely. This static method handles all three cases and guarantees a valid enum
+            output. It is static because it has no dependency on config or instance state — it's a pure type conversion
+            utility.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - FeaturePathType: collaborator call used by this boundary
-            - ValueError: collaborator call used by this boundary
+            - isinstance checks: Determine the input type.
+            - FeaturePathType(str): Converts a string to the enum member.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: normalize path type to enum. The if/elif chain covers the three input variants.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - pytest_bdd.scenario.FeaturePathType: Owns the enum definition. This method only normalizes/converts.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `resolve_features_path_type`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `resolve_features_path_type`
+            - build_for_feature_locator_args: Resolves the path type before dispatching to _create_file_locator /
+            _create_url_locator.
 
         State and side effects:
-            mutates msg.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_path_type` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            None. Pure function.
 
         Failure semantics:
-            Raises or re-raises ValueError; callers must treat these as boundary failures.
+            Raises ValueError with "Unknown feature path type" if the input is not None, not a string, and not a
+            FeaturePathType instance.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         if feature_path_type is None:
             return FeaturePathType.UNDEFINED
@@ -717,58 +723,49 @@ class ScenarioLocatorBuilder:
         features_path_type: FeaturePathType,
     ) -> Maybe[FileScenarioLocator]:
         """
-        Create a FileScenarioLocator instance if applicable.
-
-        Returns:
-            FileScenarioLocator instance or None if not applicable.
+        Construct a FileScenarioLocator from the given arguments, but only if the feature_path_type and feature_paths justif.
 
         Responsibility:
-            Create a FileScenarioLocator instance if applicable. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Constructs a FileScenarioLocator from the given arguments, but only if the feature_path_type and
+            feature_paths justify file-based location. Extracts feature_paths from the args, filters them based on
+            path_type (PATH matches all, UNDEFINED matches paths that pass is_valid_filepath, other types get empty
+            list), and returns Nothing if no valid file paths remain. Otherwise returns Some(FileScenarioLocator) with
+            the filtered paths, filter, base_dir, encoding, mimetype, parser_type, and parse_args.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder._create_file_locator` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Not all feature locator arguments produce file locators — some produce URL locators, some produce both, some
+            produce neither. This static method encapsulates the decision of "should a FileScenarioLocator be created?"
+            along with the construction logic. It is static because it needs only the arguments, not the builder's
+            config state (the base_dir has already been resolved by build_for_feature_locator_args).
 
         Delegates:
-            - feature_locator_args.get: collaborator call used by this boundary
-            - list: collaborator call used by this boundary
-            - is_valid_filepath: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - Some: collaborator call used by this boundary
-            - FileScenarioLocator: collaborator call used by this boundary
+            - is_valid_filepath: Validates that a path string is a valid file path on the current platform.
+            - FileScenarioLocator constructor: Creates the actual locator instance.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method does two things: filter paths for file compatibility, then construct the locator. Both serve the
+            single goal of "produce a FileScenarioLocator if appropriate."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _create_url_locator: The URL counterpart with parallel structure but different path filtering
+            (is_url_parsable) and different locator class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `_create_file_locator`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_create_file_locator`
+            - build_for_feature_locator_args: Called for the file locator branch.
 
         State and side effects:
-            mutates file_locator_feature_paths, feature_paths.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder._create_file_locator` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            None. Static method with no I/O, no config access.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
         if features_path_type is FeaturePathType.PATH:
@@ -801,58 +798,50 @@ class ScenarioLocatorBuilder:
         features_path_type: FeaturePathType,
     ) -> Maybe[UrlScenarioLocator]:
         """
-        Create a UrlScenarioLocator instance if applicable.
-
-        Returns:
-            UrlScenarioLocator instance or None if not applicable.
+        Construct a UrlScenarioLocator (or PyPyUrlScenarioLocator on PyPy) from the given arguments, but only if the feature.
 
         Responsibility:
-            Create a UrlScenarioLocator instance if applicable. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Constructs a UrlScenarioLocator (or PyPyUrlScenarioLocator on PyPy) from the given arguments, but only if
+            the feature_path_type and feature_paths justify URL-based location. Extracts feature_paths from the args,
+            filters them based on path_type (URL matches all, UNDEFINED matches paths that pass is_url_parsable, other
+            types get empty list), and returns Nothing if no valid URL paths remain. On PyPy, selects
+            PyPyUrlScenarioLocator to avoid known PyPy compatibility issues with standard URL fetching. Returns
+            Some(locator) with url_paths, filter, encoding, features_base_url, mimetype, parser_type, and parse_args.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder._create_url_locator` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            The URL locator construction mirrors _create_file_locator but with URL-specific path filtering and PyPy-
+            awareness. The PyPy conditional (platform.python_implementation() == "PyPy") is encapsulated here rather
+            than leaked to callers. This static method isolates URL-locator-specific decisions from the rest of the
+            builder.
 
         Delegates:
-            - feature_locator_args.get: collaborator call used by this boundary
-            - list: collaborator call used by this boundary
-            - is_url_parsable: collaborator call used by this boundary
-            - platform.python_implementation: collaborator call used by this boundary
-            - Some: collaborator call used by this boundary
-            - locator_class: collaborator call used by this boundary
+            - is_url_parsable: Validates that a path string is a valid URL.
+            - UrlScenarioLocator or PyPyUrlScenarioLocator constructor: Creates the actual locator instance.
+            - platform.python_implementation(): Detects PyPy for locator class selection.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method filters paths for URL compatibility, selects the appropriate locator class, and constructs it.
+            All steps serve the single goal of "produce a UrlScenarioLocator if appropriate."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _create_file_locator: The file counterpart. Parallel structure but distinct filtering and class selection.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `_create_url_locator`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_create_url_locator`
+            - build_for_feature_locator_args: Called for the URL locator branch.
 
         State and side effects:
-            mutates url_locator_feature_paths, locator_class, feature_paths.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder._create_url_locator` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            None. Static method with no I/O, no config access. Calls platform.python_implementation().
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         feature_paths = list(feature_locator_args.get("feature_paths", []) or [])
 
@@ -888,53 +877,49 @@ class ScenarioLocatorBuilder:
         filter_: ScenarioLocatorFilterT | str | StringRepresentable | None,
     ) -> Maybe[ScenarioLocatorFilterT]:
         """
-        Build and return a scenario filter function.
-
-        Returns:
-            Scenario filter function or None.
+        Convert a scenario filter specification into a callable filter function.
 
         Responsibility:
-            Build and return a scenario filter function. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Converts a scenario filter specification into a callable filter function. Accepts a callable (returned as-
+            is, wrapped in Some), None (returns Nothing, no filtering), a string (creates a filter that matches
+            pickle.name against the string), or a StringRepresentable (converts to string first, then creates the same
+            name-matching filter). The generated filter function has the standard ScenarioLocatorFilterT signature:
+            (config, gherkin_document, pickle) -> bool.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_scenario_filter` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            pytest marks accept scenario filters as strings or callables, but locators require callables. This static
+            method handles the conversion, including the creation of an inner function (updated_filter) that closes over
+            the filter string. The string-to-callable conversion allows users to write @scenarios("features/",
+            filter_="my scenario name") without writing a lambda.
 
         Delegates:
-            - updated_filter: owns nested behavior below this boundary
+            - updated_filter (inner function): A closure that compares pickle.name against the captured filter string.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Single-purpose: normalize filter specification to Maybe[callable]. The if/elif chain handles the three input types.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - ScenarioLocatorFilterT: The type alias for the filter callable, defined in scenario_locator. This method
+            produces values of that type.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `build_scenario_filter`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `build_scenario_filter`
+            - build_for_feature_locator_args: Calls this to resolve the filter before passing it to _create_file_locator
+            and _create_url_locator.
 
         State and side effects:
-            mutates filter_.
-
-        Invariants:
-            - `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_scenario_filter` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            None. Static method. When a string filter is provided, creates a closure (updated_filter) that captures the
+            string value.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         if callable(filter_):
             return Some(filter_)
@@ -951,45 +936,47 @@ class ScenarioLocatorBuilder:
             pickle: Pickle,
         ) -> bool:
             """
+            Closure-based scenario filter that matches a pickle's name against a captured filter string.
+
             Responsibility:
-                Responsibility: Responsibility:
-                `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_scenario_filter.updated_filter` owns documented
-                method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-                this method.
+                Closure-based scenario filter that matches a pickle's name against a captured filter string. Takes the
+                standard filter signature (config, gherkin_document, pickle) but only uses pickle.name for comparison —
+                the other arguments are accepted for interface compatibility. Returns True if pickle.name equals the
+                filter string, False otherwise.
 
             Reason for existence:
-                This entity is the information expert for
-                `pytest_bdd.feature_locator.ScenarioLocatorBuilder.build_scenario_filter.updated_filter` because it
-                keeps the nearest code, data shape, call signature, and failure knowledge together.
+                When a user provides a string filter like `filter_="Successful login"`, the builder needs to convert it
+                into a callable. This inner function is created for each string filter, closing over the filter string
+                value. It exists as a nested function rather than a lambda because the function body is a single
+                expression and benefits from a descriptive name and docstring.
 
             Delegates:
-                - bool: collaborator call used by this boundary
+                - pickle.name: The scenario name attribute used for comparison.
 
             Cohesion:
-                The implementation stays together because its imports, calls, state writes, and return contract describe
-                one maintainable decision unit.
+                Single-purpose predicate: does this pickle's name match the filter? Two lines of logic.
 
             Separation:
-                - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and
-                  changeable without widening caller knowledge.
+                - The outer build_scenario_filter: Creates this function. The separation between "decide what filter to
+                create" and "the filter function itself" follows the strategy pattern.
 
             Main consumers:
-                - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `updated_filter`
-                - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `updated_filter`
+                - FileScenarioLocator and UrlScenarioLocator: Call the filter function for each discovered scenario to
+                decide whether to include it.
 
             State and side effects:
-                keeps no local persistent state beyond call-local values.
+                None. The closure captures the filter string immutably. The function is stateless.
 
             Architecture score:
-                #arch-eval:reason_for_existence=4
+                #arch-eval:reason_for_existence=3
                 #arch-eval:owned_responsibility=4
-                #arch-eval:delegation_boundary=4
-                #arch-eval:cohesion=4
-                #arch-eval:separation=3
-                #arch-eval:consumer_clarity=4
-                #arch-eval:state_invariants=3
-                #arch-eval:entity_fullness=4
-                #arch-eval:locational_stability=3
+                #arch-eval:delegation_boundary=5
+                #arch-eval:cohesion=5
+                #arch-eval:separation=5
+                #arch-eval:consumer_clarity=5
+                #arch-eval:state_invariants=5
+                #arch-eval:entity_fullness=2
+                #arch-eval:locational_stability=5
             """
             return bool(filter_ == pickle.name)
 

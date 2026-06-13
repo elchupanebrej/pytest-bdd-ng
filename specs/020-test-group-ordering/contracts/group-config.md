@@ -122,9 +122,9 @@ import pytest
 
 pytestmark = pytest.mark.medium
 
+
 @pytest.mark.external
-def test_requires_external_service():
-    ...
+def test_requires_external_service(): ...
 ```
 
 If multiple configured group markers are present at the same cascade level, the latest group in configured order wins.

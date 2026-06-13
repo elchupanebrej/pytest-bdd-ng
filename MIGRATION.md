@@ -31,6 +31,7 @@ def user():
 ```python
 from pytest_bdd import given, parsers
 
+
 @given("a user exists", target_fixture="user")
 def user():
     return User()
@@ -43,15 +44,13 @@ Angle bracket template syntax replaced by curly braces with `parsers.parse()`.
 **Before:**
 ```python
 @given("user <name> exists")
-def user(name):
-    ...
+def user(name): ...
 ```
 
 **After:**
 ```python
 @given(parsers.parse("user {name} exists"))
-def user(name):
-    ...
+def user(name): ...
 ```
 
 ## 4. example_converters Moved to Step-Level Converters
@@ -66,8 +65,7 @@ def user(name):
 **After:**
 ```python
 @given(parsers.parse("I have {count} items"), converters={"count": int})
-def items(count):
-    ...
+def items(count): ...
 ```
 
 ## 5. Hook Signature Changes
@@ -76,16 +74,15 @@ Hooks now receive `(request, Run)` with cucumber_messages types instead of `(fea
 
 **Before:**
 ```python
-def pytest_bdd_before_scenario(request, feature, scenario):
-    ...
+def pytest_bdd_before_scenario(request, feature, scenario): ...
 ```
 
 **After:**
 ```python
 from pytest_bdd.model.scenario_run import Run
 
-def pytest_bdd_before_scenario(request: pytest.FixtureRequest, run: Run):
-    ...
+
+def pytest_bdd_before_scenario(request: pytest.FixtureRequest, run: Run): ...
 ```
 
 ## 6. Plugin Architecture: Class-Based Pattern
@@ -120,6 +117,7 @@ config._bdd_config = {"key": "value"}
 ```python
 class BddConfig(StashBound):
     STASH_KEY = "pytest_bdd_config"
+
 
 config = BddConfig()
 config.initialize_in_stash(pytest_config)

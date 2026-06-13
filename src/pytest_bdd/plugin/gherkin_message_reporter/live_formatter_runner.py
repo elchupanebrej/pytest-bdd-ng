@@ -1,58 +1,49 @@
 """
-Provide live formatter runner orchestration helpers.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Provide live formatter runner orchestration helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner` because
-    it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - _resolve_npm_formatter_resource: owns nested behavior below this boundary
-    - LiveFormatterRunnerMixin: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-      `live_formatter_runner`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates node_env, script_path, formatter_labels, node_executable, runnable_requests; depends on
-    __future__.annotations, json, logging, subprocess, sys.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import subprocess  # noqa: S404
+import subprocess  # noqa: S404  -- suppressed warning
 import sys
 import tempfile
 from pathlib import Path
@@ -92,62 +83,44 @@ def _resolve_npm_formatter_resource(
     additional_roots: tuple[Path, ...] = (),
 ) -> Path:
     """
-    Resolve a required npm formatter resource.
-
-    Returns:
-        Resolved resource path.
-
-    Raises:
-        RuntimeError: If the resource cannot be found.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Resolve a required npm formatter resource. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner._resolve_npm_formatter_resource` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - next: collaborator call used by this boundary
-        - find_resource: collaborator call used by this boundary
-        - RuntimeError: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-          `_resolve_npm_formatter_resource`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates match, message.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner._resolve_npm_formatter_resource` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     match = next(
         find_resource(
@@ -165,54 +138,44 @@ def _resolve_npm_formatter_resource(
 
 class LiveFormatterRunnerMixin:
     """
-    Provide live formatter startup and render orchestration behavior.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Provide live formatter startup and render orchestration behavior. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this class.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - _render_cucumber_formatter_runtime_assets: owns nested behavior below this boundary
-        - _start_live_formatters: owns nested behavior below this boundary
-        - _spawn_live_formatter_subprocess: owns nested behavior below this boundary
-        - _execute_cucumber_formatter_subprocess: owns nested behavior below this boundary
-        - _run_requested_cucumber_formatters: owns nested behavior below this boundary
-        - run_requested_cucumber_formatters: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-          `LiveFormatterRunnerMixin`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates node_env, script_path, formatter_labels, node_executable, runnable_requests.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     if TYPE_CHECKING:
@@ -229,52 +192,44 @@ class LiveFormatterRunnerMixin:
         formatter_requests: list[CucumberFormatterRequest] | tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - callable: collaborator call used by this boundary
-            - render_live_formatter_runtime_assets: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `_render_cucumber_formatter_runtime_assets`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates render_runtime_assets, pluginmanager.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._render_cucumber_formatter_runtime_assets`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         render_runtime_assets = getattr(self.reporter, "render_runtime_assets", None)
         if callable(render_runtime_assets):
@@ -287,57 +242,44 @@ class LiveFormatterRunnerMixin:
 
     def _start_live_formatters(self) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._record_live_formatter_failure: collaborator call used by this boundary
-            - format_requested_cucumber_formatter_labels: collaborator call used by this boundary
-            - self._resolve_runnable_cucumber_formatter_requests: collaborator call used by this boundary
-            - self._augment_node_env_for_live_terminal_stream: collaborator call used by this boundary
-            - self._warn_about_missing_cucumber_formatter_packages: collaborator call used by this boundary
-            - tempfile.TemporaryDirectory: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_start_live_formatters`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `_start_live_formatters`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `_start_live_formatters`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates node_env, formatter_labels, node_executable, runnable_requests, missing_packages.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._start_live_formatters`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if (
             self.reporter.is_disabled
@@ -373,8 +315,8 @@ class LiveFormatterRunnerMixin:
             )
             return
 
-        self.reporter._live_formatter_temp_dir = tempfile.TemporaryDirectory(prefix="pytest-bdd-live-formatters-")  # noqa: SLF001
-        temp_dir = Path(self.reporter._live_formatter_temp_dir.name)  # noqa: SLF001
+        self.reporter._live_formatter_temp_dir = tempfile.TemporaryDirectory(prefix="pytest-bdd-live-formatters-")  # noqa: SLF001  -- suppressed warning
+        temp_dir = Path(self.reporter._live_formatter_temp_dir.name)  # noqa: SLF001  -- suppressed warning
         script_path = temp_dir / "render_cucumber_formatters.js"
         payload_path = temp_dir / "formatter_payload.json"
         runtime_assets = self._render_cucumber_formatter_runtime_assets(runnable_requests)
@@ -417,57 +359,46 @@ class LiveFormatterRunnerMixin:
         node_env: dict[str, str],
     ) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - Thread: collaborator call used by this boundary
-            - subprocess.Popen: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - self.reporter._live_formatter_stdout_thread.start: collaborator call used by this boundary
-            - self.reporter._live_formatter_stderr_thread.start: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `_spawn_live_formatter_subprocess`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._live_formatter_process, self.reporter._live_formatter_stdout_thread,
-            self.reporter._live_formatter_stderr_thread, self.reporter._live_formatter_session_started.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._spawn_live_formatter_subprocess`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001
+        self.reporter._live_formatter_process = subprocess.Popen(  # noqa: S603, SLF001  -- suppressed warning
             [node_executable, str(script_path), str(payload_path)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -476,27 +407,27 @@ class LiveFormatterRunnerMixin:
             cwd=str(Path(self.reporter.config.rootpath)),
             env=node_env,
         )
-        if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001
-            self.reporter._live_formatter_stdout_thread = Thread(  # noqa: SLF001
+        if self.reporter._live_formatter_process.stdout is not None:  # noqa: SLF001  -- suppressed warning
+            self.reporter._live_formatter_stdout_thread = Thread(  # noqa: SLF001  -- suppressed warning
                 target=relay_live_formatter_output,
-                args=(self.reporter._live_formatter_process.stdout, sys.stdout),  # noqa: SLF001
+                args=(self.reporter._live_formatter_process.stdout, sys.stdout),  # noqa: SLF001  -- suppressed warning
                 daemon=True,
             )
-            self.reporter._live_formatter_stdout_thread.start()  # noqa: SLF001
-        if self.reporter._live_formatter_process.stderr is not None:  # noqa: SLF001
-            self.reporter._live_formatter_stderr_thread = Thread(  # noqa: SLF001
+            self.reporter._live_formatter_stdout_thread.start()  # noqa: SLF001  -- suppressed warning
+        if self.reporter._live_formatter_process.stderr is not None:  # noqa: SLF001  -- suppressed warning
+            self.reporter._live_formatter_stderr_thread = Thread(  # noqa: SLF001  -- suppressed warning
                 target=relay_live_formatter_output,
-                args=(self.reporter._live_formatter_process.stderr, sys.stderr),  # noqa: SLF001
+                args=(self.reporter._live_formatter_process.stderr, sys.stderr),  # noqa: SLF001  -- suppressed warning
                 daemon=True,
             )
-            self.reporter._live_formatter_stderr_thread.start()  # noqa: SLF001
-        if self.reporter._live_formatter_process.poll() is not None:  # noqa: SLF001
+            self.reporter._live_formatter_stderr_thread.start()  # noqa: SLF001  -- suppressed warning
+        if self.reporter._live_formatter_process.poll() is not None:  # noqa: SLF001  -- suppressed warning
             self._record_live_formatter_failure(
                 "Live cucumber formatter session exited early with code "
-                f"{self.reporter._live_formatter_process.returncode} during startup.",  # noqa: SLF001
+                f"{self.reporter._live_formatter_process.returncode} during startup.",  # noqa: SLF001  -- suppressed warning
             )
             return
-        self.reporter._live_formatter_session_started = True  # noqa: SLF001
+        self.reporter._live_formatter_session_started = True  # noqa: SLF001  -- suppressed warning
 
     def _execute_cucumber_formatter_subprocess(
         self,
@@ -507,54 +438,44 @@ class LiveFormatterRunnerMixin:
         envelopes: list[Message],
     ) -> subprocess.CompletedProcess[str]:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - json.dumps: collaborator call used by this boundary
-            - tempfile.TemporaryDirectory: collaborator call used by this boundary
-            - self._render_cucumber_formatter_runtime_assets: collaborator call used by this boundary
-            - runtime_assets.items: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `_execute_cucumber_formatter_subprocess`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates temp_dir, script_path, payload_path, runtime_assets, asset_path.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._execute_cucumber_formatter_subprocess`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         with tempfile.TemporaryDirectory(prefix="pytest-bdd-cucumber-formatters-") as temp_dir_name:
             temp_dir = Path(temp_dir_name)
@@ -591,7 +512,7 @@ class LiveFormatterRunnerMixin:
                 ),
                 encoding="utf-8",
             )
-            return subprocess.run(  # noqa: S603
+            return subprocess.run(  # noqa: S603  -- suppressed warning
                 [node_executable, str(script_path), str(payload_path)],
                 check=False,
                 capture_output=True,
@@ -607,54 +528,44 @@ class LiveFormatterRunnerMixin:
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - CucumberFormatterRenderResult: collaborator call used by this boundary
-            - format_requested_cucumber_formatter_labels: collaborator call used by this boundary
-            - logger.warning: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - self._resolve_runnable_cucumber_formatter_requests: collaborator call used by this boundary
-            - self._augment_node_env_for_live_terminal_stream: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `_run_requested_cucumber_formatters`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates node_env, formatter_labels, node_executable, runnable_requests, missing_packages.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin._run_requested_cucumber_formatters`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if not self.reporter.requested_cucumber_formatters:
             return CucumberFormatterRenderResult(success=True, rendered_formatters=())
@@ -732,134 +643,111 @@ class LiveFormatterRunnerMixin:
         envelopes: list[Message],
     ) -> CucumberFormatterRenderResult:
         """
-        Run requested cucumber formatters.
-
-        Returns:
-            Cucumber formatter render result.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Run requested cucumber formatters. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.run_requested_cucumber_formatters`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._run_requested_cucumber_formatters: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `run_requested_cucumber_formatters`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `run_requested_cucumber_formatters`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `run_requested_cucumber_formatters`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         return self._run_requested_cucumber_formatters(envelopes)
 
     def generate_html_report(self) -> None:
         """
-        Handle generate html report.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle generate html report. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.generate_html_report`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - Path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - _resolve_npm_formatter_resource: collaborator call used by this boundary
-            - line.strip: collaborator call used by this boundary
-            - template_path.read_text: collaborator call used by this boundary
-            - next: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `generate_html_report`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `generate_html_report`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates template_path, icon, script_path, css_path, template.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.generate_html_report`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_disabled:
             return
         script_path = _resolve_npm_formatter_resource(
             self.reporter.npm_formatter_package,
             str(Path("dist") / "main.js"),
-            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001  -- suppressed warning
         )
         css_path = _resolve_npm_formatter_resource(
             self.reporter.npm_formatter_package,
             str(Path("dist") / "main.css"),
-            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+            additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001  -- suppressed warning
         )
         try:
             template_path = _resolve_npm_formatter_resource(
                 self.reporter.npm_formatter_package,
                 str(Path("src") / "index.mustache.html"),
-                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001  -- suppressed warning
             )
         except RuntimeError:
             template_path = _resolve_npm_formatter_resource(
                 self.reporter.npm_formatter_package,
                 str(Path("src") / "index.mustache"),
-                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+                additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001  -- suppressed warning
             )
         template = template_path.read_text(encoding="utf-8")
         icon = ""
@@ -868,7 +756,7 @@ class LiveFormatterRunnerMixin:
                 find_resource(
                     self.reporter.npm_formatter_package,
                     str(Path("src") / "icon.url"),
-                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001
+                    additional_roots=self.reporter._auto_provisioned_node_modules_roots,  # noqa: SLF001  -- suppressed warning
                 ),
                 None,
             )
@@ -896,53 +784,44 @@ class LiveFormatterRunnerMixin:
 
     def check_npm_and_cucumber_packages(self) -> None:
         """
-        Check npm and cucumber packages.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Check npm and cucumber packages. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.check_npm_and_cucumber_packages`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - pytest.exit: collaborator call used by this boundary
-            - self._ensure_node_packages_available: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runtime.py: imports or references
-              `check_npm_and_cucumber_packages`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `check_npm_and_cucumber_packages`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates provision_result, self.reporter._auto_provisioned_node_modules_roots.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.live_formatter_runner.LiveFormatterRunnerMixin.check_npm_and_cucumber_packages`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         provision_result = self._ensure_node_packages_available(
             (self.reporter.npm_formatter_package,),
@@ -961,4 +840,4 @@ class LiveFormatterRunnerMixin:
                 "generate html report. Install it manually with "
                 f"`npm install --save-dev {self.reporter.npm_formatter_package}`",
             )
-        self.reporter._auto_provisioned_node_modules_roots = provision_result.node_modules_roots  # noqa: SLF001
+        self.reporter._auto_provisioned_node_modules_roots = provision_result.node_modules_roots  # noqa: SLF001  -- suppressed warning

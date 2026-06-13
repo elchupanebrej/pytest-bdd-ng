@@ -17,17 +17,15 @@
     from re import compile as parse
     from pytest_bdd import given, then
 
-    @given("I have a pickle", param_defaults=dict(freshness='salted'))
-    @given(
-      parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"),
-      param_defaults=dict(freshness='fresh')
-    )
-    def i_have_cucumber(freshness):
-        ...
+
+    @given("I have a pickle", param_defaults=dict(freshness="salted"))
+    @given(parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"), param_defaults=dict(freshness="fresh"))
+    def i_have_cucumber(freshness): ...
+
 
     @then("Taste of cucumber is salt")
     def i_check_salted_cucumber(freshness):
-        assert freshness=='salted'
+        assert freshness == "salted"
     ```
 
 * Given File "Freshness.feature" with content:
@@ -45,22 +43,27 @@
     from enum import Enum
     from pytest import fixture
     from pytest_bdd import scenario
+
+
     class Freshness(Enum):
-      FRESH = 'fresh'
-      ROTTEN = 'rotten'
-      SALTED = 'salted'
+        FRESH = "fresh"
+        ROTTEN = "rotten"
+        SALTED = "salted"
+
 
     @fixture
     def oracle_freshness():
-      return Freshness.SALTED
+        return Freshness.SALTED
+
 
     @scenario("Freshness.feature")
     def test_passing_feature(request, oracle_freshness):
-      assert Freshness(request.getfixturevalue('freshness'))==oracle_freshness
+        assert Freshness(request.getfixturevalue("freshness")) == oracle_freshness
+
 
     @scenario("Freshness.feature")
     def test_another_passing_feature(freshness, oracle_freshness):
-      assert Freshness(freshness)==oracle_freshness
+        assert Freshness(freshness) == oracle_freshness
     ```
 
 * When run pytest
@@ -81,25 +84,27 @@
     from re import compile as parse
     from pytest_bdd import given, then
 
+
     @given(
-      "I have a pickle",
-      param_defaults=dict(freshness='salted'),
-      params_fixtures_mapping={...:None},
-      target_fixtures=['cuke_taste']
+        "I have a pickle",
+        param_defaults=dict(freshness="salted"),
+        params_fixtures_mapping={...: None},
+        target_fixtures=["cuke_taste"],
     )
     @given(
-      parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"),
-      param_defaults=dict(freshness='fresh'),
-      params_fixtures_mapping=False,
-      target_fixture='cuke_taste'
+        parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"),
+        param_defaults=dict(freshness="fresh"),
+        params_fixtures_mapping=False,
+        target_fixture="cuke_taste",
     )
     def i_have_cucumber(freshness):
         assert freshness is not None
         yield freshness
 
+
     @then("Taste of cucumber is salt")
     def i_check_salted_cucumber(cuke_taste):
-        assert cuke_taste=='salted'
+        assert cuke_taste == "salted"
     ```
 
 * Given File "Freshness.feature" with content:
@@ -117,11 +122,13 @@
     import pytest
     from pytest_bdd import scenario
     from pytest_bdd.compatibility.pytest import FixtureLookupError
+
+
     @scenario("Freshness.feature")
     def test_passing_feature(request, cuke_taste):
-      assert cuke_taste == 'salted'
-      with pytest.raises(FixtureLookupError):
-        request.getfixturevalue('freshness')
+        assert cuke_taste == "salted"
+        with pytest.raises(FixtureLookupError):
+            request.getfixturevalue("freshness")
     ```
 
 * When run pytest
@@ -142,24 +149,22 @@
     from re import compile as parse
     from pytest_bdd import given, then
 
+
+    @given("I have a pickle", param_defaults=dict(freshness="salted"), params_fixtures_mapping={"freshness": "cuke_taste"})
     @given(
-      "I have a pickle",
-      param_defaults=dict(freshness='salted'),
-      params_fixtures_mapping={"freshness":"cuke_taste"}
-    )
-    @given(
-      parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"),
-      param_defaults=dict(freshness='fresh'),
-      params_fixtures_mapping={"freshness":"cuke_taste"}
+        parse(r"I have a ((?P<freshness>\w+)\s)?cucumber"),
+        param_defaults=dict(freshness="fresh"),
+        params_fixtures_mapping={"freshness": "cuke_taste"},
     )
     def i_have_cucumber(cuke_taste, freshness):
         assert cuke_taste is not None
         assert freshness == cuke_taste
         yield cuke_taste
 
+
     @then("Taste of cucumber is salt")
     def i_check_salted_cucumber(cuke_taste):
-        assert cuke_taste=='salted'
+        assert cuke_taste == "salted"
     ```
 
 * Given File "Freshness.feature" with content:
@@ -178,11 +183,12 @@
     from pytest_bdd import scenario
     from pytest_bdd.compatibility.pytest import FixtureLookupError
 
+
     @scenario("Freshness.feature")
     def test_passing_feature(request, cuke_taste):
-      assert cuke_taste == 'salted'
-      with pytest.raises(FixtureLookupError):
-        request.getfixturevalue('freshness')
+        assert cuke_taste == "salted"
+        with pytest.raises(FixtureLookupError):
+            request.getfixturevalue("freshness")
     ```
 
 * When run pytest
@@ -202,14 +208,13 @@
     ```python
     from pytest_bdd import given
 
+
     @given(
-      "I have an old pickle",
-      param_defaults=dict(freshness='salted', age='old'),
-      params_fixtures_mapping={"freshness"}
+        "I have an old pickle", param_defaults=dict(freshness="salted", age="old"), params_fixtures_mapping={"freshness"}
     )
     def i_have_cucumber(age, freshness):
-        assert age == 'old'
-        assert freshness == 'salted'
+        assert age == "old"
+        assert freshness == "salted"
     ```
 
 * Given File "Freshness.feature" with content:
@@ -227,11 +232,12 @@
     from pytest_bdd import scenario
     from pytest_bdd.compatibility.pytest import FixtureLookupError
 
+
     @scenario("Freshness.feature")
     def test_passing_feature(request, freshness):
-      assert freshness == 'salted'
-      with pytest.raises(FixtureLookupError):
-        request.getfixturevalue('age')
+        assert freshness == "salted"
+        with pytest.raises(FixtureLookupError):
+            request.getfixturevalue("age")
     ```
 
 * When run pytest

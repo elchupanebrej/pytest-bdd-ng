@@ -111,13 +111,13 @@ import pytest
 
 pytestmark = pytest.mark.compat
 
+
 @pytest.mark.external
-def test_requires_external_service():
-    ...
+def test_requires_external_service(): ...
+
 
 @pytest.mark.skip(reason="example")
-def test_skip_marker_does_not_change_group():
-    ...
+def test_skip_marker_does_not_change_group(): ...
 ```
 
 ## 6. Verify Ordering

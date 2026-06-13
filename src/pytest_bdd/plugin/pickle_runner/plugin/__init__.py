@@ -1,52 +1,56 @@
 """
-Pickle runner plugin package — backward-compatible facade.
+Serves as the Runtime layer (order 6) package init for the pickle runner's inner plugin sub-package.
 
 Responsibility:
-    Pickle runner plugin package — backward-compatible facade. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Serves as the Runtime layer (order 6) package init for the pickle runner's inner plugin sub-package. Re-exports all
+    public symbols from the `facade` module via `from .facade import *`, providing a clean public API surface for the
+    internal plugin sub-package. Acts as a namespace boundary that separates plugin implementation details from the rest
+    of the pickle runner package.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.pickle_runner.plugin` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This module exists solely to establish a Python sub-package boundary and re-export the facade module's public API.
+    It is the information expert for which symbols from the `plugin` sub-package are considered public. Keeping it
+    separate from the main pickle_runner init prevents symbol collision between the inner plugin sub-package and the
+    outer package's own exports (apply_transition, compatibility functions).
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - facade: Contains the actual plugin hook implementations and public symbols that are re-exported through this init
+    module.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic is a single import statement with no extraneous functionality. The module serves the pure purpose of
+    package structure and namespace management.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pickle_runner/__init__.py: Top-level package init exports apply_transition and lazy-loads compatibility functions
+    — distinct from the plugin sub-package.
+    - facade: Contains the actual implementation; kept separate from the init to allow clean re-export and avoid
+    circular imports.
 
 Main consumers:
-    - src/pytest_bdd/plugin/cucumber_json/entrypoint.py: imports or references `plugin`
-    - src/pytest_bdd/plugin/gherkin_terminal_reporter/exception.py: imports or references `plugin`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `plugin`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `plugin`
-    - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `plugin`
+    - pytest_bdd.plugin.pickle_runner.plugin._plugin: The actual plugin module imports through this sub-package boundary.
+    - pytest_bdd.plugin.pickle_runner.plugin._executor: Accesses facade symbols through the sub-package namespace.
 
 State and side effects:
-    depends on __future__.annotations, facade.*.
+    None, keeps no persistent state. Purely a namespace and re-export module.
 
 Invariants:
-    - `pytest_bdd.plugin.pickle_runner.plugin` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - All public symbols from `facade` must be accessible via `pytest_bdd.plugin.pickle_runner.plugin`.
+    - The `from .facade import *` must not introduce duplicate symbols or shadowing issues.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
+    #arch-eval:reason_for_existence=3
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=4
+    #arch-eval:locational_stability=5
 """
 # init: no-check
 
 from __future__ import annotations
 
-from .facade import *  # noqa: F403
+from .facade import *  # noqa: F403  -- intentional re-export or import for public API facade

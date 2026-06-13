@@ -27,33 +27,40 @@
     ```python
     from pytest_bdd import given, when, then
 
+
     @given('I have a foo fixture with value "foo"', target_fixture="foo")
     def _foo():
-      return "foo"
+        return "foo"
+
 
     @given("there is a list", target_fixture="results")
     def _results():
-      return []
+        return []
+
 
     @when("I append 1 to the list")
     def _append_1(results):
-      results.append(1)
+        results.append(1)
+
 
     @when("I append 2 to the list")
     def _append_2(results):
-      results.append(2)
+        results.append(2)
+
 
     @when("I append 3 to the list")
     def _append_3(results):
-      results.append(3)
+        results.append(3)
+
 
     @then('foo should have value "foo"')
     def _foo_is_foo(foo):
-      assert foo == "foo"
+        assert foo == "foo"
+
 
     @then("the list should be [1, 2, 3]")
     def _check_results(results):
-      assert results == [1, 2, 3]
+        assert results == [1, 2, 3]
     ```
 
 * And File "test_sample.py" with content:
@@ -61,7 +68,7 @@
     ```python
     from pytest_bdd import scenarios
 
-    test = scenarios('steps.feature.md')
+    test = scenarios("steps.feature.md")
     ```
 
 * When run pytest

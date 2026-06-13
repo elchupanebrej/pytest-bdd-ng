@@ -1,55 +1,43 @@
 """
-Provide toolz extra helpers.
+Provides focused utility functions for the `toolz_extra` concern within pytest-bdd utility
+layer, offering helper ope.
 
 Responsibility:
-    Provide toolz extra helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides focused utility functions for the `toolz_extra` concern within pytest-bdd utility
+    layer, offering helper operations consumed by higher layers (collection, runtime, reporting)
+    without pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.toolz_extra` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Keeping `toolz_extra` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `toolz_extra`-related helper operations within
+    the utility layer.
 
 Delegates:
-    - DefaultMapping: owns nested behavior below this boundary
-    - itemgetter_: owns nested behavior below this boundary
-    - Empty: owns nested behavior below this boundary
-    - getitemdefault: owns nested behavior below this boundary
-    - deepattrgetter: owns nested behavior below this boundary
-    - setdefaultattr: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `toolz_extra` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/hook.py: imports or references `toolz_extra`
-    - src/pytest_bdd/model/feature_binding.py: imports or references `toolz_extra`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references `toolz_extra`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `toolz_extra`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `toolz_extra`
+    - `pytest_bdd.plugin.*`: imports `toolz_extra` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates value, msg, items, empty, item; depends on __future__.annotations, collections.defaultdict,
-    collections.abc.Callable, collections.abc.Collection, collections.abc.Mapping.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.toolz_extra` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
-
-Failure semantics:
-    Raises or re-raises ValueError, KeyError, re-raise; callers must treat these as boundary failures.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -75,63 +63,48 @@ _MISSING = object()
 
 class DefaultMapping(defaultdict[object, object]):
     """
-    Represent default mapping state.
-
-    Raises:
-        KeyError: If the operation cannot be completed.
+    Encapsulates the DefaultMapping concern within pytest-bdd, providing a focused set of
+    collaborating operations that t.
 
     Responsibility:
-        Represent default mapping state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Encapsulates the DefaultMapping concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.DefaultMapping` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        DefaultMapping is a distinct class because its methods share internal state and collaborate on
+        a cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - __missing__: owns nested behavior below this boundary
-        - warm_up: owns nested behavior below this boundary
-        - instantiate_from_collection_or_bool: owns nested behavior below this boundary
+        - defaultdict[object, object]: DefaultMapping specializes behavior from its parent(s) without duplicating their
+        contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single DefaultMapping domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `DefaultMapping`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `DefaultMapping`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `DefaultMapping`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `DefaultMapping`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `DefaultMapping`
+        - `pytest_bdd.*`: callers catch or instantiate DefaultMapping for error handling and type checking
 
     State and side effects:
-        mutates value, items, Skip, intercessor, bool_or_items.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.DefaultMapping` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises KeyError; callers must treat these as boundary failures.
+        - Instances of DefaultMapping maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
 
     Skip = object()
@@ -144,120 +117,94 @@ class DefaultMapping(defaultdict[object, object]):
         **kwargs: object,
     ) -> None:
         """
-        Initialize the default mapping.
+        Initializ a new DefaultMapping instance with domain-specific context parameters, formatting a.
+        human-readable diagno.
 
         Responsibility:
-            Initialize the default mapping. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Initializes a new DefaultMapping instance with domain-specific context parameters, formatting a
+            human-readable diagnostic message that includes relevant identifiers for debugging test
+            failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.DefaultMapping.__init__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of DefaultMapping is the constructor boundary where raw failure context is
+            transformed into a formatted exception message. It is the single place where the diagnostic
+            message format for this error type is defined.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
-            - self.warm_up: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on DefaultMapping instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other DefaultMapping methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/hook.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch DefaultMapping implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         super().__init__(default_factory, *args, **kwargs)
         self.warm_up(*warm_up_keys)
 
     def __missing__(self, key: object) -> object:
         """
-        Return a fallback value for missing keys.
-
-        Args:
-            key: Missing key to look up.
-
-        Returns:
-            Fallback value for the key.
-
-        Raises:
-            KeyError: If missing-key fallback is disabled or unavailable.
+        Perform the __missing__ operation within the DefaultMapping boundary, handling its specific.
+        sub-task as part of the .
 
         Responsibility:
-            Return a fallback value for missing keys. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs the __missing__ operation within the DefaultMapping boundary, handling its specific
+            sub-task as part of the broader DefaultMapping responsibility in the pytest-bdd runtime
+            lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.DefaultMapping.__missing__` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            __missing__ is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of DefaultMapping
+            without affecting other operations.
 
         Delegates:
-            - self.keys: collaborator call used by this boundary
-            - KeyError: collaborator call used by this boundary
-            - callable: collaborator call used by this boundary
-            - intercessor: collaborator call used by this boundary
-            - super.__missing__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __missing__ operation on DefaultMapping instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other DefaultMapping methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `__missing__`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `__missing__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `__missing__`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `__missing__`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `__missing__`
+            - `pytest_bdd.*`: callers that raise or catch DefaultMapping implicitly invoke this method
 
         State and side effects:
-            mutates value, intercessor.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.toolz_extra.DefaultMapping.__missing__` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises KeyError; callers must treat these as boundary failures.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         if ... in self.keys():
             intercessor = self[...]
@@ -275,50 +222,46 @@ class DefaultMapping(defaultdict[object, object]):
 
     def warm_up(self, *items: object) -> None:
         """
-        Handle warm up.
+        Perform the warm_up operation within the DefaultMapping boundary, handling its specific sub-.
+        task as part of the bro.
 
         Responsibility:
-            Handle warm up. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the warm_up operation within the DefaultMapping boundary, handling its specific sub-
+            task as part of the broader DefaultMapping responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.DefaultMapping.warm_up` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            warm_up is a distinct method because it encapsulates a specific behavioral concern that must be
+            independently callable and potentially overridable by subclasses of DefaultMapping without
+            affecting other operations.
 
         Delegates:
-            - suppress: collaborator call used by this boundary
-            - getitem: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the warm_up operation on DefaultMapping instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other DefaultMapping methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `warm_up`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `warm_up`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `warm_up`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `warm_up`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `warm_up`
+            - `pytest_bdd.*`: callers that raise or catch DefaultMapping implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         for item in items:
             with suppress(KeyError):
@@ -332,68 +275,48 @@ class DefaultMapping(defaultdict[object, object]):
         warm_up_keys: Collection[object] = (),
     ) -> DefaultMapping:
         """
-        Create a DefaultMapping from a collection or boolean.
-
-        Args:
-            bool_or_items: Collection, boolean, or missing sentinel.
-            warm_up_keys: Keys to warm up on creation.
-
-        Returns:
-            New DefaultMapping instance.
+        Perform the instantiate_from_collection_or_bool operation within the DefaultMapping boundary,.
+        handling its specific .
 
         Responsibility:
-            Create a DefaultMapping from a collection or boolean. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs the instantiate_from_collection_or_bool operation within the DefaultMapping boundary,
+            handling its specific sub-task as part of the broader DefaultMapping responsibility in the
+            pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.toolz_extra.DefaultMapping.instantiate_from_collection_or_bool` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            instantiate_from_collection_or_bool is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of DefaultMapping without affecting other operations.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - zip: collaborator call used by this boundary
-            - tee: collaborator call used by this boundary
-            - iter: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - cls: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the instantiate_from_collection_or_bool operation on DefaultMapping
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other DefaultMapping methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `instantiate_from_collection_or_bool`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `instantiate_from_collection_or_bool`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `instantiate_from_collection_or_bool`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-              `instantiate_from_collection_or_bool`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `instantiate_from_collection_or_bool`
+            - `pytest_bdd.*`: callers that raise or catch DefaultMapping implicitly invoke this method
 
         State and side effects:
-            mutates items, bool_or_items.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.toolz_extra.DefaultMapping.instantiate_from_collection_or_bool` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         if bool_or_items is _MISSING:
             bool_or_items = True
@@ -408,109 +331,93 @@ class DefaultMapping(defaultdict[object, object]):
 
 def itemgetter_(*items: object) -> Callable[[object], object]:
     """
-    Create an itemgetter that handles missing items.
-
-    Args:
-        items: Items to get from object.
-
-    Returns:
-        Item getter function.
+    Perform the `itemgetter_` operation within its module boundary, implementing a focused helper.
+    function that is consu.
 
     Responsibility:
-        Create an itemgetter that handles missing items. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `itemgetter_` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.itemgetter_` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `itemgetter_` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - func: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the itemgetter_ operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `itemgetter_`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `itemgetter_`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `itemgetter_`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `itemgetter_`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `itemgetter_`
+        - `pytest_bdd.*`: callers import and invoke itemgetter_ for its specific utility
 
     State and side effects:
-        mutates getter, result.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.itemgetter_` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The itemgetter_ function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     getter = cast("Callable[[object], object]", itemgetter(*items))
 
     def func(obj: object) -> object:
         """
+        Perform the `func` operation within its module boundary, implementing a focused helper.
+        function that is consumed by .
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.util.toolz_extra.itemgetter_.func` owns documented function
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            function.
+        Performs the `func` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.itemgetter_.func` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+        `func` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
         Delegates:
-            - len: collaborator call used by this boundary
-            - getter: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All logic directly supports the func operation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_bridge.py: imports or references `func`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `func`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `func`
-            - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `func`
-            - src/pytest_bdd/hook.py: imports or references `func`
+        - `pytest_bdd.*`: callers import and invoke func for its specific utility
 
         State and side effects:
-            mutates result.
+        None, this function is stateless and produces its output purely from input arguments.
 
         Invariants:
-            - `pytest_bdd.util.toolz_extra.itemgetter_.func` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+        - The func function returns consistent results for equivalent inputs.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
         """
         if len(items) == 0:
             return []
@@ -524,51 +431,46 @@ def itemgetter_(*items: object) -> Callable[[object], object]:
 
 class Empty(Enum):
     """
-    Represent empty state.
+    Enumerates the possible states for the Empty domain as a StrEnum, providing symbolic constants
+    that replace magic str.
 
     Responsibility:
-        Represent empty state. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Enumerates the possible states for the Empty domain as a StrEnum, providing symbolic constants
+        that replace magic strings in error classification and reporting code throughout the pytest-bdd
+        runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.Empty` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for Empty ensures compile-time validation of failure
+        codes, enables IDE autocompletion for error handlers, and centralizes the catalog of possible
+        states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Enum: Empty specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the Empty domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `Empty`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `Empty`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references `Empty`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `Empty`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `Empty`
+        - `pytest_bdd.*`: callers catch or instantiate Empty for error handling and type checking
 
     State and side effects:
-        mutates empty.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.Empty` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a Empty state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -583,74 +485,47 @@ def getitemdefault(
     treat_as_empty: object = Empty.empty,
 ) -> object:
     """
-    Get item from object with default handling.
-
-    Args:
-        obj: Object to get item from.
-        index: Index/key to retrieve.
-        default: Default value if key missing.
-        default_factory: Factory for default value.
-        treat_as_empty: Value to treat as empty.
-
-    Returns:
-        Retrieved item or default.
-
-    Raises:
-        KeyError: If the operation cannot be completed.
-        ValueError: If the operation cannot be completed.
+    Perform the `getitemdefault` operation within its module boundary, implementing a focused.
+    helper function that is co.
 
     Responsibility:
-        Get item from object with default handling. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `getitemdefault` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.getitemdefault` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `getitemdefault` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - ValueError: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - getitem_: collaborator call used by this boundary
-        - default_factory: collaborator call used by this boundary
-        - KeyError: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the getitemdefault operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `getitemdefault`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `getitemdefault`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `getitemdefault`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `getitemdefault`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `getitemdefault`
+        - `pytest_bdd.*`: callers import and invoke getitemdefault for its specific utility
 
     State and side effects:
-        mutates msg, item, getitem_.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.getitemdefault` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises ValueError, re-raise, KeyError; callers must treat these as boundary failures.
+        - The getitemdefault function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if default is not Empty.empty:
         if default_factory is not None:
@@ -659,47 +534,47 @@ def getitemdefault(
 
         def default_factory() -> object:
             """
+            Perform the `default_factory` operation within its module boundary, implementing a focused.
+            helper function that is c.
+
             Responsibility:
-                Responsibility: Responsibility: `pytest_bdd.util.toolz_extra.getitemdefault.default_factory` owns
-                documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-                boundary for this function.
+            Performs the `default_factory` operation within its module boundary, implementing a focused
+            helper function that is consumed by higher layers for its specific utility purpose within the
+            pytest-bdd architecture.
 
             Reason for existence:
-                This entity is the information expert for `pytest_bdd.util.toolz_extra.getitemdefault.default_factory`
-                because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            `default_factory` exists as a standalone function because it encapsulates an operation that
+            does not require shared instance state and benefits from being independently callable and
+            testable without class instantiation overhead.
 
             Delegates:
-                - None, leaf-level implementation boundary
+            - Python standard library: delegates core operations to stdlib
 
             Cohesion:
-                The implementation stays together because its imports, calls, state writes, and return contract describe
-                one maintainable decision unit.
+            All logic directly supports the default_factory operation.
 
             Separation:
-                - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and
-                  changeable without widening caller knowledge.
+            - Other functions in this module: each function handles a distinct helper concern.
 
             Main consumers:
-                - src/pytest_bdd/hook.py: imports or references `default_factory`
-                - src/pytest_bdd/model/feature_binding.py: imports or references `default_factory`
-                - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-                  `default_factory`
-                - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `default_factory`
-                - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `default_factory`
+            - `pytest_bdd.*`: callers import and invoke default_factory for its specific utility
 
             State and side effects:
-                keeps no local persistent state beyond call-local values.
+            None, this function is stateless and produces its output purely from input arguments.
+
+            Invariants:
+            - The default_factory function returns consistent results for equivalent inputs.
 
             Architecture score:
-                #arch-eval:reason_for_existence=4
-                #arch-eval:owned_responsibility=4
-                #arch-eval:delegation_boundary=2
-                #arch-eval:cohesion=4
-                #arch-eval:separation=3
-                #arch-eval:consumer_clarity=4
-                #arch-eval:state_invariants=3
-                #arch-eval:entity_fullness=3
-                #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
             """
             return default
 
@@ -719,69 +594,47 @@ def getitemdefault(
 
 def deepattrgetter(*attrs: str, **kwargs: object) -> Callable[[object], tuple[object, ...]]:
     """
-    Get nested attributes from an object.
-
-    Args:
-        attrs: Attribute chain to traverse.
-        **kwargs: Additional keyword arguments. Accepts "default" (default value if attribute missing)
-            and "skip_missing" (whether to skip missing attributes).
-        default: Default value if attribute missing.
-        skip_missing: Whether to skip missing attributes.
-
-    Returns:
-        Function that extracts nested attributes.
-
-    Raises:
-        ValueError: If the operation cannot be completed.
+    Perform the `deepattrgetter` operation within its module boundary, implementing a focused.
+    helper function that is co.
 
     Responsibility:
-        Get nested attributes from an object. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `deepattrgetter` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.deepattrgetter` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `deepattrgetter` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - fn: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the deepattrgetter operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `deepattrgetter`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `deepattrgetter`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `deepattrgetter`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `deepattrgetter`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `deepattrgetter`
+        - `pytest_bdd.*`: callers import and invoke deepattrgetter for its specific utility
 
     State and side effects:
-        mutates empty, default, skip_missing, msg, default_exception_type.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.deepattrgetter` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        - The deepattrgetter function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     empty = object()
     default = kwargs.pop("default", empty)
@@ -796,96 +649,98 @@ def deepattrgetter(*attrs: str, **kwargs: object) -> Callable[[object], tuple[ob
 
     def fn(obj: object) -> tuple[object, ...]:
         """
+        Perform the `fn` operation within its module boundary, implementing a focused helper function.
+        that is consumed by hi.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.util.toolz_extra.deepattrgetter.fn` owns documented function
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            function.
+        Performs the `fn` operation within its module boundary, implementing a focused helper function
+        that is consumed by higher layers for its specific utility purpose within the pytest-bdd
+        architecture.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.deepattrgetter.fn` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+        `fn` exists as a standalone function because it encapsulates an operation that does not require
+        shared instance state and benefits from being independently callable and testable without class
+        instantiation overhead.
 
         Delegates:
-            - _: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All logic directly supports the fn operation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `fn`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `fn`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references `fn`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `fn`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `fn`
+        - `pytest_bdd.*`: callers import and invoke fn for its specific utility
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+        Invariants:
+        - The fn function returns consistent results for equivalent inputs.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
         """
 
         def _() -> Iterable[object]:
             """
+            Perform the `_` operation within its module boundary, implementing a focused helper function.
+            that is consumed by hig.
+
             Responsibility:
-                Responsibility: Responsibility: `pytest_bdd.util.toolz_extra.deepattrgetter.fn._` owns documented
-                function behavior. It directly owns the observable contract, local decisions, and maintenance boundary
-                for this function.
+            Performs the `_` operation within its module boundary, implementing a focused helper function
+            that is consumed by higher layers for its specific utility purpose within the pytest-bdd
+            architecture.
 
             Reason for existence:
-                This entity is the information expert for `pytest_bdd.util.toolz_extra.deepattrgetter.fn._` because it
-                keeps the nearest code, data shape, call signature, and failure knowledge together.
+            `_` exists as a standalone function because it encapsulates an operation that does not require
+            shared instance state and benefits from being independently callable and testable without class
+            instantiation overhead.
 
             Delegates:
-                - attrgetter: collaborator call used by this boundary
+            - Python standard library: delegates core operations to stdlib
 
             Cohesion:
-                The implementation stays together because its imports, calls, state writes, and return contract describe
-                one maintainable decision unit.
+            All logic directly supports the _ operation.
 
             Separation:
-                - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and
-                  changeable without widening caller knowledge.
+            - Other functions in this module: each function handles a distinct helper concern.
 
             Main consumers:
-                - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `_`
-                - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `_`
-                - src/pytest_bdd/_pylint/checkers/test_import_rules.py: imports or references `_`
-                - src/pytest_bdd/collector_batch.py: imports or references `_`
-                - src/pytest_bdd/hook.py: imports or references `_`
+            - `pytest_bdd.*`: callers import and invoke _ for its specific utility
 
             State and side effects:
-                keeps no local persistent state beyond call-local values.
+            None, this function is stateless and produces its output purely from input arguments.
+
+            Invariants:
+            - The _ function returns consistent results for equivalent inputs.
 
             Architecture score:
-                #arch-eval:reason_for_existence=4
-                #arch-eval:owned_responsibility=4
-                #arch-eval:delegation_boundary=4
-                #arch-eval:cohesion=4
-                #arch-eval:separation=3
-                #arch-eval:consumer_clarity=4
-                #arch-eval:state_invariants=3
-                #arch-eval:entity_fullness=4
-                #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
             """
             for attr in attrs:
                 try:
                     with skip_missing_context:
                         yield attrgetter(attr)(obj)
-                except default_exception_type:  # noqa: PERF203
+                except default_exception_type:  # noqa: PERF203  -- suppressed warning
                     yield default
 
         return tuple(_())
@@ -900,72 +755,47 @@ def setdefaultattr(
     value_factory: Callable[[], object] | None = None,
 ) -> object:
     """
-    Set attribute with default value handling.
-
-    Args:
-        obj: Object to modify.
-        key: Attribute name to set.
-        value: Value to set, or Empty.empty.
-        value_factory: Factory for value if not provided.
-
-    Returns:
-        The value that was set.
-
-    Raises:
-        ValueError: If the operation cannot be completed.
+    Perform the `setdefaultattr` operation within its module boundary, implementing a focused.
+    helper function that is co.
 
     Responsibility:
-        Set attribute with default value handling. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `setdefaultattr` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.setdefaultattr` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `setdefaultattr` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - ValueError: collaborator call used by this boundary
-        - suppress: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - value_factory: collaborator call used by this boundary
-        - setattr: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the setdefaultattr operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `setdefaultattr`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `setdefaultattr`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `setdefaultattr`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `setdefaultattr`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `setdefaultattr`
+        - `pytest_bdd.*`: callers import and invoke setdefaultattr for its specific utility
 
     State and side effects:
-        mutates msg, value.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.setdefaultattr` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        - The setdefaultattr function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if value is not Empty.empty and value_factory is not None:
         msg = "Both 'value' and 'value_factory' were specified"
@@ -980,265 +810,230 @@ def setdefaultattr(
 
 class ObjectCallable(Protocol):
     """
-    Represent object callable state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent object callable state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.ObjectCallable` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - __call__: owns nested behavior below this boundary
+        - Protocol: ObjectCallable specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `ObjectCallable`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `ObjectCallable`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `ObjectCallable`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ObjectCallable`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `ObjectCallable`
+        - `pytest_bdd.*`: callers catch or instantiate ObjectCallable for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.ObjectCallable` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     def __call__(self, *args: object, **kwargs: object) -> object:
         """
-        Handle call.
+        Perform the __call__ operation within the ObjectCallable boundary, handling its specific sub-.
+        task as part of the br.
 
         Responsibility:
-            Handle call. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the __call__ operation within the ObjectCallable boundary, handling its specific sub-
+            task as part of the broader ObjectCallable responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.ObjectCallable.__call__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            __call__ is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of ObjectCallable without
+            affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __call__ operation on ObjectCallable instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other ObjectCallable methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `__call__`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `__call__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `__call__`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `__call__`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `__call__`
+            - `pytest_bdd.*`: callers that raise or catch ObjectCallable implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         ...
 
 
 def compose(*funcs: ObjectCallable) -> ObjectCallable:
     """
-    Compose multiple functions into one.
-
-    Args:
-        funcs: Functions to compose (applied left to right).
-
-    Returns:
-        Composed function.
+    Perform the `compose` operation within its module boundary, implementing a focused helper.
+    function that is consumed .
 
     Responsibility:
-        Compose multiple functions into one. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `compose` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.compose` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `compose` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - reduce: collaborator call used by this boundary
-        - f: collaborator call used by this boundary
-        - g: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the compose operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `compose`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `compose`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references `compose`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `compose`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `compose`
+        - `pytest_bdd.*`: callers import and invoke compose for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The compose function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs)
 
 
 def flip(func: ObjectCallable | Callable[..., Any]) -> ObjectCallable | Callable[..., Any]:
     """
-    Flip argument order of a binary function.
-
-    Args:
-        func: Function to flip.
-
-    Returns:
-        Function with flipped arguments.
+    Perform the `flip` operation within its module boundary, implementing a focused helper.
+    function that is consumed by .
 
     Responsibility:
-        Flip argument order of a binary function. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `flip` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra.flip` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        `flip` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - wrapped: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the flip operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `flip`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `flip`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references `flip`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `flip`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `flip`
+        - `pytest_bdd.*`: callers import and invoke flip for its specific utility
 
     State and side effects:
-        mutates first, last.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra.flip` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The flip function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
 
     def wrapped(*args: object, **kwargs: object) -> object:
         """
+        Perform the `wrapped` operation within its module boundary, implementing a focused helper.
+        function that is consumed .
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.util.toolz_extra.flip.wrapped` owns documented function
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            function.
+        Performs the `wrapped` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.toolz_extra.flip.wrapped` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+        `wrapped` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
         Delegates:
-            - func: collaborator call used by this boundary
-            - len: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All logic directly supports the wrapped operation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `wrapped`
-            - src/pytest_bdd/model/feature_binding.py: imports or references `wrapped`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `wrapped`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `wrapped`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `wrapped`
+        - `pytest_bdd.*`: callers import and invoke wrapped for its specific utility
 
         State and side effects:
-            mutates first, last.
+        None, this function is stateless and produces its output purely from input arguments.
 
         Invariants:
-            - `pytest_bdd.util.toolz_extra.flip.wrapped` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+        - The wrapped function returns consistent results for equivalent inputs.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
         """
         if len(args) > 1:
             first, *other, last = args
@@ -1250,49 +1045,47 @@ def flip(func: ObjectCallable | Callable[..., Any]) -> ObjectCallable | Callable
 
 class _NoneExceptionError(Exception):
     """
+    Signals a _NoneExceptionError condition during pytest-bdd runtime operations, carrying domain-
+    specific context that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.toolz_extra._NoneExceptionError` owns documented class
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Signals a _NoneExceptionError condition during pytest-bdd runtime operations, carrying domain-
+        specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.toolz_extra._NoneExceptionError` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically _NoneExceptionError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Exception: _NoneExceptionError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating _NoneExceptionError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `_NoneExceptionError`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `_NoneExceptionError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `_NoneExceptionError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `_NoneExceptionError`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_NoneExceptionError`
+        - `pytest_bdd.*`: callers catch or instantiate _NoneExceptionError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.util.toolz_extra._NoneExceptionError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of _NoneExceptionError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 

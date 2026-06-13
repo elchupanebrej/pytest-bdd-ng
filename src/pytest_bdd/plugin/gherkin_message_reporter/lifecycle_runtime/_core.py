@@ -1,51 +1,42 @@
 """
-LifecycleService class — core runtime for the gherkin message reporter.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    LifecycleService class — core runtime for the gherkin message reporter. It directly owns the observable contract,
-    local decisions, and maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core`
-    because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - LifecycleService: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references `_core`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references `_core`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates message_text, self.reporter._mapping_diagnostics_count, _, config, run_started_id; depends on
-    __future__.annotations, json, logging, os, sys.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises RuntimeError, TypeError, MessageSchemaValidationError; callers must treat these as boundary
-    failures.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -120,75 +111,44 @@ logger = logging.getLogger(__name__)
 
 class LifecycleService(ReporterServiceBase):
     """
-    Represent lifecycle service state.
-
-    Yields:
-        Generated values.
-
-    Raises:
-        TypeError: If the operation cannot be completed.
-        MessageSchemaValidationError: If the operation cannot be completed.
-        RuntimeError: If the operation cannot be completed.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Represent lifecycle service state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - _emit_disabled_warning_once: owns nested behavior below this boundary
-        - _emit_envelope: owns nested behavior below this boundary
-        - _check_derived_output_consistency: owns nested behavior below this boundary
-        - _format_requested_cucumber_formatter_labels: owns nested behavior below this boundary
-        - get_timestamp: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/attachment_runtime.py: imports or references `LifecycleService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references
-          `LifecycleService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/ide_binding_runtime.py: imports or references
-          `LifecycleService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-          `LifecycleService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-          `LifecycleService`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates message_text, self.reporter._mapping_diagnostics_count, _, config, run_started_id.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError, TypeError, MessageSchemaValidationError; callers must treat these as boundary
-        failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     plugin_suffix = "lifecycle"
@@ -201,54 +161,44 @@ class LifecycleService(ReporterServiceBase):
         live_formatter_service: LiveFormatterService,
     ) -> None:
         """
-        Initialize the lifecycle service.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Initialize the lifecycle service. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.__init__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.transport_service, self.live_formatter_service.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.__init__` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         super().__init__(reporter)
         self.transport_service = transport_service
@@ -256,119 +206,90 @@ class LifecycleService(ReporterServiceBase):
 
     def _emit_disabled_warning_once(self) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_disabled_warning_once`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_disabled_warning_once`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - logger.warning: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_emit_disabled_warning_once`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_emit_disabled_warning_once`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._disabled_warning_emitted.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_disabled_warning_once`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        if self.reporter._disabled_warning_emitted:  # noqa: SLF001
+        if self.reporter._disabled_warning_emitted:  # noqa: SLF001  -- suppressed warning
             return
-        self.reporter._disabled_warning_emitted = True  # noqa: SLF001
+        self.reporter._disabled_warning_emitted = True  # noqa: SLF001  -- suppressed warning
         logger.warning("Message reporting disabled; message-output guarantees were skipped for this run.")
 
     def _emit_envelope(self, config: Config, message: Message) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_envelope` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_envelope` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - logger.warning: collaborator call used by this boundary
-            - has_single_payload: collaborator call used by this boundary
-            - TypeError: collaborator call used by this boundary
-            - observed_outcome_from_envelope: collaborator call used by this boundary
-            - resolve_outcome_mapping: collaborator call used by this boundary
-            - config.hook.pytest_bdd_message: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/attachment_runtime.py: imports or references
-              `_emit_envelope`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references
-              `_emit_envelope`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/ide_binding_runtime.py: imports or references
-              `_emit_envelope`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_emit_envelope`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_emit_envelope`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._mapping_diagnostics_count, message_text, observed_outcome, selected_rule,
-            is_ambiguous.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_envelope` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises TypeError; callers must treat these as boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if not has_single_payload(message):
             message_text = "Envelope must include exactly one payload"
@@ -376,19 +297,19 @@ class LifecycleService(ReporterServiceBase):
         observed_outcome = observed_outcome_from_envelope(message)
         if observed_outcome is not None:
             selected_rule, is_ambiguous = resolve_outcome_mapping(
-                self.reporter._outcome_mapping_rules,  # noqa: SLF001
+                self.reporter._outcome_mapping_rules,  # noqa: SLF001  -- suppressed warning
                 outcome_scope=observed_outcome.outcome_scope,
                 outcome_status=observed_outcome.outcome_status,
             )
             if is_ambiguous:
-                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001
+                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001  -- suppressed warning
                 logger.warning(
                     "Ambiguous outcome mapping for %s:%s",
                     observed_outcome.outcome_scope,
                     observed_outcome.outcome_status,
                 )
             elif selected_rule is None:
-                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001
+                self.reporter._mapping_diagnostics_count += 1  # noqa: SLF001  -- suppressed warning
                 logger.warning(
                     "No outcome mapping rule for %s:%s",
                     observed_outcome.outcome_scope,
@@ -399,51 +320,44 @@ class LifecycleService(ReporterServiceBase):
     @staticmethod
     def _check_derived_output_consistency(envelopes: list[Message]) -> bool:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._check_derived_output_consistency`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._check_derived_output_consistency`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - get_payload_kind: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_check_derived_output_consistency`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_check_derived_output_consistency`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates payload_kinds.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._check_derived_output_consistency`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         payload_kinds = [get_payload_kind(envelope) for envelope in envelopes]
         return "test_run_started" in payload_kinds and "test_run_finished" in payload_kinds
@@ -453,109 +367,88 @@ class LifecycleService(ReporterServiceBase):
         formatter_requests: tuple[CucumberFormatterRequest, ...] | list[CucumberFormatterRequest],
     ) -> str:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._format_requested_cucumber_formatter_labels`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._format_requested_cucumber_formatter_labels`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - format_requested_cucumber_formatter_labels: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_format_requested_cucumber_formatter_labels`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_format_requested_cucumber_formatter_labels`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         return format_requested_cucumber_formatter_labels(formatter_requests)
 
     @staticmethod
     def get_timestamp() -> Timestamp:
         """
-        Get current timestamp.
-
-        Returns:
-            Current timestamp.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Get current timestamp. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.get_timestamp` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - time_ns: collaborator call used by this boundary
-            - Timestamp: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/attachment_runtime.py: imports or references
-              `get_timestamp`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/ide_binding_runtime.py: imports or references
-              `get_timestamp`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `get_timestamp`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `get_timestamp`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `get_timestamp`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates timestamp, test_run_started_seconds, test_run_started_nanos.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.get_timestamp` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
@@ -568,66 +461,44 @@ class LifecycleService(ReporterServiceBase):
         message: Message,
     ) -> None:
         """
-        Handle the pytest bdd message pytest hook.
-
-        Raises:
-            TypeError: If the operation cannot be completed.
-            MessageSchemaValidationError: If the operation cannot be completed.
-            RuntimeError: If the operation cannot be completed.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest bdd message pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_message`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - EnvelopeRegistry.register_envelope_in_pytest_stash: collaborator call used by this boundary
-            - ExecutionMessageAdapter.serialize: collaborator call used by this boundary
-            - has_single_payload: collaborator call used by this boundary
-            - TypeError: collaborator call used by this boundary
-            - ExecutionMessageAdapter.serialize_to_dict: collaborator call used by this boundary
-            - validate_envelope_dict_against_schema: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_bdd_message`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_bdd_message`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates message_text, message, schema_compatible_message, schema_violations, details.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_message`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises TypeError, MessageSchemaValidationError, RuntimeError; callers must treat these as
-            boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         message = ExecutionMessageAdapter.serialize(message)
         if not has_single_payload(message):
@@ -655,160 +526,137 @@ class LifecycleService(ReporterServiceBase):
             message_text = "Message emission failed while serializing envelope"
             raise RuntimeError(message_text) from exc
 
-        self.live_formatter_service._emit_live_formatter_json_lines([message_json], source="local envelope emission")  # noqa: SLF001
+        self.live_formatter_service._emit_live_formatter_json_lines([message_json], source="local envelope emission")  # noqa: SLF001  -- suppressed warning
 
         self.reporter.process_messages_io_queue.put_nowait(message_json)
 
     def pytest_bdd_source_read(self, config: Config, gherkin_document: GherkinDocument, source: Source) -> None:
         """
-        Handle the pytest bdd source read pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest bdd source read pytest hook. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_source_read`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._emit_envelope: collaborator call used by this boundary
-            - Message: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_bdd_source_read`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_bdd_source_read`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `pytest_bdd_source_read`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates _.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_source_read`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         _ = gherkin_document
         self._emit_envelope(config, Message(source=source))
 
     def pytest_bdd_feature_read(self, config: Config, gherkin_document: GherkinDocument) -> None:
         """
-        Handle the pytest bdd feature read pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest bdd feature read pytest hook. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_feature_read`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._emit_envelope: collaborator call used by this boundary
-            - Message: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_bdd_feature_read`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_bdd_feature_read`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `pytest_bdd_feature_read`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self._emit_envelope(config, Message(gherkin_document=gherkin_document))
 
     def pytest_bdd_pickle_read(self, config: Config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
         """
-        Handle the pytest bdd pickle read pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest bdd pickle read pytest hook. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_pickle_read`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._emit_envelope: collaborator call used by this boundary
-            - Message: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_bdd_pickle_read`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_bdd_pickle_read`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `pytest_bdd_pickle_read`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates _.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_bdd_pickle_read`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         _ = gherkin_document
         self._emit_envelope(config, Message(pickle=pickle))
@@ -816,61 +664,44 @@ class LifecycleService(ReporterServiceBase):
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtestloop(self, session: Session) -> Iterator[None]:
         """
-        Handle the pytest runtestloop pytest hook.
-
-        Yields:
-            Generated values.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest runtestloop pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_runtestloop`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._emit_envelope: collaborator call used by this boundary
-            - Message: collaborator call used by this boundary
-            - self.get_timestamp: collaborator call used by this boundary
-            - self._require_run_started_id: collaborator call used by this boundary
-            - TestRunStarted: collaborator call used by this boundary
-            - next: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_runtestloop`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_runtestloop`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates config, run_started_id, before_test_run_hook_started_id, run_root,
-            run_root.reporting_state.test_run_hook_started_id.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_runtestloop`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_disabled:
             yield
@@ -899,7 +730,7 @@ class LifecycleService(ReporterServiceBase):
                     id=before_test_run_hook_started_id,
                     test_run_started_id=run_started_id,
                     timestamp=self.get_timestamp(),
-                    worker_id=self.transport_service._current_reporting_worker_id(config),  # noqa: SLF001
+                    worker_id=self.transport_service._current_reporting_worker_id(config),  # noqa: SLF001  -- suppressed warning
                 ),
             ),
         )
@@ -921,64 +752,44 @@ class LifecycleService(ReporterServiceBase):
 
     def pytest_sessionstart(self, session: Session) -> None:
         """
-        Handle the pytest sessionstart pytest hook.
-
-        Raises:
-            RuntimeError: If the operation cannot be completed.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest sessionstart pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_sessionstart`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - Product: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - RuntimeError: collaborator call used by this boundary
-            - get_distribution_version: collaborator call used by this boundary
-            - self._emit_run_hook_definition: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/debug_mcp/entrypoint.py: imports or references `pytest_sessionstart`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `pytest_sessionstart`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `pytest_sessionstart`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates pluginmanager, dsession_plugin, compatibility, config, ci.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.pytest_sessionstart`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_xdist_worker:
             os.environ.pop("PYTEST_BDD_XDIST_IS_WORKER", None)
@@ -987,7 +798,7 @@ class LifecycleService(ReporterServiceBase):
             self._emit_disabled_warning_once()
             return
 
-        self.transport_service._ensure_xdist_worker_transport_client(require_sender=True)  # noqa: SLF001
+        self.transport_service._ensure_xdist_worker_transport_client(require_sender=True)  # noqa: SLF001  -- suppressed warning
         pluginmanager = getattr(self.reporter.config, "pluginmanager", None)
         dsession_plugin = pluginmanager.getplugin("dsession") if pluginmanager is not None else None
 
@@ -996,23 +807,23 @@ class LifecycleService(ReporterServiceBase):
             and dsession_plugin is not None
             and self.reporter.xdist_fragment_dir is None
         ):
-            self.transport_service._activate_xdist_controller_mode()  # noqa: SLF001
+            self.transport_service._activate_xdist_controller_mode()  # noqa: SLF001  -- suppressed warning
 
         compatibility = validate_xdist_reporting_compatibility(
             xdist_active=self.reporter.is_xdist_worker or dsession_plugin is not None,
             is_worker=self.reporter.is_xdist_worker,
             is_controller=self.reporter.is_xdist_controller,
             remote_module_available=True,
-            controller_event_patch_installed=self.reporter._xdist_compatibility_error is None,  # noqa: SLF001
+            controller_event_patch_installed=self.reporter._xdist_compatibility_error is None,  # noqa: SLF001  -- suppressed warning
             worker_sender_available=self.reporter.xdist_transport_client is not None,
         )
         if not compatibility.is_valid:
             raise RuntimeError(str(compatibility.reason))
-        if self.reporter._xdist_compatibility_error is not None:  # noqa: SLF001
-            raise RuntimeError(self.reporter._xdist_compatibility_error)  # noqa: SLF001
+        if self.reporter._xdist_compatibility_error is not None:  # noqa: SLF001  -- suppressed warning
+            raise RuntimeError(self.reporter._xdist_compatibility_error)  # noqa: SLF001  -- suppressed warning
 
-        if not self.reporter._live_formatter_session_started and self.reporter._live_formatter_failure_message is None:  # noqa: SLF001
-            self.live_formatter_service._start_live_formatters()  # noqa: SLF001
+        if not self.reporter._live_formatter_session_started and self.reporter._live_formatter_failure_message is None:  # noqa: SLF001  -- suppressed warning
+            self.live_formatter_service._start_live_formatters()  # noqa: SLF001  -- suppressed warning
         self.transport_service.start_process_messages_thread()
 
         config = session.config
@@ -1054,55 +865,44 @@ class LifecycleService(ReporterServiceBase):
     @staticmethod
     def _require_run_started_id(*, config: Config) -> str:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._require_run_started_id`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._require_run_started_id`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - Run.from_stash: collaborator call used by this boundary
-            - RuntimeError: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_require_run_started_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_require_run_started_id`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates run_started_id, msg.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._require_run_started_id`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         run_started_id = Run.from_stash(config.stash).reporting_state.run_started_id
         if run_started_id is None:
@@ -1116,53 +916,44 @@ class LifecycleService(ReporterServiceBase):
     @staticmethod
     def _resolve_gherkin_document_and_pickle(*, run: Run) -> tuple[object | None, object | None]:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_gherkin_document_and_pickle`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_gherkin_document_and_pickle`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - is_set: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_resolve_gherkin_document_and_pickle`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_resolve_gherkin_document_and_pickle`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `_resolve_gherkin_document_and_pickle`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates scenario_run.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_gherkin_document_and_pickle`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         scenario_run = run.active_scenario_run
         if scenario_run is None:
@@ -1173,60 +964,48 @@ class LifecycleService(ReporterServiceBase):
 
     def _emit_run_hook_definition(self, config: Config, *, hook_id: str, hook_type: HookType, hook_name: str) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_run_hook_definition`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_run_hook_definition`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - type: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - self.reporter._emitted_run_hook_definition_ids.add: collaborator call used by this boundary
-            - getfile: collaborator call used by this boundary
-            - get_first_source_line: collaborator call used by this boundary
-            - self._emit_envelope: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_emit_run_hook_definition`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_emit_run_hook_definition`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates hook_method, source_file, source_line.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._emit_run_hook_definition`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        if hook_id in self.reporter._emitted_run_hook_definition_ids:  # noqa: SLF001
+        if hook_id in self.reporter._emitted_run_hook_definition_ids:  # noqa: SLF001  -- suppressed warning
             return
-        self.reporter._emitted_run_hook_definition_ids.add(hook_id)  # noqa: SLF001
+        self.reporter._emitted_run_hook_definition_ids.add(hook_id)  # noqa: SLF001  -- suppressed warning
         hook_method = (
             type(self).pytest_sessionstart if hook_type == HookType.before_test_run else type(self).pytest_sessionfinish
         )
@@ -1260,55 +1039,44 @@ class LifecycleService(ReporterServiceBase):
     @staticmethod
     def _resolve_test_step_id_for_runtime_step(*, request: FixtureRequest, step: object) -> str | None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_test_step_id_for_runtime_step`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_test_step_id_for_runtime_step`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - Run.from_stash: collaborator call used by this boundary
-            - run.resolve_test_step_id_for_runtime_step: collaborator call used by this boundary
-            - logger.warning: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_resolve_test_step_id_for_runtime_step`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `_resolve_test_step_id_for_runtime_step`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_resolve_test_step_id_for_runtime_step`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates run, test_step_id.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService._resolve_test_step_id_for_runtime_step`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         run = Run.from_stash(request.config.stash)
         test_step_id = run.resolve_test_step_id_for_runtime_step(pickle_step=step)  # type: ignore[arg-type]  # runtime object dispatch
@@ -1318,52 +1086,44 @@ class LifecycleService(ReporterServiceBase):
 
     def resolve_test_step_id_for_runtime_step(self, *, request: FixtureRequest, step: object) -> str | None:
         """
-        Resolve test step ID for runtime step.
-
-        Returns:
-            Test step ID or None.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Resolve test step ID for runtime step. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService.resolve_test_step_id_for_runtime_step`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._resolve_test_step_id_for_runtime_step: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `resolve_test_step_id_for_runtime_step`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `resolve_test_step_id_for_runtime_step`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         return self._resolve_test_step_id_for_runtime_step(request=request, step=step)
 

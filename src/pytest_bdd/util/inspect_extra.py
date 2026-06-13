@@ -1,52 +1,43 @@
 """
-Provide inspect extra helpers.
+Provides focused utility functions for the `inspect_extra` concern within pytest-bdd utility
+layer, offering helper o.
 
 Responsibility:
-    Provide inspect extra helpers. It directly owns the observable contract, local decisions, and maintenance boundary
-    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides focused utility functions for the `inspect_extra` concern within pytest-bdd utility
+    layer, offering helper operations consumed by higher layers (collection, runtime, reporting)
+    without pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.inspect_extra` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Keeping `inspect_extra` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `inspect_extra`-related helper operations
+    within the utility layer.
 
 Delegates:
-    - ObjectCallable: owns nested behavior below this boundary
-    - get_args: owns nested behavior below this boundary
-    - get_first_source_line: owns nested behavior below this boundary
-    - get_caller_module_locals: owns nested behavior below this boundary
-    - get_caller_module_path: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `inspect_extra` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `inspect_extra`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `inspect_extra`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references `inspect_extra`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-      `inspect_extra`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `inspect_extra`
+    - `pytest_bdd.plugin.*`: imports `inspect_extra` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates params, code, frame; depends on __future__.annotations, inspect.getframeinfo, inspect.getsourcelines,
-    inspect.signature, typing.TYPE_CHECKING.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.inspect_extra` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -67,166 +58,138 @@ if TYPE_CHECKING:
 
 class ObjectCallable(Protocol):
     """
-    Represent object callable state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent object callable state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.inspect_extra.ObjectCallable` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - __call__: owns nested behavior below this boundary
+        - Protocol: ObjectCallable specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `ObjectCallable`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `ObjectCallable`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ObjectCallable`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-          `ObjectCallable`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `ObjectCallable`
+        - `pytest_bdd.*`: callers catch or instantiate ObjectCallable for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.util.inspect_extra.ObjectCallable` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     def __call__(self, *args: object, **kwargs: object) -> object:
         """
-        Handle call.
+        Perform the __call__ operation within the ObjectCallable boundary, handling its specific sub-.
+        task as part of the br.
 
         Responsibility:
-            Handle call. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the __call__ operation within the ObjectCallable boundary, handling its specific sub-
+            task as part of the broader ObjectCallable responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.inspect_extra.ObjectCallable.__call__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            __call__ is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of ObjectCallable without
+            affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __call__ operation on ObjectCallable instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other ObjectCallable methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `__call__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `__call__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-              `__call__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or
-              references `__call__`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `__call__`
+            - `pytest_bdd.*`: callers that raise or catch ObjectCallable implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         ...
 
 
 def get_args(func: ObjectCallable) -> Sequence[str]:
     """
-    Get a list of argument names for a function.
-
-    :param func: The function to inspect.
-
-    :return: A list of argument names.
-    :rtype: list
-
-    Returns:
-        List of positional argument names.
+    Perform the `get_args` operation within its module boundary, implementing a focused helper.
+    function that is consumed.
 
     Responsibility:
-        Get a list of argument names for a function. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `get_args` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.inspect_extra.get_args` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `get_args` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - signature.parameters.values: collaborator call used by this boundary
-        - signature: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_args operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/model/message_extension.py: imports or references `get_args`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `get_args`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `get_args`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references `get_args`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `get_args`
+        - `pytest_bdd.*`: callers import and invoke get_args for its specific utility
 
     State and side effects:
-        mutates params.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.inspect_extra.get_args` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The get_args function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     params = signature(func).parameters.values()
     return [param.name for param in params if param.kind == param.POSITIONAL_OR_KEYWORD]
@@ -234,65 +197,47 @@ def get_args(func: ObjectCallable) -> Sequence[str]:
 
 def get_first_source_line(obj: object) -> int:
     """
-    Get the first source line number of an object.
-
-    Args:
-        obj: Object to inspect.
-
-    Returns:
-        First source line number.
+    Perform the `get_first_source_line` operation within its module boundary, implementing a.
+    focused helper function tha.
 
     Responsibility:
-        Get the first source line number of an object. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `get_first_source_line` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.inspect_extra.get_first_source_line` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `get_first_source_line` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getsourcelines: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - int: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_first_source_line operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references
-          `get_first_source_line`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `get_first_source_line`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-          `get_first_source_line`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `get_first_source_line`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `get_first_source_line`
+        - `pytest_bdd.*`: callers import and invoke get_first_source_line for its specific utility
 
     State and side effects:
-        mutates code.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.inspect_extra.get_first_source_line` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - The get_first_source_line function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     try:
         return getsourcelines(
@@ -307,122 +252,94 @@ def get_first_source_line(obj: object) -> int:
 
 def get_caller_module_locals(stacklevel: int = 1) -> dict[str, object]:
     """
-    Get the caller module locals dictionary.
-
-    We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
-    all the frames in the stack.
-
-    Returns:
-        Caller's module locals dictionary.
+    Perform the `get_caller_module_locals` operation within its module boundary, implementing a.
+    focused helper function .
 
     Responsibility:
-        Get the caller module locals dictionary. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `get_caller_module_locals` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.inspect_extra.get_caller_module_locals` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `get_caller_module_locals` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - get_frame: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_caller_module_locals operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references
-          `get_caller_module_locals`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `get_caller_module_locals`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-          `get_caller_module_locals`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `get_caller_module_locals`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `get_caller_module_locals`
+        - `pytest_bdd.*`: callers import and invoke get_caller_module_locals for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The get_caller_module_locals function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return get_frame(stacklevel).f_locals
 
 
 def get_caller_module_path(stacklevel: int = 1) -> str:
     """
-    Get the caller module path.
-
-    We use sys._getframe instead of inspect.stack(0) because the latter is way slower, since it iterates over
-    all the frames in the stack.
-
-    Returns:
-        Path to the caller's module file.
+    Perform the `get_caller_module_path` operation within its module boundary, implementing a.
+    focused helper function th.
 
     Responsibility:
-        Get the caller module path. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `get_caller_module_path` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.inspect_extra.get_caller_module_path` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `get_caller_module_path` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - get_frame: collaborator call used by this boundary
-        - getframeinfo: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_caller_module_path operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references
-          `get_caller_module_path`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `get_caller_module_path`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/facade.py: imports or references
-          `get_caller_module_path`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `get_caller_module_path`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `get_caller_module_path`
+        - `pytest_bdd.*`: callers import and invoke get_caller_module_path for its specific utility
 
     State and side effects:
-        mutates frame.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.inspect_extra.get_caller_module_path` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - The get_caller_module_path function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     frame = get_frame(stacklevel)
     return getframeinfo(frame, context=0).filename

@@ -1,51 +1,81 @@
 """
-Provide the URL-based scenario locator.
+Owns the URL-based scenario location infrastructure: UrlScenarioLocator (extending ScenarioLocatorFilterMixin) that r.
 
 Responsibility:
-    Provide the URL-based scenario locator. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module.
+    Owns the URL-based scenario location infrastructure: UrlScenarioLocator (extending ScenarioLocatorFilterMixin) that
+    resolves features from HTTP/HTTPS URLs using aiohttp for async fetching, with a resolve_features() pipeline that
+    builds URLs from configured url_paths and features_base_url, fetches feature content async via fetch_all()/fetch(),
+    writes content to temporary files, parses with hook-selected or explicitly configured parsers, and yields
+    (ParsedFeature, Source) tuples with the original URL as URI. Also owns PyPyUrlScenarioLocator, a synchronous
+    subclass that overrides _fetch_feature_responses to use stdlib urllib.request instead of aiohttp for PyPy
+    compatibility.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.scenario_locator.url_locator` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Some BDD workflows store feature files on remote servers, shared repositories, or test management platforms. URL-
+    based scenario location enables pytest-bdd to fetch and execute these remote features without manual download. The
+    async fetch (aiohttp) is the primary backend for CPython, while the synchronous fallback (urllib) via
+    PyPyUrlScenarioLocator ensures PyPy support (where aiohttp may have issues). The temporary file pattern (write →
+    parse → cleanup) is necessary because the Gherkin parser API expects file paths, not in-memory strings.
 
 Delegates:
-    - UrlScenarioLocator: owns nested behavior below this boundary
-    - PyPyUrlScenarioLocator: owns nested behavior below this boundary
+    - aiohttp.ClientSession: Async HTTP client for fetching feature files concurrently.
+    - urllib.request.urlopen: Synchronous HTTP client used by PyPyUrlScenarioLocator for PyPy compatibility.
+    - certifi: Provides CA certificates for SSL verification on both async and sync paths.
+    - ssl.create_default_context: Creates SSL context with certifi certificates for secure connections.
+    - pytest_bdd.mimetype.Mimetype: Media type enum for content-type based parser selection.
+    - pytest_bdd.scenario.Args: Parser arguments configuration.
+    - pytest_bdd.util.url.is_local_url: Detects if a URL path is a local file reference vs remote URL.
+    - pytest_bdd.util.other.IdGenerator: Provides unique IDs for parsing.
+    - NamedTemporaryFile: Creates temporary files for URL content before parsing.
+    - PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS: Error suppression gate.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities serve URL-based feature resolution. UrlScenarioLocator owns the async fetch pipeline,
+    PyPyUrlScenarioLocator specializes it for sync fetch, _build_urls constructs URL lists, _fetch_feature_responses
+    handles the async/sync dispatch, _get_parser_type handles parser selection, _parse_and_yield_feature handles temp
+    file management and parsing, and _write_temp_feature_file/_parse_temp_feature are helper stages in the temp file
+    pipeline.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - FileScenarioLocator: Kept separate because FileScenarioLocator handles local disk-based resolution with glob
+    patterns and file caching, while UrlScenarioLocator handles remote URL-based resolution with HTTP fetching, temp
+    files, and async I/O — completely different I/O models and configuration surfaces.
+    - pytest_bdd.scenario_locator.base.ScenarioLocatorFilterMixin: Kept separate because the mixin provides the shared
+    resolve() pipeline, while UrlScenarioLocator provides URL-specific resolve_features().
 
 Main consumers:
-    - src/pytest_bdd/feature_locator.py: imports or references `url_locator`
-    - src/pytest_bdd/scenario_locator/facade.py: imports or references `url_locator`
+    - pytest_bdd.collector: Uses UrlScenarioLocator when feature sources are URLs.
+    - pytest_bdd.scenario.scenarios(): Creates UrlScenarioLocator when paths are URLs.
+    - pytest_bdd.scenario_locator.__init__: Re-exported through public API.
 
 State and side effects:
-    mutates responses, encoding, mimetype, parser_type, parse_args; depends on __future__.annotations, asyncio, ssl,
-    urllib.request, contextlib.suppress.
+    Stores configuration (url_paths, encoding, features_base_url, mimetype, parser_type, parse_args) via attrs.
+    resolve_features performs network I/O (HTTP requests), creates temporary files (NamedTemporaryFile), and cleans them
+    up (Path.unlink). Async event loop is created and closed per fetch batch.
 
 Invariants:
-    - `pytest_bdd.scenario_locator.url_locator` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Temporary files must be cleaned up (unlinked) even if parsing fails — the finally block guarantees this.
+    - SSL verification must use certifi certificates — sslcontext is created with certifi.where() for both async and
+    sync paths.
+    - The event loop must be properly closed after each fetch batch — the finally block in _fetch_feature_responses
+    guarantees loop.close().
 
 Failure semantics:
-    Raises or re-raises re-raise; callers must treat these as boundary failures.
+    - Network errors during fetch are collected as BaseException in the response list (via return_exceptions=True) and
+    skipped in resolve_features.
+    - FeatureParseError on parsing follows the CONTINUE_ON_COLLECTION_ERRORS gate (same as file locator).
+    - Missing parser_type causes early return (break) — no parser for the detected format.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=4
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=3
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -85,63 +115,77 @@ if TYPE_CHECKING:
 @define
 class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     """
-    Represent url scenario locator state.
-
-    Yields:
-        Generated values.
+    Implements URL-based feature resolution using aiohttp for async HTTP fetching.
 
     Responsibility:
-        Represent url scenario locator state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Implements URL-based feature resolution using aiohttp for async HTTP fetching. Configured with url_paths (URLs
+        or Path objects used as URL segments), optional features_base_url (prefix for relative URLs, can be a callable),
+        and optional encoding/mimetype/parser_type/parse_args overrides. The resolve_features() pipeline: builds
+        complete URLs via _build_urls(), fetches all URLs concurrently via fetch_all() which creates an async event
+        loop, writes each response to a temporary file, parses with hook-selected or explicit parser, and yields
+        (ParsedFeature, Source) tuples. Temporary files are cleaned up after parsing regardless of success or failure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Remote feature files are a common pattern in BDD — teams centralize feature specifications on shared servers,
+        test management platforms, or version control URLs. This class enables pytest-bdd to fetch and execute these
+        remote features without manual download. The async fetching via aiohttp provides concurrent HTTP requests for
+        efficiency with multiple URLs. The temporary file pattern bridges the gap between HTTP responses (in-memory
+        strings) and the Gherkin parser API (file-path-based).
 
     Delegates:
-        - fetch: owns nested behavior below this boundary
-        - fetch_all: owns nested behavior below this boundary
-        - resolve_features: owns nested behavior below this boundary
-        - _build_urls: owns nested behavior below this boundary
-        - _fetch_feature_responses: owns nested behavior below this boundary
-        - _get_parser_type: owns nested behavior below this boundary
+        - _build_urls: Constructs complete URL list from url_paths and features_base_url.
+        - _fetch_feature_responses: Creates event loop and runs fetch_all to get content.
+        - fetch_all: Orchestrates concurrent aiohttp requests via asyncio.gather.
+        - fetch: Performs individual async HTTP GET with SSL verification.
+        - _get_parser_type: Resolves parser class from hook or explicit configuration.
+        - _parse_and_yield_feature: Handles temp file writing, parsing, and cleanup.
+        - _write_temp_feature_file / _parse_temp_feature: Temp file helper stages.
+        - aiohttp.ClientSession: Async HTTP session for concurrent requests.
+        - certifi: Provides CA certificates for SSL.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every method supports URL-based feature fetching: url_paths and features_base_url define the URLs, _build_urls
+        constructs them, fetch/fetch_all handle HTTP, _write_temp_feature_file creates temp files, _parse_temp_feature
+        parses them, _parse_and_yield_feature orchestrates the temp file lifecycle, and resolve_features is the main
+        pipeline. All methods form a complete HTTP → parse pipeline.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - FileScenarioLocator: Kept separate because file-based location uses disk I/O, glob patterns, and batch parser
+        caching, while URL-based location uses HTTP, async I/O, and temp files — completely different I/O models.
+        - PyPyUrlScenarioLocator: Kept separate because PyPy uses synchronous urllib instead of async aiohttp —
+        different HTTP backends for different Python implementations.
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `UrlScenarioLocator`
-        - src/pytest_bdd/scenario_locator/__init__.py: imports or references `UrlScenarioLocator`
-        - src/pytest_bdd/scenario_locator/facade.py: imports or references `UrlScenarioLocator`
+        - pytest_bdd.collector: Uses UrlScenarioLocator for URL-based scenario discovery.
+        - pytest_bdd.scenario.scenarios(): Creates UrlScenarioLocator when paths are URLs.
+        - pytest_bdd.scenario_locator.__init__: Re-exported through public API.
 
     State and side effects:
-        mutates encoding, mimetype, parser_type, parse_args, urls; depends on certifi, aiohttp,
-        pytest_bdd.const.PytestConfigParam.
+        Stores configuration (attrs fields). resolve_features performs network I/O (HTTP requests — side effects on
+        remote servers), creates temp files (filesystem I/O), and cleans them up. Creates and closes an async event loop
+        per call.
 
     Invariants:
-        - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - URLs from url_paths that pass is_local_url() are joined with features_base_url; URLs that fail is_local_url()
+        are used directly as absolute URLs.
+        - Temporary files must be cleaned up (unlinked) in the finally block even if parsing raises an exception.
+        - SSL context must use certifi certificates — sslcontext is created with certifi.where().
 
     Failure semantics:
-        Raises or re-raises re-raise; callers must treat these as boundary failures.
+        Network errors collected as BaseException are silently skipped in resolve_features.
+        FeatureParseError follows CONTINUE_ON_COLLECTION_ERRORS gate.
+        Missing parser_type causes empty yield (no results).
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=4
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=5
+        #arch-eval:locational_stability=5
     """
 
     url_paths: list[str | Path] = field()
@@ -153,62 +197,54 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     async def fetch(self, session: aiohttp.ClientSession, url: str) -> tuple[str, str]:
         """
-        Fetch content from URL.
-
-        Args:
-            session: aiohttp client session.
-            url: URL to fetch.
-
-        Returns:
-            Tuple of (content_type, content_text).
+        Perform a single async HTTP GET request for a feature file URL using an aiohttp ClientSession.
 
         Responsibility:
-            Fetch content from URL. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this async method. That boundary is intentionally stated in prose so maintainers can distinguish owned
-            work from collaborators before editing.
+            Performs a single async HTTP GET request for a feature file URL using an aiohttp ClientSession. Creates an
+            SSL context with certifi CA certificates for secure connections, awaits the response, and returns a tuple of
+            (content_type, response_text) decoded with the configured encoding (default "utf-8"). This is the lowest-
+            level HTTP operation in the URL locator — all URL fetching flows through this method.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.fetch`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method encapsulates the HTTP GET operation with proper SSL configuration. Using certifi certificates
+            ensures the SSL connection verifies against a trusted CA bundle rather than using the system's potentially
+            outdated or missing certificates. The content_type from the response headers is used later for mimetype-
+            based parser selection, enabling automatic format detection from HTTP servers.
 
         Delegates:
-            - ssl.create_default_context: collaborator call used by this boundary
-            - certifi.where: collaborator call used by this boundary
-            - session.get: collaborator call used by this boundary
-            - response.text: collaborator call used by this boundary
+            - aiohttp.ClientSession.get: Performs the async HTTP GET request.
+            - ssl.create_default_context(cafile=certifi.where()): Creates SSL context with trusted CA certificates.
+            - certifi.where(): Returns the path to the certifi CA bundle.
+            - response.content_type: Extracts the media type from HTTP response headers.
+            - response.text(encoding): Reads response body as text with specified encoding.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: HTTP GET → return content_type + text. Every line serves this purpose.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - fetch_all: Kept separate because fetch_all orchestrates concurrent requests via asyncio.gather, while
+            fetch performs individual requests — single vs batch.
+            - PyPyUrlScenarioLocator._fetch_feature_responses: Kept separate because PyPy uses synchronous urllib
+            instead of async aiohttp.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `fetch`
-            - src/pytest_bdd/script/sync_messages_contract_schemas.py: imports or references `fetch`
+            - fetch_all: Called via asyncio.gather for each URL in the URL list.
 
         State and side effects:
-            mutates sslcontext; depends on certifi.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.fetch` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Performs network I/O (HTTP request) — a side effect on the remote server. SSL context creation is a local computation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
             #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
-        import certifi  # noqa: PLC0415
+        import certifi
 
         sslcontext = ssl.create_default_context(cafile=certifi.where())
         async with session.get(url, ssl=sslcontext) as response:
@@ -216,115 +252,115 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     async def fetch_all(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         """
-        Fetch all URLs concurrently.
-
-        Args:
-            urls: Sequence of URLs to fetch.
-
-        Returns:
-            List of tuples (content_type, content_text) or exceptions.
+        Orchestrates concurrent async HTTP GET requests for all URLs in the sequence using a single aiohttp ClientSession.
 
         Responsibility:
-            Fetch all URLs concurrently. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this async method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Orchestrates concurrent async HTTP GET requests for all URLs in the sequence using a single aiohttp
+            ClientSession. Uses asyncio.gather with return_exceptions=True to collect results (including exceptions) for
+            all URLs, ensuring that one failed request doesn't abort others. Returns a list where each element is either
+            a (content_type, text) tuple on success or a BaseException on failure. This is the batch entry point for URL
+            fetching.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.fetch_all` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Concurrent fetching is essential for performance when multiple feature URLs are configured — without it,
+            URLs would be fetched sequentially, multiplying total wait time by the number of URLs. The
+            return_exceptions=True flag ensures robust behavior: network errors for individual URLs are collected and
+            can be handled gracefully in resolve_features (skipped) rather than crashing the entire batch.
 
         Delegates:
-            - aiohttp.ClientSession: collaborator call used by this boundary
-            - asyncio.gather: collaborator call used by this boundary
-            - self.fetch: collaborator call used by this boundary
+        - aiohttp.ClientSession: Created as async context manager — ensures proper connection cleanup.
+        - asyncio.gather(*tasks, return_exceptions=True): Runs all fetch tasks concurrently, collecting results and exceptions.
+        - self.fetch: The individual fetch operation called for each URL.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: create session → concurrent fetch → gather results. Every line serves
+            this batch fetching purpose.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - fetch: Kept separate because fetch is the single-request operation while fetch_all is the batch orchestrator.
+            - _fetch_feature_responses: Kept separate because that method creates the event loop and awaits fetch_all,
+            while fetch_all is the async logic — sync orchestration vs async implementation.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `fetch_all`
+            - _fetch_feature_responses: Called within the event loop to perform the actual fetching.
 
         State and side effects:
-            depends on aiohttp.
+            Creates an aiohttp.ClientSession (network resource) and performs N concurrent HTTP requests. Session is
+            cleaned up via async context manager.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
             #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
-        import aiohttp  # noqa: PLC0415
+        import aiohttp
 
         async with aiohttp.ClientSession() as session:
             return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
 
     def resolve_features(self, config: Config | HasPytestStash) -> Iterator[tuple[ParsedFeature, Source]]:
         """
-        Resolve features.
-
-        Yields:
-            Generated values.
+        Implement the feature discovery and parsing pipeline for URL-based sources: builds complete URLs via _build_urls(), .
 
         Responsibility:
-            Resolve features. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Implements the feature discovery and parsing pipeline for URL-based sources: builds complete URLs via
+            _build_urls(), fetches all URL content via _fetch_feature_responses() (synchronous wrapper around async
+            fetch_all), for each successful response extracts the mimetype (from explicit config or response
+            content_type), selects a parser via _get_parser_type(), and delegates to _parse_and_yield_feature() which
+            handles temporary file writing, parsing, and cleanup. Network errors are silently skipped (non-BaseException
+            responses are processed). Yields (ParsedFeature, Source) tuples with the original URL as the source URI.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.resolve_features` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This is the main resolution loop for URL-based feature loading. It orchestrates: URL construction → batch
+            HTTP fetch → per-response mimetype detection → parser selection → temp file → parse → yield. Without this
+            method, URL-based feature sources would have no discovery and parsing pipeline.
 
         Delegates:
-            - cast: collaborator call used by this boundary
-            - self._build_urls: collaborator call used by this boundary
-            - self._fetch_feature_responses: collaborator call used by this boundary
-            - zip: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
-            - Mimetype: collaborator call used by this boundary
+            - _build_urls: Constructs the list of complete URLs.
+            - _fetch_feature_responses: Synchronous wrapper that manages the async event loop for batch fetching.
+            - _get_parser_type: Resolves the parser class for the detected mimetype.
+            - _parse_and_yield_feature: Handles temp file creation, parsing, cleanup, and yielding.
+            - IdGenerator.from_stash: Provides unique IDs for parser instantiation.
+            - Mimetype: Used to normalize the raw mimetype string for parser selection.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method is a clear pipeline: build URLs → fetch → for each response → detect type → select parser → parse
+            → yield. Every line serves this orchestration.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve (from ScenarioLocatorFilterMixin): Kept separate because resolve is the full pipeline (features →
+            binding → filtering), while resolve_features is the feature discovery stage.
+            - FileScenarioLocator.resolve_features: Kept separate because file-based resolution uses disk I/O and cache,
+            while URL-based uses HTTP and temp files.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/base.py: imports or references `resolve_features`
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `resolve_features`
+            - self.resolve() (inherited): Called as the first stage of scenario resolution.
 
         State and side effects:
-            mutates urls, responses, hook_handler, encoding, mimetype_raw.
+            Performs network I/O (HTTP requests), creates temporary files, instantiates parsers. Cleans up temp files
+            via _parse_and_yield_feature's finally block.
 
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator.resolve_features` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+        Failure semantics:
+            Network errors (BaseException in responses) are silently skipped.
+            Missing parser_type causes empty yield (early return via break or None parser).
+            FeatureParseError follows CONTINUE_ON_COLLECTION_ERRORS gate in _parse_temp_feature.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=2
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         urls = self._build_urls()
         if not urls:
@@ -350,51 +386,54 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     def _build_urls(self) -> list[str]:
         """
+        Construct the complete list of URLs to fetch by processing url_paths entries: paths that are NOT local URLs (absolut.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._build_urls`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Constructs the complete list of URLs to fetch by processing url_paths entries: paths that are NOT local URLs
+            (absolute URLs) are used directly as strings; paths that ARE local URLs (relative paths) are joined with
+            features_base_url using urljoin (appending the path to the base URL with proper slash handling). Returns the
+            concatenated list of absolute URLs. This is the URL construction stage that converts the mix of relative and
+            absolute URL specifications into a uniform list for fetching.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._build_urls` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Users can specify URL features as absolute URLs (https://example.com/features/foo.feature), relative paths
+            (features/foo.feature with a base URL), or a mix. This method separates absolute and relative URLs and
+            processes each appropriately. The is_local_url() check determines whether a path is a relative reference
+            (needing base URL joining) or an absolute URL (used as-is). Without this method, the URL list would need to
+            be pre-normalized by the caller.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - filterfalse: collaborator call used by this boundary
-            - urls.extend: collaborator call used by this boundary
-            - urljoin: collaborator call used by this boundary
-            - filter: collaborator call used by this boundary
+            - is_local_url: Determines if a path is a relative/local reference vs absolute URL.
+            - urljoin: Joins a base URL with a relative path, handling slash normalization.
+            - filterfalse(is_local_url, ...): Filters out local URLs (extracting absolute URLs).
+            - filter(is_local_url, ...): Filters for local URLs (extracting relative paths to join).
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: convert url_paths entries into absolute URLs. The filter operations
+            separate the two URL categories.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _fetch_feature_responses: Kept separate because that method fetches URLs while this method constructs them
+            — construction vs execution.
+            - resolve_features: Kept separate because resolve_features orchestrates the full pipeline while _build_urls
+            handles URL construction.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_build_urls`
+            - resolve_features: Called at the start to build the URL list for fetching.
 
         State and side effects:
-            mutates urls.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._build_urls` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            None. Pure function of self.url_paths and self.features_base_url.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         urls = [str(url) for url in filterfalse(is_local_url, self.url_paths)]
         if self.features_base_url is not None:
@@ -405,52 +444,55 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     def _fetch_feature_responses(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         """
+        Wrap synchronously to create creates a new asyncio event loop, runs the async fetch_all() method within it to fetch all U.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._fetch_feature_responses` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Synchronous wrapper that creates a new asyncio event loop, runs the async fetch_all() method within it to
+            fetch all URLs concurrently, waits 250ms for SSL connections to close cleanly, and returns the list of
+            (content_type, text) tuples or BaseException for each URL. Ensures the event loop is properly closed in the
+            finally block. This is the bridge between the synchronous resolve_features() caller and the async
+            fetch_all() implementation.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._fetch_feature_responses` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            pytest's collection hooks are synchronous, but HTTP fetching benefits from async concurrency. This method
+            bridges the gap by creating a dedicated event loop, running the async fetch in it, and returning results
+            synchronously. The 250ms sleep after fetching allows underlying SSL connections to close gracefully,
+            preventing "SSL connection not closed" warnings. The finally block ensures the loop is always closed,
+            preventing resource leaks.
 
         Delegates:
-            - loop.run_until_complete: collaborator call used by this boundary
-            - asyncio.new_event_loop: collaborator call used by this boundary
-            - self.fetch_all: collaborator call used by this boundary
-            - asyncio.sleep: collaborator call used by this boundary
-            - loop.close: collaborator call used by this boundary
+            - asyncio.new_event_loop(): Creates a fresh event loop for this fetch batch.
+            - loop.run_until_complete(self.fetch_all(urls)): Runs the async fetch in the new loop.
+            - loop.run_until_complete(asyncio.sleep(0.250)): Waits for SSL connection cleanup.
+            - loop.close(): Ensures the event loop resources are freed.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: create loop → run async fetch → cleanup → return results. Every line
+            serves this bridge pattern.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - fetch_all: Kept separate because fetch_all is the async implementation while _fetch_feature_responses is
+            the sync bridge — async core vs sync wrapper.
+            - PyPyUrlScenarioLocator._fetch_feature_responses: Kept separate because PyPy overrides this with
+            synchronous urllib — different HTTP backends.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_fetch_feature_responses`
+            - resolve_features: Called to synchronously fetch all URLs.
 
         State and side effects:
-            mutates loop, responses.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._fetch_feature_responses` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Creates and closes an asyncio event loop — system resource management. Performs network I/O through the
+            loop. The 250ms sleep is a wait for network connection cleanup.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=3
             #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         loop = asyncio.new_event_loop()
         try:
@@ -468,44 +510,46 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         mimetype: Mimetype,
     ) -> type[ParserProtocol] | None:
         """
+        Resolve the parser class for a given media type: if self.parser_type is explicitly configured, returns it directly; .
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._get_parser_type` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Resolves the parser class for a given media type: if self.parser_type is explicitly configured, returns it
+            directly; otherwise, delegates to the hook system via hook_handler.pytest_bdd_get_parser(config, mimetype).
+            Returns None if no parser is registered for the media type. This is the parser selection stage that bridges
+            explicit configuration and plugin-based parser registration.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._get_parser_type` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            Parser selection is a decision point that can be influenced by explicit user configuration or plugin hooks.
+            This method encapsulates that decision in one place, ensuring both paths return the same type
+            (ParserProtocol | None). Without this method, resolve_features would need to inline the if/else logic for
+            multiple call sites.
 
         Delegates:
-            - hook_handler.pytest_bdd_get_parser: collaborator call used by this boundary
+            - hook_handler.pytest_bdd_get_parser: Plugin hook for parser lookup by media type.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: select parser class from config or hook. The if/else is the only branching.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - resolve_features: Kept separate because resolve_features orchestrates the pipeline while _get_parser_type
+            handles parser selection — orchestration vs selection.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_get_parser_type`
+            - resolve_features: Called to get the parser before instantiating it.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None. Reads self.parser_type (immutable) and invokes hook (may trigger plugin logic).
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         if self.parser_type is None:
             return hook_handler.pytest_bdd_get_parser(
@@ -514,7 +558,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             )
         return self.parser_type
 
-    def _parse_and_yield_feature(  # noqa: PLR0913, PLR0917
+    def _parse_and_yield_feature(  # noqa: PLR0913, PLR0917  -- URL locator parse args include all fetch/parse configuration in one boundary
         self,
         parser: ParserProtocol,
         config: Config | HasPytestStash,
@@ -524,53 +568,53 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         encoding: str,
     ) -> Iterator[tuple[ParsedFeature, Source]]:
         """
+        Handle the complete temp-file-based parsing lifecycle for a single URL feature: writes the feature content to a temp.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_and_yield_feature` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Handles the complete temp-file-based parsing lifecycle for a single URL feature: writes the feature content
+            to a temporary file (via _write_temp_feature_file), parses it using the configured parser (via
+            _parse_temp_feature), constructs a Source object with the original URL as URI, yields the (ParsedFeature,
+            Source) tuple, and ensures the temporary file is deleted in the finally block (suppressing any cleanup
+            errors). This is the final stage of the URL resolution pipeline before yielding results.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_and_yield_feature` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            The Gherkin parser API expects file paths, not in-memory strings. This method bridges that gap by writing
+            HTTP response content to a temp file, parsing it, and cleaning up. The finally block is critical — without
+            it, temp files would accumulate on disk. The suppress(Exception) in cleanup ensures that cleanup failures
+            (e.g., permission issues) don't mask parsing errors.
 
         Delegates:
-            - Path: collaborator call used by this boundary
-            - self._write_temp_feature_file: collaborator call used by this boundary
-            - self._parse_temp_feature: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - Source: collaborator call used by this boundary
-            - suppress: collaborator call used by this boundary
+            - _write_temp_feature_file: Creates a temporary file with the feature content.
+            - _parse_temp_feature: Parses the temp file using the configured parser.
+            - NamedTemporaryFile: Creates temp files with automatic naming.
+            - Path.unlink: Deletes the temp file after parsing.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one pipeline: write → parse → yield → cleanup. Every line serves this temp file lifecycle.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _write_temp_feature_file: Kept separate because that method handles file creation while this method
+            handles the full lifecycle — creation vs lifecycle management.
+            - _parse_temp_feature: Kept separate because that method handles parsing while this method orchestrates file
+            lifecycle — parsing vs orchestration.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_parse_and_yield_feature`
+            - resolve_features: Called for each successfully fetched URL.
 
         State and side effects:
-            mutates filename, parsed, media_type.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_and_yield_feature` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Creates a temporary file (filesystem I/O — side effect), reads it (parse), deletes it (filesystem I/O). The
+            finally block guarantees cleanup.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=2
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         filename = self._write_temp_feature_file(feature_content)
         try:
@@ -586,45 +630,51 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     @staticmethod
     def _write_temp_feature_file(feature_content: str) -> str:
         """
+        Provide static method that writes feature content (a string) to a new temporary file using NamedTemporaryFile with UTF-8 enco.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._write_temp_feature_file` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Static method that writes feature content (a string) to a new temporary file using NamedTemporaryFile with
+            UTF-8 encoding and delete=False (caller manages cleanup). Returns the temp file's path as a string. This is
+            the first stage of the temp file pipeline — converting in-memory HTTP response content into a filesystem
+            path that the Gherkin parser can read.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._write_temp_feature_file` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            The Gherkin parser requires a file path, not an in-memory string. This method creates a temporary file to
+            satisfy that API requirement. Using NamedTemporaryFile with delete=False gives the caller full control over
+            the file's lifecycle (write → parse → delete), which is managed by _parse_and_yield_feature. The static
+            method pattern indicates this operation doesn't depend on instance state.
 
         Delegates:
-            - NamedTemporaryFile: collaborator call used by this boundary
-            - file.write: collaborator call used by this boundary
+            - NamedTemporaryFile(encoding="utf-8", mode="w", delete=False): Creates a temporary file that persists after closing.
+            - file.write(feature_content): Writes the feature content to the file.
+            - file.name: The auto-generated path of the temporary file.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: write content to temp file → return path. Every line serves this purpose.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _parse_temp_feature: Kept separate because that method reads and parses the temp file, while this method
+            creates it — write vs read/parse.
+            - _parse_and_yield_feature: Kept separate because that method manages the full lifecycle (write → parse →
+            cleanup), while this handles only the write stage.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_write_temp_feature_file`
+            - _parse_and_yield_feature: Called to create the temp file before parsing.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Creates a file on disk (filesystem side effect). The file is NOT deleted by this method — cleanup is the
+            caller's responsibility.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         with NamedTemporaryFile(encoding="utf-8", mode="w", delete=False) as file:
             file.write(feature_content)
@@ -639,57 +689,58 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
         encoding: str,
     ) -> ParsedFeature | None:
         """
+        Pars a temporary feature file using the provided parser with the original URL as the Gherkin URI, encoding, and any.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_temp_feature` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Parses a temporary feature file using the provided parser with the original URL as the Gherkin URI,
+            encoding, and any configured parse_args. Catches FeatureParseError and checks the
+            PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS option: if enabled, returns None (skipping the feature
+            silently); if disabled, re-raises the exception. This is the parsing stage of the temp file pipeline, the
+            last step before yielding results to the caller.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_temp_feature` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            Parsing is the critical step where network content becomes structured feature data. The error handling gate
+            (CONTINUE_ON_COLLECTION_ERRORS) allows the same flexibility as file-based resolution: failing features can
+            either halt collection (strict mode) or be silently skipped (robust mode). The deferred import of
+            PytestConfigParam avoids circular dependency issues.
 
         Delegates:
-            - Args: collaborator call used by this boundary
-            - parser.parse: collaborator call used by this boundary
-            - cast.getoption: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - parser.parse(config, path, url, *args, encoding=encoding, **kwargs): Performs the actual Gherkin parsing.
+            - PytestConfigParam.CONTINUE_ON_COLLECTION_ERRORS: Configuration gate for error suppression.
+            - Args: The configured parser arguments unpacked into the parse call.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: parse file → handle error → return result or re-raise. Every line serves
+            this parsing stage.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _write_temp_feature_file: Kept separate because that method creates the file while this method parses it —
+            write vs read/parse.
+            - _parse_and_yield_feature: Kept separate because that method manages the lifecycle while this handles the
+            parsing — orchestration vs stage.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_parse_temp_feature`
+            - _parse_and_yield_feature: Called after writing the temp file to parse and potentially yield results.
 
         State and side effects:
-            mutates parse_args; depends on pytest_bdd.const.PytestConfigParam.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.UrlScenarioLocator._parse_temp_feature` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Reads from disk (parser.parse reads the file). No file modification.
 
         Failure semantics:
-            Raises or re-raises re-raise; callers must treat these as boundary failures.
+            Raises FeatureParseError when parsing fails and CONTINUE_ON_COLLECTION_ERRORS is disabled.
+            Returns None when parsing fails and CONTINUE_ON_COLLECTION_ERRORS is enabled — caller silently skips.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
-        from pytest_bdd.const import PytestConfigParam  # noqa: PLC0415
+        from pytest_bdd.const import PytestConfigParam
 
         try:
             parse_args = self.parse_args or Args((), {})
@@ -709,116 +760,124 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 @define
 class PyPyUrlScenarioLocator(UrlScenarioLocator):
     """
-    Represent url scenario locator state on PyPy runtimes, avoiding aiohttp.
-
-    Yields:
-        Generated values.
+    A PyPy-compatible subclass of UrlScenarioLocator that overrides _fetch_feature_responses() to use synchronous urllib.
 
     Responsibility:
-        Represent url scenario locator state on PyPy runtimes, avoiding aiohttp. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this class.
+        A PyPy-compatible subclass of UrlScenarioLocator that overrides _fetch_feature_responses() to use synchronous
+        urllib.request.urlopen() instead of async aiohttp. Iterates over URLs sequentially, creates SSL context with
+        certifi certificates, performs synchronous HTTP GET with 10-second timeout, reads response headers
+        (content_type) and body (decoded with configured encoding), and collects results as (content_type, text) tuples
+        or BaseException on failure. This avoids the async/await requirements that may not be available or performant on
+        PyPy implementations.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.scenario_locator.url_locator.PyPyUrlScenarioLocator`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        aiohttp has known compatibility issues with PyPy due to its reliance on asyncio and C extensions. This subclass
+        provides a synchronous fallback using stdlib urllib, which works reliably on all Python implementations. The
+        10-second timeout prevents hung connections from blocking collection indefinitely. The subclass pattern (rather
+        than a runtime check) makes the choice explicit at import time — users on PyPy import PyPyUrlScenarioLocator,
+        users on CPython import UrlScenarioLocator.
 
     Delegates:
-        - _fetch_feature_responses: owns nested behavior below this boundary
+        - urllib.request.urlopen: Synchronous HTTP GET with SSL context and timeout.
+        - ssl.create_default_context(cafile=certifi.where()): SSL context with trusted certificates.
+        - certifi.where(): CA bundle path for SSL verification.
+        - response.headers.get_content_type(): Extracts Content-Type header.
+        - response.read() + decode: Reads response body and decodes with configured encoding.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The overridden method has one purpose: provide synchronous HTTP fetching. All logic in _fetch_feature_responses
+        serves this single purpose — SSL setup, URL iteration, request execution, error handling.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - UrlScenarioLocator: Kept separate because UrlScenarioLocator uses async aiohttp while PyPyUrlScenarioLocator
+        uses sync urllib — different HTTP backends, shared configuration and pipeline.
+        - FileScenarioLocator: Kept separate because file-based location is entirely different (disk I/O vs network I/O).
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `PyPyUrlScenarioLocator`
-        - src/pytest_bdd/scenario_locator/__init__.py: imports or references `PyPyUrlScenarioLocator`
-        - src/pytest_bdd/scenario_locator/facade.py: imports or references `PyPyUrlScenarioLocator`
+        - PyPy environments: Used instead of UrlScenarioLocator for PyPy-compatible URL fetching.
+        - pytest_bdd.scenario_locator.__init__: Re-exported through public API.
 
     State and side effects:
-        mutates responses, sslcontext, content_type, content_bytes, content_text; depends on certifi.
+        Performs synchronous network I/O (blocking HTTP requests). Creates temporary SSL context per call.
 
     Invariants:
-        - `pytest_bdd.scenario_locator.url_locator.PyPyUrlScenarioLocator` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - HTTP timeout must be explicitly set (10 seconds default) — no infinite hanging on network issues.
+        - Broad Exception catch is necessary to handle all possible network/SSL/protocol errors — specific exception
+        types vary by Python version and platform.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
+        #arch-eval:state_invariants=3
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
-
     """
 
     def _fetch_feature_responses(self, urls: Sequence[str]) -> list[tuple[str, str] | BaseException]:
         """
+        PyPy-compatible synchronous override that fetches URLs sequentially using stdlib urllib.request.urlopen() with SSL ve.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.scenario_locator.url_locator.PyPyUrlScenarioLocator._fetch_feature_responses` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            PyPy-compatible synchronous override that fetches URLs sequentially using stdlib urllib.request.urlopen()
+            with SSL verification (certifi CA bundle) and a 10-second timeout. For each URL: opens the connection, reads
+            Content-Type header and response body (decoded with configured encoding, default "utf-8"), and appends
+            (content_type, text) to results. Catches all exceptions (broad Exception handler) and appends them to
+            results instead of crashing, ensuring one failed URL doesn't prevent other URLs from being processed.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.scenario_locator.url_locator.PyPyUrlScenarioLocator._fetch_feature_responses` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            PyPy does not reliably support aiohttp's async I/O model. This override provides a synchronous fallback
+            using Python's stdlib urllib, which is universally available and well-tested on all implementations. The
+            10-second timeout prevents network issues from blocking collection. The broad Exception catch is necessary
+            because network errors can manifest as many different exception types (URLError, HTTPError, socket.timeout,
+            SSL errors, etc.), and the caller (resolve_features) handles all of them uniformly by skipping.
 
         Delegates:
-            - responses.append: collaborator call used by this boundary
-            - ssl.create_default_context: collaborator call used by this boundary
-            - certifi.where: collaborator call used by this boundary
-            - urllib.request.urlopen: collaborator call used by this boundary
-            - response.headers.get_content_type: collaborator call used by this boundary
-            - response.read: collaborator call used by this boundary
+            - urllib.request.urlopen(url, context=sslcontext, timeout=10): Synchronous HTTP GET.
+            - ssl.create_default_context(cafile=certifi.where()): SSL context configuration.
+            - response.headers.get_content_type(): Extracts Content-Type.
+            - response.read(): Reads raw response bytes.
+            - content_bytes.decode(encoding): Decodes bytes to string.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: for each URL → HTTP GET → return content type and text. The sequential
+            loop (no async) is the key characteristic. Every line serves synchronous HTTP fetching.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - UrlScenarioLocator._fetch_feature_responses: Kept separate because the parent uses async event loop +
+            aiohttp while this overrides with synchronous urllib — async vs sync HTTP backends.
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/facade.py: imports or references `_fetch_feature_responses`
+            - UrlScenarioLocator.resolve_features (inherited): Called to fetch URLs synchronously on PyPy.
 
         State and side effects:
-            mutates responses, sslcontext, content_type, content_bytes, content_text; depends on certifi.
-
-        Invariants:
-            - `pytest_bdd.scenario_locator.url_locator.PyPyUrlScenarioLocator._fetch_feature_responses` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            Performs blocking network I/O (up to 10 seconds per URL × N URLs). Reads SSL certificates from certifi bundle.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
+            #arch-eval:reason_for_existence=5
             #arch-eval:owned_responsibility=4
             #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
-        import certifi  # noqa: PLC0415
+        import certifi
 
         responses: list[tuple[str, str] | BaseException] = []
         sslcontext = ssl.create_default_context(cafile=certifi.where())
         for url in urls:
             try:
-                with urllib.request.urlopen(url, context=sslcontext, timeout=10) as response:  # noqa: S310
+                with urllib.request.urlopen(url, context=sslcontext, timeout=10) as response:  # noqa: S310  -- URL validated by caller; HTTP/HTTPS scheme enforced upstream
                     content_type = response.headers.get_content_type()
                     content_bytes = response.read()
                     content_text = content_bytes.decode(self.encoding or "utf-8")
                     responses.append((content_type, content_text))
-            except Exception as e:  # noqa: BLE001, PERF203
+            except Exception as e:  # noqa: BLE001, PERF203  -- broad catch required to wrap all network/SSL errors into a unified FeatureFetchError
                 responses.append(e)
         return responses

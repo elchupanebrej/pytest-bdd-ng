@@ -177,13 +177,16 @@ src/pytest_bdd/
 def pytest_addhooks(pluginmanager):
     pluginmanager.add_hookspecs(ScenarioTestCollectorHookSpec)
 
+
 def pytest_addoption(parser):
     group = parser.getgroup("bdd", "Scenario")
     group.addoption("--disable-feature-autoload", ...)
 
+
 def pytest_configure(config):
     config.pluginmanager.register(ScenarioTestCollector())
     FeatureBatchParser().initialize_in_stash(config.stash)
+
 
 # plugin.py
 class ScenarioTestCollector:
@@ -215,6 +218,7 @@ class StashBound:
 
     def initialize_in_stash(self, stash: pytest.Stash) -> None: ...
 
+
 # model/run.py (refactored)
 @define
 class Run(StashBound):
@@ -245,6 +249,7 @@ class ScenarioTestCollectorHookSpec:
         self, request: FixtureRequest, run: Run
     ) -> StepDefinitionManager.Definition | None:
         """Find match between step text and step definition."""
+
 
 # Plugin B implements hook
 class PickleRunner:

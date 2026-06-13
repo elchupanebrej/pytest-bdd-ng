@@ -109,10 +109,7 @@ class SlackNotifierPlugin:
         total = len(self.scenarios)
 
         payload = {
-            "text": (
-                f"BDD Test Run Complete: {passed}/{total} passed, "
-                f"{failed} failed"
-            ),
+            "text": (f"BDD Test Run Complete: {passed}/{total} passed, {failed} failed"),
             "attachments": [
                 {
                     "title": s["name"],
@@ -184,11 +181,10 @@ Or, for local plugins, register in ``conftest.py``:
 ```python
 import pytest
 
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config):
-    config.pluginmanager.register(
-        SlackNotifierPlugin(webhook_url=config.getoption("--slack-webhook"))
-    )
+    config.pluginmanager.register(SlackNotifierPlugin(webhook_url=config.getoption("--slack-webhook")))
 ```
 
 ### 5. Output and NDJSON Envelope Framing

@@ -1,55 +1,46 @@
 """
-Typed failure reasons for Result-based pytest-bdd operations.
+Defines the complete catalog of StrEnum failure reason codes used throughout the pytest-bdd
+runtime to classify error.
 
 Responsibility:
-    Typed failure reasons for Result-based pytest-bdd operations. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Defines the complete catalog of StrEnum failure reason codes used throughout the pytest-bdd
+    runtime to classify error conditions during stash access, scenario execution, message
+    validation, feature location, collection, and parsing.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.types.failure_reasons` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    All error classification knowledge lives in one module so error-handling code across all layers
+    matches against symbolic constants rather than fragile magic strings. This module is the single
+    source of truth for the entire failure taxonomy of the pytest-bdd BDD runtime.
 
 Delegates:
-    - StashFailure: owns nested behavior below this boundary
-    - ScenarioRunFailure: owns nested behavior below this boundary
-    - MessageValidationFailure: owns nested behavior below this boundary
-    - FeatureLocatorFailure: owns nested behavior below this boundary
-    - CollectorFailure: owns nested behavior below this boundary
-    - ParserFailure: owns nested behavior below this boundary
+    - `pytest_bdd.compatibility.enum.StrEnum`: provides the base class with string interop
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Every class is a StrEnum defining a distinct failure domain; all share the same base class and
+    import.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.types.exception`: exception raises errors while failure_reasons provides enum codes for categorization.
 
 Main consumers:
-    - src/pytest_bdd/collector_batch.py: imports or references `failure_reasons`
-    - src/pytest_bdd/feature_locator.py: imports or references `failure_reasons`
-    - src/pytest_bdd/model/message_validation_result.py: imports or references `failure_reasons`
-    - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `failure_reasons`
-    - src/pytest_bdd/parsers/heuristic.py: imports or references `failure_reasons`
+    - `pytest_bdd.model.stash_access`: uses StashFailure enum for stash error classification
 
 State and side effects:
-    mutates PARSE_FAILED, NOT_FOUND, TYPE_MISMATCH, ALREADY_INITIALIZED, FEATURE_NOT_BOUND; depends on
-    __future__.annotations, pytest_bdd.compatibility.enum.StrEnum.
+    None, all enum values are immutable strings defined at class creation time.
 
 Invariants:
-    - `pytest_bdd.types.failure_reasons` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Each StrEnum value is a non-empty string uniquely identifying a single failure condition.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -59,50 +50,46 @@ from pytest_bdd.compatibility.enum import StrEnum
 
 class StashFailure(StrEnum):
     """
-    Failure reasons for stash access operations.
+    Enumerates the possible states for the StashFailure domain as a StrEnum, providing symbolic
+    constants that replace ma.
 
     Responsibility:
-        Failure reasons for stash access operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Enumerates the possible states for the StashFailure domain as a StrEnum, providing symbolic
+        constants that replace magic strings in error classification and reporting code throughout the
+        pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.StashFailure` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for StashFailure ensures compile-time validation of
+        failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: StashFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the StashFailure domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `StashFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `StashFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `StashFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `StashFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `StashFailure`
+        - `pytest_bdd.*`: callers catch or instantiate StashFailure for error handling and type checking
 
     State and side effects:
-        mutates NOT_FOUND, TYPE_MISMATCH, ALREADY_INITIALIZED.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.StashFailure` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a StashFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -113,50 +100,47 @@ class StashFailure(StrEnum):
 
 class ScenarioRunFailure(StrEnum):
     """
-    Failure reasons for scenario run operations.
+    Enumerates the possible states for the ScenarioRunFailure domain as a StrEnum, providing
+    symbolic constants that repl.
 
     Responsibility:
-        Failure reasons for scenario run operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Enumerates the possible states for the ScenarioRunFailure domain as a StrEnum, providing
+        symbolic constants that replace magic strings in error classification and reporting code
+        throughout the pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.ScenarioRunFailure` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for ScenarioRunFailure ensures compile-time validation
+        of failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: ScenarioRunFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the ScenarioRunFailure
+        domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `ScenarioRunFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `ScenarioRunFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `ScenarioRunFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ScenarioRunFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `ScenarioRunFailure`
+        - `pytest_bdd.*`: callers catch or instantiate ScenarioRunFailure for error handling and type checking
 
     State and side effects:
-        mutates FEATURE_NOT_BOUND, STEP_NOT_FOUND, INVALID_STAGE, BINDING_FAILED.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.ScenarioRunFailure` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a ScenarioRunFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -168,50 +152,47 @@ class ScenarioRunFailure(StrEnum):
 
 class MessageValidationFailure(StrEnum):
     """
-    Failure reasons for message validation operations.
+    Enumerates the possible states for the MessageValidationFailure domain as a StrEnum, providing
+    symbolic constants tha.
 
     Responsibility:
-        Failure reasons for message validation operations. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this class.
+        Enumerates the possible states for the MessageValidationFailure domain as a StrEnum, providing
+        symbolic constants that replace magic strings in error classification and reporting code
+        throughout the pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.MessageValidationFailure` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for MessageValidationFailure ensures compile-time
+        validation of failure codes, enables IDE autocompletion for error handlers, and centralizes the
+        catalog of possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: MessageValidationFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the
+        MessageValidationFailure domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `MessageValidationFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `MessageValidationFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `MessageValidationFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `MessageValidationFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `MessageValidationFailure`
+        - `pytest_bdd.*`: callers catch or instantiate MessageValidationFailure for error handling and type checking
 
     State and side effects:
-        mutates SCHEMA_LOAD_ERROR, VALIDATION_FAILED, INVALID_ENVELOPE.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.MessageValidationFailure` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a MessageValidationFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -222,50 +203,47 @@ class MessageValidationFailure(StrEnum):
 
 class FeatureLocatorFailure(StrEnum):
     """
-    Failure reasons for feature locator operations.
+    Enumerates the possible states for the FeatureLocatorFailure domain as a StrEnum, providing
+    symbolic constants that r.
 
     Responsibility:
-        Failure reasons for feature locator operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Enumerates the possible states for the FeatureLocatorFailure domain as a StrEnum, providing
+        symbolic constants that replace magic strings in error classification and reporting code
+        throughout the pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.FeatureLocatorFailure` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for FeatureLocatorFailure ensures compile-time
+        validation of failure codes, enables IDE autocompletion for error handlers, and centralizes the
+        catalog of possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: FeatureLocatorFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the
+        FeatureLocatorFailure domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `FeatureLocatorFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `FeatureLocatorFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `FeatureLocatorFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `FeatureLocatorFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `FeatureLocatorFailure`
+        - `pytest_bdd.*`: callers catch or instantiate FeatureLocatorFailure for error handling and type checking
 
     State and side effects:
-        mutates FILE_NOT_FOUND, PARSE_FAILED, RESOLUTION_FAILED.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.FeatureLocatorFailure` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a FeatureLocatorFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -276,50 +254,47 @@ class FeatureLocatorFailure(StrEnum):
 
 class CollectorFailure(StrEnum):
     """
-    Failure reasons for collection operations.
+    Enumerates the possible states for the CollectorFailure domain as a StrEnum, providing symbolic
+    constants that replac.
 
     Responsibility:
-        Failure reasons for collection operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Enumerates the possible states for the CollectorFailure domain as a StrEnum, providing symbolic
+        constants that replace magic strings in error classification and reporting code throughout the
+        pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.CollectorFailure` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for CollectorFailure ensures compile-time validation of
+        failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: CollectorFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the CollectorFailure
+        domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `CollectorFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `CollectorFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `CollectorFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `CollectorFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `CollectorFailure`
+        - `pytest_bdd.*`: callers catch or instantiate CollectorFailure for error handling and type checking
 
     State and side effects:
-        mutates PARSE_FAILED, READ_FAILED, BATCH_FAILED.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.CollectorFailure` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a CollectorFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -330,51 +305,47 @@ class CollectorFailure(StrEnum):
 
 class ParserFailure(StrEnum):
     """
-    Failure reasons for parser operations.
+    Enumerates the possible states for the ParserFailure domain as a StrEnum, providing symbolic
+    constants that replace m.
 
     Responsibility:
-        Failure reasons for parser operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Enumerates the possible states for the ParserFailure domain as a StrEnum, providing symbolic
+        constants that replace magic strings in error classification and reporting code throughout the
+        pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.ParserFailure` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for ParserFailure ensures compile-time validation of
+        failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: ParserFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the ParserFailure
+        domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `ParserFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `ParserFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `ParserFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ParserFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `ParserFailure`
+        - `pytest_bdd.*`: callers catch or instantiate ParserFailure for error handling and type checking
 
     State and side effects:
-        mutates SYNTAX_ERROR, UNSUPPORTED_MIMETYPE.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.ParserFailure` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a ParserFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -384,50 +355,47 @@ class ParserFailure(StrEnum):
 
 class GenericFailure(StrEnum):
     """
-    Failure reasons for uncategorized operations.
+    Enumerates the possible states for the GenericFailure domain as a StrEnum, providing symbolic
+    constants that replace .
 
     Responsibility:
-        Failure reasons for uncategorized operations. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Enumerates the possible states for the GenericFailure domain as a StrEnum, providing symbolic
+        constants that replace magic strings in error classification and reporting code throughout the
+        pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.failure_reasons.GenericFailure` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for GenericFailure ensures compile-time validation of
+        failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: GenericFailure specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the GenericFailure
+        domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector_batch.py: imports or references `GenericFailure`
-        - src/pytest_bdd/feature_locator.py: imports or references `GenericFailure`
-        - src/pytest_bdd/model/message_validation_result.py: imports or references `GenericFailure`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `GenericFailure`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `GenericFailure`
+        - `pytest_bdd.*`: callers catch or instantiate GenericFailure for error handling and type checking
 
     State and side effects:
-        mutates UNEXPECTED_ERROR.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.types.failure_reasons.GenericFailure` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a GenericFailure state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 

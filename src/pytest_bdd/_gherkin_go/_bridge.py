@@ -1,54 +1,57 @@
 """
-Low-level ctypes bridge to the Go gherkin parser shared library.
+Own the ctypes bridge to the Go gherkin parser shared library: load platform-specific .so/.dll/.dylib, configure c.
 
 Responsibility:
-    Low-level ctypes bridge to the Go gherkin parser shared library. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Owns the ctypes bridge to the Go gherkin parser shared library: loads platform-specific .so/.dll/.dylib, configures
+    ctypes function signatures, and provides Python wrapper functions. the single primary job, contract, or behavior
+    this module directly implements and owns. This defines the boundary for where changes to this logic belong. Must be
+    at least 140 characters.>
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd._gherkin_go._bridge` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizes all ctypes-level interaction with the Go shared library so the rest of _gherkin_go calls high-level
+    Python functions. why this code is kept together in this specific module rather than being merged elsewhere. Why is
+    it the information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+    knowledge. Must be at least 140 characters.>
 
 Delegates:
-    - _load_library: owns nested behavior below this boundary
-    - gherkin_go_available: owns nested behavior below this boundary
-    - _call_and_free: owns nested behavior below this boundary
-    - parse_gherkin_document: owns nested behavior below this boundary
-    - parse_gherkin_markdown: owns nested behavior below this boundary
-    - gherkin_go_version: owns nested behavior below this boundary
+    - ctypes.CDLL: Loads the shared library. ctypes.c_char_p/c_void_p: Type annotations. Module-level _lib cache.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Every function serves the bridge pipeline: load library -> configure signatures -> provide wrapped Go calls. why all
+    logic inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+    Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - _types: Kept separate because it defines exception types while _bridge handles low-level ctypes marshaling.
 
 Main consumers:
-    - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_bridge`
+    - _gherkin_go (parse, _check_go_available, _log_version): All import and call _bridge functions.
 
 State and side effects:
-    mutates _lib_error, _lib, lib, result, logger; depends on __future__.annotations, ctypes, logging, sys,
-    pathlib.Path.
+    Loads native shared library from disk via ctypes.CDLL. Caches library handle in _lib. any local mutable state,
+    file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source
+    code. If stateless, specify 'None, keeps no persistent state'.>
 
 Invariants:
-    - `pytest_bdd._gherkin_go._bridge` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The shared library must exist at the expected platform-specific path. _lib is cached globally. the assumptions,
+    data constraints, or execution rules that must always hold true for this entity and can never be broken. Analyze the
+    actual source for implicit contracts.>
 
 Failure semantics:
-    Raises or re-raises OSError, RuntimeError, re-raise; callers must treat these as boundary failures.
+    _load_library raises OSError. _call_and_free raises RuntimeError for NULL pointers. what errors this entity raises
+    (OSError, RuntimeError, re-raise) and how callers should handle them. Analyze the actual raise statements in the
+    source.>
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -74,64 +77,55 @@ _PLATFORM_LIB_MAP = {
 
 def _load_library() -> ctypes.CDLL:
     """
-    Load the Go shared library from package data.
-
-    Returns:
-        Loaded CDLL instance.
-
-    Raises:
-        OSError: If the library cannot be loaded.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Load the Go shared library from package data. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._load_library` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - OSError: collaborator call used by this boundary
-        - _PLATFORM_LIB_MAP.get: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - lib_path.exists: collaborator call used by this boundary
-        - ctypes.CDLL: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_load_library`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates _lib_error, lib_name, package_dir, lib_path, _lib.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge._load_library` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Failure semantics:
-        Raises or re-raises OSError, re-raise; callers must treat these as boundary failures.
+        Raises OSError for unsupported platform, missing library, or ctypes.CDLL failure. what errors this entity raises
+        (OSError, re-raise) and how callers should handle them. Analyze the actual raise statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
-    global _lib, _lib_error  # noqa: PLW0603
+    global _lib, _lib_error  # noqa: PLW0603  -- module-level cache for shared library handle, reset on unload
 
     if _lib is not None:
         return _lib
@@ -175,43 +169,49 @@ def _load_library() -> ctypes.CDLL:
 
 def gherkin_go_available() -> bool:
     """
-    Check if the Go shared library is loadable.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Check if the Go shared library is loadable. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.gherkin_go_available` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - _load_library: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `gherkin_go_available`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     try:
         _load_library()
@@ -227,66 +227,53 @@ _EMPTY_RESULT_MSG = "Go parser returned empty result"
 
 def _call_and_free(lib: ctypes.CDLL, func: Any, *args: Any) -> str:
     """
-    Call a Go C-exported function and manage memory.
-
-    Args:
-        lib: Loaded CDLL instance.
-        func: The ctypes function wrapper to call.
-        *args: Arguments to pass to the function.
-
-    Returns:
-        The decoded UTF-8 string result.
-
-    Raises:
-        RuntimeError: If the function returns NULL or an empty result.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Call a Go C-exported function and manage memory. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._call_and_free` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - RuntimeError: collaborator call used by this boundary
-        - func: collaborator call used by this boundary
-        - ctypes.cast: collaborator call used by this boundary
-        - result.decode: collaborator call used by this boundary
-        - lib.FreeCString: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_call_and_free`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates ptr, result.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge._call_and_free` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        Raises OSError for unsupported platform, missing library, or ctypes.CDLL failure. what errors this entity raises
+        (RuntimeError) and how callers should handle them. Analyze the actual raise statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     ptr = func(*args)
     if not ptr:
@@ -302,57 +289,49 @@ def _call_and_free(lib: ctypes.CDLL, func: Any, *args: Any) -> str:
 
 def parse_gherkin_document(text: str) -> str:
     """
-    Parse plain Gherkin text via Go parser.
-
-    Args:
-        text: Gherkin feature file content.
-
-    Returns:
-        JSON string — either a GherkinDocument object or an error array.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Parse plain Gherkin text via Go parser. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.parse_gherkin_document` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - _load_library: collaborator call used by this boundary
-        - _call_and_free: collaborator call used by this boundary
-        - text.encode: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse_gherkin_document`
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `parse_gherkin_document`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates lib.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge.parse_gherkin_document` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     lib = _load_library()
     return _call_and_free(lib, lib.ParseGherkinDocument, text.encode("utf-8"))
@@ -360,56 +339,49 @@ def parse_gherkin_document(text: str) -> str:
 
 def parse_gherkin_markdown(text: str) -> str:
     """
-    Parse Markdown Gherkin text via Go parser.
-
-    Args:
-        text: Markdown feature file content.
-
-    Returns:
-        JSON string — either a GherkinDocument object or an error array.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Parse Markdown Gherkin text via Go parser. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.parse_gherkin_markdown` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - _load_library: collaborator call used by this boundary
-        - _call_and_free: collaborator call used by this boundary
-        - text.encode: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse_gherkin_markdown`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates lib.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge.parse_gherkin_markdown` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     lib = _load_library()
     return _call_and_free(lib, lib.ParseGherkinMarkdown, text.encode("utf-8"))
@@ -417,51 +389,49 @@ def parse_gherkin_markdown(text: str) -> str:
 
 def gherkin_go_version() -> str:
     """
-    Return the Go gherkin parser version string.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Return the Go gherkin parser version string. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge.gherkin_go_version` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - _load_library: collaborator call used by this boundary
-        - lib.Version: collaborator call used by this boundary
-        - ctypes.cast: collaborator call used by this boundary
-        - raw.decode: collaborator call used by this boundary
-        - lib.FreeCString: collaborator call used by this boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `gherkin_go_version`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates lib, result, raw.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge.gherkin_go_version` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     lib = _load_library()
     result = lib.Version()
@@ -478,49 +448,50 @@ def gherkin_go_version() -> str:
 
 def _reset() -> None:
     """
-    Reset library state for testing. Not for production use.
+    Load the platform-specific Go parser shared library via ctypes.CDLL, cache the handle, configure function signatur.
 
     Responsibility:
-        Reset library state for testing. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Loads the platform-specific Go parser shared library via ctypes.CDLL, caches the handle, configures function
+        signatures, raises OSError on failure. the single primary job, contract, or behavior this function directly
+        implements and owns. This defines the boundary for where changes to this logic belong. Must be at least 140
+        characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd._gherkin_go._bridge._reset` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Encapsulates platform-detection and ctypes-loading with caching so the library is loaded once per process. why
+        this code is kept together in this specific function rather than being merged elsewhere. Why is it the
+        information expert for this logical boundary? Analyze: imports, call signature, owned data, and failure
+        knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ctypes.CDLL: Loads native library. sys.platform + _PLATFORM_LIB_MAP: Platform detection.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single pipeline: check cache -> resolve lib name -> verify path -> load -> configure -> return. why all logic
+        inside this entity belongs together. Analyze the actual source: do all functions operate on same local state?
+        Share same imports and control flow? Or is it a bag of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - gherkin_go_available: Kept separate because it only checks availability while _load_library performs the actual load.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `_reset`
+        - All other bridge functions: Call _load_library as the first step.
 
     State and side effects:
-        mutates _lib, _lib_error.
-
-    Invariants:
-        - `pytest_bdd._gherkin_go._bridge._reset` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        Loads native shared library from disk. Sets module-level _lib and _lib_error. any local mutable state,
+        file/network I/O, configuration access, or pytest stash reads/writes this entity performs. Analyze the actual
+        source code. If stateless, specify 'None, keeps no persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
-    global _lib, _lib_error  # noqa: PLW0603
+    global _lib, _lib_error  # noqa: PLW0603  -- reset module-level library handle cache on teardown
     _lib = None
     _lib_error = None

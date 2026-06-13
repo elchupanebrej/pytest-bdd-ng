@@ -1,46 +1,42 @@
 """
-Core StepCatalogService class for step catalog runtime.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Core StepCatalogService class for step catalog runtime. It directly owns the observable contract, local decisions,
-    and maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core`
-    because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - StepCatalogService: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references `_core`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates step_registry, step_definition, previous_step, step_match_arguments_lists, has_ambiguity; depends on
-    __future__.annotations, logging, warnings, contextlib.suppress, typing.TYPE_CHECKING.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core` keeps its documented import path,
-      ownership boundary, and observable behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -93,60 +89,44 @@ logger = logging.getLogger(__name__)
 
 class StepCatalogService(ReporterServiceBase):
     """
-    Represent step catalog service state.
-
-    Yields:
-        Generated values.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Represent step catalog service state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - pytest_runtest_setup: owns nested behavior below this boundary
-        - _report_step_definitions: owns nested behavior below this boundary
-        - report_step_definitions: owns nested behavior below this boundary
-        - _register_parameter_types: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `StepCatalogService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `StepCatalogService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references
-          `StepCatalogService`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates step_registry, step_definition, previous_step, step_match_arguments_lists, has_ambiguity.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     plugin_suffix = "steps"
@@ -159,114 +139,90 @@ class StepCatalogService(ReporterServiceBase):
         hook_catalog_service: HookCatalogService,
     ) -> None:
         """
-        Initialize the step catalog service.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Initialize the step catalog service. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService.__init__` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.lifecycle_service, self.hook_catalog_service.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService.__init__` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         super().__init__(reporter)
         self.lifecycle_service = lifecycle_service
         self.hook_catalog_service = hook_catalog_service
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_setup(self, item: Item) -> Iterator[None]:  # noqa: C901, PLR0912, PLR0914, PLR0915
+    def pytest_runtest_setup(self, item: Item) -> Iterator[None]:  # noqa: C901, PLR0912, PLR0914, PLR0915  -- suppressed warning
         """
-        Handle the pytest runtest setup pytest hook.
-
-        Yields:
-            Generated values.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest runtest setup pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService.pytest_runtest_setup`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - next: collaborator call used by this boundary
-            - IdGenerator.from_stash: collaborator call used by this boundary
-            - Run.from_stash: collaborator call used by this boundary
-            - logger.warning: collaborator call used by this boundary
-            - TestStep: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references
-              `pytest_runtest_setup`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates step_definition, previous_step, step_match_arguments_lists, has_ambiguity, candidates.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService.pytest_runtest_setup`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         yield
         if self.reporter.is_disabled:
@@ -275,7 +231,7 @@ class StepCatalogService(ReporterServiceBase):
         session = item.session
         config: Config = session.config
         hook_handler = config.hook
-        request = item._request  # noqa: SLF001
+        request = item._request  # noqa: SLF001  -- suppressed warning
         run = Run.from_stash(request.config.stash)
         scenario_run = run.active_scenario_run
         if scenario_run is None:
@@ -284,7 +240,7 @@ class StepCatalogService(ReporterServiceBase):
                 "skipping context-backed correlation writes.",
             )
             return
-        gherkin_document, pickle = self.lifecycle_service._resolve_gherkin_document_and_pickle(run=run)  # noqa: SLF001
+        gherkin_document, pickle = self.lifecycle_service._resolve_gherkin_document_and_pickle(run=run)  # noqa: SLF001  -- suppressed warning
         if gherkin_document is None or pickle is None:
             logger.warning("Execution context does not carry runtime feature/pickle during pytest_runtest_setup.")
             return
@@ -308,7 +264,7 @@ class StepCatalogService(ReporterServiceBase):
                     id=next(IdGenerator.from_stash(config.stash)),
                     hook_id=hook_registration.hook_message_id,
                 )
-                for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(  # noqa: SLF001
+                for hook_registration in self.hook_catalog_service._iter_matching_hook_registrations(  # noqa: SLF001  -- suppressed warning
                     request=request,
                     pickle=runtime_pickle,
                 )
@@ -317,7 +273,7 @@ class StepCatalogService(ReporterServiceBase):
 
         ide_service = self.reporter.ide_binding_service
 
-        for step in runtime_pickle.steps:  # noqa: PLR1702
+        for step in runtime_pickle.steps:  # noqa: PLR1702  -- suppressed warning
             scenario_run.step_object = step
             scenario_run.previous_step_object = previous_step  # type: ignore[assignment]  # PickleStep | None vs PickleStep | NoPreviousStep
             step_definition: Definition | None = None
@@ -409,7 +365,7 @@ class StepCatalogService(ReporterServiceBase):
             **({"test_run_started_id": resolved_run_started_id} if resolved_run_started_id is not None else {}),
         )
         reporting_state.active_test_case_id = test_case.id
-        self.lifecycle_service._emit_envelope(  # noqa: SLF001
+        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
             config,
             Message(test_case=test_case),
         )
@@ -446,54 +402,44 @@ class StepCatalogService(ReporterServiceBase):
 
     def _report_step_definitions(self, config: Config, request: FixtureRequest) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._report_step_definitions`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._report_step_definitions`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - id: collaborator call used by this boundary
-            - request.getfixturevalue: collaborator call used by this boundary
-            - set: collaborator call used by this boundary
-            - seen_steps.add: collaborator call used by this boundary
-            - step_definition.as_message: collaborator call used by this boundary
-            - self.reporter._emitted_step_definition_ids.add: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references
-              `_report_step_definitions`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates step_registry, seen_steps, step_definition_message.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._report_step_definitions`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         try:
             step_registry = request.getfixturevalue("step_registry")
@@ -505,10 +451,10 @@ class StepCatalogService(ReporterServiceBase):
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
                     step_definition_message = step_definition.as_message(config=config)
-                    if step_definition_message.id in self.reporter._emitted_step_definition_ids:  # noqa: SLF001
+                    if step_definition_message.id in self.reporter._emitted_step_definition_ids:  # noqa: SLF001  -- suppressed warning
                         continue
-                    self.reporter._emitted_step_definition_ids.add(step_definition_message.id)  # noqa: SLF001
-                    self.lifecycle_service._emit_envelope(  # noqa: SLF001
+                    self.reporter._emitted_step_definition_ids.add(step_definition_message.id)  # noqa: SLF001  -- suppressed warning
+                    self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
                         config,
                         Message(step_definition=step_definition_message),
                     )
@@ -516,100 +462,87 @@ class StepCatalogService(ReporterServiceBase):
 
     def report_step_definitions(self, config: Config, request: FixtureRequest) -> None:
         """
-        Handle report step definitions.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle report step definitions. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService.report_step_definitions`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._report_step_definitions: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references
-              `report_step_definitions`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self._report_step_definitions(config, request)
 
     def _register_parameter_types(self, config: Config, request: FixtureRequest) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._register_parameter_types`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._register_parameter_types`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - id: collaborator call used by this boundary
-            - deepattrgetter: collaborator call used by this boundary
-            - request.getfixturevalue: collaborator call used by this boundary
-            - set: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - parameter_type_registry_getter: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/facade.py: imports or references
-              `_register_parameter_types`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates step_registry, seen_steps, parameter_type_registry_getter_candidate, parameter_type_registry_getter,
-            parameter_type_registry.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.step_catalog_runtime._core.StepCatalogService._register_parameter_types`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         try:
             step_registry = request.getfixturevalue("step_registry")
@@ -646,14 +579,14 @@ class StepCatalogService(ReporterServiceBase):
                             config,
                             parameter_type,
                         )
-                        self.lifecycle_service._emit_envelope(  # noqa: SLF001
+                        self.lifecycle_service._emit_envelope(  # noqa: SLF001  -- suppressed warning
                             config,
                             Message(
                                 parameter_type=ParameterType(
                                     name=parameter_type.name,
                                     regular_expressions=parameter_type.regexps,
-                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,  # noqa: SLF001
-                                    use_for_snippets=parameter_type._use_for_snippets,  # noqa: SLF001
+                                    prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,  # noqa: SLF001  -- suppressed warning
+                                    use_for_snippets=parameter_type._use_for_snippets,  # noqa: SLF001  -- suppressed warning
                                     id=next(IdGenerator.from_stash(config.stash)),
                                     **(
                                         {"source_reference": parameter_type_source_reference}

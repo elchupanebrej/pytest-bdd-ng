@@ -30,9 +30,11 @@
     ```python
     from pytest_bdd import given
 
+
     @given("a passing step")
     def _pass():
         return "ok"
+
 
     @given("a failing step")
     def _fail():

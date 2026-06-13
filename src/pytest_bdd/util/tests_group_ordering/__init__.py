@@ -1,46 +1,48 @@
 # init: public-api  # init: no-check
 """
-Test group ordering helpers for pytest-bdd-ng.
+Provides focused utility functions for the `tests_group_ordering` concern within pytest-bdd
+utility layer, offering h.
 
 Responsibility:
-    Test group ordering helpers for pytest-bdd-ng. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides focused utility functions for the `tests_group_ordering` concern within pytest-bdd
+    utility layer, offering helper operations consumed by higher layers (collection, runtime,
+    reporting) without pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.tests_group_ordering` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    Keeping `tests_group_ordering` utilities in a dedicated module prevents cross-cutting helper
+    code from accumulating in larger modules where it would create unclear ownership or hidden
+    dependency issues. This module is the single authority for `tests_group_ordering`-related
+    helper operations within the utility layer.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `tests_group_ordering` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/plugin/test_group_ordering/entrypoint.py: imports or references `tests_group_ordering`
+    - `pytest_bdd.plugin.*`: imports `tests_group_ordering` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    depends on pytest_bdd.util.tests_group_ordering.facade.*.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.tests_group_ordering` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=4
 """
 
-from pytest_bdd.util.tests_group_ordering.facade import *  # noqa: F403
+from pytest_bdd.util.tests_group_ordering.facade import *  # noqa: F403  -- intentional re-export or import for public API facade

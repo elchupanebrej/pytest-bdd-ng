@@ -28,16 +28,19 @@ must be duplicated in the dispatcher's own `const.py`.
 def pytest_addoption(parser: Parser) -> None:
     parser.getgroup("bdd", "Cucumber JSON")
     parser.addini(
-        str(CucumberJson.Ini.PATH_OPTION),   # "cucumber_json_path"
-        default="", type="string",
+        str(CucumberJson.Ini.PATH_OPTION),  # "cucumber_json_path"
+        default="",
+        type="string",
         help="create cucumber json style report file at given path.",
     )
 
+
 def pytest_configure(config) -> None:
     cucumber_json_path = config.getini(str(CucumberJson.Ini.PATH_OPTION))
-    if cucumber_json_path and not hasattr(config, "workerinput"):   # xdist guard
+    if cucumber_json_path and not hasattr(config, "workerinput"):  # xdist guard
         config._bddcucumberjson = CucumberJsonPlugin(cucumber_json_path)
         config.pluginmanager.register(config._bddcucumberjson)
+
 
 def pytest_unconfigure(config) -> None:
     plugin = getattr(config, "_bddcucumberjson", None)
@@ -57,9 +60,10 @@ def pytest_unconfigure(config) -> None:
 ```python
 class CucumberJson:
     class Ini(StrEnum):
-        PATH_OPTION = "cucumber_json_path"    # INI key read via config.getini()
+        PATH_OPTION = "cucumber_json_path"  # INI key read via config.getini()
+
     class Cli(StrEnum):
-        PATH_OPTION = "cucumber_json_path"    # ⚠️ SAME VALUE as Ini — historical artifact
+        PATH_OPTION = "cucumber_json_path"  # ⚠️ SAME VALUE as Ini — historical artifact
 ```
 
 > **CRITICAL:** `CucumberJson.Cli.PATH_OPTION` equals `"cucumber_json_path"` — same string
@@ -81,6 +85,7 @@ class CucumberJson:
 
 ```python
 from .plugin import JsonFormatterPlugin
+
 json_plugin = JsonFormatterPlugin()
 ```
 
@@ -94,7 +99,7 @@ class JsonFormatterPlugin(FormatterReporterPlugin):
 
     def __init__(self) -> None:
         super().__init__(
-            option_attr="cucumber_js_json_path",   # config.option.cucumber_js_json_path
+            option_attr="cucumber_js_json_path",  # config.option.cucumber_js_json_path
             cli_flag="--cucumber-json",
             formatter="json",
             package_name="@cucumber/cucumber",
@@ -204,14 +209,15 @@ if both set, zeros the INI value so the INI backend's own `pytest_configure` fin
 ```python
 # Dispatcher's entrypoint.py
 
-INI_OPTION = "cucumber_json_path"       # Duplicated from cucumber_json/const.py
+INI_OPTION = "cucumber_json_path"  # Duplicated from cucumber_json/const.py
 CLI_OPTION_ATTR = "cucumber_js_json_path"  # Duplicated from cucumber_json_formatter/plugin.py
+
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config) -> None:
     if hasattr(config, "workerinput"):  # xdist worker guard
         return
-    ini_value = config.getini(INI_OPTION)   # "" if not set
+    ini_value = config.getini(INI_OPTION)  # "" if not set
     cli_value = getattr(config.option, CLI_OPTION_ATTR, None)  # None if not set
 
     if ini_value and cli_value is not None:
@@ -247,7 +253,7 @@ if cucumber_json_path and not hasattr(config, "workerinput"):
 Dispatcher copies this pattern:
 ```python
 if hasattr(config, "workerinput"):
-    return   # suppress all dispatcher logic on xdist worker nodes
+    return  # suppress all dispatcher logic on xdist worker nodes
 ```
 
 **Placement:** First check in `pytest_configure`, BEFORE any config reading.
@@ -353,7 +359,7 @@ def test_dispatcher_ini_only(testdir):
     ini.write(f"[pytest]\ncucumber_json_path = {output}\n")
     # ... add minimal BDD test ...
     result = testdir.runpytest("-s")
-    assert output.check()   # file was written
+    assert output.check()  # file was written
     data = json.load(output.open())
     assert isinstance(data, list)
 ```
@@ -370,8 +376,10 @@ def test_dispatcher_entry_point_in_pyproject():
     pytest11 = pyproject["project"]["entry-points"]["pytest11"]
     assert "pytest-bdd-cucumber-json-dispatcher" in pytest11
 
+
 def test_dispatcher_no_cross_plugin_imports():
     from pytest_bdd._ruff.rules.plugin_patterns import check_cross_plugin_imports
+
     plugin_root = Path("src/pytest_bdd/plugin")
     violations = check_cross_plugin_imports(plugin_root)
     assert violations == []

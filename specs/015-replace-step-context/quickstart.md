@@ -15,6 +15,7 @@ The `run` object is typically available in hooks or via fixtures. You access the
 ```python
 import pytest
 
+
 def pytest_bdd_before_step(request, feature, scenario, step, step_func):
     run = request.stash.get(RUN_KEY)
 

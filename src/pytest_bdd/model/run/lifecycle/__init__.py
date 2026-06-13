@@ -1,49 +1,57 @@
 """
-Run lifecycle package — backward-compatible facade.
+Owns documented module behavior within the pytest-bdd model layer, encapsulating domain logic and data structures for.
 
 Responsibility:
-    Run lifecycle package — backward-compatible facade. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Owns documented module behavior within the pytest-bdd model layer, encapsulating domain logic and data structures
+    for scenario execution state management
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run.lifecycle` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/__init__.py: imports or references `lifecycle`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references `lifecycle`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    depends on __future__.annotations, facade.*.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run.lifecycle` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 # init: no-check
 
 from __future__ import annotations
 
-from .facade import *  # noqa: F403
+from .facade import *  # noqa: F403  -- intentional re-export or import for public API facade

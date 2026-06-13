@@ -206,6 +206,7 @@ This gap-closure is purely a refactoring operation. No new PyPI packages are req
 # BEFORE (with __all__):
 from pytest_bdd.parsers.base import StepParser
 from pytest_bdd.parsers.re_parser import re as re_parser
+
 __all__ = ["StepParser", "re_parser"]
 
 # AFTER (no __all__ needed):
@@ -271,8 +272,8 @@ ENTRYPOINT ["python", "src/pytest_bdd_testing/assets/docker/remote_xdist/control
 # controller_entrypoint.py — updated Python module paths
 # OLD: "pytest_bdd.testing.assets.docker.remote_xdist.project.remote_aggregation_case"
 # NEW:
-"--pyargs",
-"pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+("--pyargs",)
+("pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",)
 ```
 
 ### Anti-Patterns to Avoid
@@ -605,14 +606,26 @@ Note: The `COPY tests/__init__.py tests/conftest.py tests/assets` lines exist to
 
 ```python
 # Line 130 — OLD
-"--pyargs", "pytest_bdd.testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+(
+    "--pyargs",
+    "pytest_bdd.testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+)
 # Line 140 — OLD
-"-m", "pytest_bdd.testing.assets.docker.remote_xdist.verify_report",
+(
+    "-m",
+    "pytest_bdd.testing.assets.docker.remote_xdist.verify_report",
+)
 
 # Line 130 — NEW
-"--pyargs", "pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+(
+    "--pyargs",
+    "pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+)
 # Line 140 — NEW
-"-m", "pytest_bdd_testing.assets.docker.remote_xdist.verify_report",
+(
+    "-m",
+    "pytest_bdd_testing.assets.docker.remote_xdist.verify_report",
+)
 ```
 
 **verify_report.py:**
@@ -628,9 +641,9 @@ from pytest_bdd_testing.cases.contract.messages.message_stream_assertions import
 
 ```python
 # OLD
-"src/pytest_bdd/testing/assets/docker/remote_xdist/controller_entrypoint.py",
+("src/pytest_bdd/testing/assets/docker/remote_xdist/controller_entrypoint.py",)
 # NEW
-"src/pytest_bdd_testing/assets/docker/remote_xdist/controller_entrypoint.py",
+("src/pytest_bdd_testing/assets/docker/remote_xdist/controller_entrypoint.py",)
 ```
 
 ### FIXTURE_DIR Path Fix
@@ -769,6 +782,7 @@ For files that use `__all__` for re-exports (all except root `__init__.py` which
 # BEFORE:
 from pytest_bdd.parsers.base import StepParser
 from pytest_bdd.parsers.re_parser import re as re_parser
+
 __all__ = ["StepParser", "re_parser"]
 
 # AFTER:
@@ -834,11 +848,14 @@ def check_file(path: Path) -> list[Violation]:
 
     # BLQ1401: __all__ in __init__.py is now a hard error (R6)
     if has_all:
-        violations.append(Violation(
-            path=path, line=1,
-            message=f"BLQ1401: {path} defines __all__. "
-                    f"Replace with 'from X import Y as Y' pattern for mypy no_implicit_reexport."
-        ))
+        violations.append(
+            Violation(
+                path=path,
+                line=1,
+                message=f"BLQ1401: {path} defines __all__. "
+                f"Replace with 'from X import Y as Y' pattern for mypy no_implicit_reexport.",
+            )
+        )
 
     # BLQ1402: Empty __init__.py — delete it (R5)
     if not visitor.has_imports and not has_all:
@@ -847,24 +864,32 @@ def check_file(path: Path) -> list[Violation]:
             stripped = stripped.replace(comment, "")
         stripped = stripped.strip()
         if not stripped:
-            violations.append(Violation(
-                path=path, line=1,
-                message=f"BLQ1402: {path} is empty or metadata-only. "
-                        f"Delete this file (PEP 420 implicit namespace package)."
-            ))
+            violations.append(
+                Violation(
+                    path=path,
+                    line=1,
+                    message=f"BLQ1402: {path} is empty or metadata-only. "
+                    f"Delete this file (PEP 420 implicit namespace package).",
+                )
+            )
 
     # BLQ1403: __init__.py must contain actual code (R9)
     # — already covered by BLQ1402 for empty files
     # — files with only docstrings but no imports/code trigger this
-    if not visitor.has_imports and not has_all and stripped and not any(
-        node for node in ast.walk(tree)
-        if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Assign))
+    if (
+        not visitor.has_imports
+        and not has_all
+        and stripped
+        and not any(node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Assign)))
     ):
-        violations.append(Violation(
-            path=path, line=1,
-            message=f"BLQ1403: {path} contains only docstring. "
-                    f"Add actual code (imports, definitions) or delete for PEP 420."
-        ))
+        violations.append(
+            Violation(
+                path=path,
+                line=1,
+                message=f"BLQ1403: {path} contains only docstring. "
+                f"Add actual code (imports, definitions) or delete for PEP 420.",
+            )
+        )
 ```
 
 ### Testing Directory Awareness
@@ -955,6 +980,7 @@ realpath ../../../../..  # Should print the repo root
 # BEFORE:
 from .base import StepParser
 from .re_parser import re as re_parser
+
 __all__ = ["StepParser", "re_parser"]
 
 # AFTER — mypy treats 'as X' as explicit re-export:
@@ -969,6 +995,7 @@ from .re_parser import re as re_parser
 # Verify a directory can be a PEP 420 namespace package
 # Run from Python:
 import importlib
+
 mod = importlib.import_module("pytest_bdd.plugin")  # Already namespace (no __init__.py)
 print(mod.__path__)  # Should be _NamespacePath, not list
 print(mod.__file__)  # Should raise AttributeError (namespace packages have no __file__)

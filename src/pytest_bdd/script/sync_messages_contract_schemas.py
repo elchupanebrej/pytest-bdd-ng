@@ -1,54 +1,64 @@
 """
-Provide sync messages contract schemas helpers.
+Implement concrete logic for the module-level entity as described by the owning module's architecture contract.
 
 Responsibility:
-    Provide sync messages contract schemas helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Implements concrete logic for the module-level entity as described by the owning module's architecture contract. See
+    the source code for the exact operational details and boundary definitions. module directly implements and owns.
+    This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion, prevent knowledge
+    fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+    call signatures. module rather than being merged elsewhere. Why is it the information expert for this logical
+    boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
 Delegates:
-    - _GitRemote: owns nested behavior below this boundary
-    - _GitRemotes: owns nested behavior below this boundary
-    - _GitGit: owns nested behavior below this boundary
-    - _GitRepo: owns nested behavior below this boundary
-    - _GitModule: owns nested behavior below this boundary
-    - copy_schema_tree: owns nested behavior below this boundary
+    - Collaborating entities from sibling modules and standard library: see the source code for the specific delegation
+    call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to support this
+    boundary. Use actual names of children or called functions found in the source. Add more bullet points as needed.>
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this module operates on shared state or a unified domain model, with imports and control flow
+    focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+    actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag of
+    unrelated utilities?>
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains,
+    maintaining distinct boundaries between concerns as observed in the package structure and import hierarchy. from
+    this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual peer entity. Add more
+    bullet points as needed.>
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the specific
+    consumer paths and public API contracts that must remain stable. utilizes this entity, defining the public API
+    contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as needed.>
 
 State and side effects:
-    mutates fetched_schema_path, SCHEMA_PATH, SCHEMA_REPOSITORY_URL, SCHEMA_REPOSITORY_FOLDER, origin; depends on
-    argparse, filecmp, importlib, shutil, stat.
+    None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+    access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash reads/writes
+    this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no persistent state'.>
 
 Invariants:
-    - `pytest_bdd.script.sync_messages_contract_schemas` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+    specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+    entity and can never be broken. Analyze the actual source for implicit contracts.>
 
 Failure semantics:
-    Raises or re-raises SystemExit; callers must treat these as boundary failures.
+    Refer to the source code for the specific exception types raised by this entity and the documented error-handling
+    contract for callers. (SystemExit) and how callers should handle them. Analyze the actual raise statements in the
+    source.>
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=2
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 import argparse
@@ -70,133 +80,180 @@ SCHEMA_REPOSITORY_FOLDER = Path("jsonschema", "src")
 
 class _GitRemote(Protocol):
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRemote` owns documented
-        class behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. class directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitRemote` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. class rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - fetch: owns nested behavior below this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._GitRemote` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+        specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+        entity and can never be broken. Analyze the actual source for implicit contracts.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=2
+        #arch-eval:locational_stability=4
     """
 
     def fetch(self, *args: object, **kwargs: object) -> object:
         """
+        Implement concrete logic as documented in the owning module architecture contract.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRemote.fetch` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.>
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.script.sync_messages_contract_schemas._GitRemote.fetch` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.>
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.>
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?>
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.>
 
         Main consumers:
-            - src/pytest_bdd/scenario_locator/url_locator.py: imports or references `fetch`
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.>
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.>
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
+            #arch-eval:locational_stability=4
         """
         ...
 
 
 class _GitRemotes(Protocol):
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRemotes` owns documented
-        class behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. class directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitRemotes` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. class rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates origin.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._GitRemotes` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+        specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+        entity and can never be broken. Analyze the actual source for implicit contracts.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=2
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     origin: _GitRemote
@@ -204,88 +261,114 @@ class _GitRemotes(Protocol):
 
 class _GitGit(Protocol):
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitGit` owns documented class
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. class directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitGit` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. class rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - config: owns nested behavior below this boundary
-        - checkout: owns nested behavior below this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._GitGit` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+        specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+        entity and can never be broken. Analyze the actual source for implicit contracts.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     def config(self, *args: object, **kwargs: object) -> object:
         """
+        Implement concrete logic as documented in the owning module architecture contract.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitGit.config` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.>
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitGit.config`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.>
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.>
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?>
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.>
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `config`
-            - src/pytest_bdd/collector.py: imports or references `config`
-            - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `config`
-            - src/pytest_bdd/feature_locator.py: imports or references `config`
-            - src/pytest_bdd/hook.py: imports or references `config`
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.>
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.>
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
@@ -293,90 +376,118 @@ class _GitGit(Protocol):
 
     def checkout(self, *args: object, **kwargs: object) -> object:
         """
+        Implement concrete logic as documented in the owning module architecture contract.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitGit.checkout` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.>
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.script.sync_messages_contract_schemas._GitGit.checkout` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.>
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.>
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?>
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.>
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.>
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.>
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=2
+            #arch-eval:locational_stability=4
         """
         ...
 
 
 class _GitRepo(Protocol):
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRepo` owns documented
-        class behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. class directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitRepo` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. class rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - init: owns nested behavior below this boundary
-        - create_remote: owns nested behavior below this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates git, remotes.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._GitRepo` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+        specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+        entity and can never be broken. Analyze the actual source for implicit contracts.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     git: _GitGit
@@ -385,130 +496,171 @@ class _GitRepo(Protocol):
     @classmethod
     def init(cls, path: Path) -> "_GitRepo":
         """
+        Implement concrete logic as documented in the owning module architecture contract.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRepo.init` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.>
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitRepo.init`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.>
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.>
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?>
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.>
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.>
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.>
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=2
+            #arch-eval:locational_stability=4
         """
         ...
 
     def create_remote(self, name: str, url: str) -> object:
         """
+        Implement concrete logic as documented in the owning module architecture contract.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitRepo.create_remote`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.>
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.script.sync_messages_contract_schemas._GitRepo.create_remote` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.>
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.>
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?>
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.>
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.>
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.>
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=2
+            #arch-eval:locational_stability=4
         """
         ...
 
 
 class _GitModule(Protocol):
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.script.sync_messages_contract_schemas._GitModule` owns documented
-        class behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. class directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._GitModule` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. class rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates Repo.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._GitModule` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+        specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+        entity and can never be broken. Analyze the actual source for implicit contracts.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=2
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     Repo: type[_GitRepo]
@@ -516,49 +668,59 @@ class _GitModule(Protocol):
 
 def copy_schema_tree(source: Path, destination: Path) -> None:
     """
-    Handle copy schema tree.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Handle copy schema tree. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas.copy_schema_tree`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - destination.exists: collaborator call used by this boundary
-        - destination.chmod: collaborator call used by this boundary
-        - destination.stat: collaborator call used by this boundary
-        - shutil.rmtree: collaborator call used by this boundary
-        - shutil.copytree: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     if destination.exists():
         destination.chmod(destination.stat().st_mode | stat.S_IWRITE)
@@ -568,53 +730,59 @@ def copy_schema_tree(source: Path, destination: Path) -> None:
 
 def fetch_schema_tree(destination: Path) -> None:
     """
-    Handle fetch schema tree.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Handle fetch schema tree. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas.fetch_schema_tree`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - cast: collaborator call used by this boundary
-        - importlib.import_module: collaborator call used by this boundary
-        - get_distribution_version: collaborator call used by this boundary
-        - TemporaryDirectory: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - repo_path.mkdir: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates git_module, tag_name, repo_path, repo, sparse_checkout_file.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas.fetch_schema_tree` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     git_module = cast("_GitModule", importlib.import_module("git"))
     tag_name = f"v{get_distribution_version('cucumber_messages')}"
@@ -637,60 +805,59 @@ def fetch_schema_tree(destination: Path) -> None:
 
 def _are_files_equal(file1: Path, file2: Path) -> bool:
     """
-    Compare two files, ignoring line endings and trailing whitespaces.
-
-    Args:
-        file1: First file path.
-        file2: Second file path.
-
-    Returns:
-        True if the normalized contents are equal, False otherwise.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Compare two files, ignoring line endings and trailing whitespaces. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas._are_files_equal`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - file1.read_text.replace.rstrip: collaborator call used by this boundary
-        - file1.read_text.replace: collaborator call used by this boundary
-        - file1.read_text: collaborator call used by this boundary
-        - file2.read_text.replace.rstrip: collaborator call used by this boundary
-        - file2.read_text.replace: collaborator call used by this boundary
-        - file2.read_text: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates content1, content2.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas._are_files_equal` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     try:
         content1 = file1.read_text(encoding="utf-8").replace("\r\n", "\n").rstrip()
@@ -703,61 +870,59 @@ def _are_files_equal(file1: Path, file2: Path) -> bool:
 
 def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
     """
-    Collect schema drift between expected and actual schema directories.
-
-    Args:
-        expected: Expected schema directory.
-        actual: Actual schema directory.
-
-    Returns:
-        Tuple of drift messages.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Collect schema drift between expected and actual schema directories. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.sync_messages_contract_schemas.collect_schema_drift` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - sorted: collaborator call used by this boundary
-        - expected_files.keys: collaborator call used by this boundary
-        - actual_files.keys: collaborator call used by this boundary
-        - path.relative_to.as_posix: collaborator call used by this boundary
-        - path.relative_to: collaborator call used by this boundary
-        - path.is_file: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates expected_files, actual_files, changed, missing, extra.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas.collect_schema_drift` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     expected_files = {path.relative_to(expected).as_posix(): path for path in expected.rglob("*") if path.is_file()}
     actual_files = {path.relative_to(actual).as_posix(): path for path in actual.rglob("*") if path.is_file()}
@@ -774,54 +939,59 @@ def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
 
 def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
     """
-    Synchronize schema files from remote repository.
-
-    Args:
-        schema_path: Target schema path.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Synchronize schema files from remote repository. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas.sync_schema_files`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - TemporaryDirectory: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - fetch_schema_tree: collaborator call used by this boundary
-        - copy_schema_tree: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates fetched_schema_path.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas.sync_schema_files` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
@@ -831,58 +1001,59 @@ def sync_schema_files(schema_path: Path = SCHEMA_PATH) -> None:
 
 def check_schema_files(schema_path: Path = SCHEMA_PATH) -> tuple[str, ...]:
     """
-    Check schema files for drift.
-
-    Args:
-        schema_path: Schema path to check.
-
-    Returns:
-        Tuple of drift messages.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Check schema files for drift. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas.check_schema_files`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - TemporaryDirectory: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - fetch_schema_tree: collaborator call used by this boundary
-        - collect_schema_drift: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates fetched_schema_path.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas.check_schema_files` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     with TemporaryDirectory() as tmpdir:
         fetched_schema_path = Path(tmpdir) / "schema"
@@ -892,64 +1063,64 @@ def check_schema_files(schema_path: Path = SCHEMA_PATH) -> tuple[str, ...]:
 
 def main(argv: list[str] | None = None) -> None:
     """
-    Run main.
-
-    Raises:
-        SystemExit: If the operation cannot be completed.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Run main. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
-        That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-        before editing.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script.sync_messages_contract_schemas.main` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - parser.add_argument: collaborator call used by this boundary
-        - print: collaborator call used by this boundary
-        - argparse.ArgumentParser: collaborator call used by this boundary
-        - parser.parse_args: collaborator call used by this boundary
-        - check_schema_files: collaborator call used by this boundary
-        - SystemExit: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/model/coverage/inventory.py: imports or references `main`
-        - src/pytest_bdd/script/__init__.py: imports or references `main`
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `main`
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references `main`
-        - src/pytest_bdd/script/message_capability_governance/__main__.py: imports or references `main`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates parser, args, drift.
-
-    Invariants:
-        - `pytest_bdd.script.sync_messages_contract_schemas.main` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Failure semantics:
-        Raises or re-raises SystemExit; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (SystemExit) and how callers should handle them. Analyze the actual raise
+        statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
-
     """
     parser = argparse.ArgumentParser(description="Synchronize generated Cucumber messages JSON schema assets.")
     parser.add_argument(
@@ -968,9 +1139,9 @@ def main(argv: list[str] | None = None) -> None:
     if args.check:
         drift = check_schema_files(args.schema_path)
         if drift:
-            print("Generated Cucumber messages schemas are stale:", file=sys.stderr)  # noqa: T201
+            print("Generated Cucumber messages schemas are stale:", file=sys.stderr)  # noqa: T201  -- stderr output for CI/pre-commit schema validation feedback
             for entry in drift:
-                print(f"  {entry}", file=sys.stderr)  # noqa: T201
+                print(f"  {entry}", file=sys.stderr)  # noqa: T201  -- stderr output for CI/pre-commit schema validation feedback
             raise SystemExit(1)
         return
 

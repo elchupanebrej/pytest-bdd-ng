@@ -1,46 +1,48 @@
-# init: allow  # init: no-check
 """
-Provide src.pytest_bdd.script package helpers.
+Provide the public entry point for the `message_capability_governance` CLI tooling, re-exporting `main` so callers c.
 
 Responsibility:
-    Provide src.pytest_bdd.script package helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides the public entry point for the `message_capability_governance` CLI tooling, re-exporting `main` so callers
+    can invoke governance workflows via `pytest_bdd.script.message_capability_governance_main`.>
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.script` because it keeps the nearest code, data shape, call
-    signature, and failure knowledge together.
+    Exists as a thin public facade over the `message_capability_governance` sub-package to give consumers a stable,
+    short import path for the governance CLI entry point without coupling them to the internal sub-package layout.>
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - `message_capability_governance.main`: The actual CLI entry point that dispatches subcommands (sync, validate-
+    decision, diff, checklist, report) and owns all argument parsing and execution logic.>
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    This module contains only the governance CLI re-export. It is intentionally minimal to avoid polluting the
+    `pytest_bdd.script` namespace with internal governance concerns that belong to the dedicated sub-package.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `validate_feature_headings`: Kept separate because heading validation is an independent CLI concern (BDD document
+    linting) with no shared state, imports, or control flow with message capability governance.>
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/html_report.py: imports or references `script`
+    - `pyproject.toml` console_scripts entry point referencing `pytest_bdd.script:message_capability_governance_main`,
+    which resolves to this module's re-export of `message_capability_governance.main`.>
 
 State and side effects:
-    depends on message_capability_governance.main.
+    None, keeps no persistent state. This module is a pure re-export with no file I/O, network calls, or mutable globals
+    beyond the import-time resolution of the governance sub-package.>
 
 Invariants:
-    - `pytest_bdd.script` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - The `message_capability_governance_main` attribute must always be a callable compatible with `main(argv: list[str]
+    | None = None) -> int` from `message_capability_governance.cli._core`.>
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:reason_for_existence=3
+    #arch-eval:owned_responsibility=2
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=1
+    #arch-eval:locational_stability=4
 """
 
 from .message_capability_governance import main as message_capability_governance_main

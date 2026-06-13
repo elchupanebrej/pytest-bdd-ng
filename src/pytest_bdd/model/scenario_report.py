@@ -1,53 +1,55 @@
 """
-Provide report helpers.
+Define typed report data structures and serialization for individual step and scenario execution results.
 
 Responsibility:
-    Provide report helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Defines typed report data structures and serialization for individual step and scenario execution results. This
+    module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+    reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData) that
+    define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure marking.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.scenario_report` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - StepReportData: owns nested behavior below this boundary
-    - FeatureReportData: owns nested behavior below this boundary
-    - ScenarioReportData: owns nested behavior below this boundary
-    - normalize_runtime_step_status: owns nested behavior below this boundary
-    - StepReport: owns nested behavior below this boundary
-    - ScenarioReport: owns nested behavior below this boundary
+    - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a focused
+    sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `scenario_report`
-    - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `scenario_report`
+    - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+    public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+    handling, and stash access
 
 State and side effects:
-    mutates line_number, name, keyword, failed, tags; depends on time, typing.Literal, typing.TypedDict, attrs.define,
-    attrs.field.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.scenario_report` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize must
+    include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 import time
@@ -64,49 +66,58 @@ RuntimeStepStatus = Literal["passed", "failed"]
 
 class StepReportData(TypedDict):
     """
-    Represent step report data state.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Represent step report data state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.StepReportData` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `StepReportData`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `StepReportData`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates name, type, keyword, line_number, failed.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_report.StepReportData` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize
+        must include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     name: str
@@ -120,49 +131,58 @@ class StepReportData(TypedDict):
 
 class FeatureReportData(TypedDict):
     """
-    Represent feature report data state.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Represent feature report data state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.FeatureReportData` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `FeatureReportData`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `FeatureReportData`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates name, filename, rel_filename, line_number, description.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_report.FeatureReportData` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize
+        must include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     name: str | None
@@ -175,49 +195,58 @@ class FeatureReportData(TypedDict):
 
 class ScenarioReportData(TypedDict):
     """
-    Represent scenario report data state.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Represent scenario report data state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.ScenarioReportData` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `ScenarioReportData`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `ScenarioReportData`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates steps, name, line_number, tags, feature.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_report.ScenarioReportData` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize
+        must include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     steps: list[StepReportData]
@@ -229,59 +258,54 @@ class ScenarioReportData(TypedDict):
 
 def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) -> RuntimeStepStatus:
     """
-    Normalize runtime step status.
-
-    Args:
-        status: Raw status string.
-        failed_fallback: Fallback status when status is invalid.
-
-    Returns:
-        Normalized runtime step status.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Normalize runtime step status. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.normalize_runtime_step_status`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - strip.lower: collaborator call used by this boundary
-        - strip: collaborator call used by this boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references
-          `normalize_runtime_step_status`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `normalize_runtime_step_status`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates normalized.
-
-    Invariants:
-        - `pytest_bdd.model.scenario_report.normalize_runtime_step_status` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:locational_stability=4
     """
     normalized = (status or "").strip().lower()
     if normalized == "passed":
@@ -294,51 +318,58 @@ def normalize_runtime_step_status(status: str | None, *, failed_fallback: bool) 
 @define(eq=False)
 class StepReport:
     """
-    Step execution report.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Step execution report. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.StepReport` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - serialize: owns nested behavior below this boundary
-        - finalize: owns nested behavior below this boundary
-        - duration: owns nested behavior below this boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `StepReport`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `StepReport`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates line_number, step_prefix, step, started, failed.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_report.StepReport` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize
+        must include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     step: PickleStep = field()
@@ -348,63 +379,52 @@ class StepReport:
 
     def serialize(self, feature_binding: FeatureRuntimeBinding) -> StepReportData:
         """
-        Serialize the step execution report.
-
-        Args:
-            feature_binding: Feature runtime binding.
-
-        Returns:
-            Serialized step execution report.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the step execution report. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.StepReport.serialize` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - feature_binding.step_keyword: collaborator call used by this boundary
-            - feature_binding.step_line_number: collaborator call used by this boundary
-            - feature_binding.step_prefix: collaborator call used by this boundary
-            - normalize_runtime_step_status: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/execution_message_adapter.py: imports or references `serialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `serialize`
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `serialize`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `serialize`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates line_number, step_prefix, keyword.
-
-        Invariants:
-            - `pytest_bdd.model.scenario_report.StepReport.serialize` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         keyword = getattr(self.step, "keyword", None) or feature_binding.step_keyword(self.step)
         line_number = getattr(self.step, "line_number", None)
@@ -425,50 +445,52 @@ class StepReport:
 
     def finalize(self, *, failed: bool = False) -> None:
         """
-        Stop collecting information and finalize the report.
-
-        :param bool failed: Whether the step execution is failed.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Stop collecting information and finalize the report. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.StepReport.finalize` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - time.perf_counter: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `finalize`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `finalize`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates self.stopped, self.failed.
-
-        Invariants:
-            - `pytest_bdd.model.scenario_report.StepReport.finalize` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.stopped = time.perf_counter()
         self.failed = failed
@@ -476,47 +498,48 @@ class StepReport:
     @property
     def duration(self) -> float:
         """
-        Step execution duration.
-
-        :return: Step execution duration.
-        :rtype: float
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Step execution duration. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.StepReport.duration` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/scenario_run.py: imports or references `duration`
-            - src/pytest_bdd/plugin/cucumber_json/model.py: imports or references `duration`
-            - src/pytest_bdd/plugin/cucumber_json/plugin.py: imports or references `duration`
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `duration`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `duration`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
@@ -531,53 +554,58 @@ class StepReport:
 @define
 class ScenarioReport:
     """
-    Pickle execution report.
+    Define typed report data structures and serialization for individual step and scenario execution results.
 
     Responsibility:
-        Pickle execution report. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines typed report data structures and serialization for individual step and scenario execution results. This
+        module provides StepReport (with timing, failure tracking, and serialization), ScenarioReport (aggregating step
+        reports and context snapshots), and TypedDict schemas (StepReportData, FeatureReportData, ScenarioReportData)
+        that define the contract for report consumers. It normalizes runtime step statuses and handles cascading failure
+        marking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_report.ScenarioReport` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - current_step_report: owns nested behavior below this boundary
-        - add_step_report: owns nested behavior below this boundary
-        - set_context_snapshot: owns nested behavior below this boundary
-        - serialize: owns nested behavior below this boundary
-        - fail: owns nested behavior below this boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `ScenarioReport`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `ScenarioReport`
+        - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates feature_binding, pickle, step_reports, context_snapshot, self.context_snapshot.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_report.ScenarioReport` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - StepReport timestamps must be captured via time.perf_counter for monotonic timing; ScenarioReport.serialize
+        must include all StepReport entries in order; fail() must cascade failure to all remaining steps in the pickle
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     feature_binding: FeatureRuntimeBinding = field()
@@ -588,203 +616,205 @@ class ScenarioReport:
     @property
     def current_step_report(self) -> StepReport:
         """
-        Get current step report.
-
-        :return: Last or current step report.
-        :rtype: pytest_bdd.reporting.StepReport
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Get current step report. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.scenario_report.ScenarioReport.current_step_report` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `current_step_report`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `current_step_report`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
+            #arch-eval:locational_stability=4
         """
         return self.step_reports[-1]
 
     def add_step_report(self, step_report: StepReport) -> None:
         """
-        Add new step report.
-
-        :param step_report: New current step report.
-        :type step_report: pytest_bdd.reporting.StepReport
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Add new step report. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.ScenarioReport.add_step_report`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.step_reports.append: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `add_step_report`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `add_step_report`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.step_reports.append(step_report)
 
     def set_context_snapshot(self, context_snapshot: ReportingContextSnapshot | None) -> None:
         """
-        Handle set context snapshot.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Handle set context snapshot. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.scenario_report.ScenarioReport.set_context_snapshot` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `set_context_snapshot`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `set_context_snapshot`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates self.context_snapshot.
-
-        Invariants:
-            - `pytest_bdd.model.scenario_report.ScenarioReport.set_context_snapshot` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.context_snapshot = context_snapshot
 
     def serialize(self) -> ScenarioReportData:
         """
-        Serialize scenario execution report for distributed mode.
-
-        Returns:
-            Serialized scenario report.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize scenario execution report for distributed mode. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.ScenarioReport.serialize`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - step_report.serialize: collaborator call used by this boundary
-            - feature_binding.pickle_line_number: collaborator call used by this boundary
-            - sorted: collaborator call used by this boundary
-            - difference: collaborator call used by this boundary
-            - tag.name.lstrip: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/execution_message_adapter.py: imports or references `serialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `serialize`
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `serialize`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `serialize`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates pickle, feature_binding.
-
-        Invariants:
-            - `pytest_bdd.model.scenario_report.ScenarioReport.serialize` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         pickle = self.pickle
         feature_binding = self.feature_binding
@@ -806,53 +836,51 @@ class ScenarioReport:
 
     def fail(self) -> None:
         """
-        Stop collecting information and finalize the report as failed.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Stop collecting information and finalize the report as failed. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_report.ScenarioReport.fail` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.current_step_report.finalize: collaborator call used by this boundary
-            - len: collaborator call used by this boundary
-            - StepReport: collaborator call used by this boundary
-            - report.finalize: collaborator call used by this boundary
-            - self.add_step_report: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `fail`
-            - src/pytest_bdd/plugin/gherkin_terminal_reporter/plugin.py: imports or references `fail`
-            - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `fail`
-            - src/pytest_bdd/util/pytest_extra.py: imports or references `fail`
+            - scenario_reporter: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates remaining_steps, report.
-
-        Invariants:
-            - `pytest_bdd.model.scenario_report.ScenarioReport.fail` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         self.current_step_report.finalize(failed=True)

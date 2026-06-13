@@ -133,17 +133,17 @@ with Gherkin ``.feature`` files:
 ```python
 from pytest_bdd import given, when, then, parsers
 
+
 @given(parsers.parse('the user "{username}" exists with password "{password}"'))
-def user_exists(username, password):
-    ...
+def user_exists(username, password): ...
+
 
 @when(parsers.parse('the user logs in as "{username}" with password "{password}"'))
-def user_logs_in(username, password):
-    ...
+def user_logs_in(username, password): ...
+
 
 @then("the dashboard is displayed")
-def dashboard_displayed():
-    ...
+def dashboard_displayed(): ...
 ```
 
 ## Complete Example
@@ -189,25 +189,30 @@ And ``tests/test_calculator.py``:
 ```python
 from pytest_bdd import given, scenario, then, when
 
+
 @scenario("features/calculator.struct.yaml", "Add two numbers")
 def test_add():
     pass
+
 
 @scenario("features/calculator.struct.yaml", "Subtract two numbers")
 def test_subtract():
     pass
 
+
 @given("the calculator is reset")
 def calculator_reset():
     return {"value": 0, "operation": None}
 
+
 @when("I enter 3")
-def enter_3(calculator_reset):
-    ...
+def enter_3(calculator_reset): ...
+
 
 @when("I press add")
 def press_add(calculator_reset):
     calculator_reset["operation"] = "add"
+
 
 @then("the result is 8")
 def check_result_8(calculator_reset):

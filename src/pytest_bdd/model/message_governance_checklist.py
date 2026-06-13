@@ -1,51 +1,58 @@
 """
-Provide message governance checklist helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide message governance checklist helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_governance_checklist` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - GovernanceChecklistEntry: owns nested behavior below this boundary
-    - GovernanceChecklist: owns nested behavior below this boundary
-    - _decision_index: owns nested behavior below this boundary
-    - build_governance_checklist: owns nested behavior below this boundary
-    - render_checklist_markdown: owns nested behavior below this boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-      `message_governance_checklist`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates delta, disposition, status, comment, comment_required; depends on __future__.annotations,
-    typing.TYPE_CHECKING, typing.Final, typing.Literal, attrs.frozen.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_governance_checklist` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -75,50 +82,61 @@ ChecklistDisposition = Literal["approved", "blocked", "deferred"]
 @frozen
 class GovernanceChecklistEntry:
     """
-    Record governance result for a single capability.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Record governance result for a single capability. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_governance_checklist.GovernanceChecklistEntry` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `GovernanceChecklistEntry`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `GovernanceChecklistEntry`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates capability_id, status, comment_required, comment, release_blocker.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_governance_checklist.GovernanceChecklistEntry` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     capability_id: str
@@ -133,48 +151,61 @@ class GovernanceChecklistEntry:
 @frozen
 class GovernanceChecklist:
     """
-    Consolidate capability governance entries into a checklist.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Consolidate capability governance entries into a checklist. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_governance_checklist.GovernanceChecklist`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `GovernanceChecklist`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references `GovernanceChecklist`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates checklist_name, entries, unresolved_blockers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_governance_checklist.GovernanceChecklist` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     checklist_name: str
@@ -184,47 +215,61 @@ class GovernanceChecklist:
 
 def _decision_index(decisions: list[CapabilityDecision]) -> dict[str, CapabilityDecision]:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_governance_checklist._decision_index` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_governance_checklist._decision_index`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references `_decision_index`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
     """
     return {decision.capability_id: decision for decision in decisions}
 
 
-def build_governance_checklist(  # noqa: PLR0914
+def build_governance_checklist(  # noqa: PLR0914  -- suppressed warning
     capabilities: list[MessageCapability],
     decisions: list[CapabilityDecision],
     *,
@@ -232,60 +277,56 @@ def build_governance_checklist(  # noqa: PLR0914
     baseline_diff: BaselineDiffRecord | None = None,
 ) -> GovernanceChecklist:
     """
-    Evaluate each relevant capability against its corresponding decisions and generate a release governance checklist.
-
-    Returns:
-        A GovernanceChecklist containing per-capability disposition entries and the total count of unresolved blockers.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Evaluate each relevant capability against its corresponding decisions and generate a release governance
-        checklist. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_governance_checklist.build_governance_checklist` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - set: collaborator call used by this boundary
-        - tuple: collaborator call used by this boundary
-        - _decision_index: collaborator call used by this boundary
-        - capability_is_relevant: collaborator call used by this boundary
-        - evaluate_release_blockers: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `build_governance_checklist`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `build_governance_checklist`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates delta, disposition, status, comment, index.
-
-    Invariants:
-        - `pytest_bdd.model.message_governance_checklist.build_governance_checklist` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:locational_stability=4
     """
     index = _decision_index(decisions)
     added = set(baseline_diff.added_capability_ids) if baseline_diff is not None else set()
@@ -352,58 +393,56 @@ def build_governance_checklist(  # noqa: PLR0914
 
 def render_checklist_markdown(checklist: GovernanceChecklist) -> str:
     """
-    Render a governance checklist as a human-readable markdown table, suitable for inclusion in release documentation.
-
-    Returns:
-        A markdown-formatted string with a table of capabilities, dispositions, and a final blocker count.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Render a governance checklist as a human-readable markdown table, suitable for inclusion in release
-        documentation. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_governance_checklist.render_checklist_markdown` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - lines.extend: collaborator call used by this boundary
-        - str.lower: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - join: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `render_checklist_markdown`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `render_checklist_markdown`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates lines.
-
-    Invariants:
-        - `pytest_bdd.model.message_governance_checklist.render_checklist_markdown` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:locational_stability=4
     """
     lines = [
         f"# {checklist.checklist_name}",

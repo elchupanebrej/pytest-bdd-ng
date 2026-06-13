@@ -1,47 +1,48 @@
 """
-Provide data table helpers.
+Provides DataTable parsing utilities that convert Gherkin DataTable objects into structured
+Python data formats (list.
 
 Responsibility:
-    Provide data table helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides DataTable parsing utilities that convert Gherkin DataTable objects into structured
+    Python data formats (list-of-lists, list-of-dicts, key-value pairs), bridging the gap between
+    Cucumber Messages' DataTable representation and pytest-bdd step definition parameter injection.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.data_table` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    DataTable transformation is a cross-cutting concern used by multiple step definition patterns
+    and matchers. Centralizing these conversions prevents duplication across the step definition
+    system and ensures consistent DataTable handling regardless of step definition implementation
+    style.
 
 Delegates:
-    - data_table_to_dicts: owns nested behavior below this boundary
+    - `cucumber_messages`: provides the DataTable and TableRow message types consumed here
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions operate on cucumber_messages DataTable objects and produce standard Python data
+    structures.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.steps`: steps handles step matching while data_table provides transformation utilities.
 
 Main consumers:
-    - src/pytest_bdd/model/scenario_run.py: imports or references `data_table`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `data_table`
+    - `pytest_bdd.steps`: uses data_table functions for parameter injection into step implementations
 
 State and side effects:
-    depends on __future__.annotations, typing.TYPE_CHECKING, cucumber_messages.DataTable.
+    None, all functions are pure transformations from DataTable input to Python data structure
+    output.
 
 Invariants:
-    - `pytest_bdd.util.data_table` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - All functions handle empty DataTable rows (header-only tables) gracefully without crashing.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -56,50 +57,47 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def data_table_to_dicts(data_table: DataTable | None) -> dict[str, list[str]]:
     """
-    Convert a Gherkin data table to dictionaries.
-
-    Args:
-        data_table: Gherkin data table or None.
-
-    Returns:
-        Dictionary mapping first column to list of other values.
+    Perform the `data_table_to_dicts` operation within its module boundary, implementing a focused.
+    helper function that .
 
     Responsibility:
-        Convert a Gherkin data table to dictionaries. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `data_table_to_dicts` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.data_table.data_table_to_dicts` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `data_table_to_dicts` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the data_table_to_dicts operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `pytest_bdd.*`: callers import and invoke data_table_to_dicts for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The data_table_to_dicts function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=2
-
+        #arch-eval:locational_stability=3
     """
     if data_table is None:
         return {}

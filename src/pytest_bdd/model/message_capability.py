@@ -1,49 +1,58 @@
 """
-Provide message capability helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide message capability helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_capability` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - MessageCapability: owns nested behavior below this boundary
-    - classify_capability_relevance: owns nested behavior below this boundary
-    - capability_is_relevant: owns nested behavior below this boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/script/message_capability_governance/capabilities.py: imports or references `message_capability`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates CapabilityCategory, CapabilityRelevance, CapabilityImpact, RELEVANT_IMPACTS, capability_id; depends on
-    __future__.annotations, typing.Final, typing.Literal, attrs.field, attrs.frozen.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_capability` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -74,49 +83,57 @@ RELEVANT_IMPACTS: Final[frozenset[CapabilityImpact]] = frozenset(
 @frozen
 class MessageCapability:
     """
-    Represent a distinct capability introduced by a cucumber-messages schema release.
-
-    Used to track supported features and generate compatibility inventories.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Represent a distinct capability introduced by a cucumber-messages schema release. It directly owns the
-        observable contract, local decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_capability.MessageCapability` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - relevance: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `MessageCapability`
-        - src/pytest_bdd/model/message_baseline_diff.py: imports or references `MessageCapability`
-        - src/pytest_bdd/model/message_capability_inventory.py: imports or references `MessageCapability`
-        - src/pytest_bdd/model/message_governance_checklist.py: imports or references `MessageCapability`
-        - src/pytest_bdd/script/message_capability_governance/capabilities.py: imports or references `MessageCapability`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates capability_id, baseline_release, name, description, category.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_capability.MessageCapability` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
@@ -135,97 +152,108 @@ class MessageCapability:
     @property
     def relevance(self) -> CapabilityRelevance:
         """
-        Determine whether this capability falls within the supported scope of the project.
-
-        Returns:
-            The relevance classification indicating if the capability is supported or out of scope.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Determine whether this capability falls within the supported scope of the project. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.message_capability.MessageCapability.relevance`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - classify_capability_relevance: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_baseline_diff.py: imports or references `relevance`
-            - src/pytest_bdd/script/message_capability_governance/capabilities.py: imports or references `relevance`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         return classify_capability_relevance(self)
 
 
 def classify_capability_relevance(capability: MessageCapability) -> CapabilityRelevance:
     """
-    Classify a given capability based on its explicit relevance or inferred impact.
-
-    Returns:
-        The evaluated relevance, classifying it as either 'relevant' or 'out_of_scope'.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Classify a given capability based on its explicit relevance or inferred impact. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_capability.classify_capability_relevance`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - capability.affects.intersection: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `classify_capability_relevance`
-        - src/pytest_bdd/script/message_capability_governance/capabilities.py: imports or references
-          `classify_capability_relevance`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:locational_stability=4
     """
     if capability.explicit_relevance is not None:
         return capability.explicit_relevance
@@ -236,50 +264,55 @@ def classify_capability_relevance(capability: MessageCapability) -> CapabilityRe
 
 def capability_is_relevant(capability: MessageCapability) -> bool:
     """
-    Check if the specified message capability is considered relevant for the project.
-
-    Returns:
-        True if the capability is classified as relevant, False otherwise.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Check if the specified message capability is considered relevant for the project. It directly owns the
-        observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_capability.capability_is_relevant` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - classify_capability_relevance: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `capability_is_relevant`
-        - src/pytest_bdd/model/message_capability_inventory.py: imports or references `capability_is_relevant`
-        - src/pytest_bdd/model/message_governance_checklist.py: imports or references `capability_is_relevant`
-        - src/pytest_bdd/script/message_capability_governance/capabilities.py: imports or references
-          `capability_is_relevant`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     return classify_capability_relevance(capability) == "relevant"

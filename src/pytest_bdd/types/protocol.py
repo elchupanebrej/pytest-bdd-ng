@@ -1,54 +1,47 @@
 """
-Provide protocol helpers.
+Defines structural typing Protocols (HasPytestStash, Identifiable, LinkedAST, MultiLinkedAST)
+that enable duck-typing.
 
 Responsibility:
-    Provide protocol helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Defines structural typing Protocols (HasPytestStash, Identifiable, LinkedAST, MultiLinkedAST)
+    that enable duck-typing across pytest-bdd runtime objects without requiring concrete class
+    inheritance, supporting both first-party and third-party pytest plugin extension points.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.types.protocol` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    Protocols enable the runtime to accept any object satisfying a structural contract (e.g.,
+    having a `stash` attribute or `id` field) rather than coupling to specific implementation
+    classes. This is critical for pytest plugin interoperability where objects originate from
+    different sources.
 
 Delegates:
-    - HasPytestStash: owns nested behavior below this boundary
-    - Identifiable: owns nested behavior below this boundary
-    - LinkedAST: owns nested behavior below this boundary
-    - MultiLinkedAST: owns nested behavior below this boundary
+    - `typing.Protocol`: provides the structural subtyping mechanism via @runtime_checkable
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All four Protocols define structural typing contracts for runtime objects; no logic, only shape
+    definitions.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.types.exception`: exception defines error classes while protocol defines interface contracts.
 
 Main consumers:
-    - src/pytest_bdd/compatibility/parser.py: imports or references `protocol`
-    - src/pytest_bdd/feature_locator.py: imports or references `protocol`
-    - src/pytest_bdd/model/feature_binding.py: imports or references `protocol`
-    - src/pytest_bdd/model/message_registry.py: imports or references `protocol`
-    - src/pytest_bdd/model/message_transport.py: imports or references `protocol`
+    - `pytest_bdd.model.stash_access`: uses HasPytestStash and Identifiable protocols for runtime type checking
 
 State and side effects:
-    mutates stash, id, ast_node_id, ast_node_ids; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.Protocol, typing.runtime_checkable, pytest_bdd.compatibility.pytest.Stash.
+    None, Protocols are pure type definitions with zero runtime behavior or state footprint.
 
 Invariants:
-    - `pytest_bdd.types.protocol` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - Each Protocol declares exactly the minimal attribute set required for its structural contract.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -62,51 +55,46 @@ if TYPE_CHECKING:
 @runtime_checkable
 class HasPytestStash(Protocol):
     """
-    Represent has pytest stash state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent has pytest stash state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.protocol.HasPytestStash` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: HasPytestStash specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/compatibility/parser.py: imports or references `HasPytestStash`
-        - src/pytest_bdd/feature_locator.py: imports or references `HasPytestStash`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `HasPytestStash`
-        - src/pytest_bdd/model/message_registry.py: imports or references `HasPytestStash`
-        - src/pytest_bdd/model/message_transport.py: imports or references `HasPytestStash`
+        - `pytest_bdd.*`: callers catch or instantiate HasPytestStash for error handling and type checking
 
     State and side effects:
-        mutates stash.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.protocol.HasPytestStash` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -116,51 +104,46 @@ class HasPytestStash(Protocol):
 @runtime_checkable
 class Identifiable(Protocol):
     """
-    Represent identifiable state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent identifiable state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.protocol.Identifiable` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: Identifiable specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/compatibility/parser.py: imports or references `Identifiable`
-        - src/pytest_bdd/feature_locator.py: imports or references `Identifiable`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `Identifiable`
-        - src/pytest_bdd/model/message_registry.py: imports or references `Identifiable`
-        - src/pytest_bdd/model/message_transport.py: imports or references `Identifiable`
+        - `pytest_bdd.*`: callers catch or instantiate Identifiable for error handling and type checking
 
     State and side effects:
-        mutates id.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.protocol.Identifiable` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -170,51 +153,46 @@ class Identifiable(Protocol):
 @runtime_checkable
 class LinkedAST(Protocol):
     """
-    Represent linked ast state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent linked ast state. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.protocol.LinkedAST` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: LinkedAST specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/compatibility/parser.py: imports or references `LinkedAST`
-        - src/pytest_bdd/feature_locator.py: imports or references `LinkedAST`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `LinkedAST`
-        - src/pytest_bdd/model/message_registry.py: imports or references `LinkedAST`
-        - src/pytest_bdd/model/message_transport.py: imports or references `LinkedAST`
+        - `pytest_bdd.*`: callers catch or instantiate LinkedAST for error handling and type checking
 
     State and side effects:
-        mutates ast_node_id.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.protocol.LinkedAST` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -224,51 +202,46 @@ class LinkedAST(Protocol):
 @runtime_checkable
 class MultiLinkedAST(Protocol):
     """
-    Represent multi linked ast state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent multi linked ast state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.protocol.MultiLinkedAST` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: MultiLinkedAST specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/compatibility/parser.py: imports or references `MultiLinkedAST`
-        - src/pytest_bdd/feature_locator.py: imports or references `MultiLinkedAST`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `MultiLinkedAST`
-        - src/pytest_bdd/model/message_registry.py: imports or references `MultiLinkedAST`
-        - src/pytest_bdd/model/message_transport.py: imports or references `MultiLinkedAST`
+        - `pytest_bdd.*`: callers catch or instantiate MultiLinkedAST for error handling and type checking
 
     State and side effects:
-        mutates ast_node_ids.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.protocol.MultiLinkedAST` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 

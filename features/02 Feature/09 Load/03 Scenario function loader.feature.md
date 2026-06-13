@@ -13,9 +13,9 @@
     ```python
     from pytest_bdd import step
 
-    @step('Passing step')
-    def _():
-      ...
+
+    @step("Passing step")
+    def _(): ...
     ```
 
 ## Scenario: "scenario" function is used as decorator
@@ -25,11 +25,12 @@
     from pytest_bdd import scenario
     from pathlib import Path
 
+
     @scenario(Path(r"{tmp_path}") / "Passing.feature")
     def test_passing_feature():
-      # It is however encouraged to try as much as possible
-      # to have your logic only inside the Given, When, Then steps.
-      ...
+        # It is however encouraged to try as much as possible
+        # to have your logic only inside the Given, When, Then steps.
+        ...
     ```
 
 * When run pytest
@@ -46,11 +47,12 @@
     from pytest_bdd import scenarios
     from pathlib import Path
 
+
     @scenarios(Path(r"{tmp_path}") / "Passing.feature", return_test_decorator=True)
     def test_passing_feature():
-      # It is however encouraged to try as much as possible
-      # to have your logic only inside the Given, When, Then steps.
-      ...
+        # It is however encouraged to try as much as possible
+        # to have your logic only inside the Given, When, Then steps.
+        ...
     ```
 
 * When run pytest

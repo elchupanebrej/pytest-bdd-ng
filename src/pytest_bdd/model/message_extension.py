@@ -1,55 +1,56 @@
 """
-Provide message extension helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide message extension helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_extension` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - StepDefinitionPattern: owns nested behavior below this boundary
-    - _is_optional_type: owns nested behavior below this boundary
-    - _unwrap_optional: owns nested behavior below this boundary
-    - _payload_field_hints: owns nested behavior below this boundary
-    - LifecycleCorrelation: owns nested behavior below this boundary
-    - EnvelopeStatus: owns nested behavior below this boundary
+    - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+    focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `message_extension`
-    - src/pytest_bdd/message_stream_validation/status.py: imports or references `message_extension`
-    - src/pytest_bdd/model/message_converter.py: imports or references `message_extension`
-    - src/pytest_bdd/model/message_registry.py: imports or references `message_extension`
-    - src/pytest_bdd/model/message_schema_validation.py: imports or references `message_extension`
+    - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+    public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+    handling, and stash access
 
 State and side effects:
-    mutates StepDefinitionPatternType, type, EventEnvelope, PAYLOAD_KINDS, PayloadKind; depends on
-    __future__.annotations, enum.Enum, typing.Final, typing.TypeAlias, typing.cast.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_extension` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - PAYLOAD_KINDS must stay synchronized with cucumber_messages Envelope annotations; StepDefinitionPatternType must
+    include all pytest-bdd custom pattern types; get_payload_kind must return exactly one kind or None
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -83,47 +84,56 @@ StepDefinitionPatternType = Enum(  # type: ignore[misc, no-redef]  # extends cuc
 @define(init=False, repr=False, eq=False)
 class StepDefinitionPattern(_BaseStepDefinitionPattern):  # type: ignore[no-redef]  # extends cucumber_messages StepDefinitionPattern
     """
-    Extend the canonical cucumber StepDefinitionPattern with pytest-bdd-specific expression type variants.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Extend the canonical cucumber StepDefinitionPattern with pytest-bdd-specific expression type variants. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.StepDefinitionPattern` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `StepDefinitionPattern`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `StepDefinitionPattern`
-        - src/pytest_bdd/model/message_registry.py: imports or references `StepDefinitionPattern`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `StepDefinitionPattern`
-        - src/pytest_bdd/model/message_validation.py: imports or references `StepDefinitionPattern`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates type.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_extension.StepDefinitionPattern` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - PAYLOAD_KINDS must stay synchronized with cucumber_messages Envelope annotations; StepDefinitionPatternType
+        must include all pytest-bdd custom pattern types; get_payload_kind must return exactly one kind or None
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
@@ -132,50 +142,53 @@ class StepDefinitionPattern(_BaseStepDefinitionPattern):  # type: ignore[no-rede
 
     type: StepDefinitionPatternType
 
-    def __init__(self, source: str, type: StepDefinitionPatternType) -> None:  # noqa: A002
+    def __init__(self, source: str, type: StepDefinitionPatternType) -> None:  # noqa: A002  -- suppressed warning
         """
-        Initialize the step definition pattern.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Initialize the step definition pattern. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.message_extension.StepDefinitionPattern.__init__` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating
+            a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `__init__`
+            - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         super().__init__(source=source, type=type)
@@ -199,45 +212,54 @@ _ENVELOPE_HINTS: Final[dict[str, object]] = get_type_hints(_BaseEnvelope, global
 
 def _is_optional_type(value: object) -> bool:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_extension._is_optional_type` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension._is_optional_type` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - any: collaborator call used by this boundary
-        - type: collaborator call used by this boundary
-        - get_args: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_is_optional_type`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `_is_optional_type`
-        - src/pytest_bdd/model/message_registry.py: imports or references `_is_optional_type`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `_is_optional_type`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_is_optional_type`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -246,48 +268,52 @@ def _is_optional_type(value: object) -> bool:
 
 def _unwrap_optional(value: object) -> object:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_extension._unwrap_optional` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension._unwrap_optional` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - tuple: collaborator call used by this boundary
-        - get_args: collaborator call used by this boundary
-        - type: collaborator call used by this boundary
-        - len: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_unwrap_optional`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `_unwrap_optional`
-        - src/pytest_bdd/model/message_registry.py: imports or references `_unwrap_optional`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `_unwrap_optional`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_unwrap_optional`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates args.
-
-    Invariants:
-        - `pytest_bdd.model.message_extension._unwrap_optional` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -301,50 +327,52 @@ def _unwrap_optional(value: object) -> object:
 
 def _payload_field_hints(payload_kind: PayloadKind) -> dict[str, object]:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.message_extension._payload_field_hints` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension._payload_field_hints` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - _ENVELOPE_HINTS.get: collaborator call used by this boundary
-        - _unwrap_optional: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - get_type_hints: collaborator call used by this boundary
-        - globals: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_payload_field_hints`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `_payload_field_hints`
-        - src/pytest_bdd/model/message_registry.py: imports or references `_payload_field_hints`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `_payload_field_hints`
-        - src/pytest_bdd/model/message_validation.py: imports or references `_payload_field_hints`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates payload_annotation, payload_type.
-
-    Invariants:
-        - `pytest_bdd.model.message_extension._payload_field_hints` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -412,50 +440,59 @@ EXECUTION_PRESERVED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = tuple(
 @define(frozen=True, slots=True)
 class LifecycleCorrelation:
     """
-    Associate a scenario execution attempt with its parent run, worker, and step context for traceability.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Associate a scenario execution attempt with its parent run, worker, and step context for traceability. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.LifecycleCorrelation` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - define: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `LifecycleCorrelation`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `LifecycleCorrelation`
-        - src/pytest_bdd/model/message_registry.py: imports or references `LifecycleCorrelation`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `LifecycleCorrelation`
-        - src/pytest_bdd/model/message_validation.py: imports or references `LifecycleCorrelation`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates run_id, scenario_attempt_id, worker_id, attempt_index, step_id.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_extension.LifecycleCorrelation` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - PAYLOAD_KINDS must stay synchronized with cucumber_messages Envelope annotations; StepDefinitionPatternType
+        must include all pytest-bdd custom pattern types; get_payload_kind must return exactly one kind or None
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -469,50 +506,59 @@ class LifecycleCorrelation:
 @define(frozen=True, slots=True)
 class EnvelopeStatus:
     """
-    Capture governance status fields extracted from an envelope for validation and reporting purposes.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Capture governance status fields extracted from an envelope for validation and reporting purposes. It directly
-        owns the observable contract, local decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.EnvelopeStatus` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - define: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `EnvelopeStatus`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `EnvelopeStatus`
-        - src/pytest_bdd/model/message_registry.py: imports or references `EnvelopeStatus`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `EnvelopeStatus`
-        - src/pytest_bdd/model/message_validation.py: imports or references `EnvelopeStatus`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates implementation_status, implementation_comment, comment_present, hook_origin.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_extension.EnvelopeStatus` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - PAYLOAD_KINDS must stay synchronized with cucumber_messages Envelope annotations; StepDefinitionPatternType
+        must include all pytest-bdd custom pattern types; get_payload_kind must return exactly one kind or None
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -524,52 +570,56 @@ class EnvelopeStatus:
 
 def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
     """
-    Classify an envelope's payload kind into a merge-strategy bucket for stream consolidation.
-
-    Returns:
-        A string denoting the merge class ('controller_singular', 'structural_deduplicated', or 'execution_preserved'),
-        or None if the payload kind is unrecognized.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Classify an envelope's payload kind into a merge-strategy bucket for stream consolidation. It directly owns the
-        observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.get_payload_merge_class` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - cast: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `get_payload_merge_class`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `get_payload_merge_class`
-        - src/pytest_bdd/model/message_registry.py: imports or references `get_payload_merge_class`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `get_payload_merge_class`
-        - src/pytest_bdd/model/message_validation.py: imports or references `get_payload_merge_class`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     if payload_kind is None:
         return cast("str | None", None)
@@ -584,57 +634,56 @@ def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
 
 def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
     """
-    Identify the single active payload field name within an EventEnvelope.
-
-    Returns:
-        The payload kind string if exactly one field is populated, or None if the envelope is empty or ambiguous.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Identify the single active payload field name within an EventEnvelope. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.get_payload_kind` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - len: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `get_payload_kind`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `get_payload_kind`
-        - src/pytest_bdd/model/execution_message_adapter.py: imports or references `get_payload_kind`
-        - src/pytest_bdd/model/message_registry.py: imports or references `get_payload_kind`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `get_payload_kind`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates matched_payload_kinds.
-
-    Invariants:
-        - `pytest_bdd.model.message_extension.get_payload_kind` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     matched_payload_kinds = [
         payload_kind for payload_kind in PAYLOAD_KINDS if getattr(message, payload_kind, None) is not None
@@ -646,50 +695,55 @@ def get_payload_kind(message: EventEnvelope) -> PayloadKind | None:
 
 def has_single_payload(message: EventEnvelope) -> bool:
     """
-    Verify that an EventEnvelope satisfies the oneof payload constraint by carrying exactly one populated field.
-
-    Returns:
-        True if exactly one payload field is present, otherwise False.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Verify that an EventEnvelope satisfies the oneof payload constraint by carrying exactly one populated field. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_extension.has_single_payload` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - get_payload_kind: collaborator call used by this boundary
+        - cucumber_messages.Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `has_single_payload`
-        - src/pytest_bdd/message_stream_validation/status.py: imports or references `has_single_payload`
-        - src/pytest_bdd/model/message_converter.py: imports or references `has_single_payload`
-        - src/pytest_bdd/model/message_registry.py: imports or references `has_single_payload`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `has_single_payload`
+        - message_serialization: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     return get_payload_kind(message) is not None

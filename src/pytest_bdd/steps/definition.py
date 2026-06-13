@@ -1,56 +1,92 @@
 """
-Step definition data class and shared type aliases.
+Defines the canonical data model for a registered BDD step definition: the `Definition` attrs class that binds a user.
 
 Responsibility:
-    Step definition data class and shared type aliases. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Defines the canonical data model for a registered BDD step definition: the `Definition` attrs class that binds a
+    user function (StepFunc) to a StepParser, step type (given/when/then), converters, fixture mappings, and metadata
+    (liberal, tolerant, not_implemented flags). Also provides the StepFunc Protocol for structural typing of decorated
+    step functions, type aliases (StepDecorator, ConverterT, ParamsFixturesMapping), the
+    _resolve_callable_source_location helper for extracting file/line from callables, and methods on Definition for
+    converting to cucumber_messages StepDefinition (as_message) and resolving step parameters from a PickleStep
+    (get_parameters).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.steps.definition` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This module is the information expert for the Definition entity because it owns all data and behaviour related to a
+    single step binding: how the function, parser, type, converters, and fixture mappings are stored (the attrs fields),
+    how fixture names are derived from step parameters (fixtures_mapped_from_step_definition), how the definition
+    serialises to the Cucumber Messages protocol (as_message using IdGenerator from pytest stash), and how parameter
+    values are extracted and converted at execution time (get_parameters). It is kept separate from manager.py (which
+    orchestrates definition creation) and matcher.py (which matches definitions to steps) because the Definition is the
+    central data object that both consume — changes to the Definition's fields or serialisation affect both, and keeping
+    it in its own module prevents circular dependencies between the creation and consumption concerns.
 
 Delegates:
-    - StepFunc: owns nested behavior below this boundary
-    - _resolve_callable_source_location: owns nested behavior below this boundary
-    - Definition: owns nested behavior below this boundary
+    - _resolve_callable_source_location: Uses inspect.getfile and inspect.getsourcelines to extract the (file_path,
+    line_number) of a StepFunc, with fallback to func.__code__.co_firstlineno for edge cases (OSError, TypeError).
+    - IdGenerator.from_stash: Used by as_message to obtain a unique ID for the StepDefinition message, reading from
+    pytest config stash.
+    - StepParser: The Definition.parser field holds a StepParserProtocol-compliant parser; parse_arguments and arguments
+    are delegated to it.
+    - cucumber_messages types (StepDefinition, StepDefinitionPattern, SourceReference, Location, JavaMethod,
+    JavaStackTraceElement): Used by as_message to construct the protocol-compliant message.
+    - attrs: The @define decorator with eq=False provides the data class infrastructure for Definition.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Every entity in this module revolves around the Definition class and its supporting types. StepFunc, StepDecorator,
+    ConverterT, and ParamsFixturesMapping are type aliases used exclusively by Definition's fields and constructor.
+    _resolve_callable_source_location is a helper used only by Definition.as_message. The three Definition methods
+    (fixtures_mapped_from_step_definition, as_message, get_parameters) each serve one aspect of the Definition
+    lifecycle: fixture mapping, serialisation, and parameter resolution.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - manager.py (StepDefinitionManager): Creates Definition instances via decorator_builder; this module defines the
+    data model being created but does not own the creation orchestration or namespace injection logic.
+    - matcher.py (Matcher): Consumes Definition instances for matching against PickleSteps; this module does not own
+    matching logic.
+    - registry.py (Registry): Stores OrderedSet[Definition]; this module defines what is stored but not how it is
+    organised or discovered.
 
 Main consumers:
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `definition`
-    - src/pytest_bdd/steps/__init__.py: imports or references `definition`
-    - src/pytest_bdd/steps/decorators.py: imports or references `definition`
-    - src/pytest_bdd/steps/manager.py: imports or references `definition`
-    - src/pytest_bdd/steps/matcher.py: imports or references `definition`
+    - pytest_bdd.steps.manager.StepDefinitionManager.decorator_builder: Constructs Definition instances with all fields
+    populated from decorator parameters.
+    - pytest_bdd.steps.matcher.Matcher: Reads Definition.type_, Definition.parser, Definition.liberal for matching;
+    calls Definition.get_parameters for parameter extraction.
+    - pytest_bdd.steps.registry.Registry: Stores Definition objects in OrderedSet; Registry.registry discovers them from
+    namespace objects.
+    - pytest_bdd.plugin.pickle_runner: Uses Definition.as_message for reporting and Definition.get_parameters for step
+    execution.
+    - pytest_bdd.hook: Consumes Definition type for lifecycle hook signatures.
 
 State and side effects:
-    mutates converted_params, wildcard_params_strategy, source_line, expression_type, source_file; depends on
-    __future__.annotations, collections.abc.Callable, collections.abc.Collection, collections.abc.Iterable,
-    collections.abc.Mapping.
+    Definition stores an __cache dict (field factory=dict) keyed by id(id_generator) for memoising as_message results —
+    this is mutable instance state that prevents duplicate StepDefinition messages within a single test run. as_message
+    reads from pytest config stash via IdGenerator.from_stash (side effect: reads StashBound). No file/network I/O
+    beyond inspect module source reading.
 
 Invariants:
-    - `pytest_bdd.steps.definition` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - Definition.parser must be a StepParserProtocol-compliant object with parse_arguments, is_matching, arguments, and
+    type attributes.
+    - Definition.id is not set at construction time (init=False); it is lazily assigned by as_message using the IdGenerator.
+    - The __cache dict keyed by id(id_generator) ensures that as_message returns the same StepDefinition object for the
+    same IdGenerator instance within a test run.
+    - get_parameters must be called only after a successful is_matching check on the same step.
 
 Failure semantics:
-    Raises or re-raises TypeError; callers must treat these as boundary failures.
+    - TypeError: Raised by as_message when parser_expression_type (from self.parser.type) cannot be converted to a
+    StepDefinitionPatternType enum value. This indicates a parser implementation that provides an unrecognised pattern
+    type string. Callers should ensure parser.type returns either a valid StepDefinitionPatternType enum member or a
+    string that is a valid enum value name.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -76,10 +112,17 @@ from cucumber_messages import (
 from typing_extensions import Protocol
 
 from pytest_bdd.compatibility.path import resolvepath
-from pytest_bdd.compatibility.pytest import Config, FixtureRequest  # noqa: TC001
+from pytest_bdd.compatibility.pytest import (  # noqa: TC001  -- used in runtime type guards and isinstance checks across the step definition boundary
+    Config,
+    FixtureRequest,
+)
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
-from pytest_bdd.parsers import StepParser  # noqa: TC001
-from pytest_bdd.types.protocol import HasPytestStash  # noqa: TC001
+from pytest_bdd.parsers import (
+    StepParser,  # noqa: TC001  -- required at runtime for isinstance checks in step registration logic
+)
+from pytest_bdd.types.protocol import (
+    HasPytestStash,  # noqa: TC001  -- used in runtime isinstance checks for stash access validation
+)
 from pytest_bdd.util.other import IdGenerator
 from pytest_bdd.util.toolz_extra import getitemdefault
 
@@ -89,52 +132,57 @@ if TYPE_CHECKING:
 
 class StepFunc(Protocol):
     """
-    Represent step func state.
+    Structural typing Protocol that defines the minimum interface for a callable that can be decorated as a BDD step func.
 
     Responsibility:
-        Represent step func state. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Structural typing Protocol that defines the minimum interface for a callable that can be decorated as a BDD step
+        function. Requires only a `__name__` attribute (str) so the framework can identify and reference the function by
+        name. The actual call signature is deliberately unconstrained by this Protocol because step functions can have
+        arbitrary pytest fixture parameters — the framework discovers those at decoration time via inspect, not via
+        static type checking.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.steps.definition.StepFunc` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Exists as a Protocol rather than a concrete type or Callable alias because step functions are ordinary Python
+        functions with arbitrary signatures that share only the property of having a __name__. The Protocol enables type
+        annotations throughout the step definition subsystem (Definition.func, StepDecorator return type,
+        decorator_builder parameter) without imposing constraints on the function's parameter list. Using a Protocol
+        with only __name__ allows duck-typing: any object with a __name__ attribute can serve as a step function,
+        including functools.partial wrappers and mock objects.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - No delegation: pure Protocol definition with a single __name__ attribute.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Defined alongside Definition because StepFunc is the type of Definition.func. It is the input type for the
+        entire step decoration pipeline.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Definition: Stores a StepFunc instance; StepFunc defines the structural contract for what can be stored.
+        - StepDecorator: TypeAlias for Callable[[StepFunc], StepFunc]; StepFunc is the input/output type of the decorator.
 
     Main consumers:
-        - src/pytest_bdd/plugin/pickle_runner/hook.py: imports or references `StepFunc`
-        - src/pytest_bdd/steps/__init__.py: imports or references `StepFunc`
-        - src/pytest_bdd/steps/decorators.py: imports or references `StepFunc`
-        - src/pytest_bdd/steps/manager.py: imports or references `StepFunc`
-        - src/pytest_bdd/steps/matcher.py: imports or references `StepFunc`
+        - pytest_bdd.steps.manager.StepDefinitionManager.decorator_builder: The inner decorator function accepts a
+        StepFunc and returns a StepFunc.
+        - pytest_bdd.steps.definition.Definition: The func field is typed as StepFunc.
+        - pytest_bdd.steps.decorators: @given, @when, @then, @step all return StepDecorator which wraps StepFunc.
 
     State and side effects:
-        mutates __name__.
+        None, pure Protocol definition.
 
     Invariants:
-        - `pytest_bdd.steps.definition.StepFunc` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - Any object stored as Definition.func must have a truthy __name__ attribute that can be used for identification
+        and display.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=4
+        #arch-eval:locational_stability=5
     """
 
     __name__: str
@@ -147,54 +195,52 @@ ParamsFixturesMapping: TypeAlias = bool | Collection[str] | Mapping[object, str 
 
 def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
     """
+    Resolve the source file path and starting line number of a callable step function.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.steps.definition._resolve_callable_source_location` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Resolves the source file path and starting line number of a callable step function. Uses inspect.getfile and
+        inspect.getsourcelines as the primary strategy; falls back to func.__code__.co_firstlineno (or 1 if __code__ is
+        absent) when OSError or TypeError occur (e.g., for built-in functions, dynamically generated functions, or
+        functions defined in interactive sessions). Returns a (file_path: str, line_number: int) tuple.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.steps.definition._resolve_callable_source_location`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Extracted as a standalone function because source location resolution is needed by Definition.as_message for
+        constructing cucumber_messages SourceReference and Location objects, and the fallback logic is non-trivial.
+        Keeping it separate from Definition allows testing the edge cases (OSError, TypeError, missing __code__)
+        independently. The cast to FunctionType is needed because StepFunc Protocol does not guarantee the inspect
+        module's expected attributes.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - getfile: collaborator call used by this boundary
-        - getsourcelines: collaborator call used by this boundary
-        - int: collaborator call used by this boundary
+        - inspect.getfile: Gets the file path where the function was defined.
+        - inspect.getsourcelines: Gets the source lines and starting line number.
+        - getattr(func, "__code__", None): Fallback path for functions where getsourcelines fails.
+        - cast("FunctionType", func): Narrows the StepFunc Protocol to the types.FunctionType for inspect compatibility.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Single-purpose helper for source location resolution. Used only by Definition.as_message.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Definition.as_message: Consumes the (file, line) tuple to construct SourceReference and Location; this
+        function handles the extraction logic.
+        - pytest_bdd.compatibility.path.resolvepath: Resolves the file path relative to config.rootpath; used by
+        as_message, not by this function.
 
     Main consumers:
-        - src/pytest_bdd/steps/__init__.py: imports or references `_resolve_callable_source_location`
-        - src/pytest_bdd/steps/decorators.py: imports or references `_resolve_callable_source_location`
-        - src/pytest_bdd/steps/manager.py: imports or references `_resolve_callable_source_location`
-        - src/pytest_bdd/steps/matcher.py: imports or references `_resolve_callable_source_location`
-        - src/pytest_bdd/steps/registry.py: imports or references `_resolve_callable_source_location`
+        - Definition.as_message: The sole caller; uses the returned tuple to populate SourceReference.uri and Location.line.
 
     State and side effects:
-        mutates source_line, typed_func, source_file.
-
-    Invariants:
-        - `pytest_bdd.steps.definition._resolve_callable_source_location` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Reads the filesystem via inspect.getfile/getsourcelines (reads source files). No mutation, no network I/O.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=5
     """
     typed_func = cast("FunctionType", func)
     source_file = getfile(typed_func)
@@ -208,59 +254,87 @@ def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
 @define(eq=False)
 class Definition:
     """
-    Registered step definition.
+    Attrs-based data class representing a single registered BDD step definition binding.
 
     Responsibility:
-        Registered step definition. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Attrs-based data class representing a single registered BDD step definition binding. Stores the step function
+        (func), step type (type_: given/when/then or PickleStepType), parser (StepParser instance), anonymous group
+        names for regex parsers, converter functions for parameter type coercion, fixture mapping configuration
+        (params_fixtures_mapping) controlling how step parameters map to pytest fixtures, parameter default values
+        (param_defaults), target fixture names (target_fixtures), and behavioural flags (liberal, not_implemented,
+        tolerant). Provides methods to compute fixture names from step parameters
+        (fixtures_mapped_from_step_definition), serialise to cucumber_messages StepDefinition (as_message), and resolve
+        actual parameter values from a PickleStep at execution time (get_parameters).
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.steps.definition.Definition` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This is the central domain object of the step definition layer — it is the "row" in the step registry. It exists
+        as a separate class (rather than being a dict or tuple) because it carries both data (the attrs fields) and
+        behaviour (the three methods) that are tightly coupled to that data. The id field is lazily assigned
+        (init=False) via the IdGenerator to ensure deterministic, unique identification within a test run. The __cache
+        dict memoises as_message results per IdGenerator instance, preventing duplicate cucumber_messages protocol
+        objects. It is kept in definition.py (rather than in registry.py or manager.py) because it is the shared entity
+        that both creation (manager) and consumption (matcher, registry) depend on, and placing it in either would
+        create a circular dependency.
 
     Delegates:
-        - fixtures_mapped_from_step_definition: owns nested behavior below this boundary
-        - as_message: owns nested behavior below this boundary
-        - get_parameters: owns nested behavior below this boundary
+        - self.parser.parse_arguments: Called by get_parameters to extract named parameter values from a step name.
+        - self.parser.arguments: Read by fixtures_mapped_from_step_definition to determine expected parameter names.
+        - self.parser.type: Read by as_message to determine the StepDefinitionPatternType for the pattern message.
+        - _resolve_callable_source_location: Called by as_message to get the source file and line of the step function.
+        - IdGenerator.from_stash: Called by as_message to get a unique ID for the StepDefinition message.
+        - converters dict: Applied by get_parameters to coerce extracted parameter values to target types.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every field and method relates to the single concept of "a registered step binding." The fields describe the
+        binding's configuration; fixtures_mapped_from_step_definition computes the derived fixture set; as_message
+        handles protocol serialisation; get_parameters handles runtime parameter resolution. There are no unrelated
+        concerns.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - StepDefinitionManager.decorator_builder: Creates Definition instances; this class defines what a Definition is
+        but not how it is created or registered in namespaces.
+        - Matcher: Reads Definition fields (type_, parser, liberal) to match against PickleSteps; this class does not
+        own matching logic.
+        - Registry: Stores OrderedSet[Definition]; this class defines the stored element but not the container.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `Definition`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-          `Definition`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `Definition`
-        - src/pytest_bdd/plugin/pickle_runner/hook.py: imports or references `Definition`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `Definition`
+        - pytest_bdd.steps.manager.StepDefinitionManager.decorator_builder: Constructs Definition(func=..., type_=...,
+        parser=..., ...) and attaches it to the step function.
+        - pytest_bdd.steps.matcher.Matcher: Reads Definition.type_, Definition.parser, Definition.liberal for matching;
+        calls Definition.get_parameters for extraction.
+        - pytest_bdd.steps.registry.Registry: Stores Definition objects; Registry.registry discovers them via
+        StepProtocol.__pytest_bdd_step_definitions__.
+        - pytest_bdd.plugin.pickle_runner: Uses Definition.as_message for reporting and Definition.get_parameters for execution.
 
     State and side effects:
-        mutates converted_params, wildcard_params_strategy, expression_type, message, func.
+        Instance-level mutable state: self.id (assigned once by as_message), self.__cache (dict keyed by
+        id(id_generator), memoises as_message result). as_message reads from pytest config stash via
+        IdGenerator.from_stash. get_parameters calls parser.parse_arguments which may access fixtures via the
+        FixtureRequest. No direct file/network I/O.
 
     Invariants:
-        - `pytest_bdd.steps.definition.Definition` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - self.parser must always be a valid StepParserProtocol-compliant object.
+        - self.id is not set until as_message is called; after that, it is stable for the lifetime of the Definition.
+        - fixtures_mapped_from_step_definition must return a set of fixture name strings that is a superset of the
+        actual fixtures needed to execute the step.
+        - as_message must return the same StepDefinition object for the same IdGenerator instance (enforced by __cache).
 
     Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        - TypeError: Raised by as_message when parser_expression_type (from self.parser.type) cannot be converted to a
+        valid StepDefinitionPatternType enum value. Indicates a parser that reports an unrecognised pattern type.
+        Callers should catch this and either provide a valid parser.type or add the pattern type to the
+        StepDefinitionPatternType enum.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=5
+        #arch-eval:locational_stability=5
     """
 
     func: StepFunc = field()
@@ -281,57 +355,56 @@ class Definition:
     @property
     def fixtures_mapped_from_step_definition(self) -> set[str]:
         """
-        Handle fixtures mapped from step definition.
+        Computes the complete set of pytest fixture names that this step definition requires.
 
         Responsibility:
-            Handle fixtures mapped from step definition. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Computes the complete set of pytest fixture names that this step definition requires. Starts with the
+            parser's declared argument names (or anonymous_group_names if set), adds any explicitly named fixtures from
+            target_fixtures, then applies the params_fixtures_mapping configuration: if it is a Mapping, extracts
+            fixture names from its values and applies wildcard/ellipsis strategy; if it is a Collection, union the
+            collection into fixture names; if True (boolean), all non-converted parameters bypass as fixtures; if False,
+            no automatic fixture injection. Returns the final set of fixture name strings.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.steps.definition.Definition.fixtures_mapped_from_step_definition` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This is the central fixture resolution algorithm. It exists as a property on Definition because the logic
+            depends on the interplay of four Definition fields (parser.arguments, anonymous_group_names,
+            target_fixtures, params_fixtures_mapping) and the result is used by the decorator_builder to inject
+            placeholder fixtures into the caller's module namespace. Keeping it on Definition ensures the fixture
+            resolution logic is co-located with the data it operates on, and the result can be computed on demand
+            without storing redundant state.
 
         Delegates:
-            - set: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
-            - fixture_names.update: collaborator call used by this boundary
-            - self.params_fixtures_mapping.values: collaborator call used by this boundary
-            - getitemdefault: collaborator call used by this boundary
-            - bool: collaborator call used by this boundary
+            - self.parser.arguments: Provides the set of parameter names expected by the parser.
+            - getitemdefault(self.params_fixtures_mapping, ..., default=...): Used to detect the Ellipsis (...) wildcard
+            in Mapping-based params_fixtures_mapping.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            This method is tightly coupled to Definition's fields — it reads parser, anonymous_group_names,
+            target_fixtures, and params_fixtures_mapping and produces a derived value. It serves the fixture injection
+            concern within the step definition lifecycle.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - StepDefinitionManager.decorator_builder: Consumes this property's result to call
+            namespace.setdefault(fixture_name, _none_fixture(fixture_name)) for each fixture name.
+            - _none_fixture: Creates placeholder pytest fixtures for names returned by this property.
 
         Main consumers:
-            - src/pytest_bdd/steps/__init__.py: imports or references `fixtures_mapped_from_step_definition`
-            - src/pytest_bdd/steps/decorators.py: imports or references `fixtures_mapped_from_step_definition`
-            - src/pytest_bdd/steps/manager.py: imports or references `fixtures_mapped_from_step_definition`
-            - src/pytest_bdd/steps/matcher.py: imports or references `fixtures_mapped_from_step_definition`
-            - src/pytest_bdd/steps/registry.py: imports or references `fixtures_mapped_from_step_definition`
+            - StepDefinitionManager.decorator_builder: The inner decorator iterates over
+            step_definition.fixtures_mapped_from_step_definition to inject placeholder fixtures.
 
         State and side effects:
-            mutates converted_params, wildcard_params_strategy, known_params, fixture_names, bypassed_params.
-
-        Invariants:
-            - `pytest_bdd.steps.definition.Definition.fixtures_mapped_from_step_definition` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            None, pure property. Computes from immutable (after construction) instance fields.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:entity_fullness=5
+            #arch-eval:locational_stability=5
         """
         known_params = (
             set(self.parser.arguments) if self.anonymous_group_names is None else set(self.anonymous_group_names)
@@ -365,69 +438,62 @@ class Definition:
 
     def as_message(self, config: Config | HasPytestStash) -> StepDefinition:
         """
-        Convert to message representation.
-
-        Returns:
-            Step definition message.
-
-        Raises:
-            TypeError: If the operation cannot be completed.
+        Serialise this Definition into a cucumber_messages StepDefinition protocol object.
 
         Responsibility:
-            Convert to message representation. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Serialises this Definition into a cucumber_messages StepDefinition protocol object. Lazily assigns self.id
+            from an IdGenerator obtained from config.stash, resolves the parser's pattern type to a
+            StepDefinitionPatternType enum (raising TypeError for unrecognised types), constructs a
+            StepDefinitionPattern with the parser's string representation as source, resolves the step function's source
+            location via _resolve_callable_source_location, and builds a full SourceReference with Java interop fields
+            (JavaMethod, JavaStackTraceElement). Results are memoised per IdGenerator instance via the __cache dict.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.steps.definition.Definition.as_message` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the bridge between the internal Definition model and the Cucumber Messages protocol used for
+            reporting. It exists on Definition (rather than as a standalone function or on a reporter class) because the
+            serialisation logic needs access to all Definition fields (func, parser, id, type_) and the memoisation
+            cache is instance state. The lazy ID assignment ensures definitions only consume IDs from the IdGenerator
+            when they are actually reported, not when they are created.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - id: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - IdGenerator.from_stash: collaborator call used by this boundary
-            - id_generator.get_next_id: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
+            - IdGenerator.from_stash(config.stash): Obtains the unique ID generator for this test run.
+            - _resolve_callable_source_location(self.func): Resolves the step function's source file and line.
+            - str(self.parser): Used as the StepDefinitionPattern.source.
+            - self.parser.type: Used to determine the StepDefinitionPatternType.
+            - Path(resolvepath(...)).as_uri(): Converts the source file path to a file:// URI.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        Directly serves the serialisation concern for Definition. Every operation in this method builds the
+        StepDefinition message from Definition's fields.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - get_parameters: Handles runtime parameter extraction; this method handles protocol serialisation for reporting.
+            - cucumber_messages types: The target format; Definition.as_message constructs them but does not own their schema.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `as_message`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or
-              references `as_message`
-            - src/pytest_bdd/steps/__init__.py: imports or references `as_message`
-            - src/pytest_bdd/steps/decorators.py: imports or references `as_message`
-            - src/pytest_bdd/steps/manager.py: imports or references `as_message`
+            - pytest_bdd.plugin.pickle_runner: Calls definition.as_message(config) to build the StepDefinition message
+            for each matched step definition during scenario execution reporting.
+            - Reporting plugins (cucumber_json, cucumber_pretty, etc.): Indirect consumers via the StepDefinition messages.
 
         State and side effects:
-            mutates expression_type, message, id_generator, self.id, parser_expression_type.
-
-        Invariants:
-            - `pytest_bdd.steps.definition.Definition.as_message` keeps its documented import path, ownership boundary,
-              and observable behavior stable for callers.
+            Mutates self.id (set once on first call) and self.__cache (populated with the memoised StepDefinition).
+            Reads from config.stash via IdGenerator.from_stash. No file/network I/O beyond source location resolution.
 
         Failure semantics:
-            Raises or re-raises TypeError; callers must treat these as boundary failures.
+            - TypeError: Raised when self.parser.type returns a value that is neither a StepDefinitionPatternType enum
+            member nor a string that is a valid enum value name. The error message includes the unrecognised type for
+            debugging. Callers should ensure parser implementations return valid pattern types.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:entity_fullness=5
+            #arch-eval:locational_stability=5
         """
         id_generator = IdGenerator.from_stash(config.stash)
         try:
@@ -471,57 +537,54 @@ class Definition:
 
     def get_parameters(self, request: FixtureRequest, step: Step) -> dict[str, object]:
         """
-        Get step parameters from parsed arguments.
-
-        Returns:
-            Dictionary of parameter names to values.
+        Resolve the actual parameter values for executing this step definition against a given PickleStep.
 
         Responsibility:
-            Get step parameters from parsed arguments. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Resolves the actual parameter values for executing this step definition against a given PickleStep. Calls
+            self.parser.parse_arguments to extract named parameter values from the step text, applies default values
+            from self.param_defaults for missing parameters, and runs each extracted value through the corresponding
+            converter function from self.converters (or an identity lambda if no converter is registered). Returns the
+            final dict mapping parameter names to converted values, ready for injection into the step function.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.steps.definition.Definition.get_parameters` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This is the runtime parameter resolution method called by the pickle_runner during step execution. It exists
+            on Definition (rather than in the runner) because it encapsulates the full parameter pipeline that is
+            specific to this definition: parser extraction, default application, and type conversion. Keeping it here
+            ensures that changes to the parameter resolution logic (e.g., adding new converter types) only affect the
+            Definition class.
 
         Delegates:
-            - self.converters.get: collaborator call used by this boundary
-            - self.parser.parse_arguments: collaborator call used by this boundary
-            - parsed_arguments.items: collaborator call used by this boundary
+            - self.parser.parse_arguments(request, step.text, anonymous_group_names=self.anonymous_group_names):
+            Extracts raw parameter values from the step text.
+            - self.param_defaults: Provides fallback values for parameters not found in the step text.
+            - self.converters: Dict of parameter-name-to-callable mappings applied to coerce extracted values.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Directly serves the runtime parameter resolution concern. Uses the parser, param_defaults, and converters
+            fields — all Definition-owned data.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - as_message: Handles serialisation for reporting; this method handles runtime parameter extraction for execution.
+            - StepParser.parse_arguments: Extracts raw values; this method applies defaults and converters on top.
 
         Main consumers:
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `get_parameters`
-            - src/pytest_bdd/steps/__init__.py: imports or references `get_parameters`
-            - src/pytest_bdd/steps/decorators.py: imports or references `get_parameters`
-            - src/pytest_bdd/steps/manager.py: imports or references `get_parameters`
-            - src/pytest_bdd/steps/matcher.py: imports or references `get_parameters`
+            - pytest_bdd.plugin.pickle_runner: Calls definition.get_parameters(request, step) to obtain the parameter
+            dict for step function invocation.
 
         State and side effects:
-            mutates parsed_arguments.
-
-        Invariants:
-            - `pytest_bdd.steps.definition.Definition.get_parameters` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Calls parser.parse_arguments which may access pytest fixtures via the FixtureRequest (side effect: fixture
+            resolution). No instance state mutation. No file/network I/O.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
             #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=5
         """
         parsed_arguments = (
             self.parser.parse_arguments(request, step.text, anonymous_group_names=self.anonymous_group_names) or {}

@@ -24,21 +24,24 @@
     ```python
     from pytest_bdd import given, when, then, parsers
 
+
     @given(parsers.parse("there are {start:d} cucumbers"), target_fixture="start_cucumbers")
     def _start_cucumbers(start):
-      assert isinstance(start, int)
-      return {"start": start}
+        assert isinstance(start, int)
+        return {"start": start}
+
 
     @when(parsers.parse("I eat {eat:g} cucumbers"))
     def _eat_cucumbers(start_cucumbers, eat):
-      assert isinstance(eat, float)
-      start_cucumbers["eat"] = eat
+        assert isinstance(eat, float)
+        start_cucumbers["eat"] = eat
+
 
     @then(parsers.parse("I should have {left} cucumbers"))
     def _should_have_left_cucumbers(start_cucumbers, start, eat, left):
-      assert start - eat == int(left)
-      assert start_cucumbers["start"] == start
-      assert start_cucumbers["eat"] == eat
+        assert start - eat == int(left)
+        assert start_cucumbers["start"] == start
+        assert start_cucumbers["eat"] == eat
     ```
 
 * And File "test_outline.py" with content:
@@ -47,13 +50,15 @@
     from pytest import fixture
     from pytest_bdd import scenario
 
+
     @fixture(params=[1, 2, 3])
     def other_fixture(request):
-      return request.param
+        return request.param
+
 
     @scenario("outline.feature", "Outlined given, when, thens")
     def test_outline(other_fixture):
-      pass
+        pass
     ```
 
 * When run pytest
@@ -86,19 +91,22 @@
     ```python
     from pytest_bdd import parsers, given, when, then
 
+
     @given(parsers.parse("there are {start:d} cucumbers"), target_fixture="start_cucumbers")
     def _start_cucumbers(start):
-      return {"start": start}
+        return {"start": start}
+
 
     @when(parsers.parse("I eat {eat:g} cucumbers"))
     def _eat_cucumbers(start_cucumbers, eat):
-      start_cucumbers["eat"] = eat
+        start_cucumbers["eat"] = eat
+
 
     @then(parsers.parse("I should have {left} cucumbers"))
     def _left_cucumbers(start_cucumbers, start, eat, left):
-      assert start - eat == int(left)
-      assert start_cucumbers["start"] == start
-      assert start_cucumbers["eat"] == eat
+        assert start - eat == int(left)
+        assert start_cucumbers["start"] == start
+        assert start_cucumbers["eat"] == eat
     ```
 
 * When run pytest

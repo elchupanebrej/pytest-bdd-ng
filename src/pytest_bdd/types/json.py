@@ -1,50 +1,46 @@
 """
-Provide json helpers.
+Defines recursive JSON type aliases (JSONPrimitive, JSONValue, JSONObject, JSONArray) used for
+type-annotating JSON s.
 
 Responsibility:
-    Provide json helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Defines recursive JSON type aliases (JSONPrimitive, JSONValue, JSONObject, JSONArray) used for
+    type-annotating JSON serialization boundaries throughout the Cucumber message conversion and
+    formatter subsystems of pytest-bdd.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.types.json` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    The recursive JSONValue type requires forward references and cannot be expressed as a simple
+    alias. Centralizing it here prevents duplication and ensures all JSON-handling code uses
+    consistent type annotations for static analysis tools like mypy across the codebase.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - `typing.TypeAlias`: provides the type alias annotation mechanism
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All four TypeAlias definitions build on each other forming a single recursive JSON type
+    hierarchy.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.types.protocol`: protocol defines behavioral contracts while json provides data shape aliases.
 
 Main consumers:
-    - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `json`
-    - src/pytest_bdd/mimetype.py: imports or references `json`
-    - src/pytest_bdd/model/coverage/inventory.py: imports or references `json`
-    - src/pytest_bdd/model/cucumber_formatter_adapter.py: imports or references `json`
-    - src/pytest_bdd/model/execution_message_adapter.py: imports or references `json`
+    - `pytest_bdd.model.message_converter`: uses JSON types for message serialization annotations
 
 State and side effects:
-    mutates JSONPrimitive, JSONValue, JSONObject, JSONArray; depends on __future__.annotations, typing.TypeAlias.
+    None, TypeAlias definitions have zero runtime footprint and keep no state.
 
 Invariants:
-    - `pytest_bdd.types.json` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - JSONValue correctly models the recursive nature of JSON where values can contain nested objects and arrays.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations

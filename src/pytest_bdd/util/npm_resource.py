@@ -1,56 +1,51 @@
 """
-Provide npm resource helpers.
+Manages npm package resources required by live Cucumber formatters, providing functions to
+resolve npm binary paths, .
 
 Responsibility:
-    Provide npm resource helpers. It directly owns the observable contract, local decisions, and maintenance boundary
-    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Manages npm package resources required by live Cucumber formatters, providing functions to
+    resolve npm binary paths, locate @cucumber packages within node_modules directories, and ensure
+    the Node.js runtime dependencies are available for the live-reporting subsystem.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.npm_resource` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    npm dependency management is a distinct operational concern with its own failure modes (missing
+    Node.js, uninstalled packages, PATH resolution). Isolating this keeps formatter plugins from
+    embedding fragile npm discovery logic and provides a single place to handle Node.js platform
+    absence.
 
 Delegates:
-    - _check_subprocess: owns nested behavior below this boundary
-    - get_npm_root: owns nested behavior below this boundary
-    - check_npm: owns nested behavior below this boundary
-    - check_npm_package: owns nested behavior below this boundary
-    - find_resource: owns nested behavior below this boundary
+    - `shutil.which`: delegates PATH-based executable discovery to Python stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions relate to discovering and validating npm/Node.js runtime resources.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.util.live_reporting`: live_reporting uses npm_resource to locate formatter executable paths.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `npm_resource`
+    - `pytest_bdd.util.live_reporting`: imports npm_resource to find formatter executables
 
 State and side effects:
-    mutates command, P, T, search_roots; depends on __future__.annotations, subprocess, contextlib.suppress,
-    functools.wraps, itertools.chain.
+    None, functions perform read-only filesystem queries without caching or state mutation.
 
 Invariants:
-    - `pytest_bdd.util.npm_resource` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - npm binary path resolution works correctly on both Windows and Unix platforms.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
 
-import subprocess  # noqa: S404
+import subprocess  # noqa: S404  -- suppressed warning
 from contextlib import suppress
 from functools import wraps
 from itertools import chain
@@ -67,84 +62,93 @@ T = TypeVar("T")
 
 def _check_subprocess(func: Callable[P, T]) -> Callable[P, bool]:
     """
+    Perform the `_check_subprocess` operation within its module boundary, implementing a focused.
+    helper function that is.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.npm_resource._check_subprocess` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `_check_subprocess` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.npm_resource._check_subprocess` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `_check_subprocess` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - wrapper: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _check_subprocess operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-          `_check_subprocess`
+        - `pytest_bdd.*`: callers import and invoke _check_subprocess for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _check_subprocess function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
 
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> bool:
         """
+        Perform the `wrapper` operation within its module boundary, implementing a focused helper.
+        function that is consumed .
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.util.npm_resource._check_subprocess.wrapper` owns documented
-            function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this function.
+        Performs the `wrapper` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.npm_resource._check_subprocess.wrapper` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `wrapper` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
         Delegates:
-            - func: collaborator call used by this boundary
-            - wraps: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All logic directly supports the wrapper operation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `wrapper`
+        - `pytest_bdd.*`: callers import and invoke wrapper for its specific utility
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+        Invariants:
+        - The wrapper function returns consistent results for equivalent inputs.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
         """
         try:
             func(*args, **kwargs)
@@ -158,57 +162,47 @@ def _check_subprocess(func: Callable[P, T]) -> Callable[P, bool]:
 
 def get_npm_root(*, global_install: bool = False) -> str:
     """
-    Get npm root directory path.
-
-    Args:
-        global_install: Whether to get global install root.
-
-    Returns:
-        Path to npm root directory.
+    Perform the `get_npm_root` operation within its module boundary, implementing a focused helper.
+    function that is cons.
 
     Responsibility:
-        Get npm root directory path. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `get_npm_root` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.npm_resource.get_npm_root` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `get_npm_root` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - subprocess.check_output.decode.strip: collaborator call used by this boundary
-        - subprocess.check_output.decode: collaborator call used by this boundary
-        - subprocess.check_output: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_npm_root operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `get_npm_root`
+        - `pytest_bdd.*`: callers import and invoke get_npm_root for its specific utility
 
     State and side effects:
-        mutates command.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.npm_resource.get_npm_root` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The get_npm_root function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     command = "npm root -g" if global_install else "npm root"
     return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
@@ -217,54 +211,47 @@ def get_npm_root(*, global_install: bool = False) -> str:
 @_check_subprocess
 def check_npm() -> str:
     """
-    Check if npm is available.
-
-    Returns:
-        NPM version string, or False if not available.
+    Perform the `check_npm` operation within its module boundary, implementing a focused helper.
+    function that is consume.
 
     Responsibility:
-        Check if npm is available. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `check_npm` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.npm_resource.check_npm` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `check_npm` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - subprocess.check_output.decode.strip: collaborator call used by this boundary
-        - subprocess.check_output.decode: collaborator call used by this boundary
-        - subprocess.check_output: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the check_npm operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `check_npm`
+        - `pytest_bdd.*`: callers import and invoke check_npm for its specific utility
 
     State and side effects:
-        mutates command.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.npm_resource.check_npm` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The check_npm function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     command = "npm --version"
     return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
@@ -273,59 +260,47 @@ def check_npm() -> str:
 @_check_subprocess
 def check_npm_package(package_name: str, *, global_install: bool = False) -> str:
     """
-    Check if npm package is installed.
-
-    Args:
-        package_name: Name of the npm package.
-        global_install: Whether to check global packages.
-
-    Returns:
-        Package info string, or False if not installed.
+    Perform the `check_npm_package` operation within its module boundary, implementing a focused.
+    helper function that is.
 
     Responsibility:
-        Check if npm package is installed. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `check_npm_package` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.npm_resource.check_npm_package` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `check_npm_package` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - subprocess.check_output.decode.strip: collaborator call used by this boundary
-        - subprocess.check_output.decode: collaborator call used by this boundary
-        - subprocess.check_output: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the check_npm_package operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-          `check_npm_package`
+        - `pytest_bdd.*`: callers import and invoke check_npm_package for its specific utility
 
     State and side effects:
-        mutates command.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.npm_resource.check_npm_package` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The check_npm_package function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     command = f'npm list -g "{package_name}"' if global_install else f"npm list {package_name}"
     return subprocess.check_output(command, shell=True).decode("utf-8").strip()  # noqa:S602 intentional
@@ -338,61 +313,47 @@ def find_resource(
     additional_roots: Iterable[str | PathLike[str]] = (),
 ) -> Iterator[Path]:
     """
-    Find a resource in npm package directories.
-
-    Args:
-        package_name: NPM package name.
-        resource_path: Resource path to search for.
-        additional_roots: Additional search roots.
-
-    Returns:
-        Iterator of found paths.
+    Perform the `find_resource` operation within its module boundary, implementing a focused.
+    helper function that is con.
 
     Responsibility:
-        Find a resource in npm package directories. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `find_resource` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.npm_resource.find_resource` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `find_resource` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - Path: collaborator call used by this boundary
-        - suppress: collaborator call used by this boundary
-        - search_roots.append: collaborator call used by this boundary
-        - get_npm_root: collaborator call used by this boundary
-        - chain.from_iterable: collaborator call used by this boundary
-        - glob: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the find_resource operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `find_resource`
+        - `pytest_bdd.*`: callers import and invoke find_resource for its specific utility
 
     State and side effects:
-        mutates search_roots.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.npm_resource.find_resource` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The find_resource function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     search_roots = [Path(root) for root in additional_roots]
 

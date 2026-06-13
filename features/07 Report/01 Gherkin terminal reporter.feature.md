@@ -18,17 +18,20 @@
     ```python
     from pytest_bdd import given, when, then
 
+
     @given("there is a bar")
     def _bar():
-      return "bar"
+        return "bar"
+
 
     @when("the bar is accessed")
     def _accessed():
-      pass
+        pass
+
 
     @then("world explodes")
     def _explodes():
-      pass
+        pass
     ```
 
 * When run pytest
@@ -67,17 +70,20 @@
     ```python
     from pytest_bdd import given, when, then, parsers
 
+
     @given(parsers.parse("there are {start} cucumbers"), target_fixture="start_cucumbers")
     def _start_cucumbers(start):
-      return int(start)
+        return int(start)
+
 
     @when(parsers.parse("I eat {eat} cucumbers"))
     def _eat_cucumbers(start_cucumbers, eat):
-      assert start_cucumbers > int(eat)
+        assert start_cucumbers > int(eat)
+
 
     @then(parsers.parse("I should have {left} cucumbers"))
     def _should_have(start_cucumbers, left):
-      assert start_cucumbers == int(left) + 3
+        assert start_cucumbers == int(left) + 3
     ```
 
 * When run pytest

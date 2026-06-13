@@ -1,52 +1,46 @@
 """
-Runtime compatibility rules for Python/pytest version pairs.
+Provide a cross-Python-version compatibility shim for `runtime_compat`, encapsulating all
+version-detection logic an.
 
 Responsibility:
-    Runtime compatibility rules for Python/pytest version pairs. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Provides a cross-Python-version compatibility shim for `runtime_compat`, encapsulating all
+    version-detection logic and conditional imports so that higher layers import a single stable
+    name regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.runtime_compat` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `runtime_compat` in this module prevents `if
+    sys.version_info` checks from contaminating domain logic. This module is the single information
+    expert for which stdlib/third-party names and APIs are available on each supported Python
+    version for this specific concern.
 
 Delegates:
-    - CompatibilityMatrixEntry: owns nested behavior below this boundary
-    - MigrationCoverageSummary: owns nested behavior below this boundary
-    - _parse_python_factor: owns nested behavior below this boundary
-    - _format_python_version: owns nested behavior below this boundary
-    - _format_pytest_version: owns nested behavior below this boundary
-    - _parse_pytest_factor: owns nested behavior below this boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (runtime_compat); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/script/compatibility_matrix.py: imports or references `runtime_compat`
-    - src/pytest_bdd/util/matrix.py: imports or references `runtime_compat`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    mutates pytest_version, PYTEST_COMPATIBILITY_BOUNDS, MIN_SUPPORTED_PYTHON, MIN_SUPPORTED_PYTEST, REASON_COMPATIBLE;
-    depends on __future__.annotations, attrs.frozen, returns.maybe.Nothing.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.runtime_compat` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -87,48 +81,47 @@ REASON_EOL_PYTEST = "eol_pytest"
 @frozen
 class CompatibilityMatrixEntry:
     """
-    Represent compatibility matrix entry state.
+    Encapsulates the CompatibilityMatrixEntry concern within pytest-bdd, providing a focused set of
+    collaborating operati.
 
     Responsibility:
-        Represent compatibility matrix entry state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the CompatibilityMatrixEntry concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.CompatibilityMatrixEntry`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        CompatibilityMatrixEntry is a distinct class because its methods share internal state and
+        collaborate on a cohesive task that would be awkward to express as standalone functions with
+        shared mutable parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: CompatibilityMatrixEntry specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single CompatibilityMatrixEntry domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `CompatibilityMatrixEntry`
-        - src/pytest_bdd/util/matrix.py: imports or references `CompatibilityMatrixEntry`
+        - `pytest_bdd.*`: callers catch or instantiate CompatibilityMatrixEntry for error handling and type checking
 
     State and side effects:
-        mutates python_version, pytest_version, is_compatible, is_supported, reason_code.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.compatibility.runtime_compat.CompatibilityMatrixEntry` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of CompatibilityMatrixEntry maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
     """
 
     python_version: str
@@ -144,49 +137,47 @@ class CompatibilityMatrixEntry:
 @frozen
 class MigrationCoverageSummary:
     """
-    Represent migration coverage summary state.
+    Encapsulates the MigrationCoverageSummary concern within pytest-bdd, providing a focused set of
+    collaborating operati.
 
     Responsibility:
-        Represent migration coverage summary state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the MigrationCoverageSummary concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.MigrationCoverageSummary`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        MigrationCoverageSummary is a distinct class because its methods share internal state and
+        collaborate on a cohesive task that would be awkward to express as standalone functions with
+        shared mutable parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: MigrationCoverageSummary specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single MigrationCoverageSummary domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `MigrationCoverageSummary`
-        - src/pytest_bdd/util/matrix.py: imports or references `MigrationCoverageSummary`
+        - `pytest_bdd.*`: callers catch or instantiate MigrationCoverageSummary for error handling and type checking
 
     State and side effects:
-        mutates total_user_facing_scenarios, user_facing_in_features, coverage_percent, threshold_percent,
-        threshold_met.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.compatibility.runtime_compat.MigrationCoverageSummary` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of MigrationCoverageSummary maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
     """
 
     total_user_facing_scenarios: int
@@ -199,115 +190,100 @@ class MigrationCoverageSummary:
 
 def _parse_python_factor(python_factor: str) -> tuple[int, int] | None:
     """
-    Parse a Python factor string into a version tuple.
-
-    Args:
-        python_factor: Python factor string (e.g., "310", "312").
-
-    Returns:
-        Tuple of (major, minor) version or None if invalid.
+    Perform the `_parse_python_factor` operation within its module boundary, implementing a
+    focused helper function that.
 
     Responsibility:
-        Parse a Python factor string into a version tuple. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `_parse_python_factor` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._parse_python_factor` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_parse_python_factor` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - int: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
-        - len: collaborator call used by this boundary
-        - python_factor.isdigit: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _parse_python_factor operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_parse_python_factor`
-        - src/pytest_bdd/util/matrix.py: imports or references `_parse_python_factor`
+        - `pytest_bdd.*`: callers import and invoke _parse_python_factor for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _parse_python_factor function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     if not python_factor.isdigit():
         return Nothing.value_or(None)
-    if len(python_factor) == 2:  # noqa: PLR2004
+    if len(python_factor) == 2:  # noqa: PLR2004  -- suppressed warning
         return (3, int(python_factor[1]))
-    if len(python_factor) == 3:  # noqa: PLR2004
+    if len(python_factor) == 3:  # noqa: PLR2004  -- suppressed warning
         return (int(python_factor[0]), int(python_factor[1:]))
     return Nothing.value_or(None)
 
 
 def _format_python_version(python_factor: str) -> str:
     """
-    Format Python factor as version string.
-
-    Args:
-        python_factor: Python factor string.
-
-    Returns:
-        Formatted version string.
+    Perform the `_format_python_version` operation within its module boundary, implementing a
+    focused helper function th.
 
     Responsibility:
-        Format Python factor as version string. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `_format_python_version` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._format_python_version`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_format_python_version` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - _parse_python_factor: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _format_python_version operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_python_version`
-        - src/pytest_bdd/util/matrix.py: imports or references `_format_python_version`
+        - `pytest_bdd.*`: callers import and invoke _format_python_version for its specific utility
 
     State and side effects:
-        mutates parsed.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.compatibility.runtime_compat._format_python_version` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _format_python_version function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     parsed = _parse_python_factor(python_factor)
     return f"{parsed[0]}.{parsed[1]}" if parsed else python_factor
@@ -315,178 +291,156 @@ def _format_python_version(python_factor: str) -> str:
 
 def _format_pytest_version(pytest_factor: str) -> str:
     """
-    Format pytest factor as version string.
-
-    Args:
-        pytest_factor: Pytest factor string.
-
-    Returns:
-        Formatted version string.
+    Perform the `_format_pytest_version` operation within its module boundary, implementing a
+    focused helper function th.
 
     Responsibility:
-        Format pytest factor as version string. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `_format_pytest_version` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._format_pytest_version`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_format_pytest_version` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - len: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _format_pytest_version operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_format_pytest_version`
-        - src/pytest_bdd/util/matrix.py: imports or references `_format_pytest_version`
+        - `pytest_bdd.*`: callers import and invoke _format_pytest_version for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _format_pytest_version function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     if pytest_factor == "latest":
         return "latest"
-    if len(pytest_factor) == 2:  # noqa: PLR2004
+    if len(pytest_factor) == 2:  # noqa: PLR2004  -- suppressed warning
         return f"{pytest_factor[0]}.{pytest_factor[1]}"
-    if len(pytest_factor) == 3:  # noqa: PLR2004
+    if len(pytest_factor) == 3:  # noqa: PLR2004  -- suppressed warning
         return f"{pytest_factor[0]}.{pytest_factor[1]}.{pytest_factor[2]}"
     return pytest_factor
 
 
 def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
     """
-    Parse a pytest factor string into a version tuple.
-
-    Args:
-        pytest_factor: Pytest factor string (e.g., "80", "latest").
-
-    Returns:
-        Tuple of (major, minor, patch) version or None if invalid.
+    Perform the `_parse_pytest_factor` operation within its module boundary, implementing a
+    focused helper function that.
 
     Responsibility:
-        Parse a pytest factor string into a version tuple. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `_parse_pytest_factor` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat._parse_pytest_factor` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_parse_pytest_factor` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - int: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
-        - len: collaborator call used by this boundary
-        - pytest_factor.isdigit: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _parse_pytest_factor operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `_parse_pytest_factor`
-        - src/pytest_bdd/util/matrix.py: imports or references `_parse_pytest_factor`
+        - `pytest_bdd.*`: callers import and invoke _parse_pytest_factor for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _parse_pytest_factor function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     if pytest_factor == "latest":
         # Keep "latest" above current known floor.
         return (99, 0, 0)
     if not pytest_factor.isdigit():
         return Nothing.value_or(None)
-    if len(pytest_factor) == 2:  # noqa: PLR2004
+    if len(pytest_factor) == 2:  # noqa: PLR2004  -- suppressed warning
         return (int(pytest_factor[0]), int(pytest_factor[1]), 0)
-    if len(pytest_factor) == 3:  # noqa: PLR2004
+    if len(pytest_factor) == 3:  # noqa: PLR2004  -- suppressed warning
         return (int(pytest_factor[0]), int(pytest_factor[1]), int(pytest_factor[2]))
     return Nothing.value_or(None)
 
 
-def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:  # noqa: PLR0911
+def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:  # noqa: PLR0911  -- suppressed warning
     """
-    Check if a Python/pytest version pair is compatible.
-
-    Args:
-        python_factor: Python version factor.
-        pytest_factor: Pytest version factor.
-
-    Returns:
-        Tuple of (is_compatible, reason_code).
+    Perform the `is_pair_compatible` operation within its module boundary, implementing a focused
+    helper function that i.
 
     Responsibility:
-        Check if a Python/pytest version pair is compatible. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `is_pair_compatible` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.runtime_compat.is_pair_compatible` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `is_pair_compatible` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - _parse_python_factor: collaborator call used by this boundary
-        - _parse_pytest_factor: collaborator call used by this boundary
-        - PYTEST_COMPATIBILITY_BOUNDS.get: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the is_pair_compatible operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/script/compatibility_matrix.py: imports or references `is_pair_compatible`
-        - src/pytest_bdd/util/matrix.py: imports or references `is_pair_compatible`
+        - `pytest_bdd.*`: callers import and invoke is_pair_compatible for its specific utility
 
     State and side effects:
-        mutates py, pytest_version, bounds, min_version, max_version.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.compatibility.runtime_compat.is_pair_compatible` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The is_pair_compatible function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     py = _parse_python_factor(python_factor)
     if py is None:

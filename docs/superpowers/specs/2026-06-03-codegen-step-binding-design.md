@@ -60,6 +60,7 @@ Applied to a step definition to designate it as WIP/not-implemented:
 ```python
 from pytest_bdd import given, not_implemented
 
+
 @given("some step")
 @not_implemented
 def some_step():
@@ -71,6 +72,7 @@ It sets `defn.not_implemented = True` on all step definitions registered by the 
 Applied to a step definition to mark it as a soft-assert step:
 ```python
 from pytest_bdd import then, tolerant
+
 
 @then("this check might fail but shouldn't halt scenario")
 @tolerant

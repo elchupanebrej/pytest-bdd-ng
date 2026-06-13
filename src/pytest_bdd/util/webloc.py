@@ -1,49 +1,47 @@
 """
-Provide webloc helpers.
+Provides focused utility functions for the `webloc` concern within pytest-bdd utility layer,
+offering helper operatio.
 
 Responsibility:
-    Provide webloc helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides focused utility functions for the `webloc` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.webloc` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    Keeping `webloc` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `webloc`-related helper operations within the
+    utility layer.
 
 Delegates:
-    - read: owns nested behavior below this boundary
-    - write: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `webloc` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/collector.py: imports or references `webloc`
-    - src/pytest_bdd/mimetype.py: imports or references `webloc`
+    - `pytest_bdd.plugin.*`: imports `webloc` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates load, read_plist, data, dump, write_plist; depends on __future__.annotations, plistlib, pathlib.Path,
-    typing.TYPE_CHECKING, typing.cast.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.webloc` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -61,64 +59,47 @@ if TYPE_CHECKING:
 
 def read(path: str | PathLike[str]) -> str | None:
     """
-    Read URL from a .webloc file.
-
-    Args:
-        path: Path to the .webloc file.
-
-    Returns:
-        URL string or None if not found.
+    Perform the `read` operation within its module boundary, implementing a focused helper.
+    function that is consumed by .
 
     Responsibility:
-        Read URL from a .webloc file. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `read` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.webloc.read` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `read` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - cast: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - cast.get: collaborator call used by this boundary
-        - Path.open: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - load: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the read operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `read`
-        - src/pytest_bdd/collector_batch.py: imports or references `read`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/attachment_runtime.py: imports or references `read`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/stream_relay.py: imports or references `read`
-        - src/pytest_bdd/plugin/struct_bdd/parser.py: imports or references `read`
+        - `pytest_bdd.*`: callers import and invoke read for its specific utility
 
     State and side effects:
-        mutates load, read_plist.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.webloc.read` keeps its documented import path, ownership boundary, and observable behavior
-          stable for callers.
+        - The read function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     load = getattr(plistlib, "load", None)
     if load is not None:
@@ -132,57 +113,47 @@ def read(path: str | PathLike[str]) -> str | None:
 
 def write(path: str | PathLike[str], url: object) -> None:
     """
-    Write url to webloc file.
+    Perform the `write` operation within its module boundary, implementing a focused helper.
+    function that is consumed by.
 
     Responsibility:
-        Write url to webloc file. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `write` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.webloc.write` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `write` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - cast: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - Path.parent.mkdir: collaborator call used by this boundary
-        - Path.open: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the write operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `write`
-        - src/pytest_bdd/plugin/code_generator/plugin.py: imports or references `write`
-        - src/pytest_bdd/plugin/code_generator/rendering.py: imports or references `write`
-        - src/pytest_bdd/plugin/debug_mcp/discovery.py: imports or references `write`
-        - src/pytest_bdd/plugin/debug_mcp/sidecar.py: imports or references `write`
+        - `pytest_bdd.*`: callers import and invoke write for its specific utility
 
     State and side effects:
-        mutates data, dump, write_plist.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.webloc.write` keeps its documented import path, ownership boundary, and observable behavior
-          stable for callers.
+        - The write function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     data = {"URL": str(url)}
     Path(path).parent.mkdir(parents=True, exist_ok=True)

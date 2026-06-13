@@ -1,50 +1,42 @@
 """
-Provide runtime assembly helpers.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Provide runtime assembly helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly` because it
-    keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - ReporterServiceGraph: owns nested behavior below this boundary
-    - initialize_reporter_runtime: owns nested behavior below this boundary
-    - assemble_reporter_runtime: owns nested behavior below this boundary
-    - finalize_reporter_runtime: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `runtime_assembly`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates lifecycle_service, transport_service, hook_catalog_service, step_catalog_service, scenario_service; depends
-    on __future__.annotations, os, tempfile, pathlib.Path, typing.TYPE_CHECKING.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -76,49 +68,44 @@ if TYPE_CHECKING:
 @frozen
 class ReporterServiceGraph:
     """
-    Represent reporter service graph state.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Represent reporter service graph state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.ReporterServiceGraph` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `ReporterServiceGraph`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates lifecycle_service, transport_service, hook_catalog_service, step_catalog_service, scenario_service.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.ReporterServiceGraph` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     lifecycle_service: LifecycleService
@@ -133,94 +120,83 @@ class ReporterServiceGraph:
     services: tuple[object, ...]
 
 
-def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # noqa: PLR0915
+def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # noqa: PLR0915  -- suppressed warning
     """
-    Handle initialize reporter runtime.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Handle initialize reporter runtime. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.initialize_reporter_runtime` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - set: collaborator call used by this boundary
-        - tempfile.mkstemp: collaborator call used by this boundary
-        - os.close: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - default_outcome_mapping_rules: collaborator call used by this boundary
-        - _is_xdist_worker_process: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `initialize_reporter_runtime`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates reporter._xdist_worker_temp_messages_path, reporter._xdist_force_publish_failure,
-        reporter.is_messages_file_temp, handle, messages_file_path_raw.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.initialize_reporter_runtime` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     reporter.parameter_type_registry = set()
     reporter.hook_registry = set()
     reporter.hook_registration_registry = {}
-    reporter._disabled_warning_emitted = False  # noqa: SLF001
-    reporter._outcome_mapping_rules = default_outcome_mapping_rules()  # noqa: SLF001
-    reporter._mapping_diagnostics_count = 0  # noqa: SLF001
-    reporter._emitted_step_definition_ids = set()  # noqa: SLF001
-    reporter._emitted_run_hook_definition_ids = set()  # noqa: SLF001
-    reporter._auto_provisioned_node_modules_roots = ()  # noqa: SLF001
-    reporter._xdist_fragment_records = {}  # noqa: SLF001
+    reporter._disabled_warning_emitted = False  # noqa: SLF001  -- suppressed warning
+    reporter._outcome_mapping_rules = default_outcome_mapping_rules()  # noqa: SLF001  -- suppressed warning
+    reporter._mapping_diagnostics_count = 0  # noqa: SLF001  -- suppressed warning
+    reporter._emitted_step_definition_ids = set()  # noqa: SLF001  -- suppressed warning
+    reporter._emitted_run_hook_definition_ids = set()  # noqa: SLF001  -- suppressed warning
+    reporter._auto_provisioned_node_modules_roots = ()  # noqa: SLF001  -- suppressed warning
+    reporter._xdist_fragment_records = {}  # noqa: SLF001  -- suppressed warning
     reporter.xdist_fragment_dir = None
     reporter.xdist_transport_session = None
     reporter.xdist_transport_client = None
-    reporter._xdist_worker_temp_messages_path = None  # noqa: SLF001
-    reporter._xdist_force_publish_failure = False  # noqa: SLF001
-    reporter._xdist_compatibility_error = None  # noqa: SLF001
+    reporter._xdist_worker_temp_messages_path = None  # noqa: SLF001  -- suppressed warning
+    reporter._xdist_force_publish_failure = False  # noqa: SLF001  -- suppressed warning
+    reporter._xdist_compatibility_error = None  # noqa: SLF001  -- suppressed warning
     reporter.is_xdist_worker = _is_xdist_worker_process(reporter.config)
     reporter.is_xdist_controller = False
     reporter.requested_cucumber_formatters = resolve_requested_cucumber_formatters(
         reporter.config,
-        resolve_output_path=reporter._resolve_output_path,  # noqa: SLF001
+        resolve_output_path=reporter._resolve_output_path,  # noqa: SLF001  -- suppressed warning
     )
     reporter.live_formatters = reporter.requested_cucumber_formatters
     reporter.deferred_formatters = ()
-    reporter._live_formatter_process = None  # noqa: SLF001
-    reporter._live_formatter_temp_dir = None  # noqa: SLF001
-    reporter._live_formatter_stdout_thread = None  # noqa: SLF001
-    reporter._live_formatter_stderr_thread = None  # noqa: SLF001
-    reporter._live_formatter_failure_message = None  # noqa: SLF001
-    reporter._live_formatter_session_started = False  # noqa: SLF001
-    reporter._restore_terminal_reporter = None  # noqa: SLF001
-    reporter._process_messages_thread_error = None  # noqa: SLF001
-    reporter._live_formatter_envelope_adapter = CucumberFormatterEnvelopeAdapter()  # noqa: SLF001
+    reporter._live_formatter_process = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_temp_dir = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_stdout_thread = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_stderr_thread = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_failure_message = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_session_started = False  # noqa: SLF001  -- suppressed warning
+    reporter._restore_terminal_reporter = None  # noqa: SLF001  -- suppressed warning
+    reporter._process_messages_thread_error = None  # noqa: SLF001  -- suppressed warning
+    reporter._live_formatter_envelope_adapter = CucumberFormatterEnvelopeAdapter()  # noqa: SLF001  -- suppressed warning
     reporter.is_messages_file_temp = False
-    reporter._services = ()  # noqa: SLF001
-    reporter._hook_services = ()  # noqa: SLF001
+    reporter._services = ()  # noqa: SLF001  -- suppressed warning
+    reporter._hook_services = ()  # noqa: SLF001  -- suppressed warning
 
     reporter.is_disabled = all(
         [
@@ -239,7 +215,7 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # no
         os.close(handle)
         reporter.final_messages_file_path = Path(messages_file_path_raw)
     else:
-        reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)  # noqa: SLF001
+        reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)  # noqa: SLF001  -- suppressed warning
         reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         if not reporter.is_xdist_worker:
             reporter.final_messages_file_path.write_text("", encoding="utf-8")
@@ -248,68 +224,53 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # no
     if reporter.is_xdist_worker:
         handle, messages_file_path_raw = tempfile.mkstemp(prefix="pytest-bdd-xdist-worker-", suffix=".ndjson")
         os.close(handle)
-        reporter._xdist_worker_temp_messages_path = Path(messages_file_path_raw)  # noqa: SLF001
-        reporter.messages_file_path = reporter._xdist_worker_temp_messages_path  # noqa: SLF001
-        reporter._xdist_force_publish_failure = bool(  # noqa: SLF001
+        reporter._xdist_worker_temp_messages_path = Path(messages_file_path_raw)  # noqa: SLF001  -- suppressed warning
+        reporter.messages_file_path = reporter._xdist_worker_temp_messages_path  # noqa: SLF001  -- suppressed warning
+        reporter._xdist_force_publish_failure = bool(  # noqa: SLF001  -- suppressed warning
             getattr(reporter.config, "workerinput", {}).get("pytest_bdd_messages_force_publish_failure"),
         )
 
 
 def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServiceGraph:
     """
-    Assemble reporter runtime services.
-
-    Returns:
-        Reporter service graph.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Assemble reporter runtime services. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.assemble_reporter_runtime` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - LiveFormatterService: collaborator call used by this boundary
-        - TransportService: collaborator call used by this boundary
-        - LifecycleService: collaborator call used by this boundary
-        - HookCatalogService: collaborator call used by this boundary
-        - StepCatalogService: collaborator call used by this boundary
-        - ScenarioService: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `assemble_reporter_runtime`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates live_formatter_service, transport_service, lifecycle_service, hook_catalog_service,
-        step_catalog_service.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.assemble_reporter_runtime` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     live_formatter_service = LiveFormatterService(reporter=reporter)
     transport_service = TransportService(reporter=reporter, live_formatter_service=live_formatter_service)
@@ -356,62 +317,53 @@ def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServi
 
 def finalize_reporter_runtime(reporter: GherkinMessageReporter) -> None:
     """
-    Handle finalize reporter runtime.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Handle finalize reporter runtime. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.finalize_reporter_runtime` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - reporter.transport_service._ensure_xdist_worker_transport_client: collaborator call used by this boundary
-        - reporter._resolve_output_path: collaborator call used by this boundary
-        - html_report_path.parent.mkdir: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - reporter.live_formatter_service.check_npm_and_cucumber_packages: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `finalize_reporter_runtime`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates html_report_path, reporter.config.option.cucumber_html_path.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.runtime_assembly.finalize_reporter_runtime` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if reporter.is_disabled:
         return
 
     if reporter.is_xdist_worker:
-        reporter.transport_service._ensure_xdist_worker_transport_client(require_sender=False)  # noqa: SLF001
+        reporter.transport_service._ensure_xdist_worker_transport_client(require_sender=False)  # noqa: SLF001  -- suppressed warning
 
     if reporter.config.option.cucumber_html_path is not None:
-        html_report_path = reporter._resolve_output_path(reporter.config.option.cucumber_html_path)  # noqa: SLF001
+        html_report_path = reporter._resolve_output_path(reporter.config.option.cucumber_html_path)  # noqa: SLF001  -- suppressed warning
         html_report_path.parent.mkdir(parents=True, exist_ok=True)
         reporter.config.option.cucumber_html_path = str(html_report_path)
         reporter.live_formatter_service.check_npm_and_cucumber_packages()

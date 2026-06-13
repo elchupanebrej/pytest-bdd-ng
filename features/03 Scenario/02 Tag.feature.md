@@ -37,13 +37,14 @@
     from pytest_bdd.compatibility.pytest import fail
     from pytest_bdd import given
 
-    @given('I produce passed test')
-    def passing_step():
-      ...
 
-    @given('I produce failed test')
+    @given("I produce passed test")
+    def passing_step(): ...
+
+
+    @given("I produce failed test")
     def failing_step():
-      fail('Enforce fail')
+        fail("Enforce fail")
     ```
 
 ## Scenario: Run pytest selecting tests tagged with `passed`

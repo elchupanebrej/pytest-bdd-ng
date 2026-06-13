@@ -16,27 +16,28 @@
     from pytest import fixture
     from pytest_bdd import given, when, then
 
+
     @fixture
     def pocket():
-      yield [{"cherry": "delicious"}]
+        yield [{"cherry": "delicious"}]
+
 
     @given(
-        "I have an old pickle",
-        param_defaults={"age": "old"},
-        target_fixture='pickle_age',
-        params_fixtures_mapping=False
+        "I have an old pickle", param_defaults={"age": "old"}, target_fixture="pickle_age", params_fixtures_mapping=False
     )
     def i_have_cucumber(pocket):
         pocket.append({"age": "old", "cucumber": "pickle"})
 
+
     @when("I check pocket I found cucumber there")
     def i_check_pocket_for_cucumber(pocket):
-      assert any(filter(lambda item: "cucumber" in item.keys(), pocket))
+        assert any(filter(lambda item: "cucumber" in item.keys(), pocket))
+
 
     @then("I lost everything")
     def i_check_pocket_for_cucumber(pocket):
-      while pocket:
-        pocket.pop()
+        while pocket:
+            pocket.pop()
     ```
 
 * Given File "Cucumber.feature" with content:
@@ -54,9 +55,10 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("Cucumber.feature")
     def test_passing_feature(pocket):
-      assert not pocket
+        assert not pocket
     ```
 
 * When run pytest

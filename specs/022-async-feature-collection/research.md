@@ -75,6 +75,7 @@ def _parse_feature_file(path: Path, content: bytes) -> tuple[Path, GherkinDocume
 ```python
 try:
     import aiofiles
+
     _aiofiles_available = True
 except ImportError:
     _aiofiles_available = False

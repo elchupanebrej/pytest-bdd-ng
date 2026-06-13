@@ -15,9 +15,9 @@
     ```python
     from pytest_bdd import step
 
-    @step('Passing step')
-    def _():
-      ...
+
+    @step("Passing step")
+    def _(): ...
     ```
 
 ## Scenario: NDJson(JSONL) could be produced on the feature run
@@ -35,6 +35,7 @@ Output file could be fed into other @cucumber tools for more verbose report
 * Then File "out.ndjson" has at least "15" lines
 * Then Report "out.ndjson" parsable into messages
 
+@xdist
 ## Scenario: HTML report could be produced on the feature run
 
 Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/html-formatter)
@@ -73,30 +74,34 @@ Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/h
     import pytest
     from pytest_bdd import given, scenario, parsers
 
-    class Point:
-      def __init__(self, x, y):
-        self.x = x
-        self.y = y
 
-      @classmethod
-      def parse(cls, value):
-        return cls(*(int(x) for x in value.split(",")))
+    class Point:
+        def __init__(self, x, y):
+            self.x = x
+            self.y = y
+
+        @classmethod
+        def parse(cls, value):
+            return cls(*(int(x) for x in value.split(",")))
+
 
     class Alien:
-      pass
+        pass
+
 
     @given(
-      parsers.parse("there is a coordinate {point}"),
-      target_fixture="point",
-      converters={"point": Point.parse},
+        parsers.parse("there is a coordinate {point}"),
+        target_fixture="point",
+        converters={"point": Point.parse},
     )
     def _given_point(point):
-      assert isinstance(point, Point)
+        assert isinstance(point, Point)
+
 
     @pytest.mark.parametrize("alien", [Alien()])
     @scenario("test.feature", "Complex")
     def test_complex(alien):
-      pass
+        pass
     ```
 
 * When run pytest

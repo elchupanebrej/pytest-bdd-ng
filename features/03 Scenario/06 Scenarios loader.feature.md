@@ -25,10 +25,11 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have a bar")
     def _bar():
-      print("bar!")
-      return "bar"
+        print("bar!")
+        return "bar"
     ```
 
 * And File "subfolder_test.feature" with content:
@@ -55,9 +56,10 @@
 
     test_feature = scenarios("subfolder_test.feature")
 
+
     @scenario("subfolder_test.feature", "Test already bound scenario")
     def test_already_bound():
-      pass
+        pass
     ```
 
 * When run pytest

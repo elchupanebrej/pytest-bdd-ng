@@ -1,48 +1,49 @@
 # init: allow  # init: no-check
 """
-Provide src.pytest_bdd.util.cucumber_formatter_support package helpers.
+Provides focused utility functions for the `cucumber_formatter_support` concern within pytest-
+bdd utility layer, off.
 
 Responsibility:
-    Provide src.pytest_bdd.util.cucumber_formatter_support package helpers. It directly owns the observable contract,
-    local decisions, and maintenance boundary for this module.
+    Provides focused utility functions for the `cucumber_formatter_support` concern within pytest-
+    bdd utility layer, offering helper operations consumed by higher layers (collection, runtime,
+    reporting) without pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Keeping `cucumber_formatter_support` utilities in a dedicated module prevents cross-cutting
+    helper code from accumulating in larger modules where it would create unclear ownership or
+    hidden dependency issues. This module is the single authority for
+    `cucumber_formatter_support`-related helper operations within the utility layer.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `cucumber_formatter_support` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - `pytest_bdd.plugin.*`: imports `cucumber_formatter_support` utilities for reporting, collection, and runtime
+    operations
 
 State and side effects:
-    depends on pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin,
-    pytest_bdd.util.cucumber_formatter_support.base.load_formatter_adapter_support_template,
-    pytest_bdd.util.cucumber_formatter_support.base.load_formatter_adapter_template.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.cucumber_formatter_support` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:locational_stability=4
 """
 
 from pytest_bdd.util.cucumber_formatter_support.base import (

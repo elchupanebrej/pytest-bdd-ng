@@ -1,51 +1,52 @@
 # init: no-check
 """
-Dispatcher plugin that bridges INI and CLI cucumber-json configuration paths.
-
-INI path (cucumber_json_path) activates the Python-written JSON reporter (legacy format).
-CLI path (--cucumber-json) activates the Node.js @cucumber/cucumber JSON formatter
-(Cucumber-spec format). These produce intentionally different JSON structures.
-
-This dispatcher reads both options and enforces CLI-wins precedence by suppressing
-the INI backend when both are simultaneously active.
+Serves as the Reporting layer (order 7) package init for the cucumber JSON dispatcher plugin.
 
 Responsibility:
-    Dispatcher plugin that bridges INI and CLI cucumber-json configuration paths. It directly owns the observable
-    contract, local decisions, and maintenance boundary for this module.
+    Serves as the Reporting layer (order 7) package init for the cucumber JSON dispatcher plugin. Acts as a namespace
+    marker for the sub-package containing the JSON output dispatch mechanism that routes cucumber JSON reports to file
+    or stdout. The actual implementation lives in the plugin, hook, entrypoint, and const modules within this package.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.cucumber_json_dispatcher` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This module exists to establish the Python package boundary for the cucumber_json_dispatcher plugin. It separates
+    the JSON dispatch concern from the cucumber_json plugin (which generates the JSON content) and other reporting
+    plugins. The dispatcher is a distinct reporting sub-system that owns the output routing decision (file vs stdout)
+    independently of JSON content generation.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - plugin: Contains the actual plugin class that implements dispatch to file/stdout.
+    - hook: Defines hook specifications for the dispatcher's pytest hook namespace.
+    - entrypoint: Registers the plugin and CLI options via pytest_configure and pytest_addoption.
+    - const: Defines constants used by the dispatcher (formatter kind, output paths).
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Purely a structural package marker with no executable logic. The actual dispatch functionality is distributed across
+    the plugin, hook, and entrypoint modules.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - cucumber_json.plugin: Generates the JSON content but does NOT handle output dispatch — that's this package's
+    responsibility.
+    - cucumber_json_formatter: Handles formatter-specific JSON output — distinct from the general dispatcher.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest: Registers the dispatcher plugin via setuptools entry_points or conftest import.
+    - pytest_bdd.plugin.cucumber_json_dispatcher.entrypoint: Imports from sibling modules within this package.
 
 State and side effects:
-    keeps no local persistent state beyond call-local values.
+    None, keeps no persistent state. Purely a namespace marker module.
 
 Invariants:
-    - `pytest_bdd.plugin.cucumber_json_dispatcher` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Must be importable as a Python package for plugin discovery.
+    - The dispatcher's file/stdout routing must be independent of JSON content generation.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=3
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """

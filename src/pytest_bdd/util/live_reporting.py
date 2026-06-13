@@ -1,50 +1,42 @@
 """
-Provide live reporting helpers.
+Provides live reporting utilities that bridge pytest-bdd runtime events to external Cucumber
+formatter processes, man.
 
 Responsibility:
-    Provide live reporting helpers. It directly owns the observable contract, local decisions, and maintenance boundary
-    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides live reporting utilities that bridge pytest-bdd runtime events to external Cucumber
+    formatter processes, managing subprocess lifecycle, message serialization, and NDJSON streaming
+    for real-time Cucumber-compatible test output during distributed and local test execution.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.live_reporting` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Live reporting requires careful subprocess management (Node.js + Cucumber formatters) with
+    unique failure modes (process crashes, pipe errors, encoding issues). Isolating this concern
+    prevents reporter complexity from leaking into the core pytest plugin infrastructure.
 
 Delegates:
-    - is_xdist_worker_process: owns nested behavior below this boundary
-    - resolve_reporting_worker_identity: owns nested behavior below this boundary
-    - format_reporting_worker_id: owns nested behavior below this boundary
-    - node_worker_id: owns nested behavior below this boundary
-    - node_gateway_mode: owns nested behavior below this boundary
-    - build_reporting_worker_environment: owns nested behavior below this boundary
+    - `subprocess.Popen`: delegates process lifecycle management to Python stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes support the live reporting subprocess management workflow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.util.cucumber_formatters`: provides the static formatter registry while live_reporting handles runtime
+    orchestration.
 
 Main consumers:
-    - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `live_reporting`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references `live_reporting`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `live_reporting`
+    - `pytest_bdd.plugin.gherkin_message_reporter`: uses live_reporting for formatter subprocess lifecycle
 
 State and side effects:
-    mutates gateway_mode, gateway, GatewayModeResolver, workerinput, worker_id; depends on __future__.annotations, os,
-    collections.abc.Callable, collections.abc.Mapping, typing.cast.
+    Manages subprocess.Popen instances and NDJSON file handles during active reporting sessions.
 
 Invariants:
-    - `pytest_bdd.util.live_reporting` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Each live reporter subprocess receives properly formatted NDJSON messages via its stdin pipe.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -67,55 +59,47 @@ def is_xdist_worker_process(config: Config) -> bool:
     # variables from an outer xdist worker. Treat only configs with workerinput as
     # real xdist workers so regular child runs keep local reporting behavior.
     """
-    Check if running in an xdist worker process.
-
-    Args:
-        config: Pytest config object.
-
-    Returns:
-        True if running in xdist worker.
+    Perform the `is_xdist_worker_process` operation within its module boundary, implementing a.
+    focused helper function t.
 
     Responsibility:
-        Check if running in an xdist worker process. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `is_xdist_worker_process` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.is_xdist_worker_process` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `is_xdist_worker_process` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - hasattr: collaborator call used by this boundary
-        - os.environ.get: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the is_xdist_worker_process operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `is_xdist_worker_process`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references
-          `is_xdist_worker_process`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `is_xdist_worker_process`
+        - `pytest_bdd.*`: callers import and invoke is_xdist_worker_process for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The is_xdist_worker_process function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return hasattr(config, "workerinput") or os.environ.get("PYTEST_BDD_XDIST_IS_WORKER") == "1"
 
@@ -126,64 +110,47 @@ def resolve_reporting_worker_identity(
     gateway_mode_resolver: GatewayModeResolver,
 ) -> tuple[str, str | None]:
     """
-    Resolve the reporting worker identity.
-
-    Args:
-        config: Pytest config object.
-        gateway_mode_resolver: Callback to resolve gateway mode.
-
-    Returns:
-        Tuple of (worker_id, gateway_mode).
+    Perform the `resolve_reporting_worker_identity` operation within its module boundary,.
+    implementing a focused helper .
 
     Responsibility:
-        Resolve the reporting worker identity. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `resolve_reporting_worker_identity` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.resolve_reporting_worker_identity`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_reporting_worker_identity` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - workerinput.get: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - is_xdist_worker_process: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - str.strip: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolve_reporting_worker_identity operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `resolve_reporting_worker_identity`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references
-          `resolve_reporting_worker_identity`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `resolve_reporting_worker_identity`
+        - `pytest_bdd.*`: callers import and invoke resolve_reporting_worker_identity for its specific utility
 
     State and side effects:
-        mutates workerinput, worker_id, gateway_mode.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.live_reporting.resolve_reporting_worker_identity` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The resolve_reporting_worker_identity function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if not is_xdist_worker_process(config):
         return "master", None
@@ -199,56 +166,47 @@ def resolve_reporting_worker_identity(
 
 def format_reporting_worker_id(worker_id: str, gateway_mode: str | None) -> str:
     """
-    Format the reporting worker ID.
-
-    Args:
-        worker_id: Worker identifier.
-        gateway_mode: Gateway mode string.
-
-    Returns:
-        Formatted worker ID string.
+    Perform the `format_reporting_worker_id` operation within its module boundary, implementing a.
+    focused helper functio.
 
     Responsibility:
-        Format the reporting worker ID. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `format_reporting_worker_id` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.format_reporting_worker_id` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `format_reporting_worker_id` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the format_reporting_worker_id operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `format_reporting_worker_id`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references
-          `format_reporting_worker_id`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `format_reporting_worker_id`
+        - `pytest_bdd.*`: callers import and invoke format_reporting_worker_id for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The format_reporting_worker_id function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=4
-
+        #arch-eval:locational_stability=3
     """
     if gateway_mode is None or gateway_mode == "popen" or worker_id == "master":
         return worker_id
@@ -257,58 +215,47 @@ def format_reporting_worker_id(worker_id: str, gateway_mode: str | None) -> str:
 
 def node_worker_id(node: object) -> str:
     """
-    Get worker ID from a pytest node.
-
-    Args:
-        node: Pytest node object.
-
-    Returns:
-        Worker ID string.
+    Perform the `node_worker_id` operation within its module boundary, implementing a focused.
+    helper function that is co.
 
     Responsibility:
-        Get worker ID from a pytest node. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `node_worker_id` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.node_worker_id` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `node_worker_id` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the node_worker_id operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `node_worker_id`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references `node_worker_id`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `node_worker_id`
+        - `pytest_bdd.*`: callers import and invoke node_worker_id for its specific utility
 
     State and side effects:
-        mutates gateway, gateway_id.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.live_reporting.node_worker_id` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The node_worker_id function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     gateway = getattr(node, "gateway", None)
     gateway_id = getattr(gateway, "id", None)
@@ -317,57 +264,47 @@ def node_worker_id(node: object) -> str:
 
 def node_gateway_mode(node: object) -> str:
     """
-    Get gateway mode from a pytest node.
-
-    Args:
-        node: Pytest node object.
-
-    Returns:
-        Gateway mode string.
+    Perform the `node_gateway_mode` operation within its module boundary, implementing a focused.
+    helper function that is.
 
     Responsibility:
-        Get gateway mode from a pytest node. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `node_gateway_mode` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.node_gateway_mode` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `node_gateway_mode` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the node_gateway_mode operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `node_gateway_mode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references `node_gateway_mode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references `node_gateway_mode`
+        - `pytest_bdd.*`: callers import and invoke node_gateway_mode for its specific utility
 
     State and side effects:
-        mutates gateway, spec.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.live_reporting.node_gateway_mode` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The node_gateway_mode function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     gateway = getattr(node, "gateway", None)
     spec = getattr(gateway, "spec", None)
@@ -384,60 +321,47 @@ def node_gateway_mode(node: object) -> str:
 
 def build_reporting_worker_environment(workerinput: Mapping[str, object]) -> dict[str, str]:
     """
-    Build environment variables for reporting worker.
-
-    Args:
-        workerinput: Worker input dictionary from xdist.
-
-    Returns:
-        Dictionary of environment variables.
+    Perform the `build_reporting_worker_environment` operation within its module boundary,.
+    implementing a focused helper.
 
     Responsibility:
-        Build environment variables for reporting worker. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `build_reporting_worker_environment` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.live_reporting.build_reporting_worker_environment`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `build_reporting_worker_environment` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - workerinput.get: collaborator call used by this boundary
-        - str.strip: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the build_reporting_worker_environment operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/debug_mcp/xdist.py: imports or references `build_reporting_worker_environment`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_support.py: imports or references
-          `build_reporting_worker_environment`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/transport_runtime.py: imports or references
-          `build_reporting_worker_environment`
+        - `pytest_bdd.*`: callers import and invoke build_reporting_worker_environment for its specific utility
 
     State and side effects:
-        mutates env, gateway_mode.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.live_reporting.build_reporting_worker_environment` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The build_reporting_worker_environment function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     env = {
         "PYTEST_XDIST_TESTRUNUID": str(workerinput["testrunuid"]),

@@ -1,50 +1,47 @@
 """
-Provide standalone helpers.
+Provides focused utility functions for the `standalone` concern within pytest-bdd utility
+layer, offering helper oper.
 
 Responsibility:
-    Provide standalone helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides focused utility functions for the `standalone` concern within pytest-bdd utility
+    layer, offering helper operations consumed by higher layers (collection, runtime, reporting)
+    without pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.standalone` because it keeps
-    the nearest code, data shape, call signature, and failure knowledge together.
+    Keeping `standalone` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `standalone`-related helper operations within
+    the utility layer.
 
 Delegates:
-    - resolve_standalone_formatter_catalog: owns nested behavior below this boundary
-    - resolve_standalone_formatter_requests: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `standalone` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `standalone`
+    - `pytest_bdd.plugin.*`: imports `standalone` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates path, resolved_catalog, requests, ordered_requests; depends on __future__.annotations, pathlib.Path,
-    pytest_bdd.plugin.gherkin_message_reporter.session.CucumberFormatterRequest,
-    pytest_bdd.plugin.gherkin_message_reporter.session.validate_requested_cucumber_formatters,
-    pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.cucumber_formatter_support.standalone` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -62,49 +59,47 @@ def resolve_standalone_formatter_catalog(
     catalog: FormatterPluginCatalog | None = None,
 ) -> FormatterPluginCatalog:
     """
-    Resolve standalone formatter catalog.
-
-    Returns:
-        Formatter plugin catalog.
+    Perform the `resolve_standalone_formatter_catalog` operation within its module boundary,.
+    implementing a focused help.
 
     Responsibility:
-        Resolve standalone formatter catalog. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `resolve_standalone_formatter_catalog` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_catalog` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_standalone_formatter_catalog` exists as a standalone function because it encapsulates
+        an operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - FormatterPluginCatalog.discover: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolve_standalone_formatter_catalog operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `resolve_standalone_formatter_catalog`
+        - `pytest_bdd.*`: callers import and invoke resolve_standalone_formatter_catalog for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The resolve_standalone_formatter_catalog function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     return FormatterPluginCatalog.discover() if catalog is None else catalog
 
@@ -116,106 +111,93 @@ def resolve_standalone_formatter_requests(
     catalog: FormatterPluginCatalog | None = None,
 ) -> tuple[CucumberFormatterRequest, ...]:
     """
-    Resolve standalone formatter requests.
-
-    Returns:
-        Tuple of cucumber formatter requests.
+    Perform the `resolve_standalone_formatter_requests` operation within its module boundary,.
+    implementing a focused hel.
 
     Responsibility:
-        Resolve standalone formatter requests. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `resolve_standalone_formatter_requests` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_requests` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_standalone_formatter_requests` exists as a standalone function because it encapsulates
+        an operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - resolve_output_path: owns nested behavior below this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolve_standalone_formatter_requests operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `resolve_standalone_formatter_requests`
+        - `pytest_bdd.*`: callers import and invoke resolve_standalone_formatter_requests for its specific utility
 
     State and side effects:
-        mutates path, resolved_catalog, requests, ordered_requests.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_requests` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - The resolve_standalone_formatter_requests function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     resolved_catalog = resolve_standalone_formatter_catalog(catalog)
 
     def resolve_output_path(output_path: str) -> Path:
         """
+        Perform the `resolve_output_path` operation within its module boundary, implementing a focused.
+        helper function that .
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_requests.resolve_output_path`
-            owns documented function behavior. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this function.
+        Performs the `resolve_output_path` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_requests.resolve_output_path`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_output_path` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
         Delegates:
-            - Path: collaborator call used by this boundary
-            - path.is_absolute: collaborator call used by this boundary
-            - path.resolve: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All logic directly supports the resolve_output_path operation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `resolve_output_path`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `resolve_output_path`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `resolve_output_path`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `resolve_output_path`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `resolve_output_path`
+        - `pytest_bdd.*`: callers import and invoke resolve_output_path for its specific utility
 
         State and side effects:
-            mutates path.
+        None, this function is stateless and produces its output purely from input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.standalone.resolve_standalone_formatter_requests.resolve_output_path`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+        - The resolve_output_path function returns consistent results for equivalent inputs.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
         """
         path = Path(output_path)
         if not path.is_absolute():

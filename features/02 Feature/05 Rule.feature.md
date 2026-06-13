@@ -44,9 +44,9 @@
     ```python
     from pytest_bdd import given, parsers
 
+
     @given(parsers.re(".+"))
-    def _any_step():
-      ...
+    def _any_step(): ...
     ```
 
 * When run pytest

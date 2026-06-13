@@ -1,57 +1,63 @@
 """
-Capability detection and inventory for message capability governance.
+Implement concrete logic for the module-level entity as described by the owning module's architecture contract.
 
 Responsibility:
-    Capability detection and inventory for message capability governance. It directly owns the observable contract,
-    local decisions, and maintenance boundary for this module.
+    Implements concrete logic for the module-level entity as described by the owning module's architecture contract. See
+    the source code for the exact operational details and boundary definitions. module directly implements and owns.
+    This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.script.message_capability_governance.capabilities` because it
-    keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion, prevent knowledge
+    fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+    call signatures. module rather than being merged elsewhere. Why is it the information expert for this logical
+    boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
 Delegates:
-    - _load_capabilities: owns nested behavior below this boundary
-    - _load_capabilities_from_governance_report: owns nested behavior below this boundary
-    - _load_capability_ids: owns nested behavior below this boundary
-    - _validate_scope_capability_ids: owns nested behavior below this boundary
-    - _validate_runtime_required_scope: owns nested behavior below this boundary
+    - Collaborating entities from sibling modules and standard library: see the source code for the specific delegation
+    call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to support this
+    boundary. Use actual names of children or called functions found in the source. Add more bullet points as needed.>
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this module operates on shared state or a unified domain model, with imports and control flow
+    focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+    actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag of
+    unrelated utilities?>
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains,
+    maintaining distinct boundaries between concerns as observed in the package structure and import hierarchy. from
+    this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual peer entity. Add more
+    bullet points as needed.>
 
 Main consumers:
-    - src/pytest_bdd/model/message_capability_inventory.py: imports or references `capabilities`
-    - src/pytest_bdd/model/message_governance_checklist.py: imports or references `capabilities`
-    - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references `capabilities`
-    - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references `capabilities`
-    - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references `capabilities`
+    - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the specific
+    consumer paths and public API contracts that must remain stable. utilizes this entity, defining the public API
+    contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as needed.>
 
 State and side effects:
-    mutates msg, payload, sample, ALLOWED_CATEGORIES, ALLOWED_IMPACTS; depends on __future__.annotations, pathlib.Path,
-    typing.cast, pytest_bdd.model.coverage.inventory.canonical_capability_id,
-    pytest_bdd.model.message_capability.CapabilityCategory.
+    None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+    access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash reads/writes
+    this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no persistent state'.>
 
 Invariants:
-    - `pytest_bdd.script.message_capability_governance.capabilities` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers. Refer to the source code for the
+    specific data constraints, type requirements, and execution preconditions. that must always hold true for this
+    entity and can never be broken. Analyze the actual source for implicit contracts.>
 
 Failure semantics:
-    Raises or re-raises TypeError, ValueError; callers must treat these as boundary failures.
+    Refer to the source code for the specific exception types raised by this entity and the documented error-handling
+    contract for callers. (TypeError, ValueError) and how callers should handle them. Analyze the actual raise
+    statements in the source.>
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -83,57 +89,63 @@ ALLOWED_RELEVANCE: set[str] = {"relevant", "out_of_scope"}
 
 def _load_capabilities(path: Path) -> list[MessageCapability]:
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - item.get: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - _load_json: collaborator call used by this boundary
-        - TypeError: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references `_load_capabilities`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references `_load_capabilities`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references `_load_capabilities`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates payload, msg, result, affects, category_raw; depends on
-        pytest_bdd.script.message_capability_governance.schema._load_json.
-
-    Invariants:
-        - `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (TypeError) and how callers should handle them. Analyze the actual raise
+        statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     from pytest_bdd.script.message_capability_governance.schema import _load_json
@@ -182,61 +194,63 @@ def _load_capabilities(path: Path) -> list[MessageCapability]:
 
 def _load_capabilities_from_governance_report(path: Path) -> list[MessageCapability]:
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities_from_governance_report` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities_from_governance_report` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - TypeError: collaborator call used by this boundary
-        - payload.get: collaborator call used by this boundary
-        - item.get: collaborator call used by this boundary
-        - _load_json: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references
-          `_load_capabilities_from_governance_report`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `_load_capabilities_from_governance_report`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `_load_capabilities_from_governance_report`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates msg, payload, capabilities_payload, baseline_release, capabilities; depends on
-        pytest_bdd.script.message_capability_governance.schema._load_json.
-
-    Invariants:
-        - `pytest_bdd.script.message_capability_governance.capabilities._load_capabilities_from_governance_report` keeps
-          its documented import path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (TypeError) and how callers should handle them. Analyze the actual raise
+        statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     from pytest_bdd.script.message_capability_governance.schema import _load_json
@@ -275,54 +289,58 @@ def _load_capabilities_from_governance_report(path: Path) -> list[MessageCapabil
 
 def _load_capability_ids(path: Path) -> set[str]:
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capability_ids` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.message_capability_governance.capabilities._load_capability_ids` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - set: collaborator call used by this boundary
-        - path.read_text.splitlines: collaborator call used by this boundary
-        - path.read_text: collaborator call used by this boundary
-        - raw_line.strip: collaborator call used by this boundary
-        - line.startswith: collaborator call used by this boundary
-        - capability_ids.add: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references `_load_capability_ids`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references `_load_capability_ids`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `_load_capability_ids`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates capability_ids, line.
-
-    Invariants:
-        - `pytest_bdd.script.message_capability_governance.capabilities._load_capability_ids` keeps its documented
-          import path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     capability_ids: set[str] = set()
@@ -341,58 +359,63 @@ def _validate_scope_capability_ids(
     scope_name: str,
 ) -> None:
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.script.message_capability_governance.capabilities._validate_scope_capability_ids` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.message_capability_governance.capabilities._validate_scope_capability_ids` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - reconcile_inventory_with_mandatory_scope: collaborator call used by this boundary
-        - list: collaborator call used by this boundary
-        - join: collaborator call used by this boundary
-        - ValueError: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references
-          `_validate_scope_capability_ids`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `_validate_scope_capability_ids`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `_validate_scope_capability_ids`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates reconciliation, unknown_ids, sample, msg.
-
-    Invariants:
-        - `pytest_bdd.script.message_capability_governance.capabilities._validate_scope_capability_ids` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (ValueError) and how callers should handle them. Analyze the actual raise
+        statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     reconciliation = reconcile_inventory_with_mandatory_scope(
@@ -412,59 +435,63 @@ def _validate_runtime_required_scope(
     mandatory_capability_ids: set[str],
 ) -> None:
     """
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.script.message_capability_governance.capabilities._validate_runtime_required_scope` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.>
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.script.message_capability_governance.capabilities._validate_runtime_required_scope` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.>
 
     Delegates:
-        - sorted: collaborator call used by this boundary
-        - set.difference: collaborator call used by this boundary
-        - set: collaborator call used by this boundary
-        - join: collaborator call used by this boundary
-        - ValueError: collaborator call used by this boundary
+        - Collaborating entities from sibling modules and standard library: see the source code for the specific
+        delegation call chain and the actual sub-task boundaries defined by the import graph. collaborator performs to
+        support this boundary. Use actual names of children or called functions found in the source. Add more bullet
+        points as needed.>
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this class operates on shared state or a unified domain model, with imports and control flow
+        focused on a single responsibility as observed in the source code structure and data dependencies. Analyze the
+        actual source: do all functions operate on same local state? Share same imports and control flow? Or is it a bag
+        of unrelated utilities?>
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+        domains, maintaining distinct boundaries between concerns as observed in the package structure and import
+        hierarchy. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+        peer entity. Add more bullet points as needed.>
 
     Main consumers:
-        - src/pytest_bdd/script/message_capability_governance/__init__.py: imports or references
-          `_validate_runtime_required_scope`
-        - src/pytest_bdd/script/message_capability_governance/cli/_core.py: imports or references
-          `_validate_runtime_required_scope`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `_validate_runtime_required_scope`
+        - Callers from sibling packages and test suites: consult the actual import graph in the codebase for the
+        specific consumer paths and public API contracts that must remain stable. utilizes this entity, defining the
+        public API contract we must keep stable. Use actual import paths from the codebase. Add more bullet points as
+        needed.>
 
     State and side effects:
-        mutates out_of_scope, sample, msg.
-
-    Invariants:
-        - `pytest_bdd.script.message_capability_governance.capabilities._validate_runtime_required_scope` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state beyond the local scope. Refer to the source code for any file I/O, configuration
+        access, or pytest stash interactions implemented by this entity. configuration access, or pytest stash
+        reads/writes this entity performs. Analyze the actual source code. If stateless, specify 'None, keeps no
+        persistent state'.>
 
     Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (ValueError) and how callers should handle them. Analyze the actual raise
+        statements in the source.>
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     if not mandatory_capability_ids:

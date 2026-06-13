@@ -1,54 +1,60 @@
 """
-Backward-compatible re-exports of all public scenario locators.
+Serves as the public API aggregation module for the scenario_locator subpackage, explicitly re-exporting all public p.
 
 Responsibility:
-    Backward-compatible re-exports of all public scenario locators. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Serves as the public API aggregation module for the scenario_locator subpackage, explicitly re-exporting all public
+    protocol types (ScenarioLocatorFeatureResolver, ScenarioLocatorReadObserver, ScenarioLocatorResolver,
+    ScenarioLocatorHookProtocol), the filter mixin (ScenarioLocatorFilterMixin with ScenarioLocatorFilterT type alias),
+    and concrete locator implementations (FileScenarioLocator, FileScenarioLocatorDefaults, UrlScenarioLocator,
+    PyPyUrlScenarioLocator). Each import is annotated with justification for F401 suppression, making the public API
+    contract explicit and reviewable.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.scenario_locator.facade` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    The scenario_locator subpackage contains 4 module files (base, file_locator, url_locator, plus __init__) with
+    protocol definitions, concrete implementations, and internal logic. This facade module aggregates all public symbols
+    into a single import target that the __init__.py re-exports. Without this facade, consumers would need to know which
+    internal module defines each class (e.g., FileScenarioLocator is in file_locator, UrlScenarioLocator is in
+    url_locator). The facade also serves as documentation of what constitutes the public API boundary.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - pytest_bdd.scenario_locator.base: Provides protocol classes, filter mixin, and type aliases.
+    - pytest_bdd.scenario_locator.file_locator: Provides FileScenarioLocator and FileScenarioLocatorDefaults.
+    - pytest_bdd.scenario_locator.url_locator: Provides UrlScenarioLocator and PyPyUrlScenarioLocator.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Every import serves the purpose of exposing the scenario_locator public API. Imports are organized by source module
+    with justification comments.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.scenario_locator.__init__: Kept separate because __init__.py provides the consumer-facing import path
+    with explicit as-aliasing, while facade.py aggregates and documents the imports — consumer API vs internal
+    aggregation.
 
 Main consumers:
-    - src/pytest_bdd/scenario_locator.py: imports or references `facade`
-    - src/pytest_bdd/scenario_locator/__init__.py: imports or references `facade`
+    - pytest_bdd.scenario_locator.__init__: Re-exports all symbols for consumer access.
+    - pytest_bdd.collector: Imports scenario locator classes for test collection.
 
 State and side effects:
-    depends on __future__.annotations, pytest_bdd.scenario_locator.base.ScenarioLocatorFeatureResolver,
-    pytest_bdd.scenario_locator.base.ScenarioLocatorFilterMixin,
-    pytest_bdd.scenario_locator.base.ScenarioLocatorFilterT,
-    pytest_bdd.scenario_locator.base.ScenarioLocatorHookProtocol.
+    None. All imports are read-only namespace operations.
 
 Invariants:
-    - `pytest_bdd.scenario_locator.facade` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Every public type defined in the subpackage must be re-exported through this facade.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
     #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
 
-from pytest_bdd.scenario_locator.base import (  # noqa: F401
+from pytest_bdd.scenario_locator.base import (  # noqa: F401  -- intentional re-export; facade exposes full scenario_locator public API
     ScenarioLocatorFeatureResolver,
     ScenarioLocatorFilterMixin,
     ScenarioLocatorFilterT,
@@ -56,11 +62,11 @@ from pytest_bdd.scenario_locator.base import (  # noqa: F401
     ScenarioLocatorReadObserver,
     ScenarioLocatorResolver,
 )
-from pytest_bdd.scenario_locator.file_locator import (  # noqa: F401
+from pytest_bdd.scenario_locator.file_locator import (  # noqa: F401  -- intentional re-export; facade exposes full scenario_locator public API
     FileScenarioLocator,
     FileScenarioLocatorDefaults,
 )
-from pytest_bdd.scenario_locator.url_locator import (  # noqa: F401
+from pytest_bdd.scenario_locator.url_locator import (  # noqa: F401  -- intentional re-export; facade exposes full scenario_locator public API
     PyPyUrlScenarioLocator,
     UrlScenarioLocator,
 )

@@ -106,18 +106,22 @@ from pytest_bdd.util.tests_group_ordering import (
     wait_for_group_barrier,
 )
 
+
 def pytest_addoption(parser):
     """Handle addoption."""
     register_group_config_options(parser)
+
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(config, items):
     """Handle collection modifyitems."""
     apply_group_ordering(config, items)
 
+
 def pytest_runtest_setup(item):
     """Handle runtest setup."""
     wait_for_group_barrier(item)
+
 
 def pytest_runtest_logreport(report):
     """Handle runtest logreport."""
@@ -138,12 +142,14 @@ from returns.maybe import Nothing
 from pytest_bdd.compatibility.pytest import Mark, MarkDecorator
 from pytest_bdd.compatibility.tomllib import loads as load_toml
 
+
 @frozen
 class GroupPathMapping:
     """Represent group path mapping state."""
 
     pattern: str
     group_name: str
+
 
 @frozen
 class GroupConfig:
@@ -159,9 +165,17 @@ class GroupConfig:
 ```python
 def register_group_config_options(parser: pytest.Parser) -> None:
     """Register group config options."""
-    parser.addini("test_group_order", "Ordered pytest test group names; first group runs first.", type="args", default="")
+    parser.addini(
+        "test_group_order", "Ordered pytest test group names; first group runs first.", type="args", default=""
+    )
     parser.addini("test_group_default", "Default pytest test group name for unresolved tests.", default="")
-    parser.addini("test_group_paths", "Repo-relative path pattern to group mappings, formatted as 'pattern = group'.", type="linelist", default="")
+    parser.addini(
+        "test_group_paths",
+        "Repo-relative path pattern to group mappings, formatted as 'pattern = group'.",
+        type="linelist",
+        default="",
+    )
+
 
 def read_group_config(config: pytest.Config) -> GroupConfig:
     groups = _normalize_groups(_as_list(_get_ini_value(config, "test_group_order")))
@@ -170,10 +184,14 @@ def read_group_config(config: pytest.Config) -> GroupConfig:
         groups = [_FALLBACK_GROUP]
     default = str(_get_ini_value(config, "test_group_default") or "")
     if default not in groups:
-        warnings.warn(f"[test-groups] Default group '{default}' not found in groups. Using first group '{groups[0]}'.", stacklevel=2)
+        warnings.warn(
+            f"[test-groups] Default group '{default}' not found in groups. Using first group '{groups[0]}'.",
+            stacklevel=2,
+        )
         default = groups[0]
     paths = _parse_path_mappings(_as_list(_get_ini_value(config, "test_group_paths")), groups)
     return GroupConfig(groups=groups, default=default, paths=paths, rootpath=Path(config.rootpath))
+
 
 def apply_group_ordering(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Apply group ordering."""
@@ -333,6 +351,7 @@ def _active_coverage_controller() -> Any | None:
         return None
     return current()
 
+
 @contextmanager
 def _suspend_active_coverage():
     controller = _active_coverage_controller()
@@ -365,6 +384,7 @@ def _resolve_tool_path(name: str) -> str | None:
             return str(candidate)
     return None
 
+
 def _alpine_wsl2_available() -> bool:
     """Detect if WSL2 Alpine dist exists by parsing ``wsl -l -v`` output."""
     wsl_bin = _resolve_tool_path("wsl")
@@ -374,6 +394,7 @@ def _alpine_wsl2_available() -> bool:
     if result.returncode != 0:
         return False
     ...
+
 
 def _wait_for_docker(backend: str, timeout: int = 60) -> bool:
     """Poll ``docker info`` (native) or ``wsl -d Alpine docker info`` (wsl2)."""
@@ -435,10 +456,12 @@ from pytest_bdd import scenarios
 _EXCLUDED_TAGS = {"allure", "docker", "slow", "xdist"}
 _EXCLUDED_FEATURE_URI_FRAGMENTS = ("07 report/08 xdist remote network reporting.feature.md",)
 
+
 def _exclude_default_bdd_features(config, feature, pickle):  # noqa: ARG001
     feature_uri = str(getattr(feature, "uri", "")).lower()
     ...
-    return (... and tag_names.isdisjoint(_EXCLUDED_TAGS))
+    return ... and tag_names.isdisjoint(_EXCLUDED_TAGS)
+
 
 test = scenarios(".", filter_=_exclude_default_bdd_features)
 ```

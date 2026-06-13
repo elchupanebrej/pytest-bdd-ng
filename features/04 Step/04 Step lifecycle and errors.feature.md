@@ -41,22 +41,25 @@
     ```python
     from pytest_bdd import given, when, then, parsers
 
+
     @given(parsers.parse("there is a foo with value {value}"), target_fixture="first_foo")
     @given(parsers.parse("there is a second foo with value {value}"), target_fixture="second_foo")
     def _foo(value):
-      return value
+        return value
+
 
     @when("I do nothing")
     @when("I do nothing again")
     def _do_nothing(first_foo, second_foo):
-      assert first_foo == "42"
-      assert second_foo == "43"
+        assert first_foo == "42"
+        assert second_foo == "43"
+
 
     @then("I make no mistakes")
     @then("I make no mistakes again")
     def _no_errors(first_foo, second_foo):
-      assert first_foo == "42"
-      assert second_foo == "43"
+        assert first_foo == "42"
+        assert second_foo == "43"
     ```
 
 * When run pytest
@@ -81,13 +84,15 @@
     ```python
     from pytest_bdd import step, then
 
+
     @step('I have a foo fixture with value "foo"', target_fixture="foo")
     def _foo():
-      return "foo"
+        return "foo"
+
 
     @then('foo should have value "foo"')
     def _foo_is_foo(foo):
-      assert foo == "foo"
+        assert foo == "foo"
     ```
 
 * When run pytest

@@ -1,49 +1,57 @@
 """
-Provide entrypoint helpers.
+Serves as the Extra Plugins (order 8) module for YAML/JSON/TOML/HOCON BDD feature definitions.
 
 Responsibility:
-    Provide entrypoint helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Serves as the Extra Plugins (order 8) module for YAML/JSON/TOML/HOCON BDD feature definitions. Defines classes and
+    functions that collectively implement Collection and execution behavior of the 'entrypoint' component. This module
+    is the sole owner of its specific BDD plugin contract within the Extra Plugins (order 8).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.struct_bdd.entrypoint` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This module exists as a distinct architectural unit because it encapsulates all logic for YAML/JSON/TOML/HOCON BDD
+    feature definitions within the Extra Plugins (order 8). It is the information expert for its specific domain, owning
+    the transformation from pytest events to its output format. Changes to YAML/JSON/TOML/HOCON BDD feature definitions
+    behavior belong exclusively in this module, not in sibling plugins or the core pytest-bdd library. Its import
+    boundary isolates it from other reporting/runtime concerns.
 
 Delegates:
-    - config.pluginmanager.register: collaborator call used by this boundary
-    - StructBDDPlugin: collaborator call used by this boundary
-    - pytest.hookimpl: collaborator call used by this boundary
+    - (internal classes and functions): Implement specific aspects of YAML/JSON/TOML/HOCON BDD feature definitions
+    within the Collection and execution.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module serve the single purpose of YAML/JSON/TOML/HOCON BDD feature definitions. They share
+    common import
+    dependencies and operate on the same domain types. No unrelated utilities are present.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - (sibling plugins in Extra Plugins (order 8)): Each owns a distinct output format or lifecycle concern.
+    - (runtime plugins): Handled by separate modules in the Runtime layer (order 6).
 
 Main consumers:
-    - src/pytest_bdd/util/cucumber_formatter_support/registry.py: imports or references `entrypoint`
+    - pytest: Hooks into the Collection and execution via standard pytest hook mechanisms.
+    - (downstream tools): CI/CD systems and test reporting tools consume the generated output.
 
 State and side effects:
-    depends on pytest, pytest_bdd.compatibility.pytest.Config, pytest_bdd.compatibility.struct_bdd.STRUCT_BDD_INSTALLED,
-    pytest_bdd.plugin.struct_bdd.plugin.StructBDDPlugin.
+    Accumulates state across pytest hook calls during the session. Accesses pytest Config for
+    options. May perform file I/O for report generation.
 
 Invariants:
-    - `pytest_bdd.plugin.struct_bdd.entrypoint` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Output format must conform to the expected schema for entrypoint.
+    - Hook implementations must respect pytest's hook calling conventions.
+
+Failure semantics:
+    Raises pytest.UsageError for configuration issues. May raise LookupError when required
+    resources are missing from pytest stash or fixtures.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """
 
 import pytest
@@ -59,45 +67,49 @@ if STRUCT_BDD_INSTALLED:
     @pytest.hookimpl(trylast=True)
     def pytest_configure(config: Config) -> None:
         """
-        Handle configure.
+        Implement the 'pytest_bdd.plugin.struct_bdd.entrypoint.pytest_configure' function within the Extra Plugins (order 8).
 
         Responsibility:
-            Handle configure. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Implements the 'pytest_bdd.plugin.struct_bdd.entrypoint.pytest_configure' function within the Extra Plugins
+            (order 8). Operates during the Collection and execution.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.plugin.struct_bdd.entrypoint.pytest_configure` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This function is the single authority for its specific behavior within the Extra Plugins (order 8). It
+            implements a pytest lifecycle hook at the Collection and execution, making it the natural extension point
+            for pytest-bdd behavior. Its boundary is defined by its specific inputs and outputs within the
+            YAML/JSON/TOML/HOCON BDD feature definitions workflow.
 
         Delegates:
-            - config.pluginmanager.register: collaborator call used by this boundary
-            - StructBDDPlugin: collaborator call used by this boundary
-            - pytest.hookimpl: collaborator call used by this boundary
+            - pluginmanager.register: Subordinate operation called during execution
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Focuses exclusively on the 'pytest_bdd.plugin.struct_bdd.entrypoint.pytest_configure' operation. All
+            internal logic serves this single purpose within the Collection and execution.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - (peer entities): Each sibling owns a distinct Collection and execution lifecycle event or sub-operation
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - pytest: Calls this hook at the Collection and execution as part of standard plugin lifecycle
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Accesses pytest Config for options
+
+        Invariants:
+            - Maintains its documented input/output contract
+
+        Failure semantics:
+            No custom exceptions raised directly by this entity
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=4
+            #arch-eval:state_invariants=4
             #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
+            #arch-eval:locational_stability=4
         """
         config.pluginmanager.register(StructBDDPlugin())

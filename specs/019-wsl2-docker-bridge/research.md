@@ -22,10 +22,7 @@
 **Implementation**:
 ```python
 def _alpine_wsl2_available() -> bool:
-    result = subprocess.run(
-        ["wsl", "-l", "-v"],
-        capture_output=True, text=True, timeout=10
-    )
+    result = subprocess.run(["wsl", "-l", "-v"], capture_output=True, text=True, timeout=10)
     for line in result.stdout.splitlines():
         if "Alpine" in line and "2" in line.split()[-1]:
             return True
@@ -79,15 +76,13 @@ def _run_wsl_cmd(args: list[str], timeout: int = 30) -> subprocess.CompletedProc
 **Implementation**:
 ```python
 def _ensure_docker_cli_in_alpine(timeout: int = 60) -> None:
-    check = subprocess.run(
-        ["wsl", "-d", "Alpine", "--", "which", "docker"],
-        capture_output=True, text=True, timeout=10
-    )
+    check = subprocess.run(["wsl", "-d", "Alpine", "--", "which", "docker"], capture_output=True, text=True, timeout=10)
     if check.returncode != 0:
         install = subprocess.run(
-            ["wsl", "-d", "Alpine", "-u", "root", "--",
-             "apk", "add", "--no-cache", "docker-cli"],
-            capture_output=True, text=True, timeout=timeout
+            ["wsl", "-d", "Alpine", "-u", "root", "--", "apk", "add", "--no-cache", "docker-cli"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
         )
         if install.returncode != 0:
             pytest.fail(f"Failed to install docker-cli in Alpine: {install.stderr}")
@@ -172,10 +167,7 @@ services:
 **Implementation**:
 ```python
 def _start_docker_desktop() -> None:
-    subprocess.run(
-        ["powershell", "-Command", "Start-Process", "docker-desktop", "-WindowStyle", "Hidden"],
-        timeout=10
-    )
+    subprocess.run(["powershell", "-Command", "Start-Process", "docker-desktop", "-WindowStyle", "Hidden"], timeout=10)
 ```
 
 ---

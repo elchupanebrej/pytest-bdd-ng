@@ -49,6 +49,7 @@ through ``target_fixture`` or use test function arguments:
 def logged_in(browser):
     browser.visit("/login")
 
+
 # In the test function, request the fixture explicitly:
 @scenario("features/login.feature", "Login")
 def test_login(browser):
@@ -191,9 +192,11 @@ pip install pytest-bdd-ng[formatters]
 # tests/test_login.py
 from pytest_bdd import given, scenario, then, when
 
+
 @given("the login page is open")
 def login_page_open(browser):  # 'browser' auto-matched to fixture
     browser.visit("/login")
+
 
 @when('I enter "admin" and "secret"')
 def enter_credentials(browser):
@@ -201,9 +204,11 @@ def enter_credentials(browser):
     browser.fill("password", "secret")
     browser.click("Login")
 
+
 @then("I see the dashboard")
 def see_dashboard(browser):
     assert "Dashboard" in browser.title
+
 
 @scenario("features/login.feature", "Login with valid credentials")
 def test_login():
@@ -216,9 +221,11 @@ def test_login():
 # tests/test_login.py
 from pytest_bdd import given, parsers, scenario, then, when
 
+
 @given("the login page is open")
 def login_page_open(browser):
     browser.visit("/login")
+
 
 @when(parsers.parse('I enter "{username}" and "{password}"'))
 def enter_credentials(browser, username, password):
@@ -226,9 +233,11 @@ def enter_credentials(browser, username, password):
     browser.fill("password", password)
     browser.click("Login")
 
+
 @then("I see the dashboard")
 def see_dashboard(browser):
     assert "Dashboard" in browser.title
+
 
 @scenario("features/login.feature", "Login with valid credentials")
 def test_login(browser):

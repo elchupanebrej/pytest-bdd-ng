@@ -15,7 +15,7 @@
     ```python
     from pytest_bdd import scenarios
 
-    test_cukes = scenarios('features')
+    test_cukes = scenarios("features")
     ```
 
 * When run pytest

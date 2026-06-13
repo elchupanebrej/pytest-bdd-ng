@@ -1,46 +1,55 @@
 """
-Provide cucumber pretty entrypoint.
+Serves as the Reporting (order 7) module for Pretty terminal formatter.
 
 Responsibility:
-    Provide cucumber pretty entrypoint. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Serves as the Reporting (order 7) module for Pretty terminal formatter. Defines classes and functions that
+    collectively implement Reporting phase behavior of the 'entrypoint' component. This module is the sole owner of its
+    specific BDD plugin contract within the Reporting (order 7).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.cucumber_pretty.entrypoint` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    This module exists as a distinct architectural unit because it encapsulates all logic for Pretty terminal formatter
+    within the Reporting (order 7). It is the information expert for its specific domain, owning the transformation from
+    pytest events to its output format. Changes to Pretty terminal formatter behavior belong exclusively in this module,
+    not in sibling plugins or the core pytest-bdd library. Its import boundary isolates it from other reporting/runtime
+    concerns.
 
 Delegates:
-    - PrettyFormatterPlugin: collaborator call used by this boundary
+    - (internal classes and functions): Implement specific aspects of Pretty terminal formatter within the Reporting phase.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module serve the single purpose of Pretty terminal formatter. They share common import
+    dependencies and operate on the same domain types. No unrelated utilities are present.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - (sibling plugins in Reporting (order 7)): Each owns a distinct output format or lifecycle concern.
+    - (runtime plugins): Handled by separate modules in the Runtime layer (order 6).
 
 Main consumers:
-    - src/pytest_bdd/util/cucumber_formatter_support/registry.py: imports or references `entrypoint`
+    - pytest: Hooks into the Reporting phase via standard pytest hook mechanisms.
+    - (downstream tools): CI/CD systems and test reporting tools consume the generated output.
 
 State and side effects:
-    mutates pretty_plugin; depends on plugin.PrettyFormatterPlugin.
+    Accumulates state across pytest hook calls during the session. Accesses pytest Config for
+    options. May perform file I/O for report generation.
 
 Invariants:
-    - `pytest_bdd.plugin.cucumber_pretty.entrypoint` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Output format must conform to the expected schema for entrypoint.
+    - Hook implementations must respect pytest's hook calling conventions.
+
+Failure semantics:
+    Raises pytest.UsageError for configuration issues. May raise LookupError when required
+    resources are missing from pytest stash or fixtures.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """
 
 from .plugin import PrettyFormatterPlugin

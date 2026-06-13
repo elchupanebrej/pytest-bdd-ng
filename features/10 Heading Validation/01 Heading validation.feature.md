@@ -21,6 +21,8 @@
 * And File "conftest.py" with content:
     ```python
     from pytest_bdd import given
+
+
     @given("a valid step")
     def _pass():
         pass
@@ -28,6 +30,7 @@
 * And File "test_valid.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     scenarios("valid.feature.md")
     ```
 * When run pytest

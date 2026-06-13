@@ -134,6 +134,7 @@ import pytest
 from pytest_bdd.model.run import Run, RunStage, RunStatus, HookPhase
 from pytest_bdd.model.scenario_run import ScenarioRun
 
+
 @pytest.mark.unit
 def test_scenario_run_advance_transition() -> None:
     """Transition index increments on each advance_transition call."""
@@ -167,6 +168,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
+
 def test_decorator_builder_creates_step_definition(testdir) -> None:
     """Step decorator stores definition on function's __pytest_bdd_step_definitions__."""
     testdir.makeconftest("""
@@ -193,6 +195,7 @@ from __future__ import annotations
 
 import pytest
 from pytest_bdd.parsers import re, StepParser
+
 
 @pytest.mark.unit
 def test_re_parser_parse_arguments_with_named_groups() -> None:
@@ -292,6 +295,7 @@ def _build_run() -> Run:
         status=RunStatus.ok,
     )
 
+
 def _build_scenario_run() -> ScenarioRun:
     run = _build_run()
     # ... construct with all required fields
@@ -304,11 +308,17 @@ def _build_scenario_run() -> ScenarioRun:
 # Pattern: assert against expected dict for stable serialization
 def test_lifecycle_object_ref_serialization_is_stable() -> None:
     active_ref = LifecycleObjectRef(
-        kind="scenario", object_id="scenario-1", name="Scenario",
-        source="Pickle", is_active=True,
+        kind="scenario",
+        object_id="scenario-1",
+        name="Scenario",
+        source="Pickle",
+        is_active=True,
     )
     assert active_ref.as_dict() == _lifecycle_dict(
-        kind="scenario", object_id="scenario-1", name="Scenario", source="Pickle",
+        kind="scenario",
+        object_id="scenario-1",
+        name="Scenario",
+        source="Pickle",
     )
 ```
 

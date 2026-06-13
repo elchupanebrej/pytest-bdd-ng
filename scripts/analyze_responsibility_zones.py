@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -72,9 +73,12 @@ def entity_signals(entry: dict[str, Any], child_counts: Counter[str], low_child_
         signals.append("many weak children")
     if entry["kind"] == "class" and child_counts[entry["qualname"]] >= 10 and scores.get("owned_responsibility", 0) < 4:
         signals.append("broad class surface")
-    if entry["kind"] in {"function", "method", "async function", "async method"}:
-        if scores.get("delegation_boundary", 0) < 3 and scores.get("owned_responsibility", 0) >= 4:
-            signals.append("broad orchestration without delegates")
+    if (
+        entry["kind"] in {"function", "method", "async function", "async method"}
+        and scores.get("delegation_boundary", 0) < 3
+        and scores.get("owned_responsibility", 0) >= 4
+    ):
+        signals.append("broad orchestration without delegates")
     return signals
 
 
@@ -166,8 +170,21 @@ def write_outputs(entries: list[dict[str, Any]], zones: list[dict[str, Any]]) ->
     GAPS_MD.write_text("\n".join(lines), encoding="utf-8")
 
 
+def load_or_collect(root: Path | None = None) -> list[dict[str, Any]]:
+    """Load entries from object-map.json or collect from root if missing or forced."""
+    if root is not None or not OBJECT_MAP_JSON.exists():
+        root = root or Path("src/pytest_bdd")
+        from collect_arch_scores import collect_entries as _collect
+        from collect_arch_scores import write_json as _write_json
+
+        entries = _collect([root])
+        _write_json(entries)
+        return [{**asdict(e), "average": round(e.average, 2), "documented": e.documented} for e in entries]
+    return json.loads(OBJECT_MAP_JSON.read_text(encoding="utf-8"))
+
+
 def main() -> int:
-    entries = load_entries()
+    entries = load_or_collect()
     zones = build_zones(entries)
     write_outputs(entries, zones)
     print(f"Analyzed {len(entries)} entities.")

@@ -304,6 +304,7 @@ def _parse_targets(text: str) -> dict[str, dict[str, object]]:
                 commands.append(line.strip())
     return targets
 
+
 def test_makefile_exposes_required_test_api_targets() -> None:
     """Verify Makefile contains the Phase 12 human test API."""
     targets = _parse_targets(_makefile_text())

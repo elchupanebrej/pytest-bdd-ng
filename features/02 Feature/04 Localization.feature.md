@@ -18,15 +18,18 @@
 * And File "conftest.py" with content:
 
     ```python
-    from pytest_bdd import  given, when, then
+    from pytest_bdd import given, when, then
+
 
     @given("que o usuário esteja na tela de login")
     def tela_login():
         assert True
 
+
     @when("ele clicar no botão de Criar Conta")
     def evento_criar_conta():
         assert True
+
 
     @then("ele deve ser levado para a tela de criação de conta")
     def tela_criacao_conta():

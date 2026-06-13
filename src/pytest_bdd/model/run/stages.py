@@ -1,50 +1,54 @@
 """
-Lifecycle stage and status enumerations for the run model.
+Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario, pyte.
 
 Responsibility:
-    Lifecycle stage and status enumerations for the run model. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario,
+    pytest_bdd_run_step, etc.), RunStage (idle, scenario_setup, step_running, finished, etc.), and RunStatus (ok,
+    failed, interrupted). These enums are the canonical vocabulary for lifecycle transitions and are referenced
+    throughout the collection, runtime, and reporting layers for consistent state communication.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run.stages` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - HookPhase: owns nested behavior below this boundary
-    - RunStage: owns nested behavior below this boundary
-    - RunStatus: owns nested behavior below this boundary
+    - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating a
+    focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - refs: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain boundaries at
+    once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/__init__.py: imports or references `stages`
-    - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `stages`
-    - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `stages`
-    - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `stages`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates before_scenario, run_scenario, after_scenario, run_step, before_step; depends on __future__.annotations,
-    pytest_bdd.compatibility.enum.StrEnum.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run.stages` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - HookPhase values must match actual pytest hookspec names; RunStage must progress monotonically from idle through
+    finished; RunStatus values are mutually exclusive final states
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -55,51 +59,56 @@ from pytest_bdd.compatibility.enum import StrEnum
 
 class HookPhase(StrEnum):
     """
-    Represent hook phase state.
+    Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario, pyte.
 
     Responsibility:
-        Represent hook phase state. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario,
+        pytest_bdd_run_step, etc.), RunStage (idle, scenario_setup, step_running, finished, etc.), and RunStatus (ok,
+        failed, interrupted). These enums are the canonical vocabulary for lifecycle transitions and are referenced
+        throughout the collection, runtime, and reporting layers for consistent state communication.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.stages.HookPhase` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - refs: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `HookPhase`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `HookPhase`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `HookPhase`
-        - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `HookPhase`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `HookPhase`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates before_scenario, run_scenario, after_scenario, run_step, before_step.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.stages.HookPhase` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - HookPhase values must match actual pytest hookspec names; RunStage must progress monotonically from idle
+        through finished; RunStatus values are mutually exclusive final states
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -116,51 +125,56 @@ class HookPhase(StrEnum):
 
 class RunStage(StrEnum):
     """
-    Represent run stage state.
+    Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario, pyte.
 
     Responsibility:
-        Represent run stage state. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario,
+        pytest_bdd_run_step, etc.), RunStage (idle, scenario_setup, step_running, finished, etc.), and RunStatus (ok,
+        failed, interrupted). These enums are the canonical vocabulary for lifecycle transitions and are referenced
+        throughout the collection, runtime, and reporting layers for consistent state communication.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.stages.RunStage` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - refs: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `RunStage`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `RunStage`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `RunStage`
-        - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `RunStage`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `RunStage`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates idle, scenario_setup, scenario_running, step_running, scenario_teardown.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.stages.RunStage` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - HookPhase values must match actual pytest hookspec names; RunStage must progress monotonically from idle
+        through finished; RunStatus values are mutually exclusive final states
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -174,50 +188,56 @@ class RunStage(StrEnum):
 
 class RunStatus(StrEnum):
     """
-    Contain state changes related to a scenario run's execution progression.
+    Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario, pyte.
 
     Responsibility:
-        Contain state changes related to a scenario run's execution progression. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this class.
+        Defines StrEnum-based enums that govern the scenario execution lifecycle: HookPhase (pytest_bdd_before_scenario,
+        pytest_bdd_run_step, etc.), RunStage (idle, scenario_setup, step_running, finished, etc.), and RunStatus (ok,
+        failed, interrupted). These enums are the canonical vocabulary for lifecycle transitions and are referenced
+        throughout the collection, runtime, and reporting layers for consistent state communication.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.stages.RunStatus` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - refs: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `RunStatus`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `RunStatus`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `RunStatus`
-        - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `RunStatus`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `RunStatus`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates ok, failed, interrupted.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.stages.RunStatus` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - HookPhase values must match actual pytest hookspec names; RunStage must progress monotonically from idle
+        through finished; RunStatus values are mutually exclusive final states
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 

@@ -10,7 +10,10 @@
     ```python
     from pytest_bdd import given
 
-    @given("I have an old pickle", param_defaults={"age": "old"}, target_fixture='pickle_age', params_fixtures_mapping=False)
+
+    @given(
+        "I have an old pickle", param_defaults={"age": "old"}, target_fixture="pickle_age", params_fixtures_mapping=False
+    )
     def i_have_cucumber(age):
         yield age
     ```
@@ -28,10 +31,11 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("Freshness.feature")
     def test_passing_feature(pickle_age, request):
-      assert pickle_age == 'old'
-      assert request.getfixturevalue('pickle_age') == pickle_age
+        assert pickle_age == "old"
+        assert request.getfixturevalue("pickle_age") == pickle_age
     ```
 
 * When run pytest
@@ -51,9 +55,10 @@
     ```python
     from pytest_bdd import given
 
-    @given("I have an old pickle", target_fixtures=['pickle_age', 'cucumber_kind'])
+
+    @given("I have an old pickle", target_fixtures=["pickle_age", "cucumber_kind"])
     def i_have_cucumber():
-        yield ['old', 'pickle']
+        yield ["old", "pickle"]
     ```
 
 * Given File "Freshness.feature" with content:
@@ -69,12 +74,13 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("Freshness.feature")
     def test_passing_feature(request, pickle_age, cucumber_kind):
-      assert pickle_age == 'old'
-      assert cucumber_kind == 'pickle'
-      assert request.getfixturevalue('pickle_age') == pickle_age
-      assert request.getfixturevalue('cucumber_kind') == cucumber_kind
+        assert pickle_age == "old"
+        assert cucumber_kind == "pickle"
+        assert request.getfixturevalue("pickle_age") == pickle_age
+        assert request.getfixturevalue("cucumber_kind") == cucumber_kind
     ```
 
 * When run pytest

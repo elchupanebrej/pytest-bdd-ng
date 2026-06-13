@@ -1,56 +1,57 @@
 """
-Provide stable cucumber formatter contract types.
-
-These are narrow data-only value types shared across formatter plugins.
-No plugin runtime behavior lives here — only frozen request/result descriptors
-and the type aliases that accompany them.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide stable cucumber formatter contract types. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.cucumber_formatter_contract` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - FormatterRuntimeKind: owns nested behavior below this boundary
-    - CucumberFormatterRequest: owns nested behavior below this boundary
-    - CucumberFormatterRenderResult: owns nested behavior below this boundary
-    - NodePackageProvisionResult: owns nested behavior below this boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `cucumber_formatter_contract`
-    - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `cucumber_formatter_contract`
-    - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `cucumber_formatter_contract`
-    - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `cucumber_formatter_contract`
-    - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `cucumber_formatter_contract`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates missing_node, missing_packages, ResolveOutputPath, builtin, module; depends on __future__.annotations,
-    collections.abc.Callable, pathlib.Path, attrs.frozen, pytest_bdd.compatibility.enum.StrEnum.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.cucumber_formatter_contract` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -68,51 +69,60 @@ ResolveOutputPath = Callable[[str], Path]
 
 class FormatterRuntimeKind(StrEnum):
     """
-    Represent formatter runtime kind state.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Represent formatter runtime kind state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.cucumber_formatter_contract.FormatterRuntimeKind`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `FormatterRuntimeKind`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `FormatterRuntimeKind`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `FormatterRuntimeKind`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `FormatterRuntimeKind`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `FormatterRuntimeKind`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates builtin, module.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.cucumber_formatter_contract.FormatterRuntimeKind` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -123,51 +133,60 @@ class FormatterRuntimeKind(StrEnum):
 @frozen
 class CucumberFormatterRequest:
     """
-    Represent cucumber formatter request state.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Represent cucumber formatter request state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.cucumber_formatter_contract.CucumberFormatterRequest` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `CucumberFormatterRequest`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `CucumberFormatterRequest`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `CucumberFormatterRequest`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `CucumberFormatterRequest`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `CucumberFormatterRequest`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates option_attr, cli_flag, formatter, package_name, output_path.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.cucumber_formatter_contract.CucumberFormatterRequest` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -188,51 +207,60 @@ class CucumberFormatterRequest:
 @frozen
 class CucumberFormatterRenderResult:
     """
-    Represent cucumber formatter render result state.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Represent cucumber formatter render result state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.cucumber_formatter_contract.CucumberFormatterRenderResult` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `CucumberFormatterRenderResult`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `CucumberFormatterRenderResult`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `CucumberFormatterRenderResult`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `CucumberFormatterRenderResult`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `CucumberFormatterRenderResult`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates success, rendered_formatters, missing_node, missing_packages, process_exit_code.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.cucumber_formatter_contract.CucumberFormatterRenderResult` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -246,51 +274,60 @@ class CucumberFormatterRenderResult:
 @frozen
 class NodePackageProvisionResult:
     """
-    Represent node package provision result state.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Represent node package provision result state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.cucumber_formatter_contract.NodePackageProvisionResult` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `NodePackageProvisionResult`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `NodePackageProvisionResult`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `NodePackageProvisionResult`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `NodePackageProvisionResult`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `NodePackageProvisionResult`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates env, missing_packages, installed_packages, node_modules_roots, missing_node.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.cucumber_formatter_contract.NodePackageProvisionResult` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 

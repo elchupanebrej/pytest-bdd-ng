@@ -144,13 +144,16 @@ src/pytest_bdd/util/
 Usage:
     bdd_tree_to_rst.py [--snapshot=<snapshot_path>] <features_dir> <output_dir>
 """
+
 from docopt import docopt
+
 arguments = docopt(__doc__)
 features_dir = arguments["<features_dir>"]
 snapshot = arguments.get("--snapshot")
 
 # AFTER (argparse):
 import argparse
+
 parser = argparse.ArgumentParser(description="Converts Gherkin directory tree to RST")
 parser.add_argument("features_dir", help="Path to features directory")
 parser.add_argument("output_dir", help="Output directory for RST files")
@@ -172,6 +175,7 @@ from pytest_bdd.compatibility.jsonschema import SchemaValidator, ValidationError
 # AFTER (direct jsonschema):
 from jsonschema import ValidationError
 from jsonschema.validators import validator_for
+
 # build_validator() replacement:
 validator_class = validator_for(schema)
 validator_class.check_schema(schema)
@@ -251,10 +255,9 @@ validator = validator_class(schema, registry=registry)
 import argparse
 from pathlib import Path
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Converts directory tree containing Gherkin files into RST"
-    )
+    parser = argparse.ArgumentParser(description="Converts directory tree containing Gherkin files into RST")
     parser.add_argument("features_dir", help="Path to features directory")
     parser.add_argument("output_dir", help="Output directory for RST files")
     parser.add_argument("--snapshot", help="Path to save snapshot on found diff")
@@ -271,6 +274,7 @@ def main() -> None:
 from jsonschema import ValidationError
 from jsonschema.validators import validator_for
 
+
 def build_validator_direct(schema: object, *, registry: object | None = None):
     validator_class = validator_for(schema)
     validator_class.check_schema(schema)
@@ -283,6 +287,7 @@ def build_validator_direct(schema: object, *, registry: object | None = None):
 ```python
 # New file: compatibility/runtime_compat.py
 """Runtime compatibility rules for Python/pytest version pairs."""
+
 from __future__ import annotations
 
 from attrs import frozen

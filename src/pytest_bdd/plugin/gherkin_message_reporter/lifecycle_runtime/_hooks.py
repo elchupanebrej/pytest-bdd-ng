@@ -1,46 +1,42 @@
 """
-Pytest hook implementations for the lifecycle runtime — session management.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Pytest hook implementations for the lifecycle runtime — session management. It directly owns the observable
-    contract, local decisions, and maintenance boundary for this module.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._hooks`
-    because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - _pytest_sessionfinish: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates envelopes, logger, config, run_started_id, run_success; depends on __future__.annotations, logging, shutil,
-    pathlib.Path, typing.TYPE_CHECKING.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._hooks` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -78,56 +74,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _pytest_sessionfinish(self: LifecycleService, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901, PLR0912
+def _pytest_sessionfinish(self: LifecycleService, session: Session, exitstatus: int | ExitCode) -> None:  # noqa: C901, PLR0912  -- suppressed warning
     """
-    Handle the pytest sessionfinish pytest hook.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Handle the pytest sessionfinish pytest hook. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._hooks._pytest_sessionfinish` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - self._emit_envelope: collaborator call used by this boundary
-        - Message: collaborator call used by this boundary
-        - self.get_timestamp: collaborator call used by this boundary
-        - logger.error: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_pytest_sessionfinish`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates envelopes, config, run_started_id, run_success, run_exception.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._hooks._pytest_sessionfinish` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     if self.reporter.is_disabled:
         return
@@ -206,21 +192,21 @@ def _pytest_sessionfinish(self: LifecycleService, session: Session, exitstatus: 
             ).as_dict()
         workeroutput["pytest_bdd_messages_fragment_worker_id"] = str(worker_id)
         if (
-            self.reporter._xdist_worker_temp_messages_path is not None  # noqa: SLF001
-            and self.reporter._xdist_worker_temp_messages_path.exists()  # noqa: SLF001
+            self.reporter._xdist_worker_temp_messages_path is not None  # noqa: SLF001  -- suppressed warning
+            and self.reporter._xdist_worker_temp_messages_path.exists()  # noqa: SLF001  -- suppressed warning
         ):
-            self.reporter._xdist_worker_temp_messages_path.unlink()  # noqa: SLF001
+            self.reporter._xdist_worker_temp_messages_path.unlink()  # noqa: SLF001  -- suppressed warning
         return
 
     if self.reporter.is_xdist_controller:
-        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001
+        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001  -- suppressed warning
             "worker_id": "master",
             "role": "controller",
             "path": self.reporter.messages_file_path,
             "complete": True,
             "manifest_received": True,
         }
-        envelopes = self.transport_service._finalize_xdist_messages_file()  # noqa: SLF001
+        envelopes = self.transport_service._finalize_xdist_messages_file()  # noqa: SLF001  -- suppressed warning
     else:
         envelopes = self.transport_service.read_envelopes_from_path(self.reporter.final_messages_file_path)
     validation_result = validate_message_stream(
@@ -233,20 +219,20 @@ def _pytest_sessionfinish(self: LifecycleService, session: Session, exitstatus: 
             "Canonical message stream validation failed with %s violation(s).",
             len(validation_result.violations),
         )
-    if self.reporter._mapping_diagnostics_count:  # noqa: SLF001
+    if self.reporter._mapping_diagnostics_count:  # noqa: SLF001  -- suppressed warning
         logger.error(
             "Detected %s mapping diagnostic warning(s) in message emission flow.",
-            self.reporter._mapping_diagnostics_count,  # noqa: SLF001
+            self.reporter._mapping_diagnostics_count,  # noqa: SLF001  -- suppressed warning
         )
     if not self._check_derived_output_consistency(envelopes):
         logger.error("Derived-output consistency check failed: required run lifecycle envelopes are incomplete.")
 
     if (
         self.reporter.requested_cucumber_formatters
-        and not self.reporter._live_formatter_session_started  # noqa: SLF001
-        and self.reporter._live_formatter_failure_message is None  # noqa: SLF001
+        and not self.reporter._live_formatter_session_started  # noqa: SLF001  -- suppressed warning
+        and self.reporter._live_formatter_failure_message is None  # noqa: SLF001  -- suppressed warning
     ):
-        self.live_formatter_service._record_live_formatter_failure(  # noqa: SLF001
+        self.live_formatter_service._record_live_formatter_failure(  # noqa: SLF001  -- suppressed warning
             "Requested cucumber formatters were not attached to a live session; "
             "post-run replay is disabled for live formatter runs.",
         )

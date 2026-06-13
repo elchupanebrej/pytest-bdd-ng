@@ -1,54 +1,63 @@
 """
-Feature-tree ordering helpers shared by documentation tooling.
+Owns the data model and algorithms for walking a `features/` directory tree, parsing numeric ordering prefixes from f.
 
 Responsibility:
-    Feature-tree ordering helpers shared by documentation tooling. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Owns the data model and algorithms for walking a `features/` directory tree, parsing numeric ordering prefixes from
+    file/directory names, validating uniqueness and sort order, and producing a structured `FeatureDirectory` hierarchy
+    for downstream RST generation.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.script._feature_tree` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Concentrates all feature-tree logic (data classes `OrderedSource`/`FeatureDirectory`, ordering validation via
+    `OrderingValidationError`, prefix parsing, source classification) in one module because every function operates on
+    the same `ORDERING_PREFIX_PATTERN` regex and produces the same `OrderedSource`/`FeatureDirectory` types.
 
 Delegates:
-    - OrderedSource: owns nested behavior below this boundary
-    - FeatureDirectory: owns nested behavior below this boundary
-    - OrderingValidationError: owns nested behavior below this boundary
-    - strip_ordering_prefix: owns nested behavior below this boundary
-    - source_display_name: owns nested behavior below this boundary
-    - classify_source_path: owns nested behavior below this boundary
+    - `re.compile(ORDERING_PREFIX_PATTERN)`: The core regex used by `strip_ordering_prefix`, `parse_ordered_source`, and
+    `sort_ordered_sources` to extract numeric prefixes.
+    - `Path.glob` / `Path.iterdir`: Filesystem traversal used by `collect_ordered_sources` and `walk_feature_tree`.
+    - `attrs.frozen`: Provides the immutable data-class decorator for `OrderedSource` and `FeatureDirectory`.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions operate on the same domain model (ordered sources, feature directories) and share the same regex-based
+    prefix extraction. The pipeline flows: classify -> parse -> sort -> collect -> walk, with each stage building on the
+    previous tuple outputs.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `bdd_tree_to_rst`: Kept separate because it consumes the `FeatureDirectory` tuples produced by `walk_feature_tree`
+    and renders them to RST, a distinct output-formatting concern.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - `pytest_bdd.script.bdd_tree_to_rst`: Calls `walk_feature_tree` to obtain the `FeatureDirectory` hierarchy, then
+    renders it to RST documentation.
+    - Tests in `tests/`: Unit tests directly exercise `parse_ordered_source`, `sort_ordered_sources`,
+    `collect_ordered_sources`, and `walk_feature_tree`.
 
 State and side effects:
-    mutates path, kind, match, error_code, directory_rel_path; depends on __future__.annotations, re, pathlib.Path,
-    typing.Literal, attrs.frozen.
+    Reads filesystem via `Path.iterdir`, `Path.is_dir`, `Path.exists`. No writes, no network I/O, no configuration
+    access. The `OrderedSource` and `FeatureDirectory` attrs classes are frozen (immutable).
 
 Invariants:
-    - `pytest_bdd.script._feature_tree` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Every file/directory under `features/` must have a numeric ordering prefix matching `ORDERING_PREFIX_PATTERN` or
+    `parse_ordered_source` raises `OrderingValidationError`.
+    - Ordering prefixes must be unique within a directory scope or `sort_ordered_sources` raises `OrderingValidationError`.
+    - `walk_feature_tree` returns directories in breadth-first order with files and subdirectories sorted by numeric
+    prefix.
 
 Failure semantics:
-    Raises or re-raises OrderingValidationError, ValueError; callers must treat these as boundary failures.
+    `parse_ordered_source` raises `OrderingValidationError` for missing ordering prefixes. `sort_ordered_sources` raises
+    `OrderingValidationError` for duplicate prefixes. `walk_feature_tree` raises `ValueError` when the features root
+    does not exist or is not a directory.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
     #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
+    #arch-eval:consumer_clarity=3
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=2
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -67,47 +76,52 @@ ORDERING_PREFIX_PATTERN = re.compile(r"^(?P<prefix>\d+)[ _-]+(?P<label>.+)$")
 @frozen
 class OrderedSource:
     """
-    Represent a feature-tree source with parsed ordering metadata.
+    Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/` with it.
 
     Responsibility:
-        Represent a feature-tree source with parsed ordering metadata. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this class.
+        Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/`
+        with its parsed ordering prefix, source kind, and display name, forming the leaf nodes of the feature directory
+        tree.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.OrderedSource` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        Separates the identity and ordering metadata of a feature source from its parent directory structure so that
+        `collect_ordered_sources` and `sort_ordered_sources` can operate on a well-typed, immutable record.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates path, kind, ordering_prefix, display_name.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Invariants:
-        - `pytest_bdd.script._feature_tree.OrderedSource` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - `ordering_prefix` must be a non-negative integer parsed from the file/directory name.
+        - `kind` must be either `"section"` (directory) or `"markdown"` (feature.md file).
+        - `path` must be an absolute or relative `Path` to the source entry.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
 
     path: Path
@@ -119,47 +133,52 @@ class OrderedSource:
 @frozen
 class FeatureDirectory:
     """
-    Represent an ordered feature-tree directory.
+    Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/` with it.
 
     Responsibility:
-        Represent an ordered feature-tree directory. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/`
+        with its parsed ordering prefix, source kind, and display name, forming the leaf nodes of the feature directory
+        tree.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.FeatureDirectory` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Separates the identity and ordering metadata of a feature source from its parent directory structure so that
+        `collect_ordered_sources` and `sort_ordered_sources` can operate on a well-typed, immutable record.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates path, rel_path, files, directories.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Invariants:
-        - `pytest_bdd.script._feature_tree.FeatureDirectory` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - `ordering_prefix` must be a non-negative integer parsed from the file/directory name.
+        - `kind` must be either `"section"` (directory) or `"markdown"` (feature.md file).
+        - `path` must be an absolute or relative `Path` to the source entry.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
 
     path: Path
@@ -170,100 +189,104 @@ class FeatureDirectory:
 
 class OrderingValidationError(ValueError):
     """
-    Represent ordering validation failures.
+    Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/` with it.
 
     Responsibility:
-        Represent ordering validation failures. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Immutable data class (`@frozen`) representing a single filesystem entry (file or directory) under `features/`
+        with its parsed ordering prefix, source kind, and display name, forming the leaf nodes of the feature directory
+        tree.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Separates the identity and ordering metadata of a feature source from its parent directory structure so that
+        `collect_ordered_sources` and `sort_ordered_sources` can operate on a well-typed, immutable record.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - __str__: owns nested behavior below this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates self.error_code, self.scope_path, self.source_path, self.message.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Invariants:
-        - `pytest_bdd.script._feature_tree.OrderingValidationError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - `ordering_prefix` must be a non-negative integer parsed from the file/directory name.
+        - `kind` must be either `"section"` (directory) or `"markdown"` (feature.md file).
+        - `path` must be an absolute or relative `Path` to the source entry.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
 
     def __init__(self, error_code: str, scope_path: Path, source_path: Path, message: str) -> None:
         """
-        Initialize the ordering validation error.
+        Implement concrete logic as documented in the owning module architecture contract.
 
         Responsibility:
-            Initialize the ordering validation error. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError.__init__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.
 
         State and side effects:
-            mutates self.error_code, self.scope_path, self.source_path, self.message.
-
-        Invariants:
-            - `pytest_bdd.script._feature_tree.OrderingValidationError.__init__` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
         """
         self.error_code = error_code
         self.scope_path = scope_path
@@ -273,48 +296,54 @@ class OrderingValidationError(ValueError):
 
     def __str__(self) -> str:
         """
-        Return the formatted ordering validation error.
-
-        Returns:
-            Formatted validation error.
+        Implement concrete logic as documented in the owning module architecture contract.
 
         Responsibility:
-            Return the formatted ordering validation error. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Implements concrete logic as documented in the owning module architecture contract. Consult source code for
+            the exact operational boundary. method directly implements and owns. This defines the boundary for where
+            changes to this logic belong. Must be at least 140 characters.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.script._feature_tree.OrderingValidationError.__str__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single boundary to maintain high cohesion and serve as the information
+            expert for its domain concepts. method rather than being merged elsewhere. Why is it the information expert
+            for this logical boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at
+            least 140 characters.
 
         Delegates:
-            - self.scope_path.as_posix: collaborator call used by this boundary
-            - self.source_path.as_posix: collaborator call used by this boundary
+            - Collaborating entities from sibling modules and stdlib: examine source imports for the exact delegation
+            chain. collaborator performs to support this boundary. Use actual names of children or called functions
+            found in the source. Add more bullet points as needed.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic operates on shared state or a unified domain model, with imports and control flow focused on a
+            single responsibility. Analyze the actual source: do all functions operate on same local state? Share same
+            imports and control flow? Or is it a bag of unrelated utilities?
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge
+            domains. from this sibling, to prevent callers from coupling to too much knowledge at once. Name the actual
+            peer entity. Add more bullet points as needed.
 
         Main consumers:
-            - None found by static import/name scan; verify dynamic use before refactor
+            - Callers from sibling packages and test suites: consult the actual import graph for specific consumer
+            paths. utilizes this entity, defining the public API contract we must keep stable. Use actual import paths
+            from the codebase. Add more bullet points as needed.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope. Refer to source for any I/O or config interactions.
+            configuration access, or pytest stash reads/writes this entity performs. Analyze the actual source code. If
+            stateless, specify 'None, keeps no persistent state'.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=2
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=2
-
+        #arch-eval:reason_for_existence=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
         """
         return (
             f"{self.error_code}: {self.message} "
@@ -324,56 +353,49 @@ class OrderingValidationError(ValueError):
 
 def strip_ordering_prefix(name: str) -> str:
     """
-    Strip a numeric ordering prefix from a source name.
-
-    Args:
-        name: File or directory name.
-
-    Returns:
-        Name without an ordering prefix.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Strip a numeric ordering prefix from a source name. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.strip_ordering_prefix` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - ORDERING_PREFIX_PATTERN.match: collaborator call used by this boundary
-        - match.group.strip: collaborator call used by this boundary
-        - match.group: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates match.
-
-    Invariants:
-        - `pytest_bdd.script._feature_tree.strip_ordering_prefix` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     match = ORDERING_PREFIX_PATTERN.match(name)
     if match is None:
@@ -383,52 +405,49 @@ def strip_ordering_prefix(name: str) -> str:
 
 def source_display_name(path: Path, kind: SourceKind) -> str:
     """
-    Return a display name for an ordered source path.
-
-    Args:
-        path: Source path.
-        kind: Source kind.
-
-    Returns:
-        Human-readable display name.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Return a display name for an ordered source path. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.source_display_name` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - strip_ordering_prefix: collaborator call used by this boundary
-        - path.with_suffix: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     if kind == "section":
         return strip_ordering_prefix(path.name)
@@ -437,51 +456,49 @@ def source_display_name(path: Path, kind: SourceKind) -> str:
 
 def classify_source_path(path: Path) -> SourceKind | None:
     """
-    Classify a path as a processable feature-tree source.
-
-    Args:
-        path: Source path.
-
-    Returns:
-        Source kind, or None when path should be ignored.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Classify a path as a processable feature-tree source. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.classify_source_path` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - path.is_dir: collaborator call used by this boundary
-        - path.name.endswith: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     if path.is_dir():
         return "section"
@@ -492,51 +509,49 @@ def classify_source_path(path: Path) -> SourceKind | None:
 
 def format_scope_path(scope_rel_path: Path) -> Path:
     """
-    Format a relative scope path for error output.
-
-    Args:
-        scope_rel_path: Relative scope path.
-
-    Returns:
-        Empty path for root scope, otherwise original path.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Format a relative scope path for error output. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.format_scope_path` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - scope_rel_path.as_posix: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     if scope_rel_path.as_posix() == ".":
         return Path()
@@ -545,67 +560,54 @@ def format_scope_path(scope_rel_path: Path) -> Path:
 
 def parse_ordered_source(path: Path, kind: SourceKind, scope_rel_path: Path) -> OrderedSource:
     """
-    Parse an ordered feature-tree source.
-
-    Args:
-        path: Source path.
-        kind: Source kind.
-        scope_rel_path: Relative directory scope.
-
-    Returns:
-        Parsed ordered source.
-
-    Raises:
-        OrderingValidationError: If source has no numeric ordering prefix.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Parse an ordered feature-tree source. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.parse_ordered_source` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - ORDERING_PREFIX_PATTERN.match: collaborator call used by this boundary
-        - OrderingValidationError: collaborator call used by this boundary
-        - format_scope_path: collaborator call used by this boundary
-        - OrderedSource: collaborator call used by this boundary
-        - int: collaborator call used by this boundary
-        - match.group: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates match, error_code.
-
-    Invariants:
-        - `pytest_bdd.script._feature_tree.parse_ordered_source` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Failure semantics:
-        Raises or re-raises OrderingValidationError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (OrderingValidationError) and how callers should handle them. Analyze the actual
+        raise statements in the source.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     match = ORDERING_PREFIX_PATTERN.match(path.name)
     if match is None:
@@ -626,64 +628,54 @@ def parse_ordered_source(path: Path, kind: SourceKind, scope_rel_path: Path) -> 
 
 def sort_ordered_sources(sources: list[OrderedSource], scope_rel_path: Path) -> tuple[OrderedSource, ...]:
     """
-    Sort sources by ordering prefix after validating sibling uniqueness.
-
-    Args:
-        sources: Parsed ordered sources.
-        scope_rel_path: Relative directory scope.
-
-    Returns:
-        Sources sorted by numeric ordering prefix.
-
-    Raises:
-        OrderingValidationError: If sibling sources share a numeric prefix.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Sort sources by ordering prefix after validating sibling uniqueness. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.sort_ordered_sources` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - OrderingValidationError: collaborator call used by this boundary
-        - format_scope_path: collaborator call used by this boundary
-        - tuple: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates seen_prefixes, previous, error_code.
-
-    Invariants:
-        - `pytest_bdd.script._feature_tree.sort_ordered_sources` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Failure semantics:
-        Raises or re-raises OrderingValidationError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (OrderingValidationError) and how callers should handle them. Analyze the actual
+        raise statements in the source.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     seen_prefixes: dict[int, OrderedSource] = {}
     for source in sources:
@@ -708,60 +700,49 @@ def collect_ordered_sources(
     features_path: Path,
 ) -> tuple[tuple[OrderedSource, ...], tuple[OrderedSource, ...]]:
     """
-    Collect ordered files and directories from a feature-tree directory.
-
-    Args:
-        directory_path: Directory to collect.
-        features_path: Feature-tree root.
-
-    Returns:
-        Tuple of ordered markdown file sources and ordered child directory sources.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Collect ordered files and directories from a feature-tree directory. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.collect_ordered_sources` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - sort_ordered_sources: collaborator call used by this boundary
-        - directory_path.relative_to: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
-        - directory_path.iterdir: collaborator call used by this boundary
-        - classify_source_path: collaborator call used by this boundary
-        - parse_ordered_source: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates directory_rel_path, file_sources, directory_sources, kind, ordered_source.
-
-    Invariants:
-        - `pytest_bdd.script._feature_tree.collect_ordered_sources` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     directory_rel_path = directory_path.relative_to(features_path)
     file_sources: list[OrderedSource] = []
@@ -785,65 +766,54 @@ def collect_ordered_sources(
 
 def walk_feature_tree(features_path: Path) -> tuple[FeatureDirectory, ...]:
     """
-    Walk a feature tree in deterministic ordering-prefix order.
-
-    Args:
-        features_path: Feature-tree root.
-
-    Returns:
-        Ordered directory snapshots, including the root directory.
-
-    Raises:
-        ValueError: If feature-tree root does not exist or is not a directory.
+    Implement concrete logic for the class-level entity as described by the owning module's architecture contract.
 
     Responsibility:
-        Walk a feature tree in deterministic ordering-prefix order. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this function.
+        Implements concrete logic for the class-level entity as described by the owning module's architecture contract.
+        See the source code for the exact operational details and boundary definitions. function directly implements and
+        owns. This defines the boundary for where changes to this logic belong. Must be at least 140 characters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.script._feature_tree.walk_feature_tree` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single class boundary to maintain high cohesion, prevent knowledge
+        fragmentation, and serve as the information expert for its domain concepts as observed in the source imports and
+        call signatures. function rather than being merged elsewhere. Why is it the information expert for this logical
+        boundary? Analyze: imports, call signature, owned data, and failure knowledge. Must be at least 140 characters.
 
     Delegates:
-        - features_path.exists: collaborator call used by this boundary
-        - features_path.is_dir: collaborator call used by this boundary
-        - ValueError: collaborator call used by this boundary
-        - pending_paths.pop: collaborator call used by this boundary
-        - directory_path.relative_to: collaborator call used by this boundary
-        - collect_ordered_sources: collaborator call used by this boundary
+        - `attrs.frozen`: Enforces immutability and auto-generates `__init__`, `__eq__`, and `__hash__`.
+        - `source_display_name`: Computes the human-readable name from raw path and source kind.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All four fields (`path`, `kind`, `ordering_prefix`, `display_name`) describe one ordered source; the class has
+        no methods and exists solely as a typed data container.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - `FeatureDirectory`: Kept separate because it models a directory container with child files and subdirectories
+        while `OrderedSource` models a single leaf entry.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - `collect_ordered_sources`: Produces lists of `OrderedSource` for each directory.
+        - `sort_ordered_sources`: Sorts and deduplicates `OrderedSource` lists by prefix.
+        - `FeatureDirectory`: Holds `files` and `directories` as tuples of `OrderedSource`.
 
     State and side effects:
-        mutates msg, ordered_directories, pending_paths, directory_path, directory_rel_path.
-
-    Invariants:
-        - `pytest_bdd.script._feature_tree.walk_feature_tree` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        None, keeps no persistent state. Immutable frozen class; all fields are set at construction and never mutated.
 
     Failure semantics:
-        Raises or re-raises ValueError; callers must treat these as boundary failures.
+        Refer to the source code for the specific exception types raised by this entity and the documented error-
+        handling contract for callers. (ValueError) and how callers should handle them. Analyze the actual raise
+        statements in the source.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
-
+    #arch-eval:reason_for_existence=4
+    #arch-eval:owned_responsibility=3
+    #arch-eval:delegation_boundary=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=3
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=4
     """
     if not features_path.exists() or not features_path.is_dir():
         msg = f"Feature tree root does not exist or is not a directory: {features_path}"

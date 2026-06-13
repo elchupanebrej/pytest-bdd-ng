@@ -1,55 +1,56 @@
 """
-Provide run access helpers.
+Provide public facade functions for resolving scenario execution context from the Run object.
 
 Responsibility:
-    Provide run access helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides public facade functions for resolving scenario execution context from the Run object. This module offers
+    resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects, and
+    previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a thin
+    orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable interface
+    for callers such as hooks and reporters.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run_access` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - resolve_feature_binding: owns nested behavior below this boundary
-    - require_feature_binding: owns nested behavior below this boundary
-    - require_feature_object: owns nested behavior below this boundary
-    - require_pickle_object: owns nested behavior below this boundary
-    - require_step_object: owns nested behavior below this boundary
-    - resolve_feature_object: owns nested behavior below this boundary
+    - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+    task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `run_access`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `run_access`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `run_access`
-    - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `run_access`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `run_access`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates scenario_run, run_ref, node, binding, message; depends on __future__.annotations, contextlib.suppress,
-    typing.TYPE_CHECKING, returns.maybe.Nothing, pytest_bdd.model.run.ActiveObjectSet.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run_access` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - All require_* functions must raise RuntimeError when the requested object is unavailable; resolve_* functions must
+    return None (not raise) for missing objects; build_reporting_context_snapshot must always return a valid snapshot
+    even in fallback mode
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -82,60 +83,54 @@ if TYPE_CHECKING:
 
 def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
     """
-    Resolve feature binding from run.
-
-    Args:
-        run: Current run.
-
-    Returns:
-        Feature binding or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve feature binding from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_feature_binding` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_feature_binding`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_feature_binding`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_feature_binding`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_feature_binding`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_feature_binding`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_feature_binding` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.active_scenario_run
     return scenario_run.feature_binding if scenario_run is not None else None
@@ -143,62 +138,54 @@ def resolve_feature_binding(run: Run) -> FeatureRuntimeBinding | None:
 
 def require_feature_binding(run: Run, *, hook_name: str) -> FeatureRuntimeBinding:
     """
-    Require feature binding from run.
-
-    Args:
-        run: Current run.
-        hook_name: Name of the hook calling this.
-
-    Returns:
-        Feature binding.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Require feature binding from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.require_feature_binding` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - run.require_active_scenario_run: collaborator call used by this boundary
-        - scenario_run.require_feature_binding: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `require_feature_binding`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `require_feature_binding`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `require_feature_binding`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `require_feature_binding`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `require_feature_binding`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.require_feature_binding` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_feature_binding(hook_name=hook_name)
@@ -206,62 +193,54 @@ def require_feature_binding(run: Run, *, hook_name: str) -> FeatureRuntimeBindin
 
 def require_feature_object(run: Run, *, hook_name: str) -> GherkinDocument:
     """
-    Require feature object from run.
-
-    Args:
-        run: Current run.
-        hook_name: Name of the hook calling this.
-
-    Returns:
-        Gherkin document.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Require feature object from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.require_feature_object` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - run.require_active_scenario_run: collaborator call used by this boundary
-        - scenario_run.require_gherkin_document: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `require_feature_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `require_feature_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `require_feature_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `require_feature_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `require_feature_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.require_feature_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_gherkin_document(hook_name=hook_name)
@@ -269,62 +248,54 @@ def require_feature_object(run: Run, *, hook_name: str) -> GherkinDocument:
 
 def require_pickle_object(run: Run, *, hook_name: str) -> Pickle:
     """
-    Require pickle object from run.
-
-    Args:
-        run: Current run.
-        hook_name: Name of the hook calling this.
-
-    Returns:
-        Pickle object.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Require pickle object from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.require_pickle_object` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - run.require_active_scenario_run: collaborator call used by this boundary
-        - scenario_run.require_pickle: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `require_pickle_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `require_pickle_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `require_pickle_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `require_pickle_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `require_pickle_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.require_pickle_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_pickle(hook_name=hook_name)
@@ -332,62 +303,54 @@ def require_pickle_object(run: Run, *, hook_name: str) -> Pickle:
 
 def require_step_object(run: Run, *, hook_name: str) -> PickleStep:
     """
-    Require step object from run.
-
-    Args:
-        run: Current run.
-        hook_name: Name of the hook calling this.
-
-    Returns:
-        Step object.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Require step object from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.require_step_object` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - run.require_active_scenario_run: collaborator call used by this boundary
-        - scenario_run.require_step_object: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `require_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `require_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `require_step_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `require_step_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `require_step_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.require_step_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.require_active_scenario_run(hook_name=hook_name)
     return scenario_run.require_step_object(hook_name=hook_name)
@@ -395,60 +358,54 @@ def require_step_object(run: Run, *, hook_name: str) -> PickleStep:
 
 def resolve_feature_object(run: Run) -> GherkinDocument | None:
     """
-    Resolve feature object from run.
-
-    Args:
-        run: Current run.
-
-    Returns:
-        Gherkin document or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve feature object from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_feature_object` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_feature_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_feature_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_feature_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_feature_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_feature_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates binding, scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_feature_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     binding = run.active_feature_binding
     if binding is not None:
@@ -459,60 +416,54 @@ def resolve_feature_object(run: Run) -> GherkinDocument | None:
 
 def resolve_feature_source(run: Run) -> Source | None:
     """
-    Resolve feature source from run.
-
-    Args:
-        run: Current run.
-
-    Returns:
-        Source or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve feature source from run. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_feature_source` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_feature_source`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_feature_source`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_feature_source`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_feature_source`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_feature_source`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates binding, scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_feature_source` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     binding = run.active_feature_binding
     if binding is not None:
@@ -523,57 +474,54 @@ def resolve_feature_source(run: Run) -> Source | None:
 
 def resolve_pickle_object(run: Run) -> Pickle | None:
     """
-    Resolve pickle object.
-
-    Returns:
-        Pickle object or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve pickle object. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_pickle_object` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_pickle_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_pickle_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_pickle_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_pickle_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_pickle_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_pickle_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.active_scenario_run
     return scenario_run.pickle if scenario_run is not None else None
@@ -581,57 +529,54 @@ def resolve_pickle_object(run: Run) -> Pickle | None:
 
 def resolve_step_object(run: Run) -> PickleStep | None:
     """
-    Resolve step object.
-
-    Returns:
-        Pickle step or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve step object. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_step_object` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_step_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_step_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_step_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_step_object` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.active_scenario_run
     return scenario_run.step_object if scenario_run is not None else None
@@ -639,57 +584,54 @@ def resolve_step_object(run: Run) -> PickleStep | None:
 
 def resolve_previous_step_object(run: Run) -> PickleStep | object | None:
     """
-    Resolve previous step object.
-
-    Returns:
-        Previous step object or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve previous step object. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_previous_step_object` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_previous_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_previous_step_object`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_previous_step_object`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_previous_step_object`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_previous_step_object`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_previous_step_object` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     scenario_run = run.active_scenario_run
     return scenario_run.previous_step_object if scenario_run is not None else None
@@ -702,61 +644,54 @@ def resolve_active_object_or_error(
     requested_kind: LifecycleKind,
 ) -> tuple[LifecycleObjectRef | None, ContextErrorState | None]:
     """
-    Resolve active object or error.
-
-    Returns:
-        Tuple of (active object, error state).
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve active object or error. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_active_object_or_error` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - scenario_run.get_active_object: collaborator call used by this boundary
-        - scenario_run.record_context_error: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_active_object_or_error`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-          `resolve_active_object_or_error`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_active_object_or_error`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_active_object_or_error`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-          `resolve_active_object_or_error`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates message, active_object, inactive_candidate, error.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_active_object_or_error` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     active_object = scenario_run.get_active_object(requested_kind)
     if active_object is not None:
@@ -788,52 +723,50 @@ def _fallback_reporting_snapshot(
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot:
     """
+    Provide public facade functions for resolving scenario execution context from the Run object.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run_access._fallback_reporting_snapshot` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access._fallback_reporting_snapshot` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - Run.find_in_stash.value_or: collaborator call used by this boundary
-        - Run.find_in_stash: collaborator call used by this boundary
-        - build_lifecycle_ref: collaborator call used by this boundary
-        - LifecycleObjectRef: collaborator call used by this boundary
-        - id: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `_fallback_reporting_snapshot`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `_fallback_reporting_snapshot`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `_fallback_reporting_snapshot`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `_fallback_reporting_snapshot`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_fallback_reporting_snapshot`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run_ref, run_id, run_root.
-
-    Invariants:
-        - `pytest_bdd.model.run_access._fallback_reporting_snapshot` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -864,64 +797,54 @@ def build_reporting_context_snapshot(
     fallback_reason: str | None = None,
 ) -> ReportingContextSnapshot:
     """
-    Build reporting context snapshot.
-
-    Returns:
-        Reporting context snapshot.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Build reporting context snapshot. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.build_reporting_context_snapshot` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - ReportingContextSnapshot: collaborator call used by this boundary
-        - Run.find_in_stash.value_or: collaborator call used by this boundary
-        - Run.find_in_stash: collaborator call used by this boundary
-        - ActiveObjectSet: collaborator call used by this boundary
-        - _fallback_reporting_snapshot: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `build_reporting_context_snapshot`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-          `build_reporting_context_snapshot`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references
-          `build_reporting_context_snapshot`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `build_reporting_context_snapshot`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-          `build_reporting_context_snapshot`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run, active_scenario_run.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.build_reporting_context_snapshot` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     run = Run.find_in_stash(request.config.stash).value_or(None)
 
@@ -953,59 +876,54 @@ def resolve_registry_node(
     scenario_run: ScenarioRun | None = None,
 ) -> Identifiable | None:
     """
-    Resolve registry node.
-
-    Returns:
-        Identifiable node or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve registry node. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_registry_node` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - suppress: collaborator call used by this boundary
-        - feature_binding.resolve_node: collaborator call used by this boundary
-        - scenario_run.reference_resolver.add_missing_reference: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_registry_node`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_registry_node`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_registry_node`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_registry_node`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_registry_node`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates node.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_registry_node` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     node = None
     if feature_binding is not None:
@@ -1024,61 +942,54 @@ def resolve_scenario_description(
     scenario_run: ScenarioRun | None = None,
 ) -> str | None:
     """
-    Resolve scenario description.
-
-    Returns:
-        Scenario description or None.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve scenario description. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_scenario_description` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - scenario_run.reference_resolver.add_missing_reference: collaborator call used by this boundary
-        - resolve_registry_node: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_scenario_description`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `resolve_scenario_description`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_scenario_description`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_scenario_description`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `resolve_scenario_description`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates ast_node_ids, ast_node_id, effective_binding, node, description.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_scenario_description` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     ast_node_ids = getattr(pickle, "ast_node_ids", None) or ()
     if not ast_node_ids:
@@ -1105,64 +1016,54 @@ def resolve_step_runtime_enrichment(
     scenario_run: ScenarioRun | None = None,
 ) -> dict[str, object]:
     """
-    Resolve step runtime enrichment.
-
-    Returns:
-        Step runtime enrichment dictionary.
+    Provide public facade functions for resolving scenario execution context from the Run object.
 
     Responsibility:
-        Resolve step runtime enrichment. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides public facade functions for resolving scenario execution context from the Run object. This module
+        offers resolve_* and require_* accessors for feature bindings, gherkin documents, pickle objects, step objects,
+        and previous step objects, plus reporting context snapshot construction and AST node resolution. It acts as a
+        thin orchestration layer that delegates to Run and ScenarioRun methods while providing a consistent, testable
+        interface for callers such as hooks and reporters.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run_access.resolve_step_runtime_enrichment` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - effective_binding.pickle_step_ast_step: collaborator call used by this boundary
-        - scenario_run.reference_resolver.add_missing_reference: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - effective_binding.step_keyword: collaborator call used by this boundary
-        - effective_binding.step_prefix: collaborator call used by this boundary
-        - effective_binding.step_line_number: collaborator call used by this boundary
+        - ScenarioRun methods: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `resolve_step_runtime_enrichment`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-          `resolve_step_runtime_enrichment`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `resolve_step_runtime_enrichment`
-        - src/pytest_bdd/plugin/scenario_reporter/plugin.py: imports or references `resolve_step_runtime_enrichment`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-          `resolve_step_runtime_enrichment`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates effective_binding, model_step.
-
-    Invariants:
-        - `pytest_bdd.model.run_access.resolve_step_runtime_enrichment` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     effective_binding = feature_binding or (scenario_run.feature_binding if scenario_run is not None else None)
     model_step = effective_binding.pickle_step_ast_step(step) if effective_binding is not None else None

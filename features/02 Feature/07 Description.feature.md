@@ -20,9 +20,10 @@
     ```python
     from pytest_bdd import given
 
-    @given('I check feature description')
+
+    @given("I check feature description")
     def step(gherkin_document):
-      assert gherkin_document.feature.description.strip() == "My Feature description"
+        assert gherkin_document.feature.description.strip() == "My Feature description"
     ```
 
 * When run pytest

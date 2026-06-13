@@ -1,4 +1,4 @@
-﻿# pytest-bdd-ng Development Guidelines
+# pytest-bdd-ng Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-05-11
 
@@ -95,3 +95,14 @@ DEVELOPMENT.rst           Development guidelines
     - Run test with `--mcp-pdb-on-fail`, poll `.pytest_cache/mcp-pdb/session.json` for sidecar port, connect raw TCP to remote-pdb, send pdb commands, write investigation artifacts to `.pytest_cache/mcp-pdb/artifacts/<session_id>/`, send `continue` to unblock.
     - The `--mcp-pdb-on-fail` starts a `mcp-pdb` MCP server subprocess and blocks the test thread on `remote_pdb.set_trace()` until a client connects.
     - Registry step discovery: `Registry.registry` is a `cached_property` (not `lru_cache` — see fix 2026-06-08). Collection code uses `__pytest_bdd_step_registry__` attribute; `_build_collection_step_registry` uses `Registry(definitions=OrderedSet(...))`.
+
+## Git and Pre-commit Workflow
+- **No verification bypass**: Committing changes with pre-commit checks disabled (e.g. using `git commit --no-verify` or environment overrides) is strictly forbidden without explicit user permission.
+- **Pre-commit failure resolution**: If the pre-commit hook fails on existing files:
+  1. Verify the repository status before your changes.
+  2. Create a separate, dedicated commit to fix the failing pre-commit checks first.
+  3. Rebase/transplant your active feature work onto the clean, lint-passing commit.
+  4. Ensure all pre-commit hooks and tests run cleanly before final commit.
+- **Global Check/Tool Disabling Constraint**: Disabling pre-commit checks or linting tools globally in `pyproject.toml` is forbidden without explicit user permission. Requests for such permission must be accompanied by detailed arguments.
+- **Local Ignore Rule**: Disabling or ignoring a specific check/rule must be done locally at the place of use (e.g., via inline comments like `# noqa` or `# pylint: disable`).
+- **Directory Exclusions**: Disabling or excluding entire directories from checks is forbidden without explicit user permission, which must be requested with detailed arguments. Any excluded check/folder must have a descriptive comment explaining the reason nearby.

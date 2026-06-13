@@ -23,23 +23,27 @@ function for `Given` and `When` steps.
     ```python
     from pytest_bdd import given, when, then
 
+
     @given("I have an empty list", target_fixture="results")
     def results():
-      return []
+        return []
+
 
     @given("I have foo (which is 1) in my list")
     @given("I have bar (alias of foo) in my list")
     def add_one(results):
-      results.append(1)
+        results.append(1)
+
 
     @when("I do crash (which is 2)")
     @when("I do boom (alias of crash)")
     def add_two(results):
-      results.append(2)
+        results.append(2)
+
 
     @then("my list should be [1, 1, 2, 2]")
     def check_results(results):
-      assert results == [1, 1, 2, 2]
+        assert results == [1, 1, 2, 2]
     ```
 
 * And File "test_alias.py" with content:
@@ -47,7 +51,7 @@ function for `Given` and `When` steps.
     ```python
     from pytest_bdd import scenarios
 
-    test_alias = scenarios('alias.feature')
+    test_alias = scenarios("alias.feature")
     ```
 
 * When run pytest

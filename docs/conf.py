@@ -61,7 +61,7 @@ suppress_warnings = [
 ]
 
 
-def strip_responsibility_contracts(app, what, name, obj, options, lines):  # noqa: ANN001, ARG001
+def strip_responsibility_contracts(app, what, name, obj, options, lines) -> None:  # noqa: ANN001, ARG001, PLR0913, PLR0917 -- Sphinx autodoc hook with 6 arguments
     """Remove parse-only architecture contracts from rendered autodoc prose."""
     for index, line in enumerate(lines):
         if line.strip() == "Responsibility:":
@@ -69,9 +69,10 @@ def strip_responsibility_contracts(app, what, name, obj, options, lines):  # noq
             break
 
 
-def setup(app):  # noqa: ANN001
+def setup(app) -> None:  # noqa: ANN001 -- Sphinx setup function
     """Register documentation build hooks."""
     app.connect("autodoc-process-docstring", strip_responsibility_contracts)
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

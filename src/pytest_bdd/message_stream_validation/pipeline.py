@@ -1,51 +1,95 @@
 """
-Provide cucumber message stream validation pipeline.
+Owns the complete cucumber-messages stream validation pipeline: the core validate_message_stream() function that proc.
 
 Responsibility:
-    Provide cucumber message stream validation pipeline. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Owns the complete cucumber-messages stream validation pipeline: the core validate_message_stream() function that
+    processes a list of EventEnvelope objects through five sequential validation stages — payload deserialization (via
+    ExecutionMessageAdapter), JSON schema validation (via validate_envelope_dict_against_schema), field-level coverage
+    tracking (via ObservedCoverage and _track_fields recursive walker), lifecycle ordering/integrity checks
+    (started/finished pair matching, orphan reference detection, out-of-order lifecycle violations), and implementation
+    status governance (capability status validation, required comment enforcement, terminal status conflict detection).
+    Produces a MessageValidationResult with pass/fail status, violation details, and coverage data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.message_stream_validation.pipeline` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    This module is the information expert for message stream validation because it orchestrates the most complex cross-
+    cutting validation in the plugin: it must simultaneously track lifecycle pairs (test_case_started ↔
+    test_case_finished, test_step_started ↔ test_step_finished, test_run_hook_started ↔ test_run_hook_finished),
+    validate JSON schemas, track field coverage for capability analysis, enforce implementation status governance rules,
+    detect duplicate lifecycle IDs, handle protocol version mismatches, and optionally enforce outcome mapping
+    diagnostics. No other module has the breadth of state tracking (8 dicts/sets tracking lifecycle state) and the depth
+    of validation logic (5 sequential stages). The module contains 4 private helper functions (_is_non_empty_text,
+    _payload_id, _track_fields, _payload_object_for_kind) that support the main pipeline without cluttering the public
+    API.
 
 Delegates:
-    - collect_observed_capability_ids: owns nested behavior below this boundary
-    - _is_non_empty_text: owns nested behavior below this boundary
-    - _payload_id: owns nested behavior below this boundary
-    - _track_fields: owns nested behavior below this boundary
-    - _payload_object_for_kind: owns nested behavior below this boundary
-    - validate_message_stream: owns nested behavior below this boundary
+    - ExecutionMessageAdapter (from pytest_bdd.model.execution_message_adapter): Deserializes raw EventEnvelope objects
+    into structured payloads and serializes them back to dicts for schema validation.
+    - validate_envelope_dict_against_schema (from pytest_bdd.model.message_schema_validation): Performs JSON Schema
+    validation on each envelope dict, returning MessageValidationViolation objects for schema violations.
+    - ObservedCoverage (from pytest_bdd.model.coverage.tracker): Tracks which fields in which payload kinds have been
+    observed across the message stream.
+    - canonical_capability_id and canonical_payload_kind (from pytest_bdd.model.coverage.inventory): Normalize payload
+    kind names for coverage tracking.
+    - normalize_capability_status (from pytest_bdd.model.message_status_governance): Normalizes implementation status
+    strings to canonical capability status values.
+    - validate_outcome_mappings (from pytest_bdd.model.message_outcome_mapping): Validates observed outcomes against
+    mapping rules and matrix profiles.
+    - collect_observed_outcomes and default_outcome_mapping_rules (from .status): Provide outcome observation data and
+    default mapping rules for the optional outcome mapping diagnostics stage.
+    - MessageValidationResult and MessageValidationViolation (from pytest_bdd.model.message_validation_result): The
+    result types produced by the validation pipeline.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic in this module serves the single purpose of validating a message stream. The four private helpers
+    (_is_non_empty_text validates string content, _payload_id extracts lifecycle identifiers, _track_fields recursively
+    walks nested data structures for coverage, _payload_object_for_kind resolves envelope payloads with
+    snake_case→camelCase fallback) all support specific stages of validate_message_stream. The
+    ALLOWED_IMPLEMENTATION_STATUSES constant is derived from CAPABILITY_STATUSES and LEGACY_STATUS_ALIASES, both
+    consumed within the implementation status validation stage. The collect_observed_capability_ids function is a
+    convenience wrapper around validate_message_stream with track_coverage=True.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.message_stream_validation.status: Kept separate because status.py owns outcome observation and mapping
+    logic (observing outcomes from envelopes, deriving outcome statuses, collecting observed outcomes, generating
+    default mapping rules), while pipeline.py owns stream-level validation (lifecycle ordering, schema validation,
+    coverage tracking) — different validation concerns at different granularities.
+    - pytest_bdd.model.message_extension: Kept separate because message_extension owns event envelope type definitions
+    (EventEnvelope, get_payload_kind), while pipeline.py owns validation rules applied to those envelopes — types vs
+    policy.
+    - pytest_bdd.model.message_status_governance: Kept separate because message_status_governance owns the status
+    vocabulary and normalization rules, while pipeline.py consumes them for enforcement — data vs validation.
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/facade.py: imports or references `pipeline`
+    - pytest_bdd.plugin.gherkin_message_reporter: Calls validate_message_stream() to validate the cucumber-messages
+    protocol stream generated during BDD test execution before reporting.
+    - pytest_bdd.message_stream_validation.facade: Re-exports validate_message_stream, collect_observed_capability_ids,
+    and ALLOWED_IMPLEMENTATION_STATUSES through the public API.
+    - Test suites: Use validate_message_stream() to verify message protocol compliance in integration and e2e tests.
 
 State and side effects:
-    mutates payload_id, orphan_reference_count, blocked_for_release, duplicate_lifecycle_id_count, hook_id; depends on
-    __future__.annotations, typing.TYPE_CHECKING, typing.Final, typing.Literal, typing.cast.
+    validate_message_stream() creates local mutable tracking state (8 dicts/sets for lifecycle tracking, violation list,
+    coverage tracker) that is scoped to a single function call — no module-level persistent state. The function is pure:
+    given the same input, it produces the same MessageValidationResult.
 
 Invariants:
-    - `pytest_bdd.message_stream_validation.pipeline` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Every "started" event (test_case_started, test_step_started, test_run_hook_started) must have a corresponding
+    "finished" event with matching ID, otherwise an ORPHAN_REFERENCE violation is generated.
+    - Every "finished" event must appear after its corresponding "started" event in the envelope list, otherwise an
+    OUT_OF_ORDER_LIFECYCLE violation is generated.
+    - Implementation status on non-STATUS_CAPABLE_PAYLOAD_KINDS must trigger STATUS_ON_NOT_APPLICABLE_MESSAGE violations.
+    - Non-implemented capability statuses must have a non-empty implementation_comment, otherwise
+    MISSING_REQUIRED_IMPLEMENTATION_COMMENT is raised.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=3
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -86,53 +130,53 @@ ALLOWED_IMPLEMENTATION_STATUSES: Final[set[str]] = set(CAPABILITY_STATUSES).unio
 
 def collect_observed_capability_ids(envelopes: list[EventEnvelope]) -> tuple[str, ...]:
     """
-    Collect canonical capability identifiers observed in a message stream.
+    Wrap validate_message_stream() with track_coverage=True to collect all observed capability IDs from a message stream.
 
     Responsibility:
-        Collect canonical capability identifiers observed in a message stream. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this function.
+        Wraps validate_message_stream() with track_coverage=True to collect all observed capability IDs from a message
+        stream, extracting them from the ObservedCoverage.observed_fields set and normalizing them to canonical
+        capability IDs (format: "payload_kind.path"). Returns a sorted tuple of unique capability IDs, or an empty tuple
+        if no coverage was observed. This is a convenience function for capability analysis that avoids exposing the
+        full validation result when only capability IDs are needed.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.pipeline.collect_observed_capability_ids` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Capability analysis consumers only need the set of observed capability IDs, not the full MessageValidationResult
+        with violations and lifecycle diagnostics. This function provides a focused API that runs validation with
+        coverage tracking enabled, extracts the relevant data from the result, and returns it in a clean format. The
+        canonical_capability_id normalization ensures consistent naming across different message producers.
 
     Delegates:
-        - validate_message_stream: collaborator call used by this boundary
-        - canonical_capability_id: collaborator call used by this boundary
-        - tuple: collaborator call used by this boundary
-        - sorted: collaborator call used by this boundary
+        - validate_message_stream: Performs the full message stream validation with coverage tracking, returning a
+        MessageValidationResult containing observed_coverage.
+        - canonical_capability_id (from pytest_bdd.model.coverage.inventory): Normalizes raw field observations to
+        canonical capability ID strings.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs a single focused operation: run validation → extract coverage → normalize IDs → return
+        sorted tuple. Every line serves this purpose.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - validate_message_stream: Kept separate because that function performs the full validation with violations and
+        diagnostics, while this function provides a focused capability-ID-only wrapper — full validation vs targeted
+        data extraction.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `collect_observed_capability_ids`
-        - src/pytest_bdd/model/message_validation.py: imports or references `collect_observed_capability_ids`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `collect_observed_capability_ids`
+        - Capability analysis tools and test suites: Use this function to discover which capability fields are present
+        in a message stream without the overhead of processing full validation results.
+        - pytest_bdd.message_stream_validation.facade: Re-exported through the public API.
 
     State and side effects:
-        mutates validation_result, observed_ids.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.pipeline.collect_observed_capability_ids` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Calls validate_message_stream() which creates temporary local state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=2
         #arch-eval:locational_stability=4
     """
     validation_result = validate_message_stream(envelopes, track_coverage=True)
@@ -147,92 +191,103 @@ def collect_observed_capability_ids(envelopes: list[EventEnvelope]) -> tuple[str
 
 def _is_non_empty_text(value: object) -> bool:
     """
+    Validat that a value is a non-empty string after whitespace stripping.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.pipeline._is_non_empty_text` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Validates that a value is a non-empty string after whitespace stripping. Returns True only if the value is a str
+        instance with non-whitespace content. Used by validate_message_stream to check whether implementation_comment
+        fields are meaningfully populated when required by implementation status governance rules (e.g., "Partly-
+        Applicable" status requires a comment explaining why).
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.message_stream_validation.pipeline._is_non_empty_text`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Implementation status governance rules require that non-implemented statuses (Partly-Applicable, Not-Applicable,
+        Non-Implementable, Not-Acceptable) include an implementation_comment explaining the status. However, empty
+        strings or whitespace-only strings should not satisfy this requirement. This function provides a single,
+        consistent definition of "non-empty comment" that is used throughout the validation pipeline, preventing
+        inconsistencies where different parts of the code might check this condition differently.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - bool: collaborator call used by this boundary
-        - value.strip: collaborator call used by this boundary
+        - isinstance(value, str): Ensures only string values are considered.
+        - str.strip(): Removes leading and trailing whitespace for emptiness check.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs exactly one check: "is this a meaningful text value?" No other validation logic is mixed in.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - _payload_id: Kept separate because that function extracts lifecycle identifiers from payload objects, while
+        this function validates string content — different data access patterns.
+        - normalize_capability_status (from message_status_governance): Kept separate because that function normalizes
+        status vocabulary, while this function validates comment content — status semantics vs content validation.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_is_non_empty_text`
-        - src/pytest_bdd/model/message_status_governance.py: imports or references `_is_non_empty_text`
+        - validate_message_stream: Called when checking whether non-implemented statuses have a required comment,
+        specifically: normalized_implementation_status in NON_IMPLEMENTED_STATUSES and not
+        _is_non_empty_text(implementation_comment).
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state. Pure function.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=1
+        #arch-eval:locational_stability=4
     """
     return isinstance(value, str) and bool(value.strip())
 
 
 def _payload_id(payload: object) -> str | None:
     """
+    Extract the lifecycle identifier from a payload object by accessing its "id" attribute (if it exists and is a string).
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.pipeline._payload_id` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Extracts the lifecycle identifier from a payload object by accessing its "id" attribute (if it exists and is a
+        string). Returns the ID string if present, None otherwise. This function is the single point of ID extraction
+        used by validate_message_stream for duplicate detection, lifecycle pair matching, and orphan reference detection
+        across test_case, test_step, test_run_hook, and hook payload kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.message_stream_validation.pipeline._payload_id` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Different payload kinds store their lifecycle IDs in different attributes (test_case_started uses "id",
+        test_step_started uses "test_step_id", etc.), but a common pattern exists: most started/finished payloads have a
+        string "id" attribute. This function encapsulates the common getattr + isinstance check pattern, reducing code
+        duplication in validate_message_stream where ID extraction is needed for multiple payload kinds. The helper
+        returns None for non-string or missing IDs, which the caller handles as "no lifecycle tracking needed for this
+        payload."
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
+        - getattr(payload, "id", None): Accesses the id attribute with a None fallback for objects without it.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs exactly one data access pattern: extract string ID or return None. No other logic is present.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - _is_non_empty_text: Kept separate because that function validates string content while this function extracts
+        identifiers — different operations.
+        - _payload_object_for_kind: Kept separate because that function resolves envelope payload dict keys while this
+        function extracts ID attributes from payload objects — dict key resolution vs object attribute extraction.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_payload_id`
+        - validate_message_stream: Used for duplicate ID detection (payload_id in payload_ids check), declaring hook
+        IDs, and tracking started lifecycle IDs for later orphan reference detection.
 
     State and side effects:
-        mutates payload_id.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.pipeline._payload_id` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Pure function with no side effects.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=1
+        #arch-eval:locational_stability=4
     """
     payload_id = getattr(payload, "id", None)
     return payload_id if isinstance(payload_id, str) else None
@@ -240,49 +295,55 @@ def _payload_id(payload: object) -> str | None:
 
 def _track_fields(payload_kind: str, current_path: str, data: object, observed_coverage: ObservedCoverage) -> None:
     """
+    Recursively walks a nested data structure (dict or list) representing a message payload and records every non-None, n.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.pipeline._track_fields` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Recursively walks a nested data structure (dict or list) representing a message payload and records every non-
+        None, non-falsy field path into the ObservedCoverage tracker. Uses dot-separated path notation (e.g.,
+        "test_case.started_id") to identify fields within the payload hierarchy. This is the core field-level coverage
+        tracking mechanism that powers capability analysis — it discovers which fields are actually populated in a
+        message stream.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.message_stream_validation.pipeline._track_fields` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Capability analysis needs to know which fields of which message types are actually emitted during test
+        execution. This recursive walker traverses arbitrary JSON-like structures (dicts containing dicts, lists
+        containing dicts, scalars at leaves) and records every non-empty field path. The ObservedCoverage.record_field()
+        calls accumulate the field observations. Without this function, coverage tracking would need to hardcode
+        expected field paths for each payload kind, which is brittle and fails to discover unexpected fields. The
+        recursive nature avoids code duplication for each nesting level.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - _track_fields: collaborator call used by this boundary
-        - data.items: collaborator call used by this boundary
-        - observed_coverage.record_field: collaborator call used by this boundary
+        - ObservedCoverage.record_field: Records the observed field (payload_kind + dotted path) in the coverage tracker.
+        - self (recursion): The function calls itself for nested dict values and list items.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs one task: recursively walk a data structure and record observed fields. The isinstance
+        checks for dict and list are the only branching, and both serve the same purpose of depth-first traversal.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - _payload_object_for_kind: Kept separate because that function resolves which dict key to start from in the
+        envelope, while this function recursively walks the resolved structure — entry point vs traversal.
+        - ObservedCoverage: Kept separate because ObservedCoverage is a data accumulator (what was seen), while this
+        function is the traversal logic (how to discover what was seen) — data vs algorithm.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_track_fields`
+        - validate_message_stream: Called in the coverage tracking stage (after schema validation) for each envelope to
+        record which fields are present in the message stream.
 
     State and side effects:
-        mutates new_path.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.pipeline._track_fields` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        Mutates the observed_coverage object (passed by reference) by calling record_field() for each observed field.
+        This is an intentional side effect on the accumulator object — no other persistent state is modified.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=4
     """
     if isinstance(data, dict):
         for k, v in data.items():
@@ -297,49 +358,54 @@ def _track_fields(payload_kind: str, current_path: str, data: object, observed_c
 
 def _payload_object_for_kind(envelope_dict: Mapping[str, object], payload_kind: str) -> object:
     """
+    Resolve a payload object from an envelope dict by key, with snake_case to camelCase fallback: first tries the exact .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.pipeline._payload_object_for_kind` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Resolves a payload object from an envelope dict by key, with snake_case to camelCase fallback: first tries the
+        exact payload_kind key (e.g., "test_case_started"), then if the key contains underscores, converts to camelCase
+        (e.g., "testCaseStarted") and retries. Returns the resolved value, or an empty dict if neither key exists. This
+        handles the mismatch between snake_case payload kind identifiers used internally and camelCase keys used in
+        serialized JSON envelope dicts.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.pipeline._payload_object_for_kind` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        The plugin internally uses snake_case payload kind names (e.g., "test_case_started", "test_run_hook_started")
+        derived from the cucumber-messages specification, but when envelopes are serialized to JSON/dict form, the keys
+        use camelCase by convention. This function bridges that naming convention gap without requiring every consumer
+        to know about the conversion. Without this function, coverage tracking would fail to find payload data in
+        envelope dicts because the key names wouldn't match.
 
     Delegates:
-        - payload_kind.split: collaborator call used by this boundary
-        - join: collaborator call used by this boundary
-        - part.capitalize: collaborator call used by this boundary
+        - dict.get (via envelope_dict): Dictionary key lookup with None fallback.
+        - str.split and str.capitalize: Implements snake_case to camelCase conversion algorithm for fallback lookup.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs one task: resolve a payload kind name to its value in an envelope dict with naming
+        convention fallback. The camelCase conversion is integral to this resolution.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - _payload_id: Kept separate because that function extracts ID attributes from resolved payload objects, while
+        this function resolves payload objects from envelope dicts — upstream (dict key resolution) vs downstream
+        (attribute extraction).
+        - canonical_payload_kind (from coverage.inventory): Kept separate because that function normalizes payload kind
+        names, while this function resolves payload values — naming vs data access.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_payload_object_for_kind`
+        - validate_message_stream: Called during the coverage tracking stage to get the payload object for a given
+        payload kind, which is then passed to _track_fields for recursive field discovery.
 
     State and side effects:
-        mutates parts, camel_case_key.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.pipeline._payload_object_for_kind` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Pure function.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=2
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=1
+        #arch-eval:locational_stability=4
     """
     if payload_kind in envelope_dict:
         return envelope_dict[payload_kind]
@@ -351,7 +417,7 @@ def _payload_object_for_kind(envelope_dict: Mapping[str, object], payload_kind: 
     return {}
 
 
-def validate_message_stream(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
+def validate_message_stream(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915  -- suppressed warning
     envelopes: list[EventEnvelope],
     *,
     latest_protocol_version: str | None = None,
@@ -361,63 +427,76 @@ def validate_message_stream(  # noqa: PLR0912, PLR0913, PLR0914, PLR0915
     serialization_profile: MessageSerializationProfile = MessageSerializationProfile.schema_compatible,
 ) -> MessageValidationResult:
     """
-    Perform an exhaustive pass over a stream of message envelopes.
-
-    Enforces schema compliance, lifecycle consistency, and capability governance rules.
-
-    Returns:
-        A comprehensive MessageValidationResult aggregating all findings, metrics, and coverage data.
+    Implement the complete message stream validation pipeline that processes a list of EventEnvelope objects through fiv.
 
     Responsibility:
-        Perform an exhaustive pass over a stream of message envelopes. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this function.
+        Implements the complete message stream validation pipeline that processes a list of EventEnvelope objects
+        through five sequential stages: (1) deserialization via ExecutionMessageAdapter with TypeError handling for
+        malformed payloads, (2) JSON Schema validation of each envelope against its schema definition, (3) recursive
+        field-level coverage tracking through _track_fields for capability analysis, (4) lifecycle ordering and
+        integrity validation including duplicate ID detection, orphan reference detection (finished events referencing
+        unknown started IDs), out-of-order lifecycle detection, cross-event hook ID referencing, and (5) implementation
+        status governance enforcement including unknown status detection, status-on-inapplicable-message detection,
+        required comment validation for non-implemented statuses, terminal status conflict detection, and protocol
+        version checking. Optionally runs outcome mapping diagnostics when enforce_mapping_diagnostics is True.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.pipeline.validate_message_stream` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This is the master orchestration function for message stream quality assurance. No other function has the
+        breadth of state tracking (8 dicts/sets for lifecycle state, 5 categories of violations, 2 boolean gate flags)
+        or the depth of validation logic. The function must maintain consistency across multiple interrelated checks —
+        for example, a duplicate ID detected in stage 4 must not prevent the function from detecting lifecycle ordering
+        issues in the same stage, because all violations are accumulated rather than failing fast. The complex signature
+        with 5 keyword-only parameters reflects the highly configurable nature of validation: different callers need
+        different subsets of validation (e.g., coverage-only vs full governance).
 
     Delegates:
-        - MessageValidationViolation: collaborator call used by this boundary
-        - violations.append: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - set: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - violations.extend: collaborator call used by this boundary
+        - ExecutionMessageAdapter.deserialize and serialize_to_dict: Deserialize raw envelopes and serialize back to
+        dicts for schema validation.
+        - validate_envelope_dict_against_schema: JSON Schema validation returning violations.
+        - _strip_nones: Removes None values from dict for clean schema validation.
+        - ObservedCoverage: Tracks field-level coverage across the message stream.
+        - _track_fields: Recursively walks payload dicts for coverage tracking.
+        - _payload_object_for_kind: Resolves payload objects with camelCase fallback.
+        - _payload_id: Extracts lifecycle IDs from payloads.
+        - _is_non_empty_text: Validates implementation comment content.
+        - normalize_capability_status: Normalizes implementation status strings.
+        - collect_observed_outcomes and default_outcome_mapping_rules: Outcome observation for mapping diagnostics.
+        - validate_outcome_mappings: Validates outcome mappings against rules and matrix profiles.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Despite its length (~290 lines), the function is cohesive because every line serves the single purpose of
+        validating a message stream. The five stages are sequential and each stage's results feed into the final
+        MessageValidationResult. The large number of local variables (8 tracking collections) is a direct consequence of
+        tracking multiple lifecycle dimensions simultaneously — merging them would obscure the validation logic. The
+        function could be split into sub-functions, but the tight coupling between stages (e.g., started IDs tracked in
+        one if-branch are checked in another) makes decomposition harder to follow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - pytest_bdd.message_stream_validation.status: Kept separate because status.py owns outcome observation logic
+        (single-envelope → outcome), while this function owns stream-level validation (multi-envelope → validation
+        result) — different granularities.
+        - pytest_bdd.model.message_validation_result: Kept separate because that module owns the result data types
+        (MessageValidationResult, MessageValidationViolation), while this function produces them — types vs producer.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `validate_message_stream`
-        - src/pytest_bdd/model/__init__.py: imports or references `validate_message_stream`
-        - src/pytest_bdd/model/message_validation.py: imports or references `validate_message_stream`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-          `validate_message_stream`
-        - src/pytest_bdd/script/message_capability_governance/cli/_report.py: imports or references
-          `validate_message_stream`
+        - collect_observed_capability_ids: Wraps this function with track_coverage=True for capability discovery.
+        - pytest_bdd.plugin.gherkin_message_reporter: Validates message streams during BDD execution.
+        - Message stream test suites: Validate protocol compliance in integration and e2e tests.
 
     State and side effects:
-        mutates orphan_reference_count, payload_id, blocked_for_release, duplicate_lifecycle_id_count, hook_id.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.pipeline.validate_message_stream` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        Creates temporary local state (8 dicts/sets for lifecycle tracking, violations list, coverage tracker) scoped to
+        a single function call. No module-level or global state is modified. The function is referentially transparent:
+        same input produces same result.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=3
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=5
         #arch-eval:locational_stability=4
     """
     violations: list[MessageValidationViolation] = []

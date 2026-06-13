@@ -4,9 +4,23 @@ requires = ["setuptools", "wheel"]
 
 [dependency-groups]
 dev = [
+  "aiofiles>=25.1.0",
   "astroid>=3.3",
+  "deepdiff>=9.1.0",
+  "gitpython>=3.1.50",
+  "hjson>=3.1.0",
+  "json5>=0.14.0",
+  "mcp>=1.27.2",
+  "mcp-pdb>=0.6.0",
+  "mypy>=2.1.0",
+  "pyhamcrest>=2.1",
+  "pyhocon>=0.3.63",
   "pylint>=3.3",
-  "pytest-cov>=7.1.0"
+  "pytest-cov>=7.1.0",
+  "pytest-httpserver>=1.1.5",
+  "pytest-order>=1.4.0",
+  "pytest-xdist>=3.8.0",
+  "pyyaml>=6.0.3"
 ]
 
 [project]
@@ -131,6 +145,8 @@ version = "2.3.1"
 # --- STRUCT-BDD (extra: struct-bdd) ---
 # struct_bdd: YAML/JSON/HOCON/TOML feature definition parser and plugin
 "pytest-bdd-struct-bdd" = "pytest_bdd.plugin.struct_bdd.entrypoint"
+# test_group_ordering: test group ordering and xdist barrier
+"pytest-bdd-test-group-ordering" = "pytest_bdd.plugin.test_group_ordering.entrypoint"
 
 [project.optional-dependencies]
 allure = [
@@ -208,6 +224,29 @@ render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
 Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
 
+[tool.architecture.analyze_gaps]
+root = "src/pytest_bdd"
+
+[tool.architecture.collect_scores]
+exclude = ["cases"]
+root = ["src/pytest_bdd", "src/pytest_bdd_testing"]
+
+[tool.architecture.collect_test_scores]
+exclude = ["__init__.py", "conftest.py"]
+root = ["src/pytest_bdd_testing/cases"]
+
+[tool.architecture.fill_tests]
+exclude = ["cases", "__init__.py", "conftest.py"]
+root = ["src/pytest_bdd_testing"]
+
+[tool.architecture.inject_source]
+exclude = []
+root = "src/pytest_bdd"
+
+[tool.architecture.inject_tests]
+exclude = ["cases", "conftest.py"]
+root = ["src/pytest_bdd_testing"]
+
 [tool.mypy]
 check_untyped_defs = true
 disallow_any_generics = true
@@ -268,6 +307,7 @@ module = [
 ]
 
 [tool.pylint.main]
+ignore-paths = [".*case.*"]
 load-plugins = ["pytest_bdd._pylint"]
 
 [tool.pylint.messages_control]
@@ -360,15 +400,19 @@ disable = [
   "subprocess-run-check",
   "too-many-lines",
   "comparison-with-callable",
-  "no-member",
-  "file-too-long"
+  "no-member"
 ]
 enable = [
+  "file-too-long",
   "missing-responsibility-doc",
   "short-responsibility-doc",
   "legacy-responsibility-doc",
   "missing-architecture-score",
   "unfilled-responsibility-placeholder",
+  "missing-test-responsibility-doc",
+  "short-test-responsibility-doc",
+  "missing-test-quality-score",
+  "unfilled-test-responsibility-placeholder",
   "no-return-none",
   "bare-except-exception",
   "no-test-class",
@@ -379,7 +423,7 @@ enable = [
   "horizontal-import",
   "empty-init",
   "redundant-import-alias",
-  "docstring-only-init",
+  "init-code-required",
   "test-import-outside-cases",
   "bare-noqa",
   "missing-noqa-explanation"
@@ -427,18 +471,18 @@ markers = [
 test_group_default = "integration"
 test_group_order = ["unit", "integration", "contract", "e2e", "compat", "perf", "external"]
 test_group_paths = [
-  "src/pytest_bdd_testing/cases/unit/** = unit",
-  "src/pytest_bdd_testing/cases/integration/** = integration",
-  "src/pytest_bdd_testing/cases/contract/** = contract",
-  "src/pytest_bdd_testing/cases/e2e/** = e2e",
-  "src/pytest_bdd_testing/cases/compat/** = compat",
-  "src/pytest_bdd_testing/cases/perf/** = perf",
-  "src/pytest_bdd_testing/cases/external/** = external"
+  "src/pytest_bdd_testing/case/unit/** = unit",
+  "src/pytest_bdd_testing/case/integration/** = integration",
+  "src/pytest_bdd_testing/case/contract/** = contract",
+  "src/pytest_bdd_testing/case/e2e/** = e2e",
+  "src/pytest_bdd_testing/case/compat/** = compat",
+  "src/pytest_bdd_testing/case/perf/** = perf",
+  "src/pytest_bdd_testing/case/external/** = external"
 ]
-testpaths = ["src/pytest_bdd_testing/cases"]
+testpaths = ["src/pytest_bdd_testing/case"]
 
 [tool.quality_gates]
-command = "uv run pylint src/pytest_bdd/ src/pytest_bdd_testing/cases/unit/"
+command = "uv run pylint src/pytest_bdd/ src/pytest_bdd_testing/"
 description = "Enforces project quality gates through the custom Pylint checker plugin"
 script = "pytest_bdd._pylint.checkers.quality_gates"
 
@@ -455,11 +499,11 @@ exclude = [
   "__pypackages__",
   "build",
   "dist",
-  "venv",
-  "scripts"
+  "venv"
 ]
 # Same as Black.
 line-length = 120
+preview = true
 # Assume Python 3.10+
 target-version = "py310"
 
@@ -484,10 +528,18 @@ ignore = [
   "FIX002",  # line-contains - todo - Legacy/Noisy - ~14 errors
   "TD002",  # missing-todo - author - Legacy/Noisy - ~14 errors
   "TD003",  # missing-todo - link - Legacy/Noisy - ~14 errors
-  "E501",  # line-too-long - triggered by generated symbol paths in responsibility docstrings
-  "PLR6301"  # no-self-use / method-could-be-function - noisy for pytest hooks
+  "D100",  # missing-docstring-in-public-module - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D101",  # missing-docstring-in-public-class - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D102",  # missing-docstring-in-public-method - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D103",  # missing-docstring-in-public-function - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D104",  # missing-docstring-in-public-package - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D105",  # missing-docstring-in-magic-method - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D106",  # missing-docstring-in-public-nested-class - Responsibility docstrings presence is checked by custom Pylint checkers
+  "D107",  # missing-docstring-in-init - Responsibility docstrings presence is checked by custom Pylint checkers
+  "DOC201",  # docstring-missing-returns - Project custom responsibility docs do not document function signature return types
+  "DOC402",  # docstring-missing-yields - Project custom responsibility docs do not document function signature yield values
+  "DOC501"  # docstring-missing-exception - Project custom responsibility docs do not document raised exceptions
 ]
-preview = true
 select = [
   # === Pyflakes / Pycodestyle (core correctness) ===
   "E",  # pycodestyle errors
@@ -543,6 +595,9 @@ select = [
   "DTZ",  # flake8-datetimez: timezone-aware datetimes
   # === Executables ===
   "EXE",  # flake8-executable: shebang enforcement
+  # === Documentation ===
+  "D",  # pydocstyle: docstring conventions
+  "DOC",  # pydoclint: docstring linting
   # === Type Checking ===
   "TC",  # flake8-type-checking: TYPE_CHECKING guard
   # === TODO Management ===
@@ -575,35 +630,42 @@ max-complexity = 10
 "__init__.py" = ["ERA001", "F401"]  # ERA001: # init: classification comments; F401: ~2 errors
 "docs/conf.py" = ["ERA001"]  # ERA001: ~40 errors (generated docs config)
 "docs/tutorial/tests/*" = ["S101"]  # S101: ~2 errors
-"scripts/*" = ["ANN", "C901", "D", "DOC201", "DOC501", "E501", "FURB113", "INP001", "PERF401", "PIE810", "PLC0415", "PLR0914", "PLR0915", "PLR2004", "S404", "S603", "SIM101", "SIM108", "SIM110", "TC003", "T201"]  # Project helper scripts are intentionally procedural.
-"src/pytest_bdd/_gherkin_go/__init__.py" = ["ARG001", "BLE001", "D205", "DOC201", "DOC501", "E501", "EM101", "PLC0415", "PLW0603", "RUF", "TRY003", "TRY301", "W293"]  # BLE001: blind except in version logging (non-critical); generated responsibility docs exceed style limits; EM101: string literal in ImportError for user-facing install hint; PLC0415: lazy imports for importlib dynamic import pattern; PLW0603: global flag for once-logging; RUF067: __init__.py contains parse() API (not just re-exports); TRY003/TRY301: ImportError with install hint message
-"src/pytest_bdd/_gherkin_go/_bridge.py" = ["DOC201", "ANN401"]  # DOC201: internal ctypes helpers; ANN401: ctypes func type cannot be precisely typed
+"scripts/*" = ["ANN", "BLE001", "C901", "D", "DOC201", "DOC501", "E501", "FURB113", "INP001", "PERF401", "PIE810", "PLC0415", "PLR0912", "PLR0914", "PLR0915", "PLR1702", "PLR2004", "S404", "S603", "SIM101", "SIM108", "SIM110", "TC003", "T201"]  # Project helper scripts are intentionally procedural.
+"src/pytest_bdd/*.py" = ["D205", "D301", "D417", "DOC102", "DOC201", "DOC501", "E501", "PLC0415", "RUF002"]  # Generated responsibility docs exceed style limits; D417/DOC102: decorated step functions docstring template mismatches
+"src/pytest_bdd/_gherkin_go/__init__.py" = ["ARG001", "BLE001", "D205", "DOC201", "DOC501", "E501", "EM101", "PLC0415", "PLW0603", "RUF", "TRY003", "TRY301"]  # BLE001: blind except in version logging (non-critical); generated responsibility docs exceed style limits; EM101: string literal in ImportError for user-facing install hint; PLC0415: lazy imports for importlib dynamic import pattern; PLW0603: global flag for once-logging; RUF067: __init__.py contains parse() API (not just re-exports); TRY003/TRY301: ImportError with install hint message
+"src/pytest_bdd/_gherkin_go/_bridge.py" = ["DOC201", "E501", "ANN401"]  # DOC201: internal ctypes helpers; E501: generated responsibility docs exceed style limits; ANN401: ctypes func type cannot be precisely typed
 "src/pytest_bdd/_gherkin_go/_build.py" = ["PLR6301", "S404", "S603", "S607"]  # PLR6301: setuptools Command.run override; S404/S603/S607: subprocess for go build is intentional
-"src/pytest_bdd/_gherkin_go/_types.py" = ["N818"]  # N818: GherkinGoNotAvailable is a domain-specific name, not a naming error
-"src/pytest_bdd/_pylint/__init__.py" = ["D205", "DOC201", "E501", "I001", "RUF067", "W293", "W391"]  # Pylint plugin entrypoint must expose register(); generated responsibility docs exceed style limits
-"src/pytest_bdd/_pylint/checkers/*" = ["ARG002", "BLE001", "C901", "COM812", "D100", "D101", "D102", "D103", "D107", "D205", "D413", "DOC201", "DOC501", "E501", "ERA001", "F401", "FBT001", "FBT002", "FURB177", "INP001", "ISC004", "PERF203", "PERF401", "PLC0415", "PLR0911", "PLR0912", "PLR0915", "PLR2004", "PLR6301", "PLW0717", "PTH201", "RUF005", "RUF012", "RUF100", "S110", "SIM102", "SIM103", "SIM108", "T201", "TC002", "TRY300", "W293"]  # Checker modules mirror Pylint APIs and rule-script patterns; generated responsibility docs exceed style limits
-"src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
-"src/pytest_bdd/compatibility/*" = ["PLC2701", "INP001"]  # Compatibility shims, so private imports are alowed; INP001: PEP 420 namespace packages
+"src/pytest_bdd/_gherkin_go/_types.py" = ["E501", "N818"]  # E501: generated responsibility docs exceed style limits; N818: GherkinGoNotAvailable is a domain-specific name, not a naming error
+"src/pytest_bdd/_pylint/__init__.py" = ["D205", "DOC201", "E501", "I001", "RUF067", "W391"]  # Pylint plugin entrypoint must expose register(); generated responsibility docs exceed style limits
+"src/pytest_bdd/_pylint/checkers/*" = ["ARG002", "BLE001", "C901", "COM812", "D100", "D101", "D102", "D103", "D107", "D205", "D413", "DOC201", "DOC501", "E501", "ERA001", "F401", "FBT001", "FBT002", "FURB177", "INP001", "ISC004", "PERF203", "PERF401", "PLC0415", "PLR0911", "PLR0912", "PLR0915", "PLR2004", "PLR6301", "PLW0717", "PTH201", "RUF005", "RUF012", "RUF100", "S110", "SIM102", "SIM103", "SIM108", "T201", "TC002", "TRY300"]  # Checker modules mirror Pylint APIs and rule-script patterns; generated responsibility docs exceed style limits
+"src/pytest_bdd/collector.py" = ["E501"]  # E501: generated responsibility docs exceed style limits
+"src/pytest_bdd/collector_batch.py" = ["DOC201", "DOC501", "E501", "PLC0415", "PLR6201", "SIM103"]  # DOC201/DOC501: internal functions; E501: generated responsibility docs exceed style limits; PLC0415: lazy imports for multiprocessing; PLR6201: tuple is fine for 2 items; SIM103: readability preferred
+"src/pytest_bdd/compatibility/*" = ["D205", "DOC201", "DOC501", "E501", "PLC2701", "INP001"]  # Compatibility shims with generated responsibility docs; private imports are allowed; INP001: PEP 420 namespace packages
 "src/pytest_bdd/compatibility/pytest/__init__.py" = ["D103", "DOC201", "RUF", "TC002"]  # Compatibility facade re-exports pytest internals
-"src/pytest_bdd/message_stream_validation/**" = ["C901", "D205", "D413", "DOC201", "DOC501", "E501", "PLR0911", "W293"]  # Validation status mapping is table-like; generated responsibility docs exceed style limits.
+"src/pytest_bdd/message_stream_validation/**" = ["C901", "D205", "D413", "DOC201", "DOC501", "E501", "PLR0911", "RUF002"]  # Validation status mapping is table-like; generated responsibility docs exceed style limits.
+"src/pytest_bdd/model/**" = ["D205", "D413", "DOC201", "DOC501", "E501", "PLC0415"]  # Generated responsibility docs exceed style limits; long lines intentional per 140+ char requirement
 "src/pytest_bdd/model/coverage/**" = ["INP001"]  # Coverage helpers use namespace package layout
-"src/pytest_bdd/parsers/*.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "W293"]  # Generated responsibility docs exceed style limits.
-"src/pytest_bdd/parsers/base.py" = ["D103", "D205", "D413", "DOC201", "DOC501", "E501", "PLW0603", "PYI046", "TC003", "W293"]  # Parser registry globals and protocols are package extension points; generated responsibility docs exceed style limits.
-"src/pytest_bdd/parsers/heuristic.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "N812", "W293"]  # TYPE_CHECKING aliases need parser-class names; generated responsibility docs exceed style limits.
+"src/pytest_bdd/parsers/*.py" = ["D205", "D413", "DOC201", "DOC501", "E501"]  # Generated responsibility docs exceed style limits.
+"src/pytest_bdd/parsers/base.py" = ["D103", "D205", "D413", "DOC201", "DOC501", "E501", "PLW0603", "PYI046", "TC003"]  # Parser registry globals and protocols are package extension points; generated responsibility docs exceed style limits.
+"src/pytest_bdd/parsers/heuristic.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "N812"]  # TYPE_CHECKING aliases need parser-class names; generated responsibility docs exceed style limits.
 "src/pytest_bdd/plugin/**" = ["ANN401", "ARG001", "BLE001", "DOC201", "DOC402", "DOC501", "DOC502", "E402", "INP001", "PLC0415", "PLC2701", "PLR0913", "PLR0917", "PYI046", "RUF100", "S110", "SIM105", "TC001", "TC002", "TC003", "TC004", "TID252"]  # PEP 420 namespace packages, plugin hook signatures, lazy imports, and private-module facades are intentional
+"src/pytest_bdd/scenario_locator/**" = ["D205", "DOC201", "DOC501", "E501", "RUF002"]  # Generated responsibility docs exceed style limits
 "src/pytest_bdd/script/message_capability_governance/*" = ["PLC0415", "SLF001", "TC003"]  # PLC0415: lazy imports for monkeypatch compatibility; SLF001: package-internal _repo_root/_candidate_repo_roots access for monkeypatching; TC003: Path used at runtime in function bodies
-"src/pytest_bdd/script/message_capability_governance/cli/*" = ["C901", "D205", "D413", "DOC201", "DOC501", "E501", "PLR0912", "PLR0914", "PLR0915", "RUF052", "TC001", "W293"]  # CLI report assembly is intentionally imperative; generated responsibility docs exceed style limits
-"src/pytest_bdd/script/message_capability_governance/schema.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "RUF052", "W293"]  # Package protocol helper uses underscore-bearing private API names; generated responsibility docs exceed style limits.
-"src/pytest_bdd/steps/manager.py" = ["D205", "D413", "DOC201", "E501", "W293"]  # Generated responsibility docs exceed style limits.
+"src/pytest_bdd/script/message_capability_governance/cli/*" = ["C901", "D205", "D413", "DOC201", "DOC501", "E501", "PLR0912", "PLR0914", "PLR0915", "RUF052", "TC001"]  # CLI report assembly is intentionally imperative; generated responsibility docs exceed style limits
+"src/pytest_bdd/script/message_capability_governance/schema.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "RUF052"]  # Package protocol helper uses underscore-bearing private API names; generated responsibility docs exceed style limits.
+"src/pytest_bdd/steps/manager.py" = ["D205", "D413", "DOC201", "E501"]  # Generated responsibility docs exceed style limits.
 "src/pytest_bdd/types/warning.py" = ["PLC2701"]  # Pytest warning type shim
 "src/pytest_bdd/util/**" = ["INP001"]  # PEP 420 namespace packages: util/__init__.py intentionally removed
 "src/pytest_bdd/util/cucumber_formatters.py" = ["PLC2701"]  # Package-internal formatter alias helper
-"src/pytest_bdd/util/tests_group_ordering/barrier.py" = ["D205", "D413", "DOC201", "DOC501", "E501", "W293"]  # Generated responsibility docs exceed style limits.
-"src/pytest_bdd_testing/**" = ["D104", "INP001"]  # PEP 420 namespace packages: __init__.py files intentionally removed
-"src/pytest_bdd_testing/cases/**" = ["ANN", "D", "DOC201", "E501", "E741", "EM101", "ERA001", "F401", "F841", "I001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6201", "PLR6301", "PLW1510", "PT006", "S101", "S404", "S506", "S603", "SIM108", "SIM117", "SLF001", "TC003", "W391"]  # Test tree keeps broad ignores for fixture-style code.
-"src/pytest_bdd_testing/cases/external/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
-"src/pytest_bdd_testing/cases/integration/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
-"src/pytest_bdd_testing/cucumber_formatters/*" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101", "TC003"]  # Test support helper intentionally mirrors pytest-style assertions and dynamic hook objects
+"src/pytest_bdd/util/tests_group_ordering/barrier.py" = ["D205", "D413", "DOC201", "DOC501", "E501"]  # Generated responsibility docs exceed style limits.
+"src/pytest_bdd_testing/**" = ["D104", "D205", "INP001"]  # PEP 420 namespace packages: __init__.py files intentionally removed
+"src/pytest_bdd_testing/case/**" = ["ANN", "D", "DOC201", "E501", "E741", "EM101", "ERA001", "F401", "F821", "F841", "I001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6201", "PLR6301", "PLW1510", "PT006", "S101", "S404", "S506", "S603", "SIM108", "SIM117", "SLF001", "TC003", "W391"]  # Test tree keeps broad ignores for fixture-style code.
+"src/pytest_bdd_testing/case/external/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
+"src/pytest_bdd_testing/case/integration/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
+"src/pytest_bdd_testing/cucumber_formatters/*" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101", "TC003"]  # Test support helper intentionally mirrors pytest-style assertion and dynamic hook objects
+"src/pytest_bdd_testing/step/**" = ["ANN", "F821", "I001", "PLC0415", "PLC2701", "PLR0913", "PLR0917", "PLR2004", "PLR6301", "PT006", "S101", "S404", "S603"]  # Step definition plugins mirror the harness ignore set
+"src/pytest_bdd_testing/step/harness.py" = ["ANN", "F821", "I001", "PLC0415", "PLR0913", "PLR0917", "PLR2004", "S101", "S404", "S603"]  # Step definitions use pytest-bdd fixture injection (untyped by design)
+"src/pytest_bdd_testing/tool/**" = ["ANN401", "D205", "D301", "DOC201", "DOC501", "E501", "PLC0415", "PLR6301", "S101"]  # Test support tools with generated responsibility docs and assertion helpers
 "stubs/**" = ["A", "ANN", "F811", "N"]  # A: shadowed builtins intentional in stubs; ANN: Any is deliberate for untyped libraries; F811: redefinitions in package stubs; N: library names must match
 
 [tool.ruff.lint.pyupgrade]

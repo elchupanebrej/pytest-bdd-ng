@@ -17,6 +17,7 @@ Use `pytest.config.stash` as the canonical state store for all session-scoped ru
 ```python
 from pytest_bdd.model.stash_access import StashBound
 
+
 class Run(StashBound):
     _STASH_KEY = "bdd/run"
 ```

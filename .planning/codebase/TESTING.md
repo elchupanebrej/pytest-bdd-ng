@@ -142,12 +142,15 @@ Integration tests (testdir-based) follow a three-phase pattern — arrange (writ
 ```python
 def test_steps(testdir):
     """Verify steps."""
-    testdir.makefile(".feature", steps="""\
+    testdir.makefile(
+        ".feature",
+        steps="""\
         Feature: Steps are executed one by one
             Scenario: Executed step by step
                 Given I have a foo fixture with value "foo"
                 ...
-    """)
+    """,
+    )
     testdir.makeconftest("""\
         from pytest_bdd import given, when, then
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
@@ -185,6 +188,7 @@ def test_steps(testdir):
 - Allure plugin mocking in `tests/e2e/allure/conftest.py`:
   ```python
   from unittest import mock
+
   with mock.patch(path) as reporter_mock:
       reporter_mock.return_value = logger
       yield
@@ -308,12 +312,11 @@ uv run python -m pytest tests/ --cov=pytest_bdd --cov-report=html
     "pickle_path",
     (pytest.param(file, id=file.name) for file in (test_data / "good").glob("*.pickles.ndjson")),
 )
-def test_simple_load_pickle(pickle_path: Path):
-    ...
+def test_simple_load_pickle(pickle_path: Path): ...
+
 
 @pytest.mark.parametrize("mapping_string", ["{...: None}", "False", "()"])
-def test_disallow_mapping(mapping_string: str):
-    ...
+def test_disallow_mapping(mapping_string: str): ...
 ```
 
 **Error Testing:**
@@ -324,6 +327,7 @@ def test_register_after_flush_raises() -> None:
     parser.flush()
     with pytest.raises(RuntimeError, match="flushed"):
         parser.register(Path("/fake/file2.feature"))
+
 
 def test_raises_on_parse_error(self) -> None:
     with (

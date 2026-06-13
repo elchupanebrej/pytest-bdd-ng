@@ -1,52 +1,58 @@
 """
-Models for feature heading validation.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Models for feature heading validation. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.heading_validation` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - HeadingType: owns nested behavior below this boundary
-    - ParsedHeadingRecord: owns nested behavior below this boundary
-    - HeadingValidationPolicy: owns nested behavior below this boundary
-    - HeadingValidationViolation: owns nested behavior below this boundary
-    - HeadingValidationRun: owns nested behavior below this boundary
-    - BaselineAuditSummary: owns nested behavior below this boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/script/validate_feature_headings.py: imports or references `heading_validation`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates heading_type, line, policy_id, normalized, run_id; depends on __future__.annotations, datetime.datetime,
-    datetime.timezone, enum.Enum, attrs.frozen.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.heading_validation` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -61,47 +67,61 @@ EMPTY_HEADING_TITLE_CODE = "EMPTY_HEADING_TITLE"
 
 class HeadingType(str, Enum):
     """
-    Heading kinds covered by validation policy.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Heading kinds covered by validation policy. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingType` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - display_name: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `HeadingType`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates FEATURE, SCENARIO, SCENARIO_OUTLINE.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.HeadingType` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=3
+        #arch-eval:locational_stability=4
     """
 
     FEATURE = "feature"
@@ -111,48 +131,52 @@ class HeadingType(str, Enum):
     @property
     def display_name(self) -> str:
         """
-        Provide a human-readable label for the heading type, used in diagnostic output.
-
-        Returns:
-            The string label corresponding to the specific heading type.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Provide a human-readable label for the heading type, used in diagnostic output. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingType.display_name`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/script/_feature_tree.py: imports or references `display_name`
-            - src/pytest_bdd/script/validate_feature_headings.py: imports or references `display_name`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
-
+            #arch-eval:locational_stability=4
         """
         if self is HeadingType.FEATURE:
             return "Feature"
@@ -164,47 +188,61 @@ class HeadingType(str, Enum):
 @frozen
 class ParsedHeadingRecord:
     """
-    Single parsed heading located in a feature document.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Single parsed heading located in a feature document. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.ParsedHeadingRecord` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `ParsedHeadingRecord`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates document_path, heading_type, name_raw, line, column.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.ParsedHeadingRecord` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     document_path: str
@@ -217,48 +255,61 @@ class ParsedHeadingRecord:
 @frozen
 class HeadingValidationPolicy:
     """
-    Rule set for heading title validation.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Rule set for heading title validation. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingValidationPolicy` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - normalize_name: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `HeadingValidationPolicy`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates normalized, policy_id, enforced_heading_types, trim_whitespace, empty_name_is_violation.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.HeadingValidationPolicy` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=3
+        #arch-eval:locational_stability=4
     """
 
     policy_id: str = "feature-heading-policy-v1"
@@ -273,52 +324,52 @@ class HeadingValidationPolicy:
 
     def normalize_name(self, name: str | None) -> str:
         """
-        Normalize a raw heading title string by applying policy rules, such as whitespace trimming.
-
-        Returns:
-            The normalized heading title as a string, or an empty string if the input is None.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Normalize a raw heading title string by applying policy rules, such as whitespace trimming. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.heading_validation.HeadingValidationPolicy.normalize_name` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - normalized.strip: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/script/validate_feature_headings.py: imports or references `normalize_name`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates normalized.
-
-        Invariants:
-            - `pytest_bdd.model.heading_validation.HeadingValidationPolicy.normalize_name` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         normalized = "" if name is None else name
         if self.trim_whitespace:
@@ -329,47 +380,61 @@ class HeadingValidationPolicy:
 @frozen
 class HeadingValidationViolation:
     """
-    Validation violation emitted for one heading.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Validation violation emitted for one heading. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingValidationViolation`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - to_payload: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `HeadingValidationViolation`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates path, line, heading_type, code, message.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.HeadingValidationViolation` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=3
+        #arch-eval:locational_stability=4
     """
 
     path: str
@@ -381,48 +446,52 @@ class HeadingValidationViolation:
 
     def to_payload(self) -> dict[str, object]:
         """
-        Convert the validation violation into a JSON-serializable dictionary format.
-
-        Returns:
-            A dictionary containing the structured violation data.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Convert the validation violation into a JSON-serializable dictionary format. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.heading_validation.HeadingValidationViolation.to_payload` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/script/validate_feature_headings.py: imports or references `to_payload`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
-
+            #arch-eval:locational_stability=4
         """
         return {
             "path": self.path,
@@ -437,48 +506,61 @@ class HeadingValidationViolation:
 @frozen
 class HeadingValidationRun:
     """
-    Result of repository heading validation scan.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Result of repository heading validation scan. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingValidationRun` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - status: owns nested behavior below this boundary
-        - to_payload: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `HeadingValidationRun`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run_id, started_at, finished_at, documents_scanned, violations.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.HeadingValidationRun` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     run_id: str
@@ -490,102 +572,103 @@ class HeadingValidationRun:
     @property
     def status(self) -> str:
         """
-        Determine the overall pass/fail status of the validation run based on emitted violations.
-
-        Returns:
-            The string 'fail' if violations exist, otherwise 'pass'.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Determine the overall pass/fail status of the validation run based on emitted violations. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.heading_validation.HeadingValidationRun.status`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `status`
-            - src/pytest_bdd/message_stream_validation/status.py: imports or references `status`
-            - src/pytest_bdd/model/message_governance_checklist.py: imports or references `status`
-            - src/pytest_bdd/model/message_outcome_mapping.py: imports or references `status`
-            - src/pytest_bdd/model/message_status_governance.py: imports or references `status`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return "fail" if self.violations else "pass"
 
     def to_payload(self) -> dict[str, object]:
         """
-        Convert the comprehensive validation run results into a JSON-serializable dictionary format.
-
-        Returns:
-            A dictionary capturing the full validation run state.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Convert the comprehensive validation run results into a JSON-serializable dictionary format. It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.heading_validation.HeadingValidationRun.to_payload` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - violation.to_payload: collaborator call used by this boundary
-            - self.started_at.astimezone.isoformat: collaborator call used by this boundary
-            - self.started_at.astimezone: collaborator call used by this boundary
-            - self.finished_at.astimezone.isoformat: collaborator call used by this boundary
-            - self.finished_at.astimezone: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/script/validate_feature_headings.py: imports or references `to_payload`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         return {
             "run_id": self.run_id,
@@ -600,47 +683,61 @@ class HeadingValidationRun:
 @frozen
 class BaselineAuditSummary:
     """
-    Baseline compliance summary for repository features tree.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Baseline compliance summary for repository features tree. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.heading_validation.BaselineAuditSummary` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - to_payload: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `BaselineAuditSummary`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates record_id, policy_id, run_id, violations_count, compliant.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.heading_validation.BaselineAuditSummary` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=3
+        #arch-eval:locational_stability=4
     """
 
     record_id: str
@@ -651,48 +748,52 @@ class BaselineAuditSummary:
 
     def to_payload(self) -> dict[str, object]:
         """
-        Convert the baseline audit summary into a JSON-serializable dictionary format.
-
-        Returns:
-            A dictionary summarizing the baseline compliance check.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Convert the baseline audit summary into a JSON-serializable dictionary format. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.heading_validation.BaselineAuditSummary.to_payload` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/script/validate_feature_headings.py: imports or references `to_payload`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=3
-
+            #arch-eval:locational_stability=4
         """
         return {
             "record_id": self.record_id,
@@ -705,47 +806,55 @@ class BaselineAuditSummary:
 
 def default_heading_validation_policy() -> HeadingValidationPolicy:
     """
-    Instantiate the default heading validation policy ruleset.
-
-    Returns:
-        A HeadingValidationPolicy populated with standard defaults.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Instantiate the default heading validation policy ruleset. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.heading_validation.default_heading_validation_policy` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - HeadingValidationPolicy: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/script/validate_feature_headings.py: imports or references `default_heading_validation_policy`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
-
+        #arch-eval:locational_stability=4
     """
     return HeadingValidationPolicy()

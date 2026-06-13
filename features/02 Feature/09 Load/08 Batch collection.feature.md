@@ -37,10 +37,9 @@
     ```python
     from pytest_bdd import step
 
-    @step('Passing step')
 
-    def _():
-      ...
+    @step("Passing step")
+    def _(): ...
     ```
 
 ### Scenario: Batch collection is enabled by default
@@ -99,9 +98,10 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("Passing.feature", "Passing scenario")
     def test_explicit():
-      pass
+        pass
     ```
 
 * When run pytest

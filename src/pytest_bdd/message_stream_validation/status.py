@@ -1,54 +1,81 @@
 """
-Provide outcome status extraction and capability coverage helpers.
+Owns the outcome observation and status derivation logic for the message stream validation system.
 
 Responsibility:
-    Provide outcome status extraction and capability coverage helpers. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Owns the outcome observation and status derivation logic for the message stream validation system. Defines the
+    OUTCOME_SCOPE_BY_PAYLOAD_KIND mapping that assigns each finished/attachment payload kind to an outcome scope
+    (run/scenario/step/hook/attachment), implements observed_outcome_from_envelope() to extract a structured
+    ObservedOutcome from a single EventEnvelope by resolving its payload kind, determining its outcome scope, and
+    deriving its outcome status through _derive_outcome_status() which applies payload-kind-specific status derivation
+    rules (test_step → result.status, test_case → implementation_status, test_run → success flag, test_run_hook →
+    result.status, attachment → always passed). Also provides collect_observed_outcomes() (batch extraction) and
+    default_outcome_mapping_rules() (generates default governance mapping rules for all scope × status combinations).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.message_stream_validation.status` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Outcome observation is a distinct subdomain of message validation — it answers "what outcomes occurred?" while
+    pipeline.py answers "are the messages well-formed?" This separation prevents pipeline.py from having to know about
+    outcome scope classification, status derivation algorithms, or mapping rule generation. The
+    OUTCOME_SCOPE_BY_PAYLOAD_KIND mapping is the key architectural decision: it encodes which message types carry
+    outcome-relevant information and at what scope. Without this module, the outcome mapping diagnostics in
+    validate_message_stream would need to embed this knowledge directly, making the already-long pipeline function even
+    longer and mixing two different validation concerns.
 
 Delegates:
-    - _normalize_outcome_status: owns nested behavior below this boundary
-    - _derive_outcome_status: owns nested behavior below this boundary
-    - observed_outcome_from_envelope: owns nested behavior below this boundary
-    - collect_observed_outcomes: owns nested behavior below this boundary
-    - default_outcome_mapping_rules: owns nested behavior below this boundary
+    - get_payload_kind (from pytest_bdd.model.message_extension): Extracts the payload kind string from an EventEnvelope
+    for scope lookup.
+    - normalize_outcome_status (from pytest_bdd.model.message_outcome_mapping): Normalizes raw outcome status values to
+    canonical OutcomeStatus enum values.
+    - normalize_capability_status (from pytest_bdd.model.message_status_governance): Normalizes implementation_status
+    values for capability-based outcome derivation.
+    - ObservedOutcome (from pytest_bdd.model.message_outcome_mapping): The structured result type produced by
+    observed_outcome_from_envelope.
+    - OutcomeMappingRule (from pytest_bdd.model.message_outcome_mapping): The type produced by
+    default_outcome_mapping_rules for governance mapping.
+    - returns.maybe.Nothing: Provides the Maybe-type None value for return from functions that may not produce a result.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module answer the question "what outcomes are observed in a message stream?" The
+    OUTCOME_SCOPE_BY_PAYLOAD_KIND constant maps payload kinds to scopes, _derive_outcome_status determines the actual
+    status for each kind, observed_outcome_from_envelope combines scope + status into an ObservedOutcome,
+    collect_observed_outcomes batches the per-envelope extraction, and default_outcome_mapping_rules generates the
+    governance mapping rules that consume these outcomes. Each function builds on the previous one in a clear pipeline.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.message_stream_validation.pipeline: Kept separate because pipeline.py owns stream-level validation
+    (lifecycle ordering, schema validation, coverage tracking) while status.py owns outcome observation (per-envelope
+    outcome extraction) — cross-envelope validation vs per-envelope observation, different granularities.
+    - pytest_bdd.model.message_outcome_mapping: Kept separate because that module owns the outcome data types
+    (ObservedOutcome, OutcomeMappingRule) and validation logic (validate_outcome_mappings), while status.py owns the
+    extraction and derivation logic to produce those types — producer vs types/validator.
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/facade.py: imports or references `status`
-    - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `status`
-    - src/pytest_bdd/model/heading_validation.py: imports or references `status`
-    - src/pytest_bdd/model/message_governance_checklist.py: imports or references `status`
-    - src/pytest_bdd/model/message_outcome_mapping.py: imports or references `status`
+    - pytest_bdd.message_stream_validation.pipeline.validate_message_stream: Calls collect_observed_outcomes() and
+    default_outcome_mapping_rules() during the optional outcome mapping diagnostics stage.
+    - pytest_bdd.message_stream_validation.facade: Re-exports collect_observed_outcomes, observed_outcome_from_envelope,
+    and default_outcome_mapping_rules through the public API.
+    - Test suites for outcome mapping: Use observed_outcome_from_envelope to test individual envelope outcome extraction.
 
 State and side effects:
-    mutates result_status, result, outcome_status, OUTCOME_SCOPE_BY_PAYLOAD_KIND, test_step_result; depends on
-    __future__.annotations, typing.Final, returns.maybe.Nothing, pytest_bdd.model.message_extension.EventEnvelope,
-    pytest_bdd.model.message_extension.get_payload_kind.
+    None, keeps no persistent state. All functions are pure (same input → same output). The
+    OUTCOME_SCOPE_BY_PAYLOAD_KIND constant is module-level immutable dict.
 
 Invariants:
-    - `pytest_bdd.message_stream_validation.status` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - OUTCOME_SCOPE_BY_PAYLOAD_KIND must map every payload kind that can carry outcome information to a valid
+    OutcomeScope — missing mappings would cause outcome observations to be silently dropped.
+    - _derive_outcome_status must return None for payload kinds that don't carry outcome status, preventing false
+    outcome observations.
+    - default_outcome_mapping_rules must generate rules for all OutcomeScope × OutcomeStatus combinations defined in the
+    scopes and statuses tuples.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -80,94 +107,108 @@ OUTCOME_SCOPE_BY_PAYLOAD_KIND: Final[dict[str, OutcomeScope]] = {
 
 def _normalize_outcome_status(value: object) -> OutcomeStatus | None:
     """
+    Thin wrapper around normalize_outcome_status from pytest_bdd.model.message_outcome_mapping that normalizes a raw outc.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.status._normalize_outcome_status` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Thin wrapper around normalize_outcome_status from pytest_bdd.model.message_outcome_mapping that normalizes a raw
+        outcome status value (e.g., "PASSED", "passed", "FAILED") to a canonical OutcomeStatus string (e.g., "passed",
+        "failed"). Returns None if the value cannot be normalized. This isolates the status module from changes to the
+        normalization function's import path or signature.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.status._normalize_outcome_status` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        Acts as a local re-export point within the status module, keeping the import of normalize_outcome_status
+        centralized. If the normalization function moves or its signature changes, only this wrapper and
+        observed_outcome_from_envelope need updating, not every function that derives outcome statuses. The indirection
+        is minimal (direct pass-through) but provides import stability for the status module's internal functions.
 
     Delegates:
-        - normalize_outcome_status: collaborator call used by this boundary
+        - normalize_outcome_status (from pytest_bdd.model.message_outcome_mapping): Performs the actual status string
+        normalization to canonical OutcomeStatus values.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs exactly one delegation call. It exists purely for import isolation, not for algorithmic value.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - _derive_outcome_status: Kept separate because that function determines what status to derive from which
+        payload attribute, while this function only performs normalization — derivation logic vs normalization utility.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_normalize_outcome_status`
+        - _derive_outcome_status: Called to normalize the extracted status values from payload attributes
+        (test_step_result.status, result.status).
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, keeps no persistent state. Pure delegation.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=2
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=1
+        #arch-eval:locational_stability=4
     """
     return normalize_outcome_status(value)
 
 
 def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus | None:
     """
+    Derive the canonical outcome status from a message payload based on its payload kind, applying kind-specific status .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.message_stream_validation.status._derive_outcome_status` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Derives the canonical outcome status from a message payload based on its payload kind, applying kind-specific
+        status extraction rules: test_step_finished → test_step_result.status (normalized), test_case_finished → derived
+        from implementation_status (Not-Acceptable → "failed", Implemented/Partly-Applicable/Not-Applicable/Non-
+        Implementable → "passed"), with will_be_retried check for "interrupted", test_run_finished → success boolean →
+        "passed"/"failed", test_run_hook_finished → result.status (normalized, defaulting to "passed"),
+        attachment/external_attachment → always "passed". Returns None for payload kinds that don't carry outcome
+        information.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.message_stream_validation.status._derive_outcome_status`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Each message type in the cucumber-messages protocol has a different attribute path to the status information:
+        test_step_finished has test_step_result.status (an enum), test_case_finished has implementation_status (a
+        governance string), test_run_finished has a boolean success flag, and test_run_hook_finished has result.status.
+        This function encapsulates all this heterogeneous extraction logic in one place so that
+        observed_outcome_from_envelope can be a simple two-step process: find the scope, derive the status. Without this
+        function, the status extraction logic would be duplicated or scattered across the validation pipeline.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - _normalize_outcome_status: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - normalize_capability_status: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - Nothing.value_or: collaborator call used by this boundary
+        - getattr(payload, ...): Accesses status-related attributes on the payload object with None defaults for missing
+        attributes.
+        - _normalize_outcome_status: Normalizes raw status string values to canonical OutcomeStatus.
+        - normalize_capability_status (from message_status_governance): Normalizes implementation_status strings for
+        test_case_finished outcome derivation.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function contains a single dispatch chain (if/elif) where each branch handles one payload kind's status
+        extraction. Every branch follows the same pattern: access attribute(s) → normalize/derive → return status. The
+        attachment branch is the simplest (always "passed") and the test_case_finished branch is the most complex
+        (multiple statuses checked, retry flag considered).
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - observed_outcome_from_envelope: Kept separate because that function determines the outcome scope (which
+        payload kinds produce outcomes) and constructs ObservedOutcome objects, while this function only derives the
+        status string — scope resolution vs status derivation.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `_derive_outcome_status`
+        - observed_outcome_from_envelope: Called after determining the outcome scope to derive the status value for the
+        ObservedOutcome construction.
 
     State and side effects:
-        mutates result_status, test_step_result, implementation_status, capability_status, will_be_retried.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.status._derive_outcome_status` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Pure function of the payload kind and payload object.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
     if payload_kind == "test_step_finished":
         test_step_result = getattr(payload, "test_step_result", None)
@@ -201,59 +242,57 @@ def _derive_outcome_status(payload_kind: str, payload: object) -> OutcomeStatus 
 
 def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome | None:
     """
-    Extract and normalize the execution outcome status associated with a specific message envelope.
-
-    Returns:
-        An ObservedOutcome representing the status and context, or None if the payload does not carry an outcome.
+    Extract a structured ObservedOutcome from a single EventEnvelope by: (1) determining the payload kind via get_payloa.
 
     Responsibility:
-        Extract and normalize the execution outcome status associated with a specific message envelope. It directly owns
-        the observable contract, local decisions, and maintenance boundary for this function.
+        Extracts a structured ObservedOutcome from a single EventEnvelope by: (1) determining the payload kind via
+        get_payload_kind(), (2) looking up the outcome scope from OUTCOME_SCOPE_BY_PAYLOAD_KIND, (3) deriving the
+        outcome status via _derive_outcome_status(), and (4) populating is_retry and is_parallel_worker flags from the
+        payload's will_be_retried and worker_id attributes. Returns None if the envelope's payload kind has no outcome
+        scope mapping or if no status can be derived. This is the single-envelope outcome extraction entry point used by
+        the batch collector.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.status.observed_outcome_from_envelope` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        Encapsulates the complete "one envelope → one outcome" transformation in a single function. The pipeline's
+        outcome mapping diagnostics stage needs to extract outcomes from every envelope in a stream, and this function
+        provides a uniform interface: pass an envelope, get back either a structured ObservedOutcome (with scope,
+        status, retry flag, worker flag) or None (if the envelope doesn't carry outcome information). The is_retry and
+        is_parallel_worker flags are extracted here because they are context metadata on the payload that affects how
+        outcomes should be mapped.
 
     Delegates:
-        - Nothing.value_or: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - get_payload_kind: collaborator call used by this boundary
-        - OUTCOME_SCOPE_BY_PAYLOAD_KIND.get: collaborator call used by this boundary
-        - _derive_outcome_status: collaborator call used by this boundary
-        - ObservedOutcome: collaborator call used by this boundary
+        - get_payload_kind: Extracts the payload kind string from the EventEnvelope.
+        - OUTCOME_SCOPE_BY_PAYLOAD_KIND: Maps payload kind to outcome scope (run/scenario/step/hook/attachment).
+        - _derive_outcome_status: Derives the canonical outcome status from the payload's attributes.
+        - getattr(payload, ...): Extracts will_be_retried and worker_id flags from the payload.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs a single pipeline: payload_kind → scope → status → metadata flags → ObservedOutcome. Each
+        step is a prerequisite for the next, and all steps are necessary to produce the final result.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - collect_observed_outcomes: Kept separate because that function batches the per-envelope extraction across a
+        list, while this function handles a single envelope — single vs batch.
+        - _derive_outcome_status: Kept separate because that function only derives the status string, while this
+        function combines scope + status + metadata into an ObservedOutcome — component extraction vs object
+        construction.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `observed_outcome_from_envelope`
-        - src/pytest_bdd/model/__init__.py: imports or references `observed_outcome_from_envelope`
-        - src/pytest_bdd/model/message_validation.py: imports or references `observed_outcome_from_envelope`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `observed_outcome_from_envelope`
+        - collect_observed_outcomes: Iterates over envelopes and calls this function for each, collecting non-None results.
+        - Test suites: May call this function directly to verify outcome extraction for specific envelope types.
 
     State and side effects:
-        mutates payload_kind, outcome_scope, payload, outcome_status.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.status.observed_outcome_from_envelope` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Pure function of the input envelope.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
     payload_kind = get_payload_kind(envelope)
@@ -276,54 +315,52 @@ def observed_outcome_from_envelope(envelope: EventEnvelope) -> ObservedOutcome |
 
 def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOutcome]:
     """
-    Iterate over a sequence of message envelopes, extracting all normalized observed execution outcomes.
-
-    Returns:
-        A list of ObservedOutcome instances harvested from the stream.
+    Batches the per-envelope outcome extraction by iterating over a list of EventEnvelope objects, calling observed_outco.
 
     Responsibility:
-        Iterate over a sequence of message envelopes, extracting all normalized observed execution outcomes. It directly
-        owns the observable contract, local decisions, and maintenance boundary for this function.
+        Batches the per-envelope outcome extraction by iterating over a list of EventEnvelope objects, calling
+        observed_outcome_from_envelope() for each, and collecting all non-None results into a list. This is the entry
+        point used by validate_message_stream's outcome mapping diagnostics stage to gather all observed outcomes from a
+        complete message stream for mapping validation.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.status.collect_observed_outcomes` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This function exists as a trivial batch wrapper to keep the "iterate over envelopes → call extractor → filter
+        Nones" pattern in one place. While simple enough to inline, having this as a named function makes the intent
+        explicit in validate_message_stream and provides a single point for adding filtering or transformation logic in
+        the future (e.g., deduplication by outcome key, sorting by scope).
 
     Delegates:
-        - observed_outcome_from_envelope: collaborator call used by this boundary
-        - outcomes.append: collaborator call used by this boundary
+        - observed_outcome_from_envelope: Performs the actual per-envelope outcome extraction, returning ObservedOutcome
+        or None.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The function performs exactly one operation: batch extraction with None filtering. The for loop, isinstance
+        check, and list append all serve this single purpose.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - observed_outcome_from_envelope: Kept separate because that function handles single-envelope extraction (the
+        algorithm) while this function handles batch iteration (the collection pattern) — algorithm vs batch
+        orchestration.
+        - default_outcome_mapping_rules: Kept separate because that function generates mapping rules for governance,
+        while this function collects the outcomes to be mapped — data collection vs rule generation.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `collect_observed_outcomes`
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `collect_observed_outcomes`
-        - src/pytest_bdd/model/__init__.py: imports or references `collect_observed_outcomes`
-        - src/pytest_bdd/model/message_validation.py: imports or references `collect_observed_outcomes`
+        - validate_message_stream (in pipeline.py): Called when enforce_mapping_diagnostics=True to collect outcomes for
+        mapping validation.
+        - pytest_bdd.message_stream_validation.facade: Re-exported through the public API.
 
     State and side effects:
-        mutates outcomes, outcome.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.status.collect_observed_outcomes` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Creates a local list and returns it.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=5
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=2
         #arch-eval:locational_stability=4
     """
     outcomes: list[ObservedOutcome] = []
@@ -336,57 +373,56 @@ def collect_observed_outcomes(envelopes: list[EventEnvelope]) -> list[ObservedOu
 
 def default_outcome_mapping_rules() -> list[OutcomeMappingRule]:
     """
-    Generate the standard baseline mapping rules for resolving execution outcomes across standard BDD scopes.
-
-    Returns:
-        A list of OutcomeMappingRule instances encoding the default governance rules.
+    Generate the default set of outcome mapping rules for governance validation by creating the Cartesian product of 5 o.
 
     Responsibility:
-        Generate the standard baseline mapping rules for resolving execution outcomes across standard BDD scopes. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Generates the default set of outcome mapping rules for governance validation by creating the Cartesian product
+        of 5 outcome scopes (run, scenario, step, hook, attachment) × 5 outcome statuses (passed, failed, skipped,
+        undefined, interrupted), resulting in 25 default rules. Each rule has a unique mapping_id
+        ("default-{scope}-{status}"), a generic capability_id, and a priority based on scope index. These rules serve as
+        the fallback mapping when no custom rules are provided to validate_message_stream's outcome mapping diagnostics.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.message_stream_validation.status.default_outcome_mapping_rules` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        Outcome mapping diagnostics must have mapping rules to validate against, but users may not provide custom rules.
+        This function generates a complete default rule set that covers all possible scope × status combinations,
+        ensuring that the mapping validation always has rules to work with. Without this function,
+        validate_message_stream would need to hardcode the 25 default rules, or every caller would need to pass
+        mapping_rules explicitly. The priority assignment (0=run, 1=scenario, 2=step, 3=hook, 4=attachment) reflects the
+        natural hierarchy of testing scopes.
 
     Delegates:
-        - enumerate: collaborator call used by this boundary
-        - result.extend: collaborator call used by this boundary
-        - OutcomeMappingRule: collaborator call used by this boundary
+        - OutcomeMappingRule (from pytest_bdd.model.message_outcome_mapping): The data class constructor for individual
+        mapping rules.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every aspect of this function serves rule generation: the scopes tuple defines the dimensions, the statuses
+        tuple defines the values, and the nested comprehension generates the Cartesian product. The priority assignment
+        uses enumerate for scope-level ordering.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - collect_observed_outcomes: Kept separate because that function collects observed outcomes from messages, while
+        this function generates mapping rules — data collection vs rule generation, complementary but distinct
+        operations.
+        - validate_outcome_mappings (from message_outcome_mapping): Kept separate because that function validates
+        observed outcomes against rules, while this function generates the rules — rule consumer vs rule producer.
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/facade.py: imports or references `default_outcome_mapping_rules`
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `default_outcome_mapping_rules`
-        - src/pytest_bdd/model/__init__.py: imports or references `default_outcome_mapping_rules`
-        - src/pytest_bdd/model/message_validation.py: imports or references `default_outcome_mapping_rules`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-          `default_outcome_mapping_rules`
+        - validate_message_stream (in pipeline.py): Used as the default value for mapping_rules when
+        enforce_mapping_diagnostics=True and no custom rules are provided.
+        - pytest_bdd.message_stream_validation.facade: Re-exported through the public API.
 
     State and side effects:
-        mutates scopes, statuses, result.
-
-    Invariants:
-        - `pytest_bdd.message_stream_validation.status.default_outcome_mapping_rules` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        None, keeps no persistent state. Generates and returns a new list each call.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=5
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=2
         #arch-eval:locational_stability=4
     """
     scopes: tuple[OutcomeScope, ...] = ("run", "scenario", "step", "hook", "attachment")

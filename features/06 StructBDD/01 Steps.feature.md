@@ -25,37 +25,45 @@
     ```python
     from pytest_bdd import step, given, when, then, scenario
 
+
     @scenario("steps.bdd.yaml", "Executed step by step")
     def test_steps():
-      pass
+        pass
+
 
     @step('I have a foo fixture with value "foo"', target_fixture="foo", liberal=True)
     def _foo():
-      return "foo"
+        return "foo"
+
 
     @given("there is a list", target_fixture="results", liberal=True)
     def _results():
-      return []
+        return []
+
 
     @when("I append 1 to the list")
     def _append_1(results):
-      results.append(1)
+        results.append(1)
+
 
     @when("I append 2 to the list")
     def _append_2(results):
-      results.append(2)
+        results.append(2)
+
 
     @when("I append 3 to the list")
     def _append_3(results):
-      results.append(3)
+        results.append(3)
+
 
     @then('foo should have value "foo"')
     def _foo_is_foo(foo):
-      assert foo == "foo"
+        assert foo == "foo"
+
 
     @then("the list should be [1, 2, 3]")
     def _check_results(results):
-      assert results == [1, 2, 3]
+        assert results == [1, 2, 3]
     ```
 
 * When run pytest
@@ -87,21 +95,25 @@
     ```python
     from pytest_bdd import given, then, scenario
 
+
     @scenario("steps.bdd.yaml", "Examples are substituted")
     def test_examples():
-      pass
+        pass
+
 
     @given("I have {count:g} cucumbers", target_fixture="cucumbers")
     def _have(count):
-      return count
+        return count
+
 
     @given("I eat {count:g} cucumbers", target_fixture="cucumbers")
     def _eat(count, cucumbers):
-      return cucumbers - count
+        return cucumbers - count
+
 
     @then("I have {count:g} cucumbers", target_fixture="cucumbers")
     def _left(count, cucumbers):
-      assert count == cucumbers
+        assert count == cucumbers
     ```
 
 * When run pytest

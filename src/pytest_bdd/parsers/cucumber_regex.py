@@ -1,50 +1,70 @@
 """
-Provide the cucumber regular expression step parser.
+Owns the Cucumber Regular Expression-based step parser: the `cucumber_regular_expression` class that specializes _Cuc.
 
 Responsibility:
-    Provide the cucumber regular expression step parser. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Owns the Cucumber Regular Expression-based step parser: the `cucumber_regular_expression` class that specializes
+    _CucumberExpression with expression_type=CucumberRegularExpression (from cucumber-expressions library), providing
+    regex-based Cucumber pattern matching with parameter type conversion. Provides a singledispatchmethod-based dual
+    constructor (string expression or pre-compiled CucumberRegularExpression) and a meaningful `arguments` property that
+    extracts named capture group names from the compiled regex pattern via re_compile(self.pattern).groupindex.keys().
+    Registered as the parser wrapper for pre-compiled CucumberRegularExpression objects via register_parser().
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.parsers.cucumber_regex` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    Cucumber Regular Expressions are the regex-based counterpart to Cucumber Expressions — they use standard regex
+    syntax but benefit from Cucumber's parameter type system for type conversion. For example, a regex pattern with a
+    named group can have its value converted using a registered parameter type. This module provides pytest-bdd users
+    access to this hybrid parsing strategy. The `arguments` property is meaningful here (unlike cucumber_expression
+    which returns empty) because regex patterns have explicit named capture groups that the step manager needs to know
+    about.
 
 Delegates:
-    - cucumber_regular_expression: owns nested behavior below this boundary
+    - _CucumberExpression (parent from cucumber_expression module): Inherits all matching logic, registry resolution,
+    and error handling.
+    - CucumberRegularExpression (cucumber_expressions): The regex-based Cucumber expression parser — expression_type
+    class attribute.
+    - re_compile (stdlib): Used in the `arguments` property to extract named capture group names from the regex pattern.
+    - singledispatchmethod: Enables dual-constructor pattern.
+    - register_parser: Registers this class as the parser wrapper for pre-compiled CucumberRegularExpression objects.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Every method in this class serves the Cucumber Regular Expression specialization. The constructors store the pattern
+    and registry config, expression_type=CucumberRegularExpression selects the regex-based parser engine, and the
+    `arguments` property uses re_compile to extract named groups from the regex pattern. All behavior extends or
+    specializes the base class.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - cucumber_expression (from cucumber_expression module): Kept separate because that class uses CucumberExpression
+    (expression-based) while this uses CucumberRegularExpression (regex-based) — different parser engines, different
+    pattern syntaxes, shared base class.
+    - re (from re_parser): Kept separate because re uses stdlib re.Pattern directly (no parameter types), while
+    cucumber_regular_expression uses cucumber-expressions' RegularExpression (stdlib regex + parameter type conversion)
+    — raw regex vs type-enriched regex.
 
 Main consumers:
-    - src/pytest_bdd/parsers/facade.py: imports or references `cucumber_regex`
+    - End-user test code via parsers.cucumber_regular_expression(r"pattern").
+    - pytest_bdd.steps.manager: Uses the StepParser protocol for matching.
 
 State and side effects:
-    mutates self.pattern, self.parameter_type_registry_like, type, expression_type; depends on __future__.annotations,
-    functools.singledispatchmethod, re.compile, typing.TYPE_CHECKING,
-    cucumber_expressions.parameter_type_registry.ParameterTypeRegistry.
+    Inherits mutable state from _CucumberExpression (last_undefined_parameter_type, parameter_type_registry).
 
 Invariants:
-    - `pytest_bdd.parsers.cucumber_regex` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - expression_type must be CucumberRegularExpression — never CucumberExpression.
+    - The `arguments` property must use re_compile(self.pattern) to extract group names, since the pattern is a regex
+    string.
 
 Failure semantics:
-    Raises or re-raises NotImplementedError; callers must treat these as boundary failures.
+    Raises NotImplementedError from base singledispatchmethod __init__ — dead code path.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=3
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
+    #arch-eval:state_invariants=3
     #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -67,57 +87,68 @@ if TYPE_CHECKING:
 
 class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentional API
     """
-    Represent cucumber regular expression state.
-
-    Raises:
-        NotImplementedError: If the operation cannot be completed.
+    Concrete Cucumber Regular Expression parser class specializing _CucumberExpression with expression_type=CucumberRegul.
 
     Responsibility:
-        Represent cucumber regular expression state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Concrete Cucumber Regular Expression parser class specializing _CucumberExpression with
+        expression_type=CucumberRegularExpression for regex-based Cucumber pattern matching with parameter type
+        conversion. Provides singledispatchmethod-based dual constructor (string regex pattern with optional registry
+        config or pre-compiled CucumberRegularExpression) and a meaningful `arguments` property that extracts named
+        capture group names from the regex pattern via re_compile(self.pattern).groupindex.keys(). Registered as the
+        parser wrapper for pre-compiled CucumberRegularExpression objects.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Cucumber Regular Expressions bridge the gap between raw regex (powerful but no type conversion) and Cucumber
+        Expressions (readable but less expressive for complex patterns). They allow users to write standard regex
+        patterns with named groups while benefiting from Cucumber's parameter type system (e.g., a regex group matching
+        a number can be auto-converted to int via the {int} type). The arguments property is implemented (unlike
+        cucumber_expression which returns empty) because regex patterns explicitly define named capture groups.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - _: owns nested behavior below this boundary
-        - _: owns nested behavior below this boundary
-        - arguments: owns nested behavior below this boundary
+        - _CucumberExpression: Inherits all matching, registry resolution, and error handling logic.
+        - CucumberRegularExpression: The regex-based expression parser — set as expression_type.
+        - re_compile(self.pattern).groupindex.keys(): Extracts named capture group names from the regex pattern for the
+        arguments property.
+        - singledispatchmethod: Enables dual-constructor pattern.
+        - register_parser: Registers parser wrapper.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every method specializes for regex-based Cucumber patterns: expression_type selects the regex engine,
+        constructors handle string/regex patterns and pre-compiled objects, arguments extracts named regex groups. All
+        behavior is consistent with "regex-based Cucumber expression matching."
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - cucumber_expression: Kept separate because that class uses CucumberExpression (expression syntax), while this
+        uses CucumberRegularExpression (regex syntax) — different parser engines within the same cucumber-expressions
+        library.
+        - re (from re_parser): Kept separate because re uses raw stdlib re.Pattern (no parameter type system), while
+        cucumber_regular_expression uses cucumber-expressions' RegularExpression (stdlib regex + Cucumber parameter
+        types) — plain regex vs type-enriched regex.
 
     Main consumers:
-        - src/pytest_bdd/parsers/__init__.py: imports or references `cucumber_regular_expression`
-        - src/pytest_bdd/parsers/facade.py: imports or references `cucumber_regular_expression`
+        - End-user code: parsers.cucumber_regular_expression(r"pattern").
+        - pytest_bdd.steps.manager: Uses StepParser protocol for matching.
 
     State and side effects:
-        mutates self.pattern, self.parameter_type_registry_like, type, expression_type.
+        Inherits mutable diagnostic state from _CucumberExpression.
 
     Invariants:
-        - `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - expression_type must be CucumberRegularExpression.
+        - StepDefinitionPatternType must be regular_expression for proper classification.
 
     Failure semantics:
-        Raises or re-raises NotImplementedError; callers must treat these as boundary failures.
+        Raises NotImplementedError from base singledispatchmethod __init__.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=3
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=4
     """
 
     type = StepDefinitionPatternType.regular_expression
@@ -127,53 +158,45 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
     @singledispatchmethod  # type:ignore[misc]  # mypy limitation with singledispatchmethod/dynamic typing
     def __init__(self, *args: object, **kwargs: object) -> None:
         """
-        Initialize the cucumber regular expression.
-
-        Raises:
-            NotImplementedError: If the operation cannot be completed.
+        Serve as the base singledispatchmethod constructor (abstract hook raising NotImplementedError).
 
         Responsibility:
-            Initialize the cucumber regular expression. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Base singledispatchmethod constructor — abstract hook raising NotImplementedError. The two registered
+            methods handle string regex patterns and pre-compiled CucumberRegularExpression objects. This base method is
+            never reached in normal usage; it exists to satisfy the singledispatchmethod pattern requirements.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression.__init__` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            singledispatchmethod requires a base method that the register methods override. Raising NotImplementedError
+            clearly signals that unregistered argument types are programmer errors, following the same pattern used by
+            cucumber_expression, parse, and re constructor bases.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - singledispatchmethod: Dispatches to registered handlers based on argument types.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Pure guard — no logic beyond the raise.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - The register methods: Handle actual initialization for string and CucumberRegularExpression inputs.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - singledispatchmethod dispatch system: Automatically invoked for unmatched argument types.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None. Immediately raises.
 
         Failure semantics:
-            Raises or re-raises NotImplementedError; callers must treat these as boundary failures.
+            Raises NotImplementedError for unsupported constructor argument types — indicates a programming error.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=2
+            #arch-eval:owned_responsibility=2
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=3
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:consumer_clarity=3
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         raise NotImplementedError  # pragma: no cover -- abstract subclass hook
@@ -185,49 +208,43 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
         parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
     ) -> None:
         """
+        Handle registered singledispatch for string regex pattern inputs: store the pattern string and parameter_type_registry configuration.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Registered singledispatch handler for string regex pattern inputs: stores the pattern string and
+            parameter_type_registry configuration (defaulting to FIXTURE mode). Like cucumber_expression, the actual
+            expression compilation is deferred to rebuild_expression_in_test_context for per-test registry resolution.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Users create Cucumber regular expression parsers by passing regex pattern strings. This handler stores the
+            raw inputs; the expression is lazily constructed when per-test registry information becomes available via
+            the fixture system. The FIXTURE default preserves per-test parameter type isolation.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - None. Simply stores self.pattern = expression and self.parameter_type_registry_like = parameter_type_registry.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Performs one operation: store pattern and registry config. No compilation, no validation.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - The CucumberRegularExpression register method: Kept separate because that method extracts pattern and
+            registry from pre-compiled objects — extraction vs storage.
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/test_import_rules.py: imports or references `_`
-            - src/pytest_bdd/collector_batch.py: imports or references `_`
-            - src/pytest_bdd/model/coverage/inventory.py: imports or references `_`
+            - User code via parsers.cucumber_regular_expression(r"pattern").
 
         State and side effects:
-            mutates self.pattern, self.parameter_type_registry_like.
-
-        Invariants:
-            - `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Sets self.pattern and self.parameter_type_registry_like on the instance.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
             #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         self.pattern = expression
@@ -239,49 +256,45 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
         expression: CucumberRegularExpression,
     ) -> None:
         """
+        Handle registered singledispatch for pre-compiled CucumberRegularExpression objects: extract the regex pattern string from the compiled object.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Registered singledispatch handler for pre-compiled CucumberRegularExpression objects: extracts the regex
+            pattern string from expression.expression_regexp.pattern and the parameter type registry from
+            expression.parameter_type_registry, storing both for lazy rebuilding. This enables step definitions using
+            pre-compiled regex expression objects.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Pre-compiled CucumberRegularExpression objects may come from earlier parsing phases. This handler extracts
+            the original regex pattern string (which is stored two levels deep: expression.expression_regexp.pattern)
+            and the registry for reconstruction in rebuild_expression_in_test_context with the correct per-test
+            registry.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - expression.expression_regexp.pattern: The original regex pattern string.
+            - expression.parameter_type_registry: The embedded parameter type registry.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Performs one operation: extract pattern (from nested attribute) and registry → store.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - The string register method: Kept separate because that stores raw inputs while this extracts from existing objects.
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/test_import_rules.py: imports or references `_`
-            - src/pytest_bdd/collector_batch.py: imports or references `_`
-            - src/pytest_bdd/model/coverage/inventory.py: imports or references `_`
+            - Code using pre-compiled CucumberRegularExpression objects.
 
         State and side effects:
-            mutates self.pattern, self.parameter_type_registry_like.
-
-        Invariants:
-            - `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression._` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Sets self.pattern and self.parameter_type_registry_like. Read-only access to expression object.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
             #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         self.pattern = expression.expression_regexp.pattern
@@ -289,49 +302,50 @@ class cucumber_regular_expression(_CucumberExpression):  # noqa: N801 intentiona
 
     @property
     def arguments(self) -> Collection[str]:
-        """
-        Get argument names from the compiled regular expression.
+        r"""
+        Extracts named capture group names from the regex pattern by compiling it with re_compile and reading groupindex.keys().
 
         Responsibility:
-            Get argument names from the compiled regular expression. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Extracts named capture group names from the regex pattern by compiling it with re_compile and reading
+            groupindex.keys(). Returns the list of group names (e.g., for r"(?P<name>\w+)" returns ["name"]). Unlike
+            cucumber_expression which returns an empty list, this property returns meaningful argument names because
+            regex patterns have explicit named capture groups that map to step function parameters.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.parsers.cucumber_regex.cucumber_regular_expression.arguments` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            The step definition manager needs to know which argument names a step parser can extract to validate step
+            function signatures. For regex-based patterns, the named capture groups ((?P<name>...)) are the argument
+            names. This property extracts them from the compiled regex. The pattern is compiled on each property access
+            (no caching) which is acceptable because the property is typically accessed once per step definition during
+            collection.
 
         Delegates:
-            - re_compile.groupindex.keys: collaborator call used by this boundary
-            - re_compile: collaborator call used by this boundary
+            - re_compile(self.pattern): Compiles the regex pattern string to a re.Pattern object to access groupindex.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Performs one operation: compile regex → extract group names → return as list.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - cucumber_expression.arguments: Kept separate because cucumber_expression returns empty (expression-based,
+            no regex groups), while cucumber_regular_expression returns actual group names (regex-based, explicit
+            capture groups).
+            - re.arguments: Kept separate because re uses self.regex.groupindex (already compiled) while this compiles
+            fresh each access — different object lifecycles.
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `arguments`
-            - src/pytest_bdd/parsers/facade.py: imports or references `arguments`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `arguments`
-            - src/pytest_bdd/plugin/cucumber_json/model.py: imports or references `arguments`
-            - src/pytest_bdd/steps/definition.py: imports or references `arguments`
+            - pytest_bdd.steps.manager: Uses arguments to validate step function parameter names.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None. Creates a temporary compiled regex object on each access (no caching).
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         return [*re_compile(self.pattern).groupindex.keys()]

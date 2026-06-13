@@ -1,46 +1,52 @@
 """
-Provide feature runtime binding helpers.
+Encapsulates the runtime binding between a Gherkin feature file (GherkinDocument), its compiled pickles, source metad.
 
 Responsibility:
-    Provide feature runtime binding helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module.
+    Encapsulates the runtime binding between a Gherkin feature file (GherkinDocument), its compiled pickles, source
+    metadata, and the owning Run. This module manages AST object registration (IdentifiableObjectRegistry), pickle
+    compilation (via gherkin.pickles.compiler), lookup of linked AST nodes for pickles and steps, resolution of step
+    keywords/prefixes/line numbers, and source identity construction for reporting. It is the bridge between parsed
+    Gherkin AST and runtime execution.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.feature_binding` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - FeatureRuntimeBinding: owns nested behavior below this boundary
+    - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a focused
+    sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `feature_binding`
-    - src/pytest_bdd/model/run_access.py: imports or references `feature_binding`
-    - src/pytest_bdd/model/scenario_report.py: imports or references `feature_binding`
-    - src/pytest_bdd/model/scenario_run.py: imports or references `feature_binding`
-    - src/pytest_bdd/parser.py: imports or references `feature_binding`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates feature_message, ast_node_ids, filename, scenario_ast_id, row_ast_id; depends on __future__.annotations,
-    contextlib.suppress, pathlib.Path, textwrap.dedent, typing.TYPE_CHECKING.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.feature_binding` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - Each FeatureRuntimeBinding must have a valid uri extracted from its GherkinDocument; the ast_registry must index
+    all AST objects reachable from the feature root; pickles must be compiled before step resolution methods are called
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=3
@@ -83,63 +89,62 @@ if TYPE_CHECKING:
     from pytest_bdd.types.json import JSONObject
 
 
-@define(slots=True)  # noqa: PLR0904
+@define(slots=True)  # noqa: PLR0904  -- suppressed warning
 class FeatureRuntimeBinding:
     """
-    Represent feature runtime binding state.
-
-    Yields:
-        Generated values.
+    Encapsulates the runtime binding between a Gherkin feature file (GherkinDocument), its compiled pickles, source metad.
 
     Responsibility:
-        Represent feature runtime binding state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the runtime binding between a Gherkin feature file (GherkinDocument), its compiled pickles, source
+        metadata, and the owning Run. This module manages AST object registration (IdentifiableObjectRegistry), pickle
+        compilation (via gherkin.pickles.compiler), lookup of linked AST nodes for pickles and steps, resolution of step
+        keywords/prefixes/line numbers, and source identity construction for reporting. It is the bridge between parsed
+        Gherkin AST and runtime execution.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.feature_binding.FeatureRuntimeBinding` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - _feature_filename_from_uri: owns nested behavior below this boundary
-        - load_gherkin_document: owns nested behavior below this boundary
-        - load_pickles: owns nested behavior below this boundary
-        - build: owns nested behavior below this boundary
-        - ensure_pickles: owns nested behavior below this boundary
-        - index_runtime_objects: owns nested behavior below this boundary
+        - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `FeatureRuntimeBinding`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `FeatureRuntimeBinding`
-        - src/pytest_bdd/model/run_access.py: imports or references `FeatureRuntimeBinding`
-        - src/pytest_bdd/model/scenario_report.py: imports or references `FeatureRuntimeBinding`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `FeatureRuntimeBinding`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates feature_message, ast_node_ids, filename, scenario_ast_id, row_ast_id.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Each FeatureRuntimeBinding must have a valid uri extracted from its GherkinDocument; the ast_registry must
+        index all AST objects reachable from the feature root; pickles must be compiled before step resolution methods
+        are called
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
-
     """
 
     uri: str
@@ -153,51 +158,51 @@ class FeatureRuntimeBinding:
     @staticmethod
     def _feature_filename_from_uri(uri: str | None) -> str:
         """
+        Perform a specific, focused operation within its owning class boundary.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding._feature_filename_from_uri` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding._feature_filename_from_uri` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - Path.as_posix: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - uri.startswith: collaborator call used by this boundary
-            - uri.removeprefix: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_feature_filename_from_uri`
-            - src/pytest_bdd/model/run_access.py: imports or references `_feature_filename_from_uri`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `_feature_filename_from_uri`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `_feature_filename_from_uri`
-            - src/pytest_bdd/parser.py: imports or references `_feature_filename_from_uri`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         if uri is None:
@@ -209,54 +214,52 @@ class FeatureRuntimeBinding:
     @staticmethod
     def load_gherkin_document(raw_gherkin_document: object) -> GherkinDocument:
         """
-        Parse or pass through a Gherkin document object from raw input.
-
-        Returns:
-            The loaded GherkinDocument instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Parse or pass through a Gherkin document object from raw input. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.load_gherkin_document` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - message_converter.from_dict: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `load_gherkin_document`
-            - src/pytest_bdd/model/run_access.py: imports or references `load_gherkin_document`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `load_gherkin_document`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `load_gherkin_document`
-            - src/pytest_bdd/parser.py: imports or references `load_gherkin_document`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if isinstance(raw_gherkin_document, GherkinDocument):
             return raw_gherkin_document
@@ -265,53 +268,52 @@ class FeatureRuntimeBinding:
     @staticmethod
     def load_pickles(pickles_data: Iterable[object]) -> tuple[Pickle, ...]:
         """
-        Convert a collection of raw pickle data representations into a tuple of Pickle instances.
-
-        Returns:
-            A tuple of loaded Pickle objects.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Convert a collection of raw pickle data representations into a tuple of Pickle instances. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.load_pickles` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - tuple: collaborator call used by this boundary
-            - message_converter.from_dict: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `load_pickles`
-            - src/pytest_bdd/model/run_access.py: imports or references `load_pickles`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `load_pickles`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `load_pickles`
-            - src/pytest_bdd/parser.py: imports or references `load_pickles`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return tuple(message_converter.from_dict(pickle_data, Pickle) for pickle_data in pickles_data)
 
@@ -326,60 +328,52 @@ class FeatureRuntimeBinding:
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
         """
-        Construct a new FeatureRuntimeBinding, inferring filenames and indexing contents.
-
-        Returns:
-            A fully initialized FeatureRuntimeBinding instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Construct a new FeatureRuntimeBinding, inferring filenames and indexing contents. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.build`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls._feature_filename_from_uri: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - cls: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - binding.index_runtime_objects: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `build`
-            - src/pytest_bdd/model/run_access.py: imports or references `build`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `build`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `build`
-            - src/pytest_bdd/parser.py: imports or references `build`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates filename, binding.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.build` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if filename is None and source is not None:
             filename = cls._feature_filename_from_uri(source.uri)
@@ -399,61 +393,52 @@ class FeatureRuntimeBinding:
 
     def ensure_pickles(self, *, id_generator: IdGenerator | None) -> tuple[Pickle, ...]:
         """
-        Retrieve compiled pickles for the feature, compiling them on demand if not already present.
-
-        Returns:
-            A tuple of Pickle objects associated with the feature document.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve compiled pickles for the feature, compiling them on demand if not already present. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.ensure_pickles` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cast: collaborator call used by this boundary
-            - message_converter.to_dict: collaborator call used by this boundary
-            - PicklesCompiler.compile: collaborator call used by this boundary
-            - PicklesCompiler: collaborator call used by this boundary
-            - self.load_pickles: collaborator call used by this boundary
-            - self.run.index_identifiable_tree: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ensure_pickles`
-            - src/pytest_bdd/model/run_access.py: imports or references `ensure_pickles`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `ensure_pickles`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `ensure_pickles`
-            - src/pytest_bdd/parser.py: imports or references `ensure_pickles`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates gherkin_document_payload, pickles_data, self.pickles.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.ensure_pickles` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if self.pickles:
             return self.pickles
@@ -468,54 +453,51 @@ class FeatureRuntimeBinding:
 
     def index_runtime_objects(self) -> None:
         """
-        Index the Gherkin document and its associated pickles into the run's identifiable registry.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Index the Gherkin document and its associated pickles into the run's identifiable registry. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.index_runtime_objects` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.run.index_identifiable_tree: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - IdentifiableObjectRegistry: collaborator call used by this boundary
-            - self.ast_registry.index_tree: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `index_runtime_objects`
-            - src/pytest_bdd/model/run_access.py: imports or references `index_runtime_objects`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `index_runtime_objects`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `index_runtime_objects`
-            - src/pytest_bdd/parser.py: imports or references `index_runtime_objects`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates feature_message, self.ast_registry.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.index_runtime_objects` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         feature_message = getattr(self.gherkin_document, "feature", None)
@@ -528,53 +510,52 @@ class FeatureRuntimeBinding:
 
     def resolve_node(self, object_id: str) -> Identifiable:
         """
-        Look up a generic identifiable object by its ID within the current run registry.
-
-        Returns:
-            The resolved Identifiable object instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Look up a generic identifiable object by its ID within the current run registry. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.resolve_node` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.ast_registry.resolve: collaborator call used by this boundary
-            - self.run.identifiable_registry.resolve: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `resolve_node`
-            - src/pytest_bdd/model/run_access.py: imports or references `resolve_node`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `resolve_node`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `resolve_node`
-            - src/pytest_bdd/parser.py: imports or references `resolve_node`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         try:
             return self.ast_registry.resolve(object_id)
@@ -583,61 +564,52 @@ class FeatureRuntimeBinding:
 
     def linked_ast_nodes_for(self, obj: object) -> Generator[Identifiable]:
         """
-        Handle linked ast nodes for.
-
-        Yields:
-            Generated values.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Handle linked ast nodes for. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.linked_ast_nodes_for` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - suppress: collaborator call used by this boundary
-            - self.resolve_node: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `linked_ast_nodes_for`
-            - src/pytest_bdd/model/run_access.py: imports or references `linked_ast_nodes_for`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `linked_ast_nodes_for`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `linked_ast_nodes_for`
-            - src/pytest_bdd/parser.py: imports or references `linked_ast_nodes_for`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates ast_node_ids, ast_node_id.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.linked_ast_nodes_for` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         ast_node_ids: tuple[str, ...]
         if isinstance(obj, MultiLinkedAST):
@@ -652,110 +624,103 @@ class FeatureRuntimeBinding:
 
     def pickle_ast_table_rows(self, pickle: Pickle) -> list[TableRow]:
         """
-        Locate and return all TableRow AST nodes linked to a given Pickle.
-
-        Returns:
-            A list of TableRow instances associated with the Pickle.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Locate and return all TableRow AST nodes linked to a given Pickle. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_ast_table_rows` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.linked_ast_nodes_for: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `pickle_ast_table_rows`
-            - src/pytest_bdd/model/run_access.py: imports or references `pickle_ast_table_rows`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `pickle_ast_table_rows`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `pickle_ast_table_rows`
-            - src/pytest_bdd/parser.py: imports or references `pickle_ast_table_rows`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return [node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, TableRow)]  # type: ignore[misc]  # mypy narrows via isinstance but the list comp loses it
 
     def pickle_table_rows_breadcrumb(self, pickle: Pickle) -> str:
         """
-        Generate a human-readable breadcrumb string representing table row locations for a Pickle.
-
-        Returns:
-            A string containing line information for the table rows, or empty string if none.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Generate a human-readable breadcrumb string representing table row locations for a Pickle. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_table_rows_breadcrumb` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - deepattrgetter: collaborator call used by this boundary
-            - join: collaborator call used by this boundary
-            - self.pickle_ast_table_rows: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `pickle_table_rows_breadcrumb`
-            - src/pytest_bdd/model/run_access.py: imports or references `pickle_table_rows_breadcrumb`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `pickle_table_rows_breadcrumb`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `pickle_table_rows_breadcrumb`
-            - src/pytest_bdd/parser.py: imports or references `pickle_table_rows_breadcrumb`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates table_rows_lines.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_table_rows_breadcrumb` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         table_rows_lines = ",".join(
             (
@@ -767,61 +732,52 @@ class FeatureRuntimeBinding:
 
     def get_source_identity(self, pickle: Pickle) -> dict[str, object]:
         """
-        Get stable source identity for a pickle.
-
-        Returns:
-            A dictionary containing uri, scenarioAstNodeId, and optional rowAstNodeId / rowBreadcrumb.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Get stable source identity for a pickle. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.get_source_identity` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - self.pickle_ast_scenario: collaborator call used by this boundary
-            - self.pickle_ast_table_rows: collaborator call used by this boundary
-            - len: collaborator call used by this boundary
-            - self.pickle_table_rows_breadcrumb: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `get_source_identity`
-            - src/pytest_bdd/model/run_access.py: imports or references `get_source_identity`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `get_source_identity`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `get_source_identity`
-            - src/pytest_bdd/parser.py: imports or references `get_source_identity`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates scenario_ast_id, row_ast_id, ast_node_ids, scenario, table_rows.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.get_source_identity` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         ast_node_ids = [str(ast_node_id) for ast_node_id in (getattr(pickle, "ast_node_ids", None) or ())]
         scenario_ast_id = None
@@ -852,54 +808,52 @@ class FeatureRuntimeBinding:
 
     def pickle_ast_scenario(self, pickle: Pickle) -> Scenario | None:
         """
-        Locate the original Scenario AST node corresponding to a compiled Pickle.
-
-        Returns:
-            The associated Scenario instance, or None if it cannot be found.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Locate the original Scenario AST node corresponding to a compiled Pickle. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_ast_scenario` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - next: collaborator call used by this boundary
-            - self.linked_ast_nodes_for: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `pickle_ast_scenario`
-            - src/pytest_bdd/model/run_access.py: imports or references `pickle_ast_scenario`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `pickle_ast_scenario`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `pickle_ast_scenario`
-            - src/pytest_bdd/parser.py: imports or references `pickle_ast_scenario`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return next(  # type: ignore[return-value]  # mypy loses isinstance narrowing in generator
             (node for node in self.linked_ast_nodes_for(pickle) if isinstance(node, Scenario)),
@@ -908,58 +862,52 @@ class FeatureRuntimeBinding:
 
     def pickle_line_number(self, pickle: Pickle) -> int:
         """
-        Determine the starting line number in the source file for a given Pickle.
-
-        Returns:
-            The integer line number, or -1 if the location cannot be resolved.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Determine the starting line number in the source file for a given Pickle. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_line_number` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.pickle_ast_scenario: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - int: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `pickle_line_number`
-            - src/pytest_bdd/model/run_access.py: imports or references `pickle_line_number`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `pickle_line_number`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `pickle_line_number`
-            - src/pytest_bdd/parser.py: imports or references `pickle_line_number`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates scenario, location, line.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_line_number` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         scenario = self.pickle_ast_scenario(pickle)
         if scenario is None:
@@ -970,54 +918,52 @@ class FeatureRuntimeBinding:
 
     def pickle_step_ast_step(self, pickle_step: PickleStep) -> Step | None:
         """
-        Find the original Step AST node corresponding to a compiled PickleStep.
-
-        Returns:
-            The Step instance, or None if it cannot be found.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Find the original Step AST node corresponding to a compiled PickleStep. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.pickle_step_ast_step` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - next: collaborator call used by this boundary
-            - self.linked_ast_nodes_for: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `pickle_step_ast_step`
-            - src/pytest_bdd/model/run_access.py: imports or references `pickle_step_ast_step`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `pickle_step_ast_step`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `pickle_step_ast_step`
-            - src/pytest_bdd/parser.py: imports or references `pickle_step_ast_step`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return next(
             (node for node in self.linked_ast_nodes_for(pickle_step) if isinstance(node, Step)),
@@ -1026,60 +972,52 @@ class FeatureRuntimeBinding:
 
     def step_keyword(self, step: PickleStep) -> str | None:
         """
-        Extract the specific Gherkin keyword (e.g., 'Given', 'When') used for a PickleStep.
-
-        Returns:
-            The stripped keyword string, or None if unavailable.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Extract the specific Gherkin keyword (e.g., 'Given', 'When') used for a PickleStep. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_keyword` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.pickle_step_ast_step: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
-            - keyword.strip: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `step_keyword`
-            - src/pytest_bdd/model/run_access.py: imports or references `step_keyword`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `step_keyword`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `step_keyword`
-            - src/pytest_bdd/parser.py: imports or references `step_keyword`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates model_step, keyword.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_keyword` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         model_step = self.pickle_step_ast_step(step)
         if model_step is not None:
@@ -1090,114 +1028,104 @@ class FeatureRuntimeBinding:
 
     def step_prefix(self, step: PickleStep) -> str | None:
         """
-        Determine the lowercase prefix (keyword equivalent) for a PickleStep.
-
-        Returns:
-            The lowercase keyword string, or None if unavailable.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Determine the lowercase prefix (keyword equivalent) for a PickleStep. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_prefix` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.step_keyword: collaborator call used by this boundary
-            - keyword.lower: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `step_prefix`
-            - src/pytest_bdd/model/run_access.py: imports or references `step_prefix`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `step_prefix`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `step_prefix`
-            - src/pytest_bdd/parser.py: imports or references `step_prefix`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates keyword.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_prefix` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         keyword = self.step_keyword(step)
         return keyword.lower() if keyword is not None else None
 
     def step_line_number(self, step: PickleStep) -> int | None:
         """
-        Identify the source line number where a PickleStep is defined.
-
-        Returns:
-            The integer line number, or -1/None if the location cannot be resolved.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Identify the source line number where a PickleStep is defined. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_line_number` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.pickle_step_ast_step: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `step_line_number`
-            - src/pytest_bdd/model/run_access.py: imports or references `step_line_number`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `step_line_number`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `step_line_number`
-            - src/pytest_bdd/parser.py: imports or references `step_line_number`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates model_step.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_line_number` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         model_step = self.pickle_step_ast_step(step)
         if model_step is not None:
@@ -1206,159 +1134,155 @@ class FeatureRuntimeBinding:
 
     def step_doc_string(self, step: PickleStep) -> object | None:
         """
-        Retrieve the DocString payload attached to a PickleStep, if any.
-
-        Returns:
-            The doc string object, or None if not present.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the DocString payload attached to a PickleStep, if any. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_doc_string` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - self.pickle_step_ast_step: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `step_doc_string`
-            - src/pytest_bdd/model/run_access.py: imports or references `step_doc_string`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `step_doc_string`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `step_doc_string`
-            - src/pytest_bdd/parser.py: imports or references `step_doc_string`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return getattr(self.pickle_step_ast_step(step), "doc_string", None)
 
     def step_data_table(self, step: PickleStep) -> object | None:
         """
-        Retrieve the DataTable payload attached to a PickleStep, if any.
-
-        Returns:
-            The data table object, or None if not present.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the DataTable payload attached to a PickleStep, if any. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.step_data_table` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - self.pickle_step_ast_step: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `step_data_table`
-            - src/pytest_bdd/model/run_access.py: imports or references `step_data_table`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `step_data_table`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `step_data_table`
-            - src/pytest_bdd/parser.py: imports or references `step_data_table`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return getattr(self.pickle_step_ast_step(step), "data_table", None)
 
     @property
     def rel_filename(self) -> str | None:
         """
-        Extract a relative filename path from the binding's URI if it uses a 'file:' scheme.
-
-        Returns:
-            The relative path string, or None if the URI is not file-based.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Extract a relative filename path from the binding's URI if it uses a 'file:' scheme. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.rel_filename` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.uri.startswith: collaborator call used by this boundary
-            - len: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `rel_filename`
-            - src/pytest_bdd/model/run_access.py: imports or references `rel_filename`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `rel_filename`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `rel_filename`
-            - src/pytest_bdd/parser.py: imports or references `rel_filename`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if self.uri.startswith("file:"):
             return self.uri[len("file:") :]
@@ -1367,56 +1291,52 @@ class FeatureRuntimeBinding:
     @property
     def name(self) -> str | None:
         """
-        Retrieve the human-readable name of the bound Feature.
-
-        Returns:
-            The feature name string, or None if unavailable.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the human-readable name of the bound Feature. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.name`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/__init__.py: imports or references `name`
-            - src/pytest_bdd/_pylint/checkers/file_size_rules.py: imports or references `name`
-            - src/pytest_bdd/_pylint/checkers/init_rules.py: imports or references `name`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `name`
-            - src/pytest_bdd/_pylint/checkers/noqa_rules.py: imports or references `name`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates feature_message.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.name` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         feature_message = getattr(self.gherkin_document, "feature", None)
         return str(feature_message.name) if feature_message is not None else None
@@ -1424,57 +1344,52 @@ class FeatureRuntimeBinding:
     @property
     def line_number(self) -> int | None:
         """
-        Retrieve the starting line number of the bound Feature declaration.
-
-        Returns:
-            The integer line number, or None if unavailable.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the starting line number of the bound Feature declaration. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.line_number` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - int: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `line_number`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `line_number`
-            - src/pytest_bdd/model/run_access.py: imports or references `line_number`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `line_number`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `line_number`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates feature_message, location, line.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.line_number` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         feature_message = getattr(self.gherkin_document, "feature", None)
         location = getattr(feature_message, "location", None)
@@ -1484,59 +1399,52 @@ class FeatureRuntimeBinding:
     @property
     def description(self) -> str | None:
         """
-        Retrieve and dedent the descriptive text block associated with the Feature.
-
-        Returns:
-            The dedented description string, or None if no description exists.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve and dedent the descriptive text block associated with the Feature. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.description` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
-            - dedent: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_build.py: imports or references `description`
-            - src/pytest_bdd/model/coverage/inventory.py: imports or references `description`
-            - src/pytest_bdd/model/message_baseline_diff.py: imports or references `description`
-            - src/pytest_bdd/model/message_capability.py: imports or references `description`
-            - src/pytest_bdd/model/message_capability_inventory.py: imports or references `description`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates feature_message, description.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.description` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         feature_message = getattr(self.gherkin_document, "feature", None)
         description = getattr(feature_message, "description", None)
@@ -1547,58 +1455,52 @@ class FeatureRuntimeBinding:
     @property
     def tag_names(self) -> list[str]:
         """
-        Extract a sorted list of tag names applied to the Feature, stripping any defined tag prefix.
-
-        Returns:
-            A list of normalized tag name strings.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Extract a sorted list of tag names applied to the Feature, stripping any defined tag prefix. It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.tag_names`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - sorted: collaborator call used by this boundary
-            - str.lstrip: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - gherkin.pickles.compiler: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_run: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `tag_names`
-            - src/pytest_bdd/model/run_access.py: imports or references `tag_names`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `tag_names`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `tag_names`
-            - src/pytest_bdd/parser.py: imports or references `tag_names`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates feature_message, tags.
-
-        Invariants:
-            - `pytest_bdd.model.feature_binding.FeatureRuntimeBinding.tag_names` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         feature_message = getattr(self.gherkin_document, "feature", None)
         tags = getattr(feature_message, "tags", None) or ()

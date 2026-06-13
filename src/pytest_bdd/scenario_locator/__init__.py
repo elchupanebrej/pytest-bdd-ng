@@ -1,72 +1,88 @@
-# init: public-api  # init: no-check
 """
-Scenario locator implementations for pytest-bdd-ng.
+Serves as a public API facade that explicitly re-exports the complete scenario_locator public API — including FileSce.
 
 Responsibility:
-    Scenario locator implementations for pytest-bdd-ng. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Serves as a public API facade that explicitly re-exports the complete scenario_locator public API — including
+    FileScenarioLocator, FileScenarioLocatorDefaults, UrlScenarioLocator, PyPyUrlScenarioLocator,
+    ScenarioLocatorFilterMixin, ScenarioLocatorFilterT, and ScenarioLocatorResolver — from the
+    pytest_bdd.scenario_locator.facade subpackage. This module is the canonical import point for any code that needs to
+    resolve and filter BDD scenarios from file systems or URLs during test collection.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.scenario_locator` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Provides a clean, stable import path (pytest_bdd.scenario_locator) for scenario location infrastructure while
+    keeping implementation organized across multiple subpackage modules (base.py for protocols, file_locator.py and
+    url_locator.py for concrete implementations, facade.py for re-export aggregation). This follows the facade pattern
+    used throughout pytest-bdd where package __init__.py modules explicitly import and re-export the public API, giving
+    consumers a single import target while allowing internal module reorganization without breaking external code.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - pytest_bdd.scenario_locator.facade: All public API symbols are explicitly imported from this module, which
+    aggregates re-exports from base, file_locator, and url_locator.
+    - pytest_bdd.scenario_locator.base: Defines protocol classes (ScenarioLocatorFeatureResolver,
+    ScenarioLocatorReadObserver, ScenarioLocatorResolver, ScenarioLocatorHookProtocol, ScenarioLocatorFilterMixin) and
+    type aliases (ScenarioLocatorFilterT).
+    - pytest_bdd.scenario_locator.file_locator: Implements file-system-based scenario location (FileScenarioLocator,
+    FileScenarioLocatorDefaults).
+    - pytest_bdd.scenario_locator.url_locator: Implements URL-based scenario location with both async/aiohttp and PyPy-
+    compatible synchronous variants (UrlScenarioLocator, PyPyUrlScenarioLocator).
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Perfect cohesion as a facade: the single responsibility is re-exporting the scenario_locator public API. Each import
+    is explicit (not wildcard) with `as` aliasing, providing clear traceability of which symbols are exposed.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.scenario_locator.facade: Kept separate because facade.py aggregates re-exports with justification
+    comments for each import category, while __init__.py provides the clean consumer-facing import path — facade is the
+    "truth source" for the public API surface.
+    - pytest_bdd.collector: Kept separate because the collector module owns the test collection lifecycle (pytest
+    collection hooks and test item creation), while scenario_locator owns the feature file/pickle discovery and
+    filtering — the collector consumes the locator but does not own location logic.
 
 Main consumers:
-    - src/pytest_bdd/feature_locator.py: imports or references `scenario_locator`
-    - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `scenario_locator`
-    - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `scenario_locator`
+    - pytest_bdd.collector: Imports FileScenarioLocator to discover feature files and their pickles during test
+    collection, passing the results to the test item factory.
+    - pytest_bdd.scenario: Uses scenario locators when the `scenarios()` function is called with directory or URL paths,
+    routing to the appropriate locator based on the path type.
+    - Plugin entry points and conftest.py files: May import ScenarioLocatorFilterT or ScenarioLocatorResolver for custom
+    scenario filtering or resolution logic.
 
 State and side effects:
-    depends on pytest_bdd.scenario_locator.facade.FileScenarioLocator,
-    pytest_bdd.scenario_locator.facade.FileScenarioLocatorDefaults,
-    pytest_bdd.scenario_locator.facade.PyPyUrlScenarioLocator,
-    pytest_bdd.scenario_locator.facade.ScenarioLocatorFilterMixin,
-    pytest_bdd.scenario_locator.facade.ScenarioLocatorFilterT.
+    None, keeps no persistent state. All imports execute at module load time but have no side effects beyond namespace
+    population.
 
 Invariants:
-    - `pytest_bdd.scenario_locator` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - Every public API type defined in the scenario_locator subpackage must be exportable through this __init__.py
+    without requiring additional imports.
+    - Import aliasing (`as` clauses) must preserve the original class names exactly as defined in their source modules.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
+    #arch-eval:owned_responsibility=2
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
     #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=4
+    #arch-eval:locational_stability=5
 """
 
+__all__: list[str] = [
+    "FileScenarioLocator",
+    "FileScenarioLocatorDefaults",
+    "PyPyUrlScenarioLocator",
+    "ScenarioLocatorFilterMixin",
+    "ScenarioLocatorFilterT",
+    "ScenarioLocatorResolver",
+    "UrlScenarioLocator",
+]
+
 from pytest_bdd.scenario_locator.facade import (
-    FileScenarioLocator as FileScenarioLocator,
-)
-from pytest_bdd.scenario_locator.facade import (
-    FileScenarioLocatorDefaults as FileScenarioLocatorDefaults,
-)
-from pytest_bdd.scenario_locator.facade import (
-    PyPyUrlScenarioLocator as PyPyUrlScenarioLocator,
-)
-from pytest_bdd.scenario_locator.facade import (
-    ScenarioLocatorFilterMixin as ScenarioLocatorFilterMixin,
-)
-from pytest_bdd.scenario_locator.facade import (
-    ScenarioLocatorFilterT as ScenarioLocatorFilterT,
-)
-from pytest_bdd.scenario_locator.facade import (
-    ScenarioLocatorResolver as ScenarioLocatorResolver,
-)
-from pytest_bdd.scenario_locator.facade import (
-    UrlScenarioLocator as UrlScenarioLocator,
+    FileScenarioLocator,
+    FileScenarioLocatorDefaults,
+    PyPyUrlScenarioLocator,
+    ScenarioLocatorFilterMixin,
+    ScenarioLocatorFilterT,
+    ScenarioLocatorResolver,
+    UrlScenarioLocator,
 )

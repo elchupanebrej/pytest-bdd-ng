@@ -18,9 +18,10 @@
     from pathlib import Path
     from pytest_bdd import scenario
 
+
     @scenario(Path(__file__).parent / "simple.feature", "Simple scenario")
     def test_simple():
-      pass
+        pass
     ```
 
 * And File "conftest.py" with content:
@@ -28,9 +29,10 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have a bar")
     def _bar():
-      return "bar"
+        return "bar"
     ```
 
 * And File "pytest.ini" with content:
@@ -62,9 +64,10 @@
     from pathlib import Path
     from pytest_bdd import scenario
 
+
     @scenario(Path(__file__).parent / "not_found.feature", "Missing scenario")
     def test_missing():
-      pass
+        pass
     ```
 
 * And File "pytest.ini" with content:

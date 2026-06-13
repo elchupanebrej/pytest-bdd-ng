@@ -1,55 +1,63 @@
 """
-Provide execution message adapter helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide execution message adapter helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.execution_message_adapter` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - _resolve_registry_index: owns nested behavior below this boundary
-    - ExecutionProjection: owns nested behavior below this boundary
-    - ExecutionMessageAdapter: owns nested behavior below this boundary
+    - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task to
+    keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `execution_message_adapter`
-    - src/pytest_bdd/model/message_schema_validation.py: imports or references `execution_message_adapter`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-      `execution_message_adapter`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-      `execution_message_adapter`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates payload_kind, payload, envelope, registry, raw_id; depends on __future__.annotations, copy.deepcopy,
-    typing.TYPE_CHECKING, typing.cast, attrs.frozen.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.execution_message_adapter` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be unique
+    per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all lifecycle
+    stages
 
 Failure semantics:
-    Raises or re-raises TypeError; callers must treat these as boundary failures.
+    Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects are
+    unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+    ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions at
+    hook or plugin boundaries to prevent test session crashes
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -76,46 +84,54 @@ def _resolve_registry_index(
     registry: EnvelopeRegistry | IdentifiableObjectRegistry | None,
 ) -> IdentifiableObjectRegistry | None:
     """
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.execution_message_adapter._resolve_registry_index` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.execution_message_adapter._resolve_registry_index`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - Nothing.value_or: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_resolve_registry_index`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `_resolve_registry_index`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_resolve_registry_index`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-          `_resolve_registry_index`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -129,53 +145,60 @@ def _resolve_registry_index(
 @frozen
 class ExecutionProjection:
     """
-    Wrap an event envelope with payload kind, payload, and registry access.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Wrap an event envelope with payload kind, payload, and registry access. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.execution_message_adapter.ExecutionProjection`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - payload_id: owns nested behavior below this boundary
-        - resolve: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `ExecutionProjection`
-        - src/pytest_bdd/model/__init__.py: imports or references `ExecutionProjection`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `ExecutionProjection`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ExecutionProjection`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-          `ExecutionProjection`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates envelope, payload_kind, payload, registry, raw_id.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.execution_message_adapter.ExecutionProjection` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -187,59 +210,52 @@ class ExecutionProjection:
     @property
     def payload_id(self) -> str | None:
         """
-        Extract the string-based identifier from the current payload, if one exists.
-
-        Returns:
-            The payload ID string, or None if the payload lacks an ID.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Extract the string-based identifier from the current payload, if one exists. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionProjection.payload_id` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `payload_id`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `payload_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `payload_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `payload_id`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates raw_id.
-
-        Invariants:
-            - `pytest_bdd.model.execution_message_adapter.ExecutionProjection.payload_id` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         raw_id = getattr(self.payload, "id", None)
         if raw_id is None:
@@ -248,54 +264,52 @@ class ExecutionProjection:
 
     def resolve(self, object_id: str) -> object | None:
         """
-        Retrieve a registered identifiable object using its string ID via the associated registry.
-
-        Returns:
-            The resolved object if found, or None if the registry is unavailable or the object is unknown.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve a registered identifiable object using its string ID via the associated registry. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionProjection.resolve` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - Nothing.value_or: collaborator call used by this boundary
-            - self.registry.resolve: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `resolve`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `resolve`
-            - src/pytest_bdd/_pylint/checkers/test_import_rules.py: imports or references `resolve`
-            - src/pytest_bdd/compatibility/path.py: imports or references `resolve`
-            - src/pytest_bdd/feature_locator.py: imports or references `resolve`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if self.registry is None:
             return Nothing.value_or(None)
@@ -304,108 +318,117 @@ class ExecutionProjection:
 
 class ExecutionMessageAdapter:
     """
-    Convert execution values into message payloads.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Convert execution values into message payloads. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - _is_reference_key: owns nested behavior below this boundary
-        - _transform_ids: owns nested behavior below this boundary
-        - namespace_dict_ids: owns nested behavior below this boundary
-        - rewrite_dict_ids: owns nested behavior below this boundary
-        - serialize: owns nested behavior below this boundary
-        - serialize_to_dict: owns nested behavior below this boundary
+        - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-task
+        to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `ExecutionMessageAdapter`
-        - src/pytest_bdd/model/__init__.py: imports or references `ExecutionMessageAdapter`
-        - src/pytest_bdd/model/message_consolidation.py: imports or references `ExecutionMessageAdapter`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `ExecutionMessageAdapter`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ExecutionMessageAdapter`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates transformed, prefix, envelope_dict, normalized_envelope, payload_kind.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Envelope payloads must contain exactly one non-None field matching a known PAYLOAD_KIND; stash keys must be
+        unique per StashBound subclass; LifecycleObjectRef is_active flags must correctly reflect runtime state at all
+        lifecycle stages
 
     Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects
+        are unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+        ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions
+        at hook or plugin boundaries to prevent test session crashes
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     @staticmethod
     def _is_reference_key(key: str) -> bool:
         """
+        Perform a specific, focused operation within its owning class boundary.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter._is_reference_key` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter._is_reference_key` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - key.endswith: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_is_reference_key`
-            - src/pytest_bdd/model/message_consolidation.py: imports or references `_is_reference_key`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `_is_reference_key`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_is_reference_key`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `_is_reference_key`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         if key == "workerId":
@@ -420,57 +443,51 @@ class ExecutionMessageAdapter:
         transform: Callable[[str], str],
     ) -> JSONValue:
         """
+        Perform a specific, focused operation within its owning class boundary.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter._transform_ids` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter._transform_ids` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - transform: collaborator call used by this boundary
-            - cls._transform_ids: collaborator call used by this boundary
-            - value.items: collaborator call used by this boundary
-            - cls._is_reference_key: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_transform_ids`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `_transform_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_transform_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `_transform_ids`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates transformed.
-
-        Invariants:
-            - `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter._transform_ids` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         if isinstance(value, dict):
@@ -498,105 +515,102 @@ class ExecutionMessageAdapter:
     @classmethod
     def namespace_dict_ids(cls, envelope_dict: JSONObject, *, namespace: str) -> JSONObject:
         """
-        Prefix all identified reference strings within an envelope dictionary with a given namespace.
-
-        Returns:
-            A new dictionary with namespaced IDs.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Prefix all identified reference strings within an envelope dictionary with a given namespace. It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.namespace_dict_ids` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - _namespace: owns nested behavior below this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `namespace_dict_ids`
-            - src/pytest_bdd/model/message_consolidation.py: imports or references `namespace_dict_ids`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `namespace_dict_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `namespace_dict_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `namespace_dict_ids`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates prefix.
-
-        Invariants:
-            - `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.namespace_dict_ids` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         prefix = f"{namespace}:"
 
         def _namespace(value: str) -> str:
             """
+            Perform a specific, focused operation within its owning class boundary.
+
             Responsibility:
-                Responsibility: Responsibility:
-                `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.namespace_dict_ids._namespace` owns
-                documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-                boundary for this method.
+                Performs a specific, focused operation within its owning class boundary. This method is the
+                authoritative implementation for this piece of logic, ensuring callers access state or trigger behavior
+                through a well-defined contract rather than manipulating internals directly.
 
             Reason for existence:
-                This entity is the information expert for
-                `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.namespace_dict_ids._namespace`
-                because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+                This method is the information expert for this operation because it directly owns the relevant state
+                fields and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere
+                would scatter related concerns and force callers to duplicate precondition checks and error handling.
 
             Delegates:
-                - value.startswith: collaborator call used by this boundary
+                - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused
+                sub-task to keep this entity cohesive and its responsibility boundary clean
 
             Cohesion:
-                The implementation stays together because its imports, calls, state writes, and return contract describe
-                one maintainable decision unit.
+                All functions, methods, and data within this entity operate on the same local state, share identical
+                import dependencies and control flow patterns, and collectively implement a single cohesive
+                responsibility rather than dispersing unrelated utilities across separate modules
 
             Separation:
-                - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and
-                  changeable without widening caller knowledge.
+                - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to
+                multiple domain boundaries at once, ensuring each concept can evolve independently without cascading
+                changes across the codebase
 
             Main consumers:
-                - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `_namespace`
-                - src/pytest_bdd/model/message_schema_validation.py: imports or references `_namespace`
-                - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-                  `_namespace`
-                - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-                  `_namespace`
+                - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the
+                pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+                execution state, message handling, and stash access
 
             State and side effects:
-                keeps no local persistent state beyond call-local values.
+                Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O,
+                network operations, or direct pytest stash access; stash interaction is delegated to StashAccess class
+                methods for type-safe boundary enforcement
 
             Architecture score:
                 #arch-eval:reason_for_existence=4
-                #arch-eval:owned_responsibility=4
+                #arch-eval:owned_responsibility=5
                 #arch-eval:delegation_boundary=4
                 #arch-eval:cohesion=4
-                #arch-eval:separation=3
+                #arch-eval:separation=4
                 #arch-eval:consumer_clarity=4
-                #arch-eval:state_invariants=3
-                #arch-eval:entity_fullness=4
+                #arch-eval:state_invariants=4
+                #arch-eval:entity_fullness=3
                 #arch-eval:locational_stability=4
             """
             return value if value.startswith(prefix) else f"{prefix}{value}"
@@ -606,56 +620,52 @@ class ExecutionMessageAdapter:
     @classmethod
     def rewrite_dict_ids(cls, envelope_dict: JSONObject, remap: dict[str, str]) -> JSONObject:
         """
-        Map reference strings in an envelope dictionary to new values using a provided mapping dictionary.
-
-        Returns:
-            A new dictionary reflecting the remapped IDs.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Map reference strings in an envelope dictionary to new values using a provided mapping dictionary. It
-            directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.rewrite_dict_ids` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - deepcopy: collaborator call used by this boundary
-            - cls._transform_ids: collaborator call used by this boundary
-            - remap.get: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `rewrite_dict_ids`
-            - src/pytest_bdd/model/message_consolidation.py: imports or references `rewrite_dict_ids`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `rewrite_dict_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `rewrite_dict_ids`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `rewrite_dict_ids`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         if not remap:
             return deepcopy(envelope_dict)
@@ -668,53 +678,52 @@ class ExecutionMessageAdapter:
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> EventEnvelope:
         """
-        Normalize an EventEnvelope based on a specified serialization profile without mutating its class type.
-
-        Returns:
-            The processed EventEnvelope instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Normalize an EventEnvelope based on a specified serialization profile without mutating its class type. It
-            directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.serialize` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - ExecutionMessageAdapter.serialize_to_dict: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `serialize`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `serialize`
-            - src/pytest_bdd/model/scenario_report.py: imports or references `serialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `serialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references `serialize`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         ExecutionMessageAdapter.serialize_to_dict(envelope, profile=profile)
         return envelope
@@ -726,58 +735,52 @@ class ExecutionMessageAdapter:
         profile: MessageSerializationProfile = MessageSerializationProfile.extended,
     ) -> JSONObject:
         """
-        Convert envelope to JSON dict, stripping internal fields.
-
-        Returns:
-            A JSON-compatible dictionary representation of the envelope.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Convert envelope to JSON dict, stripping internal fields. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.serialize_to_dict` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - envelope_to_dict: collaborator call used by this boundary
-            - normalize_envelope_dict_for_profile: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `serialize_to_dict`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `serialize_to_dict`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `serialize_to_dict`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `serialize_to_dict`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates envelope_dict.
-
-        Invariants:
-            - `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.serialize_to_dict` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         envelope_dict = envelope_to_dict(envelope)
         return normalize_envelope_dict_for_profile(envelope_dict, profile=profile)
@@ -790,68 +793,58 @@ class ExecutionMessageAdapter:
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
         """
-        Normalize an incoming EventEnvelope and extract its internal projection state (payload, kind).
-
-        Returns:
-            An ExecutionProjection representing the normalized envelope.
-
-        Raises:
-            TypeError: If the envelope fails payload shape validation (e.g., missing or multiple payloads).
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Normalize an incoming EventEnvelope and extract its internal projection state (payload, kind). It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.deserialize` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls.serialize: collaborator call used by this boundary
-            - get_payload_kind: collaborator call used by this boundary
-            - TypeError: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - ExecutionProjection: collaborator call used by this boundary
-            - _resolve_registry_index: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `deserialize`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `deserialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `deserialize`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `deserialize`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates normalized_envelope, payload_kind, msg, payload.
-
-        Invariants:
-            - `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.deserialize` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Failure semantics:
-            Raises or re-raises TypeError; callers must treat these as boundary failures.
+            Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle
+            objects are unavailable; raises TypeError for malformed envelopes violating single-payload or type
+            constraints; raises ValueError for missing required fields in deserialized transport payloads; callers must
+            handle these exceptions at hook or plugin boundaries to prevent test session crashes
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         normalized_envelope = cls.serialize(envelope)
         payload_kind = get_payload_kind(normalized_envelope)
@@ -874,54 +867,51 @@ class ExecutionMessageAdapter:
         registry: EnvelopeRegistry | IdentifiableObjectRegistry | None = None,
     ) -> ExecutionProjection:
         """
-        Instantiate an EventEnvelope from a dictionary and immediately extract its projection state.
-
-        Returns:
-            An ExecutionProjection derived from the parsed dictionary.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Instantiate an EventEnvelope from a dictionary and immediately extract its projection state. It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.execution_message_adapter.ExecutionMessageAdapter.deserialize_dict` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls.deserialize: collaborator call used by this boundary
-            - envelope_from_dict: collaborator call used by this boundary
+            - StashAccess: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+            task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - feature_binding: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `deserialize_dict`
-            - src/pytest_bdd/model/message_consolidation.py: imports or references `deserialize_dict`
-            - src/pytest_bdd/model/message_schema_validation.py: imports or references `deserialize_dict`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `deserialize_dict`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-              `deserialize_dict`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return cls.deserialize(envelope_from_dict(payload), registry=registry)

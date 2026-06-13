@@ -5,6 +5,8 @@
 * Given File "conftest.py" with content:
     ```python
     from pytest_bdd import given
+
+
     @given("a step")
     def _():
         pass
@@ -12,11 +14,13 @@
 * And File "test_hocon.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     test_scenarios = scenarios("test.bdd.hocon")
     ```
 * And File "test_toml.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     test_scenarios = scenarios("test.bdd.toml")
     ```
 
@@ -42,6 +46,7 @@
 * Given File "test_malformed.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     test_scenarios = scenarios("struct.bdd.yaml")
     ```
 * And StructBDD parse error occurs
@@ -54,6 +59,7 @@
 * Given File "test_skip.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     test_scenarios = scenarios("test.bdd.yaml")
     ```
 * And StructBDD format is yaml

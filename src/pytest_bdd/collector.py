@@ -1,50 +1,85 @@
 """
-Provide collector helpers.
+Pytest collection integration layer that bridges Gherkin feature files into pytest's test collection tree.
 
 Responsibility:
-    Provide collector helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Pytest collection integration layer that bridges Gherkin feature files into pytest's test collection tree. Defines
+    two pytest Module subclasses — Module and FeatureFileModule — that enable .feature, .feature.md, .url, .desktop, and
+    .webloc files to be discovered as Python test modules during collection. FeatureFileModule synthesizes a virtual
+    Python module from each feature file by delegating to scenario()/scenarios(), and supports three URL shortcut
+    formats (.url INI files, .desktop XDG files, .webloc Apple plist files) for referencing remote or relocated feature
+    paths.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.collector` because it keeps the nearest code, data shape, call
-    signature, and failure knowledge together.
+    This module is the information expert for making Gherkin feature files appear as first-class pytest collection
+    nodes. Without it, pytest would not know how to collect tests from .feature files. It is kept separate from
+    scenario.py (which defines the scenario/scenarios API) and from the plugin scenario_test_collector (which handles
+    autoload and test generation) because it owns the specific concern of virtual module synthesis — turning a file path
+    into a Python ModuleType with a test_scenarios attribute. The URL shortcut format support (.url, .desktop, .webloc)
+    is co-located here because it is a necessary pre-processing step for feature file resolution that only applies
+    during collection, not during direct API usage.
 
 Delegates:
-    - Module: owns nested behavior below this boundary
-    - FeatureFileModule: owns nested behavior below this boundary
+    - pytest_bdd.collector_batch.FeatureBatchParser: Batch-parses feature files lazily; FeatureFileModule.collect()
+    flushes any pending batch before delegating to super().collect().
+    - pytest_bdd.scenario.scenarios: Called by _build_test_module to create the test_scenarios attribute on the
+    synthetic module.
+    - pytest_bdd.steps.StepDefinitionManager.Registry.inject_registry_fixture: Called by Module.collect() to bind the
+    step registry as a pytest fixture on the module object.
+    - pytest_bdd.util.other.format_as_python_identifier: Generates a valid Python identifier from the feature file path
+    for the synthetic module name.
+    - pytest_bdd.util.webloc.read: Reads Apple .webloc plist files to extract the target URL.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic in this module revolves around a single workflow: take a file path (possibly a shortcut file), resolve it
+    to a feature path, build a synthetic Python module that calls scenarios(), and inject it into pytest's collection
+    tree. The Module/FeatureFileModule class hierarchy, the URL shortcut parsing methods, and the _build_test_module
+    factory all serve this one workflow. There are no unrelated utilities or cross-cutting concerns.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.scenario: Owns the scenario() and scenarios() public API functions. The collector calls them but does
+    not own their parameter handling, marker composition, or overload signatures.
+    - pytest_bdd.plugin.scenario_test_collector: A pytest plugin that hooks into collection events and manages
+    StepDefinitionManager lifecycle. The collector module is the data model (the "what" of virtual modules); the plugin
+    is the event wiring (the "when" of hook invocation).
+    - pytest_bdd.collector_batch: Owns the batch parsing optimization. The collector queries the batch parser from stash
+    and flushes it, but does not own the batching strategy or thresholds.
 
 Main consumers:
-    - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `collector`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `collector`
+    - pytest_bdd.plugin.scenario_test_collector: Registers Module and FeatureFileModule as pytest collection handlers
+    via conftest.py or hook implementations, wiring feature file discovery into the pytest collection cycle.
+    - pytest collection machinery: Pytest itself calls collect() and _getobj() on Module/FeatureFileModule instances
+    during test discovery.
 
 State and side effects:
-    mutates features_path_type, feature_pathlike, base_dir, path, config_parser; depends on logging,
-    collections.abc.Iterable, configparser.ConfigParser, importlib.machinery.ModuleSpec,
-    importlib.util.module_from_spec.
+    FeatureFileModule.collect() reads from pytest.config.stash to find the FeatureBatchParser instance (via
+    StashBound.find_in_stash) and calls flush() on it, which may trigger file I/O (reading and parsing feature files).
+    _getobj() reads feature files from disk (via URL shortcut resolution or direct path access) and creates synthetic
+    Python modules via importlib. The inject_registry_fixture call mutates the module object's attribute dict. Module-
+    level: a logger instance is created.
 
 Invariants:
-    - `pytest_bdd.collector` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - Every synthetic module created by _build_test_module must have a test_scenarios attribute populated by calling
+    scenarios().
+    - The module name generated by format_as_python_identifier must include a uuid4 suffix to guarantee uniqueness even
+    when the same feature file is collected multiple times.
+    - URL shortcut files must conform to their respective format specifications: .url files use ConfigParser with
+    [InternetShortcut] section, .desktop files use [Desktop Entry] section, .webloc files use Apple plist binary format.
+
+Failure semantics:
+    _getobj() and its URL shortcut helpers handle missing configuration keys gracefully (via ConfigParser.get with
+    default None). Webloc read failures propagate as exceptions from pytest_bdd.util.webloc.read. Path resolution
+    failures may raise OSError from Path methods. No custom exception types are raised directly by this module.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 import logging
@@ -72,102 +107,117 @@ logger = logging.getLogger(__name__)
 
 class Module(PytestModule):
     """
-    Represent module state.
+    Pytest collection Module subclass that injects the step definition registry fixture into the module object before del.
 
     Responsibility:
-        Represent module state. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Pytest collection Module subclass that injects the step definition registry fixture into the module object
+        before delegating collection to pytest's standard Module.collect(). This is the base adapter that makes step
+        definitions discoverable within test modules that use pytest-bdd, ensuring that the __pytest_bdd_step_registry__
+        attribute fixture is available when pytest collects test items from the module. Extends pytest.Module to fit
+        into pytest's standard collection protocol without disrupting the normal collection chain.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.collector.Module` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        This class exists as a thin interception point in pytest's collection chain. Rather than modifying pytest's
+        Module directly (which would affect all test modules), it provides a pytest-bdd-specific subclass that injects
+        the step registry fixture. It is the information expert for the single concern: "ensure the step registry
+        fixture is bound before the module's children are collected." It is kept minimal — a single method override —
+        because all actual feature file handling belongs in FeatureFileModule (a further subclass).
 
     Delegates:
-        - collect: owns nested behavior below this boundary
+        - StepDefinitionManager.Registry.inject_registry_fixture: Injects the __pytest_bdd_step_registry__ attribute as
+        a pytest fixture on self.obj (the actual module object).
+        - super().collect(): Delegates the actual collection of test items to pytest's standard Module.collect() implementation.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The class contains exactly one method override (collect()) that does exactly one thing (inject registry then
+        delegate). There is no unrelated logic, no state beyond what pytest.Module already carries, and no internal
+        branching.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - pytest_bdd.collector.FeatureFileModule: Subclasses Module to add feature-file-specific collection logic (URL
+        shortcut resolution, virtual module synthesis). Module itself remains generic — any pytest module that uses step
+        definitions can benefit from the registry injection, not just feature files.
+        - pytest_bdd.steps.Registry: Owns the registry data structure and inject_registry_fixture implementation. Module
+        consumes it but does not own registry semantics.
 
     Main consumers:
-        - src/pytest_bdd/_pylint/checkers/file_size_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/init_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/noqa_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/responsibility_docs.py: imports or references `Module`
+        - pytest collection machinery: Pytest instantiates Module (or FeatureFileModule) during the collection phase
+        when it encounters a test module that has been registered as a pytest-bdd collector.
+        - pytest_bdd.plugin.scenario_test_collector: Configures pytest to use Module/FeatureFileModule for .feature file
+        collection.
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        collect() mutates self.obj by calling inject_registry_fixture, which sets attributes on the underlying module
+        object. This is a one-time side effect that happens during collection. No file I/O, no stash access.
 
     Invariants:
-        - `pytest_bdd.collector.Module` keeps its documented import path, ownership boundary, and observable behavior
-          stable for callers.
+        - collect() must call inject_registry_fixture before calling super().collect() so that the registry fixture
+        exists when child items are collected.
+        - The return value must be cast to Iterable[Item | Collector] because pytest's Module.collect() return type is untyped.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=3
-        #arch-eval:locational_stability=4
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=2
+        #arch-eval:locational_stability=5
     """
 
     def collect(self) -> Iterable[Item | Collector]:
         """
-        Collect tests from this module.
-
-        Returns:
-            Iterable of pytest items and collectors.
+        Injects the step definition registry fixture into the module object via StepDefinitionManager.Registry.inject_registr.
 
         Responsibility:
-            Collect tests from this module. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Injects the step definition registry fixture into the module object via
+            StepDefinitionManager.Registry.inject_registry_fixture, then delegates to pytest's standard Module.collect()
+            to discover test items. This single-method override ensures that the __pytest_bdd_step_registry__ attribute
+            is available as a fixture for all test items collected from this module, without requiring end users to
+            manually declare it in conftest.py.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.collector.Module.collect` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the interception point where pytest-bdd hooks into pytest's standard collection flow. Rather
+            than requiring users to explicitly add fixtures or modify their test modules, it programmatically injects
+            the registry fixture just-in-time during collection. It is kept as a thin override rather than being merged
+            into FeatureFileModule.collect() because the registry injection is a concern of all pytest-bdd test modules,
+            not just feature file modules — FeatureFileModule adds batch parser flushing on top.
 
         Delegates:
-            - StepDefinitionManager.Registry.inject_registry_fixture: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - super.collect: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - StepDefinitionManager.Registry.inject_registry_fixture(self.obj): Sets up the __pytest_bdd_step_registry__
+            attribute as a fixture on the underlying module.
+            - super().collect(): Pytest's built-in Module.collect() that walks the module for test functions and classes.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method body is two lines: one call to inject the registry, one call to super. The logic is trivially
+            cohesive — both lines serve the single purpose of "prepare the module for BDD-aware collection, then
+            collect."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - FeatureFileModule.collect(): Adds batch parser flushing before calling super().collect(). Module.collect()
+            does not need batch parser awareness.
+            - StepDefinitionManager.Registry.inject_registry_fixture: Owns the actual fixture injection mechanics; this
+            method only calls it.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `collect`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `collect`
+            - pytest collection engine: Called by pytest during the collect phase for each pytest-bdd module node.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Mutates self.obj (the underlying Python module) by setting fixture attributes via inject_registry_fixture.
+            No file I/O, no stash access, no logging.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         StepDefinitionManager.Registry.inject_registry_fixture(self.obj)
         return cast("Iterable[Item | Collector]", super().collect())  # type: ignore[misc]  # pytest Module.collect is untyped
@@ -175,109 +225,127 @@ class Module(PytestModule):
 
 class FeatureFileModule(Module):
     """
-    Represent feature file module state.
+    Pytest collection node that synthesizes a virtual Python test module from a Gherkin feature file (or URL shortcut fil.
 
     Responsibility:
-        Represent feature file module state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Pytest collection node that synthesizes a virtual Python test module from a Gherkin feature file (or URL
+        shortcut file pointing to one). Acts as the bridge between filesystem feature artifacts and pytest's module-
+        based collection tree. Handles four file types: .feature/.feature.md (direct Gherkin), .url (Windows INI
+        shortcut), .desktop (XDG desktop entry), and .webloc (Apple plist shortcut). For each, it resolves the actual
+        feature path, builds a synthetic module via importlib.machinery, attaches a test_scenarios attribute populated
+        by calling scenarios(), and presents it to pytest as if it were a real Python module.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.collector.FeatureFileModule` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This class is the core of pytest-bdd's collection integration. Without it, pytest cannot discover BDD scenarios
+        because it only knows how to collect Python modules. FeatureFileModule is the information expert for "how to
+        turn a feature file path into something pytest can collect." It owns the URL shortcut resolution logic (.url,
+        .desktop, .webloc) because those formats are a collection-time concern — they describe where the actual feature
+        content lives, and resolving them is a necessary pre-processing step before test generation. This logic is not
+        part of scenario.py (which operates on already-resolved paths) or the batch parser (which operates on already-
+        known paths).
 
     Delegates:
-        - collect: owns nested behavior below this boundary
-        - _getobj: owns nested behavior below this boundary
-        - _build_test_module: owns nested behavior below this boundary
-        - detect_uri_pathtype: owns nested behavior below this boundary
-        - get_feature_pathlike_from_url_file: owns nested behavior below this boundary
-        - get_feature_pathlike_from_desktop_file: owns nested behavior below this boundary
+        - detect_uri_pathtype: Classifies a path string as PATH, URL, or UNDEFINED based on URL scheme parsing.
+        - get_feature_pathlike_from_url_file: Extracts the target URL and working directory from .url shortcut files.
+        - get_feature_pathlike_from_desktop_file: Extracts the target URL from .desktop shortcut files.
+        - get_feature_pathlike_from_weblock_file: Extracts the target URL from .webloc shortcut files.
+        - _build_test_module: Creates the synthetic Python module with scenarios() call.
+        - pytest_bdd.scenario.scenarios: Populates the synthetic module's test_scenarios attribute.
+        - FeatureBatchParser: Batch-parses pending feature files when collect() is called.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every method in this class serves the single pipeline: file path → resolved feature path → synthetic module →
+        pytest collection. The URL shortcut parsers are all variants of the same "extract target from shortcut file"
+        pattern. detect_uri_pathtype is shared by all three shortcut parsers. _build_test_module is the final assembly
+        step that all paths flow through.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - pytest_bdd.scenario: Owns scenarios() and its parameter handling. FeatureFileModule calls it but does not own
+        the API contract.
+        - pytest_bdd.feature_locator.ScenarioLocatorBuilder: Owns the logic for building ScenarioLocator instances from
+        configuration. FeatureFileModule does not use it — it builds synthetic modules directly via scenarios().
+        - pytest_bdd.collector_batch.FeatureBatchParser: Owns the batch parsing strategy. FeatureFileModule queries and
+        flushes it but does not own the batching algorithm.
 
     Main consumers:
-        - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `FeatureFileModule`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `FeatureFileModule`
+        - pytest collection machinery: Pytest discovers .feature files and instantiates FeatureFileModule as the
+        collection node.
+        - pytest_bdd.plugin.scenario_test_collector: Configures pytest to route .feature files to FeatureFileModule
+        during collection.
 
     State and side effects:
-        mutates features_path_type, feature_pathlike, base_dir, path, config_parser.
+        get_path() reads the filesystem to determine the current file path. The _getobj() method may read shortcut files
+        from disk. collect() reads from pytest.config.stash and may trigger batch file I/O via flush().
+        _build_test_module() creates an in-memory Python module via importlib. Logging via module-level logger.
 
     Invariants:
-        - `pytest_bdd.collector.FeatureFileModule` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The synthetic module name must be a valid Python identifier unique to this collection cycle
+        (format_as_python_identifier with uuid4 suffix).
+        - For .url and .desktop files, the ConfigParser must find the expected section ([InternetShortcut] or [Desktop
+        Entry]) or gracefully return None values.
+        - For .webloc files, the binary plist format must be parseable by pytest_bdd.util.webloc.read.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=5
+        #arch-eval:locational_stability=5
     """
 
     def collect(self) -> Iterable[Item | Collector]:
         """
-        Collect tests, flushing the batch parser if pending.
-
-        Returns:
-            Iterable of pytest items and collectors.
+        Flushes any pending feature files in the FeatureBatchParser (retrieved from pytest.config.stash) before delegating to.
 
         Responsibility:
-            Collect tests, flushing the batch parser if pending. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Flushes any pending feature files in the FeatureBatchParser (retrieved from pytest.config.stash) before
+            delegating to Module.collect() (which injects the registry fixture and runs pytest's standard collection).
+            This ensures that all lazily-batched feature files are parsed and cached before test items are generated,
+            preventing race conditions between batch parsing and test collection.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.collector.FeatureFileModule.collect` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            FeatureFileModule.collect() exists to synchronize the lazy batch parser with the collection cycle. The batch
+            parser accumulates feature paths during the collection walk and only parses them when flushed. If collection
+            proceeds without flushing, test items may reference unparsed Gherkin documents and fail. This method is the
+            guarantee point — it ensures parsing is complete before any test item is collected. It is separate from
+            Module.collect() because only feature file modules need batch parser awareness; regular Python modules using
+            Module directly do not.
 
         Delegates:
-            - FeatureBatchParser.find_in_stash.value_or: collaborator call used by this boundary
-            - FeatureBatchParser.find_in_stash: collaborator call used by this boundary
-            - batch_parser.has_pending: collaborator call used by this boundary
-            - batch_parser.flush: collaborator call used by this boundary
-            - super.collect: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - FeatureBatchParser.find_in_stash: Retrieves the batch parser instance from pytest.config.stash.
+            - FeatureBatchParser.flush: Triggers batch parsing of all pending feature files.
+            - super().collect(): Module.collect() which injects the registry fixture and runs pytest's standard collection.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method body is a single guard-and-flush followed by delegation. All logic serves the purpose of "ensure
+            batch parsing is complete before collection."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Module.collect(): Handles registry fixture injection. This method adds batch parser flushing on top.
+            - FeatureBatchParser: Owns the actual flush logic. This method is only the trigger point.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `collect`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `collect`
+            - pytest collection engine: Called when pytest collects a feature file node during test discovery.
 
         State and side effects:
-            mutates batch_parser.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule.collect` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            Reads from pytest.config.stash to find the FeatureBatchParser. Calls flush() which may trigger file I/O
+            (reading and parsing feature files), multiprocessing pool creation, or async I/O. The batch parser's
+            internal _cache and _flushed state are mutated.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=5
         """
         batch_parser = FeatureBatchParser.find_in_stash(self.config.stash).value_or(None)
         if batch_parser is not None and batch_parser.has_pending():
@@ -286,51 +354,55 @@ class FeatureFileModule(Module):
 
     def _getobj(self) -> ModuleType:
         """
+        Resolve the actual feature path from the file extension of the current pytest node.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.collector.FeatureFileModule._getobj` owns documented method
-            behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Resolves the actual feature path from the file extension of the current pytest node. For direct feature
+            files (.feature or .feature.md), uses the file's own path. For URL shortcut files (.url, .desktop, .webloc),
+            delegates to the appropriate static/class method to extract the target URL, path type, and base directory
+            from the shortcut format. Then calls _build_test_module to synthesize the virtual Python module.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.collector.FeatureFileModule._getobj` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            This is the dispatch point for the multi-format feature file support. Rather than having the URL shortcut
+            logic scattered across multiple collection hooks, this method centralizes the "what kind of file is this,
+            and where does it point?" decision. It is the information expert for "resolve this node's path to the actual
+            feature content location." It is kept as a separate method (rather than inlined) because it is the single
+            entry point called by pytest when it needs the module object for a collection node.
 
         Delegates:
-            - self.get_path: collaborator call used by this boundary
-            - self.get_feature_pathlike_from_url_file: collaborator call used by this boundary
-            - self.get_feature_pathlike_from_desktop_file: collaborator call used by this boundary
-            - self.get_feature_pathlike_from_weblock_file: collaborator call used by this boundary
-            - self._build_test_module: collaborator call used by this boundary
+            - self.get_path(): Returns the filesystem Path for this collection node.
+            - get_feature_pathlike_from_url_file: Resolves .url shortcut files.
+            - get_feature_pathlike_from_desktop_file: Resolves .desktop shortcut files.
+            - get_feature_pathlike_from_weblock_file: Resolves .webloc shortcut files.
+            - _build_test_module: Creates the synthetic Python module and attaches test_scenarios.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method is a single if/elif/else dispatch on file extension, with each branch calling a dedicated
+            static/class method. All paths converge to _build_test_module with the resolved (feature_pathlike,
+            features_path_type, base_dir) tuple.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _build_test_module: Handles the actual module creation. _getobj() resolves the path first, then delegates.
+            - pytest_bdd.scenario.scenarios: Called inside _build_test_module, not directly here.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `_getobj`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_getobj`
+            - pytest collection machinery: Called by pytest when it needs the Python module object for a
+            FeatureFileModule collection node.
 
         State and side effects:
-            mutates feature_pathlike, features_path_type, base_dir, path.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule._getobj` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            Reads the filesystem (via get_path(), and shortcut file readers). No pytest stash access. No state mutation
+            beyond the synthetic module created by _build_test_module.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=3
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         path: Path = self.get_path()
         feature_pathlike: str | Path | None
@@ -353,52 +425,58 @@ class FeatureFileModule(Module):
         base_dir: Path | str | None,
     ) -> ModuleType:
         """
+        Create factory method that creates a synthetic Python module from a resolved feature path.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.collector.FeatureFileModule._build_test_module` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Factory method that creates a synthetic Python module from a resolved feature path. Generates a unique
+            module name by combining the path with a UUID4 (via format_as_python_identifier), creates a ModuleSpec and
+            module object via importlib, then calls scenarios() with the given path, path type, and base directory to
+            populate the module's test_scenarios attribute. The resulting module is a valid pytest collection target —
+            pytest will call collect() on it, which will discover the test functions generated by scenarios().
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.collector.FeatureFileModule._build_test_module`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the final assembly step in the feature file collection pipeline. It is the information expert
+            for "how to construct a valid Python module that pytest can collect from, given a feature path." The use of
+            importlib (ModuleSpec + module_from_spec) rather than exec/compile ensures the module is a proper Python
+            module object with correct __name__, __spec__, and __loader__ attributes. The UUID4 suffix guarantees
+            uniqueness even when the same feature file appears in the collection tree multiple times.
 
         Delegates:
-            - format_as_python_identifier: collaborator call used by this boundary
-            - uuid4: collaborator call used by this boundary
-            - ModuleSpec: collaborator call used by this boundary
-            - module_from_spec: collaborator call used by this boundary
-            - scenarios: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
+            - pytest_bdd.util.other.format_as_python_identifier: Generates a valid Python identifier from the path string.
+            - importlib.machinery.ModuleSpec / importlib.util.module_from_spec: Creates a valid Python module object.
+            - pytest_bdd.scenario.scenarios: Populates the module's test_scenarios attribute with the test functions for
+            all matching scenarios.
+            - uuid.uuid4: Provides a unique suffix for the module name.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs a linear sequence: generate name → create module spec → create module → call scenarios()
+            → return module. Every step serves the single purpose of "build a collection-ready Python module for this
+            feature path."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _getobj(): Resolves the path and path type before calling _build_test_module. The resolution and
+            construction concerns are separated.
+            - pytest_bdd.scenario.scenarios: Owns the test generation logic. _build_test_module only wires the
+            parameters and attaches the result.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `_build_test_module`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `_build_test_module`
+            - _getobj(): The sole caller within this class.
 
         State and side effects:
-            mutates module_name, module_spec, module, module.test_scenarios.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule._build_test_module` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Creates an in-memory Python module object (ModuleType). Calls scenarios() which may trigger feature file
+            parsing and test function generation. The scenarios() call may read feature files, interact with the batch
+            parser, and register pytest marks. No pytest stash access at this level.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         module_name = format_as_python_identifier(f"{path}_{uuid4()}")
 
@@ -419,56 +497,51 @@ class FeatureFileModule(Module):
     @staticmethod
     def detect_uri_pathtype(path: str | None) -> tuple[str | None, PathType]:
         """
-        Detect URI path type from a URL string.
-
-        Args:
-            path: URL string to parse.
-
-        Returns:
-            Tuple of (parsed_path, path_type).
+        Classifies a feature path string as a local file path, a remote URL, or undefined by parsing it with urllib.parse.url.
 
         Responsibility:
-            Detect URI path type from a URL string. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Classifies a feature path string as a local file path, a remote URL, or undefined by parsing it with
+            urllib.parse.urlparse. Returns a tuple of (possibly modified path, PathType enum). If the path has a 'file'
+            scheme, it is classified as PATH and the scheme is stripped. If it has any other scheme (http, https, etc.),
+            it is classified as URL. If parsing fails (ValueError) or there is no scheme, it is classified as UNDEFINED
+            with the original path unchanged.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.collector.FeatureFileModule.detect_uri_pathtype`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This is the shared classification utility used by all three URL shortcut parsers
+            (get_feature_pathlike_from_url_file, _from_desktop_file, _from_weblock_file). It centralizes the URL-vs-path
+            discrimination logic so that each shortcut parser only needs to extract the raw URL string and pass it here.
+            Without this, the scheme-detection logic would be duplicated across three methods.
 
         Delegates:
-            - urlparse: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - urllib.parse.urlparse: Parses the path string to extract the URL scheme.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The function does exactly one thing: classify a string as PATH, URL, or UNDEFINED. The try/except for
+            ValueError handles malformed URLs. There is no side-channel logic.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - pytest_bdd.feature_locator.ScenarioLocatorBuilder.resolve_features_path_type: Also resolves
+            FeaturePathType but from user configuration (enums, strings, callables) rather than from URL parsing.
+            - pytest_bdd.util.url.is_url_parsable: A related utility in the utility layer but used for different purposes.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `detect_uri_pathtype`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `detect_uri_pathtype`
+            - get_feature_pathlike_from_url_file, get_feature_pathlike_from_desktop_file,
+            get_feature_pathlike_from_weblock_file: All three shortcut parsers delegate classification to this static
+            method.
 
         State and side effects:
-            mutates features_path_type, parsed_url, path.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule.detect_uri_pathtype` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            None, keeps no persistent state. Pure function with no I/O, no stash access, no mutation.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:reason_for_existence=5
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         try:
             parsed_url = urlparse(path)
@@ -487,62 +560,51 @@ class FeatureFileModule(Module):
     @classmethod
     def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
         """
-        Get feature path from a .url file.
-
-        Args:
-            path: Path to the .url file.
-
-        Returns:
-            Tuple of (feature_path, path_type, working_dir).
+        Pars a Windows .url shortcut file (INI format with [InternetShortcut] section) to extract the target URL and option.
 
         Responsibility:
-            Get feature path from a .url file. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Parses a Windows .url shortcut file (INI format with [InternetShortcut] section) to extract the target URL
+            and optional working directory. Reads the file using ConfigParser, retrieves the 'URL' and
+            'WorkingDirectory' keys from the [InternetShortcut] section, classifies the URL's path type via
+            detect_uri_pathtype, and returns a (path, PathType, working_dir) tuple suitable for passing to
+            _build_test_module.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.collector.FeatureFileModule.get_feature_pathlike_from_url_file` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            Windows .url files are a common way to create shortcuts to network resources. pytest-bdd supports them so
+            that users can place a .url file in their features directory pointing to a remote feature file. This method
+            encapsulates the .url-specific INI parsing and key extraction, keeping the format-specific knowledge
+            isolated from the generic collection pipeline.
 
         Delegates:
-            - config_data.get: collaborator call used by this boundary
-            - ConfigParser: collaborator call used by this boundary
-            - config_parser.read: collaborator call used by this boundary
-            - cls.detect_uri_pathtype: collaborator call used by this boundary
+            - configparser.ConfigParser: Reads and parses the INI-format .url file.
+            - detect_uri_pathtype: Classifies the extracted URL string as PATH or URL.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method does three things in sequence: read INI, extract keys, classify scheme. All serve the single
+            purpose of "resolve target from .url shortcut."
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - get_feature_pathlike_from_desktop_file: Handles .desktop XDG format, which uses a different section name
+            ([Desktop Entry]) and different key semantics.
+            - get_feature_pathlike_from_weblock_file: Handles .webloc Apple plist format, which uses a binary format and
+            a completely different reader (webloc_read).
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references
-              `get_feature_pathlike_from_url_file`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `get_feature_pathlike_from_url_file`
+            - _getobj(): Called when the current file has a .url suffix.
 
         State and side effects:
-            mutates config_parser, config_data, working_dir, url.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule.get_feature_pathlike_from_url_file` keeps its documented import
-              path, ownership boundary, and observable behavior stable for callers.
+            Reads the .url file from disk via ConfigParser.read(). No stash access, no mutation of instance state.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         config_parser = ConfigParser()
         config_parser.read(path)
@@ -555,61 +617,50 @@ class FeatureFileModule(Module):
     @classmethod
     def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, None]:
         """
-        Get feature path from a .desktop file.
-
-        Args:
-            path: Path to the .desktop file.
-
-        Returns:
-            Tuple of (feature_path, path_type, None).
+        Pars an XDG .desktop shortcut file (INI format with [Desktop Entry] section) to extract the target URL.
 
         Responsibility:
-            Get feature path from a .desktop file. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Parses an XDG .desktop shortcut file (INI format with [Desktop Entry] section) to extract the target URL.
+            Reads the file using ConfigParser, checks that the 'Type' key equals 'Link' (to confirm it is a link-type
+            desktop entry), retrieves the 'URL' key, classifies the URL's path type via detect_uri_pathtype, and returns
+            a (path, PathType, None) tuple. The base_dir is always None for .desktop files because XDG desktop entries
+            do not carry a working directory concept for link types.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.collector.FeatureFileModule.get_feature_pathlike_from_desktop_file` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            .desktop files are the standard shortcut format on Linux desktops following the XDG Desktop Entry
+            specification. Supporting them allows Linux users to place .desktop shortcut files in their features
+            directory pointing to remote or relocated feature files. This method isolates the .desktop-specific parsing
+            rules (Type=Link check, [Desktop Entry] section) from other shortcut formats.
 
         Delegates:
-            - ConfigParser: collaborator call used by this boundary
-            - config_parser.read: collaborator call used by this boundary
-            - cls.detect_uri_pathtype: collaborator call used by this boundary
+            - configparser.ConfigParser: Reads and parses the INI-format .desktop file.
+            - detect_uri_pathtype: Classifies the extracted URL string as PATH or URL.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method reads the INI, validates the Type key, extracts the URL, and classifies it. All steps serve the
+            single purpose of resolving the target from a .desktop shortcut.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - get_feature_pathlike_from_url_file: Handles .url Windows shortcuts with different section name and
+            optional WorkingDirectory.
+            - get_feature_pathlike_from_weblock_file: Handles .webloc Apple plist shortcuts with binary format parsing.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references
-              `get_feature_pathlike_from_desktop_file`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `get_feature_pathlike_from_desktop_file`
+            - _getobj(): Called when the current file has a .desktop suffix.
 
         State and side effects:
-            mutates config_parser, config_data.
-
-        Invariants:
-            - `pytest_bdd.collector.FeatureFileModule.get_feature_pathlike_from_desktop_file` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Reads the .desktop file from disk via ConfigParser.read(). No stash access, no mutation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         config_parser = ConfigParser()
         config_parser.read(path)
@@ -620,57 +671,47 @@ class FeatureFileModule(Module):
     @classmethod
     def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, None]:
         """
-        Get feature path from a .webloc file.
-
-        Args:
-            path: Path to the .webloc file.
-
-        Returns:
-            Tuple of (feature_path, path_type, None).
+        Pars an Apple .webloc shortcut file (binary plist format) to extract the target URL.
 
         Responsibility:
-            Get feature path from a .webloc file. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Parses an Apple .webloc shortcut file (binary plist format) to extract the target URL. Reads the file using
+            pytest_bdd.util.webloc.read (which handles the binary plist deserialization), classifies the extracted URL's
+            path type via detect_uri_pathtype, and returns a (path, PathType, None) tuple. The base_dir is always None
+            for .webloc files.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.collector.FeatureFileModule.get_feature_pathlike_from_weblock_file` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            .webloc files are the standard URL shortcut format on macOS, stored as binary plist files. Supporting them
+            allows macOS users to place .webloc shortcut files in their features directory pointing to remote feature
+            files. This method isolates the .webloc-specific reading and the binary plist dependency from other shortcut
+            formats.
 
         Delegates:
-            - cls.detect_uri_pathtype: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - webloc_read: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - pytest_bdd.util.webloc.read: Reads and deserializes the binary plist .webloc file to extract the URL string.
+            - detect_uri_pathtype: Classifies the extracted URL string as PATH or URL.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method reads the plist, extracts the URL, and classifies it. All steps serve the single purpose of
+            resolving the target from a .webloc shortcut.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - get_feature_pathlike_from_url_file: Handles .url Windows shortcuts with INI format.
+            - get_feature_pathlike_from_desktop_file: Handles .desktop XDG shortcuts with INI format.
 
         Main consumers:
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references
-              `get_feature_pathlike_from_weblock_file`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references
-              `get_feature_pathlike_from_weblock_file`
+            - _getobj(): Called when the current file has a .webloc suffix.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Reads the .webloc file from disk via pytest_bdd.util.webloc.read. No stash access, no mutation.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:delegation_boundary=5
+            #arch-eval:cohesion=5
+            #arch-eval:separation=5
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
         """
         return *cls.detect_uri_pathtype(cast("str", webloc_read(str(path)))), None

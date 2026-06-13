@@ -1,49 +1,57 @@
 """
-State classes for the run lifecycle: ActiveObjectSet, error state, reporting state.
+Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures wh.
 
 Responsibility:
-    State classes for the run lifecycle: ActiveObjectSet, error state, reporting state. It directly owns the observable
-    contract, local decisions, and maintenance boundary for this module.
+    Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures
+    which run/feature/scenario/step objects are active at a given stage), ReportingLifecycleState (tracks cucumber-
+    messages reporting IDs and timestamps), ReferenceResolverState (accumulates missing reference diagnostics), and
+    ContextErrorState (records lifecycle errors with code, message, hook_name, stage, and requested_kind). All types are
+    attrs-defined with slots=True and include JSON serialization via as_dict().
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run.lifecycle._states` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - ActiveObjectSet: owns nested behavior below this boundary
-    - ReportingLifecycleState: owns nested behavior below this boundary
-    - ReferenceResolverState: owns nested behavior below this boundary
-    - ContextErrorState: owns nested behavior below this boundary
+    - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+    task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `_states`
+    - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates run, captured_at_stage, feature, scenario, step; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.Literal, typing.cast, attrs.define.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run.lifecycle._states` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - ActiveObjectSet must capture all five lifecycle kinds (run, feature, scenario, step, previous_step);
+    ReportingLifecycleState must preserve runtime_step_to_pickle_step_id mapping across scenario boundaries;
+    ContextErrorState code must be one of the four defined Literal values
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -69,47 +77,55 @@ if TYPE_CHECKING:
 @define(slots=True)
 class ActiveObjectSet:
     """
-    Store contextual variables representing the current execution parameters for a specific scenario attempt.
+    Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures wh.
 
     Responsibility:
-        Store contextual variables representing the current execution parameters for a specific scenario attempt. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet
+        (captures which run/feature/scenario/step objects are active at a given stage), ReportingLifecycleState (tracks
+        cucumber-messages reporting IDs and timestamps), ReferenceResolverState (accumulates missing reference
+        diagnostics), and ContextErrorState (records lifecycle errors with code, message, hook_name, stage, and
+        requested_kind). All types are attrs-defined with slots=True and include JSON serialization via as_dict().
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ActiveObjectSet` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - as_dict: owns nested behavior below this boundary
+        - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `ActiveObjectSet`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `ActiveObjectSet`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ActiveObjectSet`
-        - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `ActiveObjectSet`
-        - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `ActiveObjectSet`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run, captured_at_stage, feature, scenario, step.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.lifecycle._states.ActiveObjectSet` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - ActiveObjectSet must capture all five lifecycle kinds (run, feature, scenario, step, previous_step);
+        ReportingLifecycleState must preserve runtime_step_to_pickle_step_id mapping across scenario boundaries;
+        ContextErrorState code must be one of the four defined Literal values
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
@@ -125,55 +141,52 @@ class ActiveObjectSet:
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the entire active object set into a JSON-compatible dictionary.
-
-        Returns:
-            A dictionary representing the current active states for run, feature, scenario, and step.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the entire active object set into a JSON-compatible dictionary. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ActiveObjectSet.as_dict`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.run.as_dict: collaborator call used by this boundary
-            - self.feature.as_dict: collaborator call used by this boundary
-            - self.scenario.as_dict: collaborator call used by this boundary
-            - self.step.as_dict: collaborator call used by this boundary
-            - self.previous_step.as_dict: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `as_dict`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `as_dict`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return {
             "run": self.run.as_dict(),
@@ -188,51 +201,58 @@ class ActiveObjectSet:
 @define(slots=True)
 class ReportingLifecycleState:
     """
-    Represent reporting lifecycle state state.
+    Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures wh.
 
     Responsibility:
-        Represent reporting lifecycle state state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet
+        (captures which run/feature/scenario/step objects are active at a given stage), ReportingLifecycleState (tracks
+        cucumber-messages reporting IDs and timestamps), ReferenceResolverState (accumulates missing reference
+        diagnostics), and ContextErrorState (records lifecycle errors with code, message, hook_name, stage, and
+        requested_kind). All types are attrs-defined with slots=True and include JSON serialization via as_dict().
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ReportingLifecycleState`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - reset_scenario_scope: owns nested behavior below this boundary
-        - as_dict: owns nested behavior below this boundary
+        - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `ReportingLifecycleState`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `ReportingLifecycleState`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ReportingLifecycleState`
-        - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `ReportingLifecycleState`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run_started_id, test_run_hook_started_id, active_test_case_id, active_test_case_started_id,
-        active_test_step_id.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.lifecycle._states.ReportingLifecycleState` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - ActiveObjectSet must capture all five lifecycle kinds (run, feature, scenario, step, previous_step);
+        ReportingLifecycleState must preserve runtime_step_to_pickle_step_id mapping across scenario boundaries;
+        ContextErrorState code must be one of the four defined Literal values
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -248,51 +268,51 @@ class ReportingLifecycleState:
 
     def reset_scenario_scope(self) -> None:
         """
-        Clear scenario-level reporting state variables to prepare for a new scenario or clean up.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Clear scenario-level reporting state variables to prepare for a new scenario or clean up. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._states.ReportingLifecycleState.reset_scenario_scope` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.runtime_step_to_pickle_step_id.clear: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `reset_scenario_scope`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `reset_scenario_scope`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `reset_scenario_scope`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates self.active_test_case_id, self.active_test_case_started_id, self.active_test_step_id,
-            self.scenario_attempt_context, self.step_started_timestamp.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._states.ReportingLifecycleState.reset_scenario_scope` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         self.active_test_case_id = None
@@ -305,55 +325,52 @@ class ReportingLifecycleState:
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the reporting lifecycle state into a JSON-compatible dictionary.
-
-        Returns:
-            A dictionary representing the reporting identifiers and timestamps.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the reporting lifecycle state into a JSON-compatible dictionary. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._states.ReportingLifecycleState.as_dict` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - self.runtime_step_to_pickle_step_id.items: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - dict: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `as_dict`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `as_dict`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return {
             "run_started_id": self.run_started_id,
@@ -375,51 +392,58 @@ class ReportingLifecycleState:
 @define(slots=True)
 class ReferenceResolverState:
     """
-    Represent reference resolver state state.
+    Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures wh.
 
     Responsibility:
-        Represent reference resolver state state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet
+        (captures which run/feature/scenario/step objects are active at a given stage), ReportingLifecycleState (tracks
+        cucumber-messages reporting IDs and timestamps), ReferenceResolverState (accumulates missing reference
+        diagnostics), and ContextErrorState (records lifecycle errors with code, message, hook_name, stage, and
+        requested_kind). All types are attrs-defined with slots=True and include JSON serialization via as_dict().
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ReferenceResolverState`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - add_missing_reference: owns nested behavior below this boundary
-        - clear: owns nested behavior below this boundary
-        - as_dict: owns nested behavior below this boundary
+        - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `ReferenceResolverState`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `ReferenceResolverState`
-        - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `ReferenceResolverState`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `ReferenceResolverState`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates missing_reference_diagnostics.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.lifecycle._states.ReferenceResolverState` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - ActiveObjectSet must capture all five lifecycle kinds (run, feature, scenario, step, previous_step);
+        ReportingLifecycleState must preserve runtime_step_to_pickle_step_id mapping across scenario boundaries;
+        ContextErrorState code must be one of the four defined Literal values
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -427,144 +451,154 @@ class ReferenceResolverState:
 
     def add_missing_reference(self, message: str) -> None:
         """
-        Record a diagnostic message regarding a missing reference encountered during validation.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Record a diagnostic message regarding a missing reference encountered during validation. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._states.ReferenceResolverState.add_missing_reference` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.missing_reference_diagnostics.append: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `add_missing_reference`
-            - src/pytest_bdd/model/run_access.py: imports or references `add_missing_reference`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.missing_reference_diagnostics.append(message)
 
     def clear(self) -> None:
         """
-        Clear all accumulated missing reference diagnostic messages.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Clear all accumulated missing reference diagnostic messages. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._states.ReferenceResolverState.clear` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.missing_reference_diagnostics.clear: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/collector_batch.py: imports or references `clear`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `clear`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `clear`
-            - src/pytest_bdd/plugin/debug_mcp/entrypoint.py: imports or references `clear`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `clear`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         self.missing_reference_diagnostics.clear()
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the reference resolver state into a dictionary format.
-
-        Returns:
-            A dictionary containing the list of missing reference diagnostics.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the reference resolver state into a dictionary format. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._states.ReferenceResolverState.as_dict` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - list: collaborator call used by this boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `as_dict`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `as_dict`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return {
             "missing_reference_diagnostics": list(self.missing_reference_diagnostics),
@@ -574,48 +608,55 @@ class ReferenceResolverState:
 @define(slots=True)
 class ContextErrorState:
     """
-    Represent context error state state.
+    Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet (captures wh.
 
     Responsibility:
-        Represent context error state state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines immutable value objects that represent lifecycle state within the Run hierarchy: ActiveObjectSet
+        (captures which run/feature/scenario/step objects are active at a given stage), ReportingLifecycleState (tracks
+        cucumber-messages reporting IDs and timestamps), ReferenceResolverState (accumulates missing reference
+        diagnostics), and ContextErrorState (records lifecycle errors with code, message, hook_name, stage, and
+        requested_kind). All types are attrs-defined with slots=True and include JSON serialization via as_dict().
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ContextErrorState` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - as_dict: owns nested behavior below this boundary
+        - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `ContextErrorState`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `ContextErrorState`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `ContextErrorState`
-        - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `ContextErrorState`
-        - src/pytest_bdd/model/run_access.py: imports or references `ContextErrorState`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates code, message, hook_name, stage, requested_kind.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.lifecycle._states.ContextErrorState` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - ActiveObjectSet must capture all five lifecycle kinds (run, feature, scenario, step, previous_step);
+        ReportingLifecycleState must preserve runtime_step_to_pickle_step_id mapping across scenario boundaries;
+        ContextErrorState code must be one of the four defined Literal values
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
@@ -630,51 +671,52 @@ class ContextErrorState:
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the context error state into a dictionary format.
-
-        Returns:
-            A dictionary describing the error code, message, and related lifecycle context.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the context error state into a dictionary format. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._states.ContextErrorState.as_dict`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - LifecycleObjectRef: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _snapshots: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `as_dict`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `as_dict`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return {
             "code": self.code,

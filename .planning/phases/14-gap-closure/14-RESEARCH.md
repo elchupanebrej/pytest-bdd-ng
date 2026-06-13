@@ -223,6 +223,7 @@ from pathlib import Path
 import pytest
 from pytest_bdd.collector_batch import FeatureBatchParser
 
+
 def test_register_after_flush_raises() -> None:
     """Registering after flush raises RuntimeError."""
     parser = FeatureBatchParser()
@@ -240,11 +241,14 @@ def test_register_after_flush_raises() -> None:
 # Source: tests/cases/integration/feature/test_steps.py (existing pattern)
 def test_steps(testdir):
     """Verify steps are executed one by one."""
-    testdir.makefile(".feature", steps="""\
+    testdir.makefile(
+        ".feature",
+        steps="""\
         Feature: Steps are executed one by one
             Scenario: Executed step by step
                 Given I have a foo fixture with value "foo"
-    """)
+    """,
+    )
     testdir.makeconftest("""\
         from pytest_bdd import given
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
@@ -265,9 +269,11 @@ from pytest_bdd import scenarios
 
 _EXCLUDED_TAGS = {"allure", "docker", "slow", "xdist"}
 
+
 def _filter(config, feature, pickle):
     tag_names = {str(t.name).lstrip("@").lower() for t in getattr(pickle, "tags", ())}
     return tag_names.isdisjoint(_EXCLUDED_TAGS)
+
 
 scenarios("../../../../features/01 Tutorial/01 Launch.feature.md", filter_=_filter)
 ```

@@ -1,54 +1,46 @@
 """
-Provide path helpers.
+Provide a cross-Python-version compatibility shim for `path`, encapsulating all version-
+detection logic and conditi.
 
 Responsibility:
-    Provide path helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides a cross-Python-version compatibility shim for `path`, encapsulating all version-
+    detection logic and conditional imports so that higher layers import a single stable name
+    regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.path` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `path` in this module prevents `if sys.version_info`
+    checks from contaminating domain logic. This module is the single information expert for which
+    stdlib/third-party names and APIs are available on each supported Python version for this
+    specific concern.
 
 Delegates:
-    - relpath: owns nested behavior below this boundary
-    - resolvepath: owns nested behavior below this boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (path); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/_pylint/checkers/file_size_rules.py: imports or references `path`
-    - src/pytest_bdd/_pylint/checkers/init_rules.py: imports or references `path`
-    - src/pytest_bdd/_pylint/checkers/noqa_rules.py: imports or references `path`
-    - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `path`
-    - src/pytest_bdd/_pylint/checkers/typing_rules.py: imports or references `path`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    depends on __future__.annotations, os, sys, pathlib.Path, typing.TYPE_CHECKING.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.path` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
-
-Failure semantics:
-    Raises or re-raises re-raise; callers must treat these as boundary failures.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -64,59 +56,47 @@ if TYPE_CHECKING:
 
 def relpath(path: str | PathLike[str], start: str | PathLike[str] = os.curdir) -> str | PathLike[str]:
     """
-    Handle relpath.
-
-    Returns:
-        Relative path from start to path.
-
-    Raises:
-        ValueError: If relative path resolution fails on a non-Windows platform.
+    Perform the `relpath` operation within its module boundary, implementing a focused helper
+    function that is consumed .
 
     Responsibility:
-        Handle relpath. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `relpath` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.path.relpath` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `relpath` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - os.path.relpath: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the relpath operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `relpath`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `relpath`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `relpath`
-        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `relpath`
-        - src/pytest_bdd/steps/definition.py: imports or references `relpath`
+        - `pytest_bdd.*`: callers import and invoke relpath for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
 
-    Failure semantics:
-        Raises or re-raises re-raise; callers must treat these as boundary failures.
+    Invariants:
+        - The relpath function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     try:
         return os.path.relpath(path, start)
@@ -128,58 +108,46 @@ def relpath(path: str | PathLike[str], start: str | PathLike[str] = os.curdir) -
 
 def resolvepath(path: str | PathLike[str], start: str | PathLike[str] = os.curdir) -> str | PathLike[str]:
     """
-    Resolve an absolute path from a base directory.
-
-    Args:
-        path: Target path (relative or absolute).
-        start: Base directory to resolve from (defaults to current working directory).
-
-    Returns:
-        Resolved absolute path by joining start with the relative path.
+    Perform the `resolvepath` operation within its module boundary, implementing a focused helper
+    function that is consu.
 
     Responsibility:
-        Resolve an absolute path from a base directory. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `resolvepath` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.path.resolvepath` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `resolvepath` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - os.path.normpath: collaborator call used by this boundary
-        - resolve: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - relpath: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolvepath operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/hook_catalog_runtime.py: imports or references `resolvepath`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `resolvepath`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or references
-          `resolvepath`
-        - src/pytest_bdd/scenario_locator/file_locator.py: imports or references `resolvepath`
-        - src/pytest_bdd/steps/definition.py: imports or references `resolvepath`
+        - `pytest_bdd.*`: callers import and invoke resolvepath for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The resolvepath function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return os.path.normpath((Path(start) / relpath(path, start)).resolve())

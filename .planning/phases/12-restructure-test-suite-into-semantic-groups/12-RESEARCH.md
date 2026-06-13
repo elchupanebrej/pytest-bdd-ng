@@ -291,8 +291,10 @@ from pytest_bdd.util.tests_group_ordering import (
     wait_for_group_barrier,
 )
 
+
 def pytest_addoption(parser):
     register_group_config_options(parser)
+
 
 def pytest_collection_modifyitems(config, items):
     apply_group_ordering(config, items)
@@ -319,9 +321,7 @@ Source: current `src/pytest_bdd/util/tests_group_ordering.py`. [VERIFIED: codeba
 
 ```python
 def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "env(name): mark test to run only on named environment"
-    )
+    config.addinivalue_line("markers", "env(name): mark test to run only on named environment")
 ```
 
 Source: pytest docs. [CITED: https://docs.pytest.org/en/stable/how-to/mark.html]

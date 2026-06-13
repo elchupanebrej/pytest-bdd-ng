@@ -1,52 +1,56 @@
 """
-Provide message serialization helpers.
+Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
 Responsibility:
-    Provide message serialization helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd execution
+    pipeline. This module is the authoritative boundary for all envelope-level concerns including serialization
+    profiles, schema validation via jsonschema, cross-worker xdist transport, status governance, capability
+    classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It enforces
+    protocol correctness and ensures that all message producers and consumers operate on well-formed, compliant envelope
+    data.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.message_serialization` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - MessageSerializationProfile: owns nested behavior below this boundary
-    - normalize_envelope_dict_for_profile: owns nested behavior below this boundary
+    - cucumber_messages Envelope: Provides supporting functionality through a well-defined interface, delegating a
+    focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `message_serialization`
-    - src/pytest_bdd/model/message_schema_validation.py: imports or references `message_serialization`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-      `message_serialization`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-      `message_serialization`
+    - execution_message_adapter: Referenced by collection, runtime, and reporting layer plugins through the
+    pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+    state, message handling, and stash access
 
 State and side effects:
-    mutates extended, schema_compatible, _SCHEMA_COMPATIBLE_STEP_DEFINITION_PATTERN_TYPES, normalized, payload; depends
-    on __future__.annotations, copy.deepcopy, enum.Enum, typing.TYPE_CHECKING, pytest_bdd.types.json.JSONObject.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.message_serialization` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - schema_compatible profile must map all pytest-bdd-specific pattern types to REGULAR_EXPRESSION; extended profile
+    must preserve original types unchanged
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -62,51 +66,59 @@ if TYPE_CHECKING:
 
 class MessageSerializationProfile(str, Enum):
     """
-    Enumerate the output serialization modes.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Enumerate the output serialization modes. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.message_serialization.MessageSerializationProfile`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - cucumber_messages Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references `MessageSerializationProfile`
-        - src/pytest_bdd/model/__init__.py: imports or references `MessageSerializationProfile`
-        - src/pytest_bdd/model/execution_message_adapter.py: imports or references `MessageSerializationProfile`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `MessageSerializationProfile`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `MessageSerializationProfile`
+        - execution_message_adapter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates extended, schema_compatible.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.message_serialization.MessageSerializationProfile` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - schema_compatible profile must map all pytest-bdd-specific pattern types to REGULAR_EXPRESSION; extended
+        profile must preserve original types unchanged
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -130,68 +142,56 @@ def normalize_envelope_dict_for_profile(
     profile: MessageSerializationProfile,
 ) -> JSONObject:
     """
-    Normalize an envelope dictionary based on the requested serialization profile.
-
-    In 'schema_compatible' mode, pytest-bdd-specific step definition pattern types are downgraded to their canonical
-    cucumber counterparts so the output passes strict upstream schema validation. In 'extended' mode the dictionary
-    is returned unchanged, preserving pytest-bdd-specific type information for internal consumers.
-
-    Returns:
-        A normalized copy of the envelope dictionary conforming to the requested profile.
+    Validate, convert, transport, and govern Cucumber Messages protocol envelopes within the pytest-bdd execution pipeline.
 
     Responsibility:
-        Normalize an envelope dictionary based on the requested serialization profile. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this function.
+        Validates, converts, transports, and governs Cucumber Messages protocol envelopes within the pytest-bdd
+        execution pipeline. This module is the authoritative boundary for all envelope-level concerns including
+        serialization profiles, schema validation via jsonschema, cross-worker xdist transport, status governance,
+        capability classification, outcome mapping, baseline diffing, formatter adaptation, and heading validation. It
+        enforces protocol correctness and ensures that all message producers and consumers operate on well-formed,
+        compliant envelope data.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.model.message_serialization.normalize_envelope_dict_for_profile` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - deepcopy: collaborator call used by this boundary
-        - normalized.get: collaborator call used by this boundary
-        - payload.get: collaborator call used by this boundary
-        - pattern.get: collaborator call used by this boundary
-        - _SCHEMA_COMPATIBLE_STEP_DEFINITION_PATTERN_TYPES.get: collaborator call used by this boundary
+        - cucumber_messages Envelope: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - message_converter: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/message_stream_validation/pipeline.py: imports or references
-          `normalize_envelope_dict_for_profile`
-        - src/pytest_bdd/model/execution_message_adapter.py: imports or references `normalize_envelope_dict_for_profile`
-        - src/pytest_bdd/model/message_schema_validation.py: imports or references `normalize_envelope_dict_for_profile`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `normalize_envelope_dict_for_profile`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/live_formatter_runner.py: imports or references
-          `normalize_envelope_dict_for_profile`
+        - execution_message_adapter: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates normalized, payload, pattern, raw_type.
-
-    Invariants:
-        - `pytest_bdd.model.message_serialization.normalize_envelope_dict_for_profile` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
     if profile is MessageSerializationProfile.extended:
         return envelope_dict

@@ -40,6 +40,7 @@ cluster_manager = DockerClusterManager()
 # After
 _cluster_manager: DockerClusterManager | None = None
 
+
 def get_cluster_manager() -> DockerClusterManager:
     global _cluster_manager
     if _cluster_manager is None:
@@ -149,7 +150,11 @@ If a new envelope type is added to `cucumber_messages` but not added to `UNFOLDA
 
 **Suggested fix:** Inspect unknown non-None attributes and include them in the error:
 ```python
-unknown = [attr for attr in dir(message) if not attr.startswith("_") and attr not in UNFOLDABLE_ATTRS and getattr(message, attr) is not None]
+unknown = [
+    attr
+    for attr in dir(message)
+    if not attr.startswith("_") and attr not in UNFOLDABLE_ATTRS and getattr(message, attr) is not None
+]
 if unknown:
     raise ValueError(f"Unknown envelope attributes: {unknown}. Update UNFOLDABLE_ATTRS.")
 raise ValueError("Empty envelope was given")
@@ -172,10 +177,7 @@ raise ValueError("Empty envelope was given")
 **Severity:** Info
 
 ```python
-pytest_plugins = [
-    "tests.e2e.steps_go_parser",
-    ...
-]
+pytest_plugins = ["tests.e2e.steps_go_parser", ...]
 ```
 
 `tests.e2e.*` is the **legacy** test path that Phase 12 is moving away from. After the restructure, these should reference `tests.cases.e2e.steps_*` to remain consistent with the new semantic tree. If the legacy paths are still needed for compatibility during transition, a comment should explain when they will be removed.

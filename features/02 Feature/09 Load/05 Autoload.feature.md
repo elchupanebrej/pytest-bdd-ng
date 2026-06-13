@@ -26,10 +26,9 @@
     ```python
     from pytest_bdd import step
 
-    @step('Passing step')
 
-    def _():
-      ...
+    @step("Passing step")
+    def _(): ...
     ```
 
 ### Scenario: Feature is loaded by default
@@ -73,9 +72,10 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("Passing.feature", "Passing scenario")
     def test_explicit():
-      pass
+        pass
     ```
 
 * When run pytest
@@ -103,13 +103,15 @@
     ```python
     from pytest_bdd import given, scenario
 
+
     @scenario("steps.feature", "Explicit from features dir", features_base_dir=".")
     def test_explicit_from_features_dir():
-      pass
+        pass
+
 
     @given("explicit step")
     def _explicit_step():
-      pass
+        pass
     ```
 
 * When run pytest

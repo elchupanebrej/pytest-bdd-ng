@@ -1,50 +1,59 @@
 # init: allow  # init: no-check
 """
-Provide src.pytest_bdd.plugin.pickle_runner package helpers.
+Serves as the Runtime layer (order 6) package init for the pickle runner plugin.
 
 Responsibility:
-    Provide src.pytest_bdd.plugin.pickle_runner package helpers. It directly owns the observable contract, local
-    decisions, and maintenance boundary for this module.
+    Serves as the Runtime layer (order 6) package init for the pickle runner plugin. Exports the `apply_transition`
+    function as a top-level package symbol and provides a lazy `__getattr__` for on-demand imports of
+    `build_external_api_compatibility_record` and `collect_hook_public_symbols` from `api_compatibility` to break
+    circular import chains. Acts as the public entry point for the pickle runner's scenario execution engine.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.pickle_runner` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    This module is kept as a separate package init because it needs to control what symbols are publicly exported from
+    the pickle_runner package. The lazy `__getattr__` pattern is required to defer imports of `api_compatibility`
+    symbols that would otherwise create circular dependencies during package loading. Consolidating export control here
+    prevents consumers from needing to know which sub-module owns which symbol.
 
 Delegates:
-    - __getattr__: owns nested behavior below this boundary
+    - run_transitions.apply_transition: Core state machine transition function for scenario execution.
+    - api_compatibility.build_external_api_compatibility_record: Builds external API compatibility records on demand.
+    - api_compatibility.collect_hook_public_symbols: Collects public symbols from hook implementations.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic serves the single purpose of controlled package exports: re-exporting `apply_transition` eagerly and
+    lazily loading compatibility functions. No other concerns are present.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pickle_runner.plugin: Contains the actual pytest plugin implementation and hookimpl methods.
+    - pickle_runner.run_transitions: Contains the state machine transition logic.
+    - pickle_runner.api_compatibility: Contains API compatibility utilities loaded lazily.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest_bdd.plugin.pickle_runner.entrypoint: Imports `apply_transition` from this package-level export.
+    - pytest_bdd.plugin.pickle_runner.api_compatibility: Symbols are accessed lazily via __getattr__.
 
 State and side effects:
-    mutates msg; depends on run_transitions.apply_transition, api_compatibility.build_external_api_compatibility_record,
-    api_compatibility.collect_hook_public_symbols.
+    None, keeps no persistent state. The __getattr__ function performs lazy imports that modify module globals (cached
+    after first access).
 
 Invariants:
-    - `pytest_bdd.plugin.pickle_runner` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - `apply_transition` must always be importable as `from pytest_bdd.plugin.pickle_runner import apply_transition`.
+    - Lazy-loaded symbols must resolve to the correct objects from `api_compatibility`.
 
 Failure semantics:
-    Raises or re-raises AttributeError; callers must treat these as boundary failures.
+    Raises AttributeError with a descriptive message when an unrecognized attribute name is accessed via __getattr__.
+    Callers should handle this by checking attribute existence before access.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=2
+    #arch-eval:locational_stability=5
 """
 
 from .run_transitions import apply_transition
@@ -52,50 +61,61 @@ from .run_transitions import apply_transition
 
 def __getattr__(name: str) -> object:
     """
+    Implement Python's module-level `__getattr__` protocol for lazy attribute resolution.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.pickle_runner.__getattr__` owns documented function behavior.
-        It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Implements Python's module-level `__getattr__` protocol for lazy attribute resolution. When an attribute not
+        already present in the module's namespace is accessed, this function checks if it matches
+        `build_external_api_compatibility_record` or `collect_hook_public_symbols`, imports them from
+        `api_compatibility` (breaking a circular import), caches them in `locals()`, and returns the resolved object.
+        Raises AttributeError for unrecognized names. Operates at import time in the Runtime layer (order 6).
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.plugin.pickle_runner.__getattr__` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This function exists to break a circular import dependency between the pickle_runner package init and the
+        `api_compatibility` module. Without lazy loading, the package init's eager import of `api_compatibility` symbols
+        would cause a circular import chain. The `__getattr__` pattern defers the import until the symbol is actually
+        accessed, maintaining a clean public API while avoiding circular dependencies. It is the single authority for
+        dispatching attribute access to the correct deferred import.
 
     Delegates:
-        - locals: collaborator call used by this boundary
-        - AttributeError: collaborator call used by this boundary
+        - api_compatibility.build_external_api_compatibility_record: Lazily imported and returned when `name ==
+        "build_external_api_compatibility_record"`.
+        - api_compatibility.collect_hook_public_symbols: Lazily imported and returned when `name ==
+        "collect_hook_public_symbols"`.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic serves the single purpose of lazy attribute resolution for two specific compatibility symbols. The
+        function body is a simple if-check, import, and return pattern with no extraneous logic.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - apply_transition (module-level import): Eagerly imported, handled by Python's normal import mechanism, not by
+        __getattr__.
 
     Main consumers:
-        - None found by static import/name scan; verify dynamic use before refactor
+        - Python interpreter: Called automatically by the module's `__getattr__` protocol when an attribute is accessed
+        that doesn't exist in the module's `__dict__`.
+        - External callers importing from pytest_bdd.plugin.pickle_runner: Access compatibility symbols as regular
+        module attributes.
 
     State and side effects:
-        mutates msg; depends on api_compatibility.build_external_api_compatibility_record,
-        api_compatibility.collect_hook_public_symbols.
-
-    Invariants:
-        - `pytest_bdd.plugin.pickle_runner.__getattr__` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        Modifies module globals by caching imported symbols via `locals()[name]` after first access. Subsequent accesses
+        to the same name bypass __getattr__.
 
     Failure semantics:
-        Raises or re-raises AttributeError; callers must treat these as boundary failures.
+        Raises AttributeError with the message `module {__name__!r} has no attribute {name!r}` for unrecognized
+        attribute names. Callers should handle this by using hasattr() or try/except AttributeError when accessing
+        potentially undefined symbols.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=2
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=2
+        #arch-eval:locational_stability=4
     """
     if name in {"build_external_api_compatibility_record", "collect_hook_public_symbols"}:
         from .api_compatibility import (  # noqa: PLC0415 -- breaks circular import

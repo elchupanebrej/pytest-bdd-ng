@@ -23,13 +23,15 @@
     ```python
     from pytest_bdd import given
 
+
     @given("a passing step")
     def _pass():
-      return "pass"
+        return "pass"
+
 
     @given("a failing step")
     def _fail():
-      raise RuntimeError("boom")
+        raise RuntimeError("boom")
     ```
 
 * And File "test_report.py" with content:

@@ -88,6 +88,7 @@ Add regression asserting `_repo_root()` equals repo root from an arbitrary cwd, 
 def make_python_docstring(string: str) -> str:
     return repr(f"{string}.")
 
+
 def make_string_literal(string: str) -> str:
     return repr(string)
 ```

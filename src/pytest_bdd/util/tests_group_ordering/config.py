@@ -1,51 +1,43 @@
 """
-Test group config parsing and resolution helpers.
+Provides focused utility functions for the `config` concern within pytest-bdd utility layer,
+offering helper operatio.
 
 Responsibility:
-    Test group config parsing and resolution helpers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides focused utility functions for the `config` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config` because it keeps the nearest
-    code, data shape, call signature, and failure knowledge together.
+    Keeping `config` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `config`-related helper operations within the
+    utility layer.
 
 Delegates:
-    - GroupPathMapping: owns nested behavior below this boundary
-    - GroupConfig: owns nested behavior below this boundary
-    - GroupAssignment: owns nested behavior below this boundary
-    - RuntimeGroupBarrierObservation: owns nested behavior below this boundary
-    - _as_list: owns nested behavior below this boundary
-    - _get_ini_value: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `config` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `config`
-    - src/pytest_bdd/collector.py: imports or references `config`
-    - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `config`
-    - src/pytest_bdd/feature_locator.py: imports or references `config`
-    - src/pytest_bdd/hook.py: imports or references `config`
+    - `pytest_bdd.plugin.*`: imports `config` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates group_name, groups, default, pattern, paths; depends on __future__.annotations, fnmatch, warnings,
-    pathlib.Path, typing.TYPE_CHECKING.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.tests_group_ordering.config` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -85,49 +77,46 @@ ASSIGNMENTS_ATTR = "_pytest_bdd_group_assignments"
 @frozen
 class GroupPathMapping:
     """
-    Represent group path mapping state.
+    Encapsulates the GroupPathMapping concern within pytest-bdd, providing a focused set of
+    collaborating operations that.
 
     Responsibility:
-        Represent group path mapping state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Encapsulates the GroupPathMapping concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.GroupPathMapping` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        GroupPathMapping is a distinct class because its methods share internal state and collaborate
+        on a cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: GroupPathMapping specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single GroupPathMapping domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `GroupPathMapping`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `GroupPathMapping`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `GroupPathMapping`
+        - `pytest_bdd.*`: callers catch or instantiate GroupPathMapping for error handling and type checking
 
     State and side effects:
-        mutates pattern, group_name.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.GroupPathMapping` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of GroupPathMapping maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -138,49 +127,46 @@ class GroupPathMapping:
 @frozen
 class GroupConfig:
     """
-    Represent group config state.
+    Encapsulates the GroupConfig concern within pytest-bdd, providing a focused set of
+    collaborating operations that toge.
 
     Responsibility:
-        Represent group config state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Encapsulates the GroupConfig concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.GroupConfig` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        GroupConfig is a distinct class because its methods share internal state and collaborate on a
+        cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: GroupConfig specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single GroupConfig domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `GroupConfig`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `GroupConfig`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `GroupConfig`
+        - `pytest_bdd.*`: callers catch or instantiate GroupConfig for error handling and type checking
 
     State and side effects:
-        mutates groups, default, paths, rootpath.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.GroupConfig` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of GroupConfig maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -193,49 +179,46 @@ class GroupConfig:
 @frozen
 class GroupAssignment:
     """
-    Represent group assignment state.
+    Encapsulates the GroupAssignment concern within pytest-bdd, providing a focused set of
+    collaborating operations that .
 
     Responsibility:
-        Represent group assignment state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Encapsulates the GroupAssignment concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.GroupAssignment` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        GroupAssignment is a distinct class because its methods share internal state and collaborate on
+        a cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: GroupAssignment specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single GroupAssignment domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `GroupAssignment`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `GroupAssignment`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `GroupAssignment`
+        - `pytest_bdd.*`: callers catch or instantiate GroupAssignment for error handling and type checking
 
     State and side effects:
-        mutates item_nodeid, group_name, ordinal, resolution_source.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.GroupAssignment` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of GroupAssignment maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -248,49 +231,46 @@ class GroupAssignment:
 @frozen
 class RuntimeGroupBarrierObservation:
     """
-    Represent runtime group barrier observation state.
+    Encapsulates the RuntimeGroupBarrierObservation concern within pytest-bdd, providing a focused
+    set of collaborating o.
 
     Responsibility:
-        Represent runtime group barrier observation state. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this class.
+        Encapsulates the RuntimeGroupBarrierObservation concern within pytest-bdd, providing a focused
+        set of collaborating operations that together deliver a single well-defined capability consumed
+        by the broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.config.RuntimeGroupBarrierObservation` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        RuntimeGroupBarrierObservation is a distinct class because its methods share internal state and
+        collaborate on a cohesive task that would be awkward to express as standalone functions with
+        shared mutable parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: RuntimeGroupBarrierObservation specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single RuntimeGroupBarrierObservation domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `RuntimeGroupBarrierObservation`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `RuntimeGroupBarrierObservation`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `RuntimeGroupBarrierObservation`
+        - `pytest_bdd.*`: callers catch or instantiate RuntimeGroupBarrierObservation for error handling and type checking
 
     State and side effects:
-        mutates item_nodeid, group_name, event, timestamp.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.RuntimeGroupBarrierObservation` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Instances of RuntimeGroupBarrierObservation maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -302,47 +282,47 @@ class RuntimeGroupBarrierObservation:
 
 def _as_list(value: object) -> list[str]:
     """
+    Perform the `_as_list` operation within its module boundary, implementing a focused helper.
+    function that is consumed.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._as_list` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `_as_list` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._as_list` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_as_list` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - str.strip: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - line.strip: collaborator call used by this boundary
-        - value.splitlines: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _as_list operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_as_list`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_as_list`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_as_list`
+        - `pytest_bdd.*`: callers import and invoke _as_list for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _as_list function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if value is None:
         return []
@@ -355,53 +335,47 @@ def _as_list(value: object) -> list[str]:
 
 def _get_ini_value(config: pytest.Config, name: str) -> object:
     """
+    Perform the `_get_ini_value` operation within its module boundary, implementing a focused.
+    helper function that is co.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._get_ini_value` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Performs the `_get_ini_value` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._get_ini_value` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_get_ini_value` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - config.getini: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - pyproject_path.exists: collaborator call used by this boundary
-        - load_toml: collaborator call used by this boundary
-        - pyproject_path.read_text: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _get_ini_value operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_get_ini_value`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_get_ini_value`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_get_ini_value`
+        - `pytest_bdd.*`: callers import and invoke _get_ini_value for its specific utility
 
     State and side effects:
-        mutates value, inicfg, pyproject_path, pyproject, pytest_options.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config._get_ini_value` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _get_ini_value function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     value = config.getini(name)
     if value not in ("", [], ()):
@@ -420,51 +394,47 @@ def _get_ini_value(config: pytest.Config, name: str) -> object:
 
 def _normalize_groups(raw_groups: list[str]) -> list[str]:
     """
+    Perform the `_normalize_groups` operation within its module boundary, implementing a focused.
+    helper function that is.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._normalize_groups` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Performs the `_normalize_groups` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._normalize_groups`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_normalize_groups` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - warnings.warn: collaborator call used by this boundary
-        - set: collaborator call used by this boundary
-        - seen.add: collaborator call used by this boundary
-        - groups.append: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _normalize_groups operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_normalize_groups`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_normalize_groups`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_normalize_groups`
+        - `pytest_bdd.*`: callers import and invoke _normalize_groups for its specific utility
 
     State and side effects:
-        mutates groups, seen.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config._normalize_groups` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _normalize_groups function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     groups: list[str] = []
     seen: set[str] = set()
@@ -487,52 +457,47 @@ def _normalize_groups(raw_groups: list[str]) -> list[str]:
 
 def _parse_path_mappings(raw_mappings: list[str], groups: list[str]) -> list[GroupPathMapping]:
     """
+    Perform the `_parse_path_mappings` operation within its module boundary, implementing a.
+    focused helper function that.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._parse_path_mappings` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_parse_path_mappings` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._parse_path_mappings`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_parse_path_mappings` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - warnings.warn: collaborator call used by this boundary
-        - part.strip: collaborator call used by this boundary
-        - raw_mapping.split: collaborator call used by this boundary
-        - mappings.append: collaborator call used by this boundary
-        - GroupPathMapping: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _parse_path_mappings operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_parse_path_mappings`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_parse_path_mappings`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_parse_path_mappings`
+        - `pytest_bdd.*`: callers import and invoke _parse_path_mappings for its specific utility
 
     State and side effects:
-        mutates mappings, pattern, group_name.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config._parse_path_mappings` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _parse_path_mappings function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     mappings: list[GroupPathMapping] = []
     for raw_mapping in raw_mappings:
@@ -561,48 +526,47 @@ def _parse_path_mappings(raw_mappings: list[str], groups: list[str]) -> list[Gro
 
 def register_group_config_options(parser: pytest.Parser) -> None:
     """
-    Register group config options.
+    Perform the `register_group_config_options` operation within its module boundary, implementing.
+    a focused helper func.
 
     Responsibility:
-        Register group config options. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `register_group_config_options` operation within its module boundary, implementing
+        a focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.config.register_group_config_options` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        `register_group_config_options` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - parser.addini: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the register_group_config_options operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/test_group_ordering/entrypoint.py: imports or references `register_group_config_options`
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `register_group_config_options`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `register_group_config_options`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `register_group_config_options`
+        - `pytest_bdd.*`: callers import and invoke register_group_config_options for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The register_group_config_options function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     parser.addini(
         "test_group_order",
@@ -625,61 +589,47 @@ def register_group_config_options(parser: pytest.Parser) -> None:
 
 def read_group_config(config: pytest.Config) -> GroupConfig:
     """
-    Read test group configuration from pytest config.
-
-    Args:
-        config: Pytest config object.
-
-    Returns:
-        Group configuration object.
+    Perform the `read_group_config` operation within its module boundary, implementing a focused.
+    helper function that is.
 
     Responsibility:
-        Read test group configuration from pytest config. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `read_group_config` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.read_group_config`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `read_group_config` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - _get_ini_value: collaborator call used by this boundary
-        - _as_list: collaborator call used by this boundary
-        - warnings.warn: collaborator call used by this boundary
-        - _normalize_groups: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - _parse_path_mappings: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the read_group_config operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `read_group_config`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `read_group_config`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `read_group_config`
+        - `pytest_bdd.*`: callers import and invoke read_group_config for its specific utility
 
     State and side effects:
-        mutates groups, default, paths.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.read_group_config` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The read_group_config function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     groups = _normalize_groups(_as_list(_get_ini_value(config, "test_group_order")))
     if not groups:
@@ -703,59 +653,47 @@ def read_group_config(config: pytest.Config) -> GroupConfig:
 
 def resolve_path_group(item: pytest.Item, group_config: GroupConfig) -> tuple[str, ResolutionSource]:
     """
-    Resolve the group for an item based on its path.
-
-    Args:
-        item: Pytest test item.
-        group_config: Group configuration.
-
-    Returns:
-        Tuple of group name and resolution source.
+    Perform the `resolve_path_group` operation within its module boundary, implementing a focused.
+    helper function that i.
 
     Responsibility:
-        Resolve the group for an item based on its path. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `resolve_path_group` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.resolve_path_group`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_path_group` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - _relative_item_path: collaborator call used by this boundary
-        - relative_path.as_posix: collaborator call used by this boundary
-        - fnmatch.fnmatch: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolve_path_group operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `resolve_path_group`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `resolve_path_group`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `resolve_path_group`
+        - `pytest_bdd.*`: callers import and invoke resolve_path_group for its specific utility
 
     State and side effects:
-        mutates matched_group, relative_path, path_text, path_parts.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.resolve_path_group` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The resolve_path_group function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     relative_path = _relative_item_path(item, group_config)
     path_text = relative_path.as_posix()
@@ -777,61 +715,47 @@ def resolve_path_group(item: pytest.Item, group_config: GroupConfig) -> tuple[st
 
 def resolve_marker_group(item: pytest.Item, group_config: GroupConfig) -> tuple[str, ResolutionSource] | None:
     """
-    Resolve the group for an item based on its markers.
-
-    Args:
-        item: Pytest test item.
-        group_config: Group configuration.
-
-    Returns:
-        Tuple of group name and resolution source, or None if no group marker is found.
+    Perform the `resolve_marker_group` operation within its module boundary, implementing a.
+    focused helper function that.
 
     Responsibility:
-        Resolve the group for an item based on its markers. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `resolve_marker_group` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config.resolve_marker_group`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `resolve_marker_group` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - _latest_group: collaborator call used by this boundary
-        - _iter_markers_with_nodes: collaborator call used by this boundary
-        - conftest_markers.append: collaborator call used by this boundary
-        - test_markers.append: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the resolve_marker_group operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `resolve_marker_group`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `resolve_marker_group`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `resolve_marker_group`
+        - `pytest_bdd.*`: callers import and invoke resolve_marker_group for its specific utility
 
     State and side effects:
-        mutates conftest_markers, test_markers, marker_name, source.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config.resolve_marker_group` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The resolve_marker_group function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     conftest_markers: list[str] = []
     test_markers: list[str] = []
@@ -855,50 +779,47 @@ def resolve_marker_group(item: pytest.Item, group_config: GroupConfig) -> tuple[
 
 def _iter_markers_with_nodes(item: pytest.Item) -> object:
     """
+    Perform the `_iter_markers_with_nodes` operation within its module boundary, implementing a.
+    focused helper function .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._iter_markers_with_nodes` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_iter_markers_with_nodes` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._iter_markers_with_nodes`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_iter_markers_with_nodes` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - marker_iter: collaborator call used by this boundary
-        - item.iter_markers: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _iter_markers_with_nodes operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_iter_markers_with_nodes`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_iter_markers_with_nodes`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_iter_markers_with_nodes`
+        - `pytest_bdd.*`: callers import and invoke _iter_markers_with_nodes for its specific utility
 
     State and side effects:
-        mutates marker_iter.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config._iter_markers_with_nodes` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The _iter_markers_with_nodes function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     marker_iter = getattr(item, "iter_markers_with_node", None)
     if marker_iter is not None:
@@ -910,95 +831,94 @@ def _iter_markers_with_nodes(item: pytest.Item) -> object:
 
 def _latest_group(group_names: list[str], group_config: GroupConfig) -> str:
     """
+    Perform the `_latest_group` operation within its module boundary, implementing a focused.
+    helper function that is con.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._latest_group` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Performs the `_latest_group` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._latest_group` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_latest_group` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - max: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _latest_group operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_latest_group`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_latest_group`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_latest_group`
+        - `pytest_bdd.*`: callers import and invoke _latest_group for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _latest_group function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return max(group_names, key=group_config.groups.index)
 
 
 def _relative_item_path(item: pytest.Item, group_config: GroupConfig) -> Path:
     """
+    Perform the `_relative_item_path` operation within its module boundary, implementing a focused.
+    helper function that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.config._relative_item_path` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_relative_item_path` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.config._relative_item_path`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_relative_item_path` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
-        - item_path.is_absolute: collaborator call used by this boundary
-        - item_path.relative_to: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _relative_item_path operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/barrier.py: imports or references `_relative_item_path`
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_relative_item_path`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_relative_item_path`
+        - `pytest_bdd.*`: callers import and invoke _relative_item_path for its specific utility
 
     State and side effects:
-        mutates item_path.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.config._relative_item_path` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _relative_item_path function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     item_path = Path(getattr(item, "path", getattr(item, "fspath", "")))
     if not item_path.is_absolute():

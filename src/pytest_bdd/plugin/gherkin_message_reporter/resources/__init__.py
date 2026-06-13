@@ -1,44 +1,48 @@
 # init: no-check
 """
-Packaged resources for gherkin message reporting.
+Serves as the Reporting layer (order 7) package init for the gherkin message reporter's resources sub-package.
 
 Responsibility:
-    Packaged resources for gherkin message reporting. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Serves as the Reporting layer (order 7) package init for the gherkin message reporter's resources sub-package. Acts
+    as a namespace marker and package boundary for template and static resource files used by the HTML report generation
+    and formatter adapters within the live NDJSON reporting system. Contains no executable code — purely structural.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.resources` because it keeps
-    the nearest code, data shape, call signature, and failure knowledge together.
+    This module exists as a Python package marker to enable template discovery via `pkg_resources` or
+    `importlib.resources`. The live formatter system needs to find and load Jinja2 templates and static assets from a
+    well-defined package location. This init makes `resources` addressable as a Python package for resource loading.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - templates: Sub-package containing Jinja2 template files used by formatter adapters.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Purely a structural package marker with no executable logic. All functionality related to resources (template
+    loading, formatter rendering) lives in sibling runtime modules.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - live_formatter_process: Contains the actual rendering logic that loads templates from this package.
+    - standalone_renderer: Independent rendering utility that may load templates from this package.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest_bdd.plugin.gherkin_message_reporter.live_formatter_process: Loads templates from this package via
+    importlib.resources.
+    - pytest_bdd.plugin.gherkin_message_reporter.html_report: Loads templates and static assets from this package.
 
 State and side effects:
-    keeps no local persistent state beyond call-local values.
+    None, keeps no persistent state. Purely a namespace marker module.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.resources` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
+    - Must be importable as a Python package for resource discovery mechanisms.
+    - Template and resource paths relative to this package must be stable.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
+    #arch-eval:reason_for_existence=2
+    #arch-eval:owned_responsibility=2
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
     #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """

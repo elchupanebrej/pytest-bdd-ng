@@ -1,1 +1,0 @@
-"""Contract test package."""

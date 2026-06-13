@@ -1,54 +1,48 @@
 """
-Provide cucumber formatters helpers.
+Manages the static registry of Cucumber formatter definitions mapping formatter names to CLI
+options, formatter types.
 
 Responsibility:
-    Provide cucumber formatters helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Manages the static registry of Cucumber formatter definitions mapping formatter names to CLI
+    options, formatter types, npm package names, and output destinations. Provides the canonical
+    formatter-to-option lookup consumed by the live-reporting plugin system when registering pytest
+    command-line arguments.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.cucumber_formatters` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    All formatter-to-CLI-option mappings live in one module so adding or removing a formatter
+    requires a single-point edit. This module is the information expert for the relationship
+    between pytest CLI flags and @cucumber/pretty-formatter output types, preventing scattered
+    option registration across plugins.
 
 Delegates:
-    - cucumber_formatter_definitions: owns nested behavior below this boundary
-    - register_cucumber_formatter_options: owns nested behavior below this boundary
-    - terminal_formatter_cli_flags: owns nested behavior below this boundary
-    - terminal_formatter_flags_requested: owns nested behavior below this boundary
-    - pytest_capture_already_configured: owns nested behavior below this boundary
-    - any_cucumber_formatter_requested: owns nested behavior below this boundary
+    - @cucumber/pretty-formatter: delegates actual formatting to the npm package at runtime
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All constants define formatter metadata tuples sharing the same 5-element structure.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.util.cucumber_formatter_support`: provides runtime formatter classes while this module provides the
+    static registry.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references `cucumber_formatters`
-    - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `cucumber_formatters`
+    - `pytest_bdd.plugin.gherkin_message_reporter`: uses formatter definitions to register CLI options
 
 State and side effects:
-    mutates FormatterDefinition, CAPTURE_OPTION_PREFIXES, CAPTURE_OPTION_FLAGS, _FORMATTER_DEFINITIONS,
-    _TERMINAL_FORMATTER_CLI_FLAGS; depends on __future__.annotations, typing.TYPE_CHECKING, collections.abc.Sequence,
-    pytest_bdd.compatibility.pytest.Parser, pytest_bdd.util.cucumber_formatter_support.base._coerce_cli_aliases.
+    Module-level _FORMATTER_DEFINITIONS tuple is immutable; no runtime state changes.
 
 Invariants:
-    - `pytest_bdd.util.cucumber_formatters` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Each formatter definition tuple has exactly 5 elements in the documented order.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -90,110 +84,97 @@ _OPTIONAL_PATH_TERMINAL_FLAGS = frozenset(
 
 def cucumber_formatter_definitions() -> tuple[FormatterDefinition, ...]:
     """
-    Return all cucumber formatter definitions.
-
-    Returns:
-        Tuple of formatter definitions.
+    Perform the `cucumber_formatter_definitions` operation within its module boundary,.
+    implementing a focused helper fun.
 
     Responsibility:
-        Return all cucumber formatter definitions. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `cucumber_formatter_definitions` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatters.cucumber_formatter_definitions`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `cucumber_formatter_definitions` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the cucumber_formatter_definitions operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `cucumber_formatter_definitions`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `cucumber_formatter_definitions`
+        - `pytest_bdd.*`: callers import and invoke cucumber_formatter_definitions for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The cucumber_formatter_definitions function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     return _FORMATTER_DEFINITIONS
 
 
 def register_cucumber_formatter_options(parser: Parser) -> None:
     """
-    Register cucumber formatter options with pytest.
+    Perform the `register_cucumber_formatter_options` operation within its module boundary,.
+    implementing a focused helpe.
 
     Responsibility:
-        Register cucumber formatter options with pytest. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `register_cucumber_formatter_options` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatters.register_cucumber_formatter_options` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        `register_cucumber_formatter_options` exists as a standalone function because it encapsulates
+        an operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - FormatterPluginCatalog.discover: collaborator call used by this boundary
-        - parser.getgroup: collaborator call used by this boundary
-        - plugin.build_addoption_kwargs: collaborator call used by this boundary
-        - _coerce_cli_aliases: collaborator call used by this boundary
-        - addoption_kwargs.pop: collaborator call used by this boundary
-        - group.addoption: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the register_cucumber_formatter_options operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `register_cucumber_formatter_options`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references
-          `register_cucumber_formatter_options`
+        - `pytest_bdd.*`: callers import and invoke register_cucumber_formatter_options for its specific utility
 
     State and side effects:
-        mutates catalog, group, addoption_kwargs, cli_aliases; depends on
-        pytest_bdd.util.cucumber_formatter_support.base._coerce_cli_aliases,
-        pytest_bdd.util.cucumber_formatter_support.registry.FormatterPluginCatalog.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatters.register_cucumber_formatter_options` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The register_cucumber_formatter_options function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
-    from pytest_bdd.util.cucumber_formatter_support.base import _coerce_cli_aliases  # noqa: PLC0415
-    from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog  # noqa: PLC0415
+    from pytest_bdd.util.cucumber_formatter_support.base import _coerce_cli_aliases
+    from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 
     catalog = FormatterPluginCatalog.discover()
     group = parser.getgroup("bdd", "Cucumber Formatters")
@@ -205,108 +186,94 @@ def register_cucumber_formatter_options(parser: Parser) -> None:
 
 def terminal_formatter_cli_flags() -> frozenset[str]:
     """
-    Return all terminal formatter CLI flags.
-
-    Returns:
-        Frozenset of CLI flag strings.
+    Perform the `terminal_formatter_cli_flags` operation within its module boundary, implementing.
+    a focused helper funct.
 
     Responsibility:
-        Return all terminal formatter CLI flags. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `terminal_formatter_cli_flags` operation within its module boundary, implementing
+        a focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatters.terminal_formatter_cli_flags`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `terminal_formatter_cli_flags` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - frozenset: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the terminal_formatter_cli_flags operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `terminal_formatter_cli_flags`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `terminal_formatter_cli_flags`
+        - `pytest_bdd.*`: callers import and invoke terminal_formatter_cli_flags for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The terminal_formatter_cli_flags function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     return frozenset((*_TERMINAL_FORMATTER_CLI_FLAGS, *_OPTIONAL_PATH_TERMINAL_FLAGS))
 
 
 def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
     """
-    Check if any terminal formatter flags are requested.
-
-    Args:
-        args: Command-line arguments.
-
-    Returns:
-        True if terminal formatter flag is present.
+    Perform the `terminal_formatter_flags_requested` operation within its module boundary,.
+    implementing a focused helper.
 
     Responsibility:
-        Check if any terminal formatter flags are requested. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `terminal_formatter_flags_requested` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatters.terminal_formatter_flags_requested` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `terminal_formatter_flags_requested` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - terminal_formatter_cli_flags: collaborator call used by this boundary
-        - arg.startswith: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the terminal_formatter_flags_requested operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `terminal_formatter_flags_requested`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references
-          `terminal_formatter_flags_requested`
+        - `pytest_bdd.*`: callers import and invoke terminal_formatter_flags_requested for its specific utility
 
     State and side effects:
-        mutates requested_stdout_flags.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatters.terminal_formatter_flags_requested` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The terminal_formatter_flags_requested function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     requested_stdout_flags = terminal_formatter_cli_flags()
     for arg in args:
@@ -319,54 +286,47 @@ def terminal_formatter_flags_requested(args: Sequence[str]) -> bool:
 
 def pytest_capture_already_configured(args: Sequence[str]) -> bool:
     """
-    Check if pytest capture is already configured.
-
-    Args:
-        args: Command-line arguments.
-
-    Returns:
-        True if capture is already configured.
+    Perform the `pytest_capture_already_configured` operation within its module boundary,.
+    implementing a focused helper .
 
     Responsibility:
-        Check if pytest capture is already configured. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `pytest_capture_already_configured` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatters.pytest_capture_already_configured` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `pytest_capture_already_configured` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - any: collaborator call used by this boundary
-        - arg.startswith: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the pytest_capture_already_configured operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `pytest_capture_already_configured`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `pytest_capture_already_configured`
+        - `pytest_bdd.*`: callers import and invoke pytest_capture_already_configured for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The pytest_capture_already_configured function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     return any(
         arg in CAPTURE_OPTION_FLAGS or any(arg.startswith(prefix) for prefix in CAPTURE_OPTION_PREFIXES) for arg in args
@@ -375,51 +335,47 @@ def pytest_capture_already_configured(args: Sequence[str]) -> bool:
 
 def any_cucumber_formatter_requested(options: object) -> bool:
     """
-    Check if any cucumber formatter is requested.
-
-    Returns:
-        True if any cucumber formatter is requested.
+    Perform the `any_cucumber_formatter_requested` operation within its module boundary,.
+    implementing a focused helper f.
 
     Responsibility:
-        Check if any cucumber formatter is requested. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `any_cucumber_formatter_requested` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatters.any_cucumber_formatter_requested`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `any_cucumber_formatter_requested` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - any: collaborator call used by this boundary
-        - getattr: collaborator call used by this boundary
-        - cucumber_formatter_definitions: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the any_cucumber_formatter_requested operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/entrypoint.py: imports or references
-          `any_cucumber_formatter_requested`
-        - src/pytest_bdd/script/render_cucumber_formatters.py: imports or references `any_cucumber_formatter_requested`
+        - `pytest_bdd.*`: callers import and invoke any_cucumber_formatter_requested for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The any_cucumber_formatter_requested function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
-
     """
     return any(
         getattr(options, option_attr, None) not in {None, False}

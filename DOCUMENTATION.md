@@ -94,6 +94,7 @@ from collections import deque
 from pytest_bdd.model import UserStep
 from pytest_bdd import when
 
+
 @when('I inject step "{keyword}" "{step_text}')
 def inject_step(steps_left: deque, keyword, step_text, scenario):
     steps_left.appendleft(UserStep(text=step_text, keyword=keyword, scenario=scenario))
@@ -178,19 +179,11 @@ from pytest_bdd.struct_bdd.model import Step, Table
 test_cukes = Step(
     name="Examples are substituted",
     steps=[
-        Step(type='Given', action='I have <have> cucumbers'),
-        Step(type='And', action='I eat <eat> cucumbers'),
-        Step(type='Then', action='I have <left> cucumbers')
+        Step(type="Given", action="I have <have> cucumbers"),
+        Step(type="And", action="I eat <eat> cucumbers"),
+        Step(type="Then", action="I have <left> cucumbers"),
     ],
-    examples=[
-        Table(
-            parameters=['have', 'eat', 'left'],
-            values=[
-                ['12', 5, 7.0],
-                ["8.0", 3.0, "5"]
-            ]
-        )
-    ]
+    examples=[Table(parameters=["have", "eat", "left"], values=[["12", 5, 7.0], ["8.0", 3.0, "5"]])],
 )
 ```
 
@@ -201,29 +194,20 @@ format/preprocessor)
 from pytest_bdd.struct_bdd.model import Step
 
 cukes = Step.parse_obj(
-        dict(
-            Name="Examples are substituted",
-            Steps=[
-                dict(Given='I have <have> cucumbers'),
-                dict(And='I eat <eat> cucumbers'),
-                dict(Then='I have <left> cucumbers')
-            ],
-            Examples=[
-                dict(
-                    Table=dict(
-                        Parameters=['have', 'eat', 'left'],
-                        Values=[
-                            ['12', 5, 7.0],
-                            ["8.0", 3.0, "5"]
-                        ]
-                    )
-                )
-            ]
-        )
+    dict(
+        Name="Examples are substituted",
+        Steps=[
+            dict(Given="I have <have> cucumbers"),
+            dict(And="I eat <eat> cucumbers"),
+            dict(Then="I have <left> cucumbers"),
+        ],
+        Examples=[dict(Table=dict(Parameters=["have", "eat", "left"], Values=[["12", 5, 7.0], ["8.0", 3.0, "5"]]))],
     )
+)
+
 
 @cukes
-def test(feature:Feature, scenario):
+def test(feature: Feature, scenario):
     assert feature.name == "Examples are substituted"
 ```
 

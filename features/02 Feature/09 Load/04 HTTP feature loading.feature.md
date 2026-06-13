@@ -18,14 +18,16 @@
     from pytest_bdd import given, scenarios, FeaturePathType
     from pytest_bdd.mimetype import Mimetype
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
+        pass
+
 
     test_cukes = scenarios(
-      "http://localhost:{httpserver_port}/feature",
-      features_mimetype=Mimetype.gherkin_plain,
-      features_path_type=FeaturePathType.URL,
+        "http://localhost:{httpserver_port}/feature",
+        features_mimetype=Mimetype.gherkin_plain,
+        features_path_type=FeaturePathType.URL,
     )
     ```
 
@@ -53,13 +55,15 @@
     from pytest_bdd import scenarios
     from pytest_bdd import given
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
+        pass
+
 
     test_cukes = scenarios(
-      "/feature",
-      features_base_url="http://localhost:{httpserver_port}",
+        "/feature",
+        features_base_url="http://localhost:{httpserver_port}",
     )
     ```
 
@@ -93,9 +97,10 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
+        pass
     ```
 
 * And File "test_http.py" with content:
@@ -111,9 +116,9 @@
     url = parser["InternetShortcut"]["URL"]
 
     test_http = scenarios(
-      url,
-      features_mimetype=Mimetype.gherkin_plain,
-      features_path_type=FeaturePathType.URL,
+        url,
+        features_mimetype=Mimetype.gherkin_plain,
+        features_path_type=FeaturePathType.URL,
     )
     ```
 
@@ -149,9 +154,10 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
+        pass
     ```
 
 * And File "test_http.py" with content:
@@ -167,9 +173,9 @@
     url = parser["Desktop Entry"]["URL"]
 
     test_http = scenarios(
-      url,
-      features_mimetype=Mimetype.gherkin_plain,
-      features_path_type=FeaturePathType.URL,
+        url,
+        features_mimetype=Mimetype.gherkin_plain,
+        features_path_type=FeaturePathType.URL,
     )
     ```
 
@@ -202,10 +208,10 @@
 
     webloc_write(Path("test_http.webloc"), "http://localhost:{httpserver_port}/feature")
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
-
+        pass
     ```
 
 * And File "test_http.py" with content:
@@ -218,12 +224,12 @@
     from pytest_bdd.mimetype import Mimetype
 
     with Path("test_http.webloc").open("rb") as f:
-      url = plistlib.load(f)["URL"]
+        url = plistlib.load(f)["URL"]
 
     test_http = scenarios(
-      url,
-      features_mimetype=Mimetype.gherkin_plain,
-      features_path_type=FeaturePathType.URL,
+        url,
+        features_mimetype=Mimetype.gherkin_plain,
+        features_path_type=FeaturePathType.URL,
     )
     ```
 
@@ -259,14 +265,16 @@
 
     pytestmark = [pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
+
     @given("I have 42 cukes in my belly")
     def _results():
-      pass
+        pass
+
 
     test_cukes = scenarios(
-      "http://localhost:{httpserver_port}/feature",
-      features_mimetype=Mimetype.struct_bdd_yaml,
-      features_path_type=FeaturePathType.URL,
+        "http://localhost:{httpserver_port}/feature",
+        features_mimetype=Mimetype.struct_bdd_yaml,
+        features_path_type=FeaturePathType.URL,
     )
     ```
 

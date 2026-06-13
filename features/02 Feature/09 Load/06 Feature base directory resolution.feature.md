@@ -16,9 +16,9 @@
     ```python
     from pytest_bdd import given
 
-    @given('found')
-    def _():
-      ...
+
+    @given("found")
+    def _(): ...
     ```
 
 * And File "test_feature.py" with content:
@@ -28,38 +28,39 @@
 
     from pytest_bdd import scenario, scenarios
 
-    FEATURE = 'steps.feature'
+    FEATURE = "steps.feature"
+
 
     def assert_generated_test(test_obj):
-      # Explicit assertion that scenario binding produced a pytest test callable.
-      assert callable(test_obj)
-      assert test_obj.__name__.startswith('test_')
-      assert any(mark.name == 'scenarios' for mark in getattr(test_obj, 'pytestmark', []))
+        # Explicit assertion that scenario binding produced a pytest test callable.
+        assert callable(test_obj)
+        assert test_obj.__name__.startswith("test_")
+        assert any(mark.name == "scenarios" for mark in getattr(test_obj, "pytestmark", []))
 
 
-    @pytest.fixture(params=['When scenario found'])
+    @pytest.fixture(params=["When scenario found"])
     def scenario_name(request):
-      return request.param
+        return request.param
 
 
-    @pytest.mark.parametrize('multiple', [True, False])
+    @pytest.mark.parametrize("multiple", [True, False])
     def test_ok_by_ini(scenario_name, multiple):
-      # This verifies ini-driven base-directory resolution.
-      if multiple:
-        generated = scenarios(FEATURE)
-      else:
-        generated = scenario(FEATURE, scenario_name, return_test_decorator=False)
-      assert_generated_test(generated)
+        # This verifies ini-driven base-directory resolution.
+        if multiple:
+            generated = scenarios(FEATURE)
+        else:
+            generated = scenario(FEATURE, scenario_name, return_test_decorator=False)
+        assert_generated_test(generated)
 
 
-    @pytest.mark.parametrize('multiple', [True, False])
+    @pytest.mark.parametrize("multiple", [True, False])
     def test_ok_by_param(scenario_name, multiple):
-      # This verifies explicit per-call override of base directory.
-      if multiple:
-        generated = scenarios(FEATURE, features_base_dir='features')
-      else:
-        generated = scenario(FEATURE, scenario_name, features_base_dir='features', return_test_decorator=False)
-      assert_generated_test(generated)
+        # This verifies explicit per-call override of base directory.
+        if multiple:
+            generated = scenarios(FEATURE, features_base_dir="features")
+        else:
+            generated = scenario(FEATURE, scenario_name, features_base_dir="features", return_test_decorator=False)
+        assert_generated_test(generated)
     ```
 
 ### Scenario: Resolve by ini-configured base directory

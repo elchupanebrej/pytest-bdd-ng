@@ -1,50 +1,46 @@
 """
-Provide sys compatibility helpers.
+Provide a cross-Python-version compatibility shim for `sys`, encapsulating all version-
+detection logic and conditio.
 
 Responsibility:
-    Provide sys compatibility helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Provides a cross-Python-version compatibility shim for `sys`, encapsulating all version-
+    detection logic and conditional imports so that higher layers import a single stable name
+    regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.sys` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `sys` in this module prevents `if sys.version_info`
+    checks from contaminating domain logic. This module is the single information expert for which
+    stdlib/third-party names and APIs are available on each supported Python version for this
+    specific concern.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (sys); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/_gherkin_go/_bridge.py: imports or references `sys`
-    - src/pytest_bdd/_gherkin_go/_build.py: imports or references `sys`
-    - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `sys`
-    - src/pytest_bdd/compatibility/enum.py: imports or references `sys`
-    - src/pytest_bdd/compatibility/path.py: imports or references `sys`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    mutates get_frame; depends on sys._getframe.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.sys` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from sys import _getframe

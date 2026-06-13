@@ -180,7 +180,7 @@ import pytest
 
 pytestmark = pytest.mark.slow
 
+
 @pytest.mark.external
-def test_requires_external_service():
-    ...
+def test_requires_external_service(): ...
 ```

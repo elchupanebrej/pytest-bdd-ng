@@ -1,55 +1,43 @@
 """
-Provide base helpers.
+Provides focused utility functions for the `base` concern within pytest-bdd utility layer,
+offering helper operations.
 
 Responsibility:
-    Provide base helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides focused utility functions for the `base` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.base` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    Keeping `base` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `base`-related helper operations within the
+    utility layer.
 
 Delegates:
-    - _load_template_asset: owns nested behavior below this boundary
-    - load_formatter_adapter_support_template: owns nested behavior below this boundary
-    - load_formatter_adapter_template: owns nested behavior below this boundary
-    - _coerce_cli_aliases: owns nested behavior below this boundary
-    - FormatterOutputMode: owns nested behavior below this boundary
-    - FormatterReporterPlugin: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `base` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `base`
-    - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `base`
-    - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `base`
-    - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `base`
-    - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `base`
+    - `pytest_bdd.plugin.*`: imports `base` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates message, cli_aliases, runtime_specifier, runtime_module_path, output_path; depends on
-    __future__.annotations, abc.ABC, abc.abstractmethod, pathlib.Path, typing.TYPE_CHECKING.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.cucumber_formatter_support.base` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises TypeError, ValueError, NotImplementedError; callers must treat these as boundary failures.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
@@ -76,115 +64,94 @@ if TYPE_CHECKING:
 
 def _load_template_asset(package: str, template_name: str) -> str:
     """
-    Load a template asset from a package.
-
-    Args:
-        package: Package name.
-        template_name: Template filename.
-
-    Returns:
-        Template content as string.
+    Perform the `_load_template_asset` operation within its module boundary, implementing a.
+    focused helper function that.
 
     Responsibility:
-        Load a template asset from a package. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_load_template_asset` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.base._load_template_asset`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_load_template_asset` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - files.joinpath.read_text: collaborator call used by this boundary
-        - files.joinpath: collaborator call used by this boundary
-        - files: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _load_template_asset operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `_load_template_asset`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `_load_template_asset`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `_load_template_asset`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `_load_template_asset`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `_load_template_asset`
+        - `pytest_bdd.*`: callers import and invoke _load_template_asset for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _load_template_asset function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return str(files(package).joinpath(template_name).read_text(encoding="utf-8"))
 
 
 def load_formatter_adapter_support_template() -> str:
     """
-    Load formatter adapter support template.
-
-    Returns:
-        Template content as string.
+    Perform the `load_formatter_adapter_support_template` operation within its module boundary,.
+    implementing a focused h.
 
     Responsibility:
-        Load formatter adapter support template. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `load_formatter_adapter_support_template` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.base.load_formatter_adapter_support_template` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `load_formatter_adapter_support_template` exists as a standalone function because it
+        encapsulates an operation that does not require shared instance state and benefits from being
+        independently callable and testable without class instantiation overhead.
 
     Delegates:
-        - _load_template_asset: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the load_formatter_adapter_support_template operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-          `load_formatter_adapter_support_template`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-          `load_formatter_adapter_support_template`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-          `load_formatter_adapter_support_template`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-          `load_formatter_adapter_support_template`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-          `load_formatter_adapter_support_template`
+        - `pytest_bdd.*`: callers import and invoke load_formatter_adapter_support_template for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The load_formatter_adapter_support_template function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return _load_template_asset(
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates",
@@ -194,57 +161,47 @@ def load_formatter_adapter_support_template() -> str:
 
 def load_formatter_adapter_template(template_name: str) -> str:
     """
-    Load formatter adapter template.
-
-    Args:
-        template_name: Template filename.
-
-    Returns:
-        Template content as string.
+    Perform the `load_formatter_adapter_template` operation within its module boundary,.
+    implementing a focused helper fu.
 
     Responsibility:
-        Load formatter adapter template. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `load_formatter_adapter_template` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.base.load_formatter_adapter_template` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `load_formatter_adapter_template` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - _load_template_asset: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the load_formatter_adapter_template operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-          `load_formatter_adapter_template`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `load_formatter_adapter_template`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `load_formatter_adapter_template`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `load_formatter_adapter_template`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `load_formatter_adapter_template`
+        - `pytest_bdd.*`: callers import and invoke load_formatter_adapter_template for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The load_formatter_adapter_template function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return _load_template_asset(
         "pytest_bdd.plugin.gherkin_message_reporter.resources.templates.formatters",
@@ -254,67 +211,47 @@ def load_formatter_adapter_template(template_name: str) -> str:
 
 def _coerce_cli_aliases(raw_value: object) -> tuple[str, ...]:
     """
-    Coerce CLI aliases to a tuple.
-
-    Args:
-        raw_value: Raw value from argparse.
-
-    Returns:
-        Tuple of alias strings.
-
-    Raises:
-        TypeError: If value is invalid.
+    Perform the `_coerce_cli_aliases` operation within its module boundary, implementing a focused.
+    helper function that .
 
     Responsibility:
-        Coerce CLI aliases to a tuple. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `_coerce_cli_aliases` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.base._coerce_cli_aliases`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_coerce_cli_aliases` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - TypeError: collaborator call used by this boundary
-        - all: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _coerce_cli_aliases operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `_coerce_cli_aliases`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `_coerce_cli_aliases`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `_coerce_cli_aliases`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `_coerce_cli_aliases`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `_coerce_cli_aliases`
+        - `pytest_bdd.*`: callers import and invoke _coerce_cli_aliases for its specific utility
 
     State and side effects:
-        mutates message.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.base._coerce_cli_aliases` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises TypeError; callers must treat these as boundary failures.
+        - The _coerce_cli_aliases function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if raw_value in {None, ()}:
         return ()
@@ -329,51 +266,47 @@ def _coerce_cli_aliases(raw_value: object) -> tuple[str, ...]:
 
 class FormatterOutputMode(StrEnum):
     """
-    Represent formatter output mode state.
+    Enumerates the possible states for the FormatterOutputMode domain as a StrEnum, providing
+    symbolic constants that rep.
 
     Responsibility:
-        Represent formatter output mode state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Enumerates the possible states for the FormatterOutputMode domain as a StrEnum, providing
+        symbolic constants that replace magic strings in error classification and reporting code
+        throughout the pytest-bdd runtime.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.cucumber_formatter_support.base.FormatterOutputMode`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Using StrEnum instead of plain strings for FormatterOutputMode ensures compile-time validation
+        of failure codes, enables IDE autocompletion for error handlers, and centralizes the catalog of
+        possible states so new codes cannot be introduced silently.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - StrEnum: FormatterOutputMode specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All members are string enum values representing distinct states within the FormatterOutputMode
+        domain.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `FormatterOutputMode`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `FormatterOutputMode`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `FormatterOutputMode`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `FormatterOutputMode`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `FormatterOutputMode`
+        - `pytest_bdd.*`: callers catch or instantiate FormatterOutputMode for error handling and type checking
 
     State and side effects:
-        mutates stdout, path, optional_path.
+        Stores only immutable string enum values defined at class creation time.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.base.FormatterOutputMode` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - Each member is a non-empty string uniquely identifying a FormatterOutputMode state.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -385,68 +318,50 @@ class FormatterOutputMode(StrEnum):
 # FormatterRuntimeKind is imported from pytest_bdd.model.cucumber_formatter_contract above.
 
 
-@frozen  # noqa: PLR0904
+@frozen  # noqa: PLR0904  -- suppressed warning
 class FormatterReporterPlugin(ABC):
     """
-    Represent formatter reporter plugin state.
-
-    Raises:
-        NotImplementedError: If the operation cannot be completed.
-        ValueError: If the operation cannot be completed.
+    Encapsulates the FormatterReporterPlugin concern within pytest-bdd, providing a focused set of
+    collaborating operatio.
 
     Responsibility:
-        Represent formatter reporter plugin state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the FormatterReporterPlugin concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        FormatterReporterPlugin is a distinct class because its methods share internal state and
+        collaborate on a cohesive task that would be awkward to express as standalone functions with
+        shared mutable parameters.
 
     Delegates:
-        - plugin_name: owns nested behavior below this boundary
-        - plugin_object_name: owns nested behavior below this boundary
-        - plugin_entrypoint_target: owns nested behavior below this boundary
-        - has_module_runtime: owns nested behavior below this boundary
-        - module_runtime_template_name: owns nested behavior below this boundary
-        - module_runtime_path: owns nested behavior below this boundary
+        - ABC: FormatterReporterPlugin specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single FormatterReporterPlugin domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `FormatterReporterPlugin`
-        - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `FormatterReporterPlugin`
-        - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `FormatterReporterPlugin`
-        - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `FormatterReporterPlugin`
-        - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `FormatterReporterPlugin`
+        - `pytest_bdd.*`: callers catch or instantiate FormatterReporterPlugin for error handling and type checking
 
     State and side effects:
-        mutates cli_aliases, runtime_specifier, message, runtime_module_path, output_path.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises ValueError, NotImplementedError; callers must treat these as boundary failures.
+        - Instances of FormatterReporterPlugin maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
-
     """
 
     option_attr: str
@@ -468,259 +383,239 @@ class FormatterReporterPlugin(ABC):
     @property
     def plugin_name(self) -> str:
         """
-        Handle plugin name.
+        Performs the plugin_name operation within the FormatterReporterPlugin boundary, handling its
+        specific sub-task as par.
 
         Responsibility:
-            Handle plugin name. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the plugin_name operation within the FormatterReporterPlugin boundary, handling its
+            specific sub-task as part of the broader FormatterReporterPlugin responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.plugin_name` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            plugin_name is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the plugin_name operation on FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `plugin_name`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `plugin_name`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `plugin_name`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `plugin_name`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `plugin_name`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         return f"pytest-bdd-cucumber-formatter-{self.formatter}"
 
     @property
     def plugin_object_name(self) -> str:
         """
-        Handle plugin object name.
+        Performs the plugin_object_name operation within the FormatterReporterPlugin boundary, handling
+        its specific sub-task.
 
         Responsibility:
-            Handle plugin object name. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the plugin_object_name operation within the FormatterReporterPlugin boundary, handling
+            its specific sub-task as part of the broader FormatterReporterPlugin responsibility in the
+            pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.plugin_object_name` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            plugin_object_name is a distinct method because it encapsulates a specific behavioral concern
+            that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self.formatter.replace: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the plugin_object_name operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `plugin_object_name`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `plugin_object_name`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `plugin_object_name`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `plugin_object_name`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `plugin_object_name`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return f"{self.formatter.replace('-', '_')}_plugin"
 
     @property
     def plugin_entrypoint_target(self) -> str:
         """
-        Handle plugin entrypoint target.
+        Performs the plugin_entrypoint_target operation within the FormatterReporterPlugin boundary,
+        handling its specific su.
 
         Responsibility:
-            Handle plugin entrypoint target. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the plugin_entrypoint_target operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.plugin_entrypoint_target` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            plugin_entrypoint_target is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the plugin_entrypoint_target operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `plugin_entrypoint_target`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `plugin_entrypoint_target`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `plugin_entrypoint_target`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `plugin_entrypoint_target`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `plugin_entrypoint_target`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         return f"{self.module_name}:{self.plugin_object_name}"
 
     @property
     def has_module_runtime(self) -> bool:
         """
-        Return module runtime.
+        Performs the has_module_runtime operation within the FormatterReporterPlugin boundary, handling
+        its specific sub-task.
 
         Responsibility:
-            Return module runtime. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the has_module_runtime operation within the FormatterReporterPlugin boundary, handling
+            its specific sub-task as part of the broader FormatterReporterPlugin responsibility in the
+            pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.has_module_runtime` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            has_module_runtime is a distinct method because it encapsulates a specific behavioral concern
+            that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the has_module_runtime operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `has_module_runtime`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `has_module_runtime`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `has_module_runtime`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `has_module_runtime`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `has_module_runtime`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         return self.runtime_kind == FormatterRuntimeKind.module
 
     @property
     def module_runtime_template_name(self) -> str:
         """
-        Handle module runtime template name.
-
-        Raises:
-            ValueError: If the operation cannot be completed.
+        Performs the module_runtime_template_name operation within the FormatterReporterPlugin
+        boundary, handling its specifi.
 
         Responsibility:
-            Handle module runtime template name. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the module_runtime_template_name operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.module_runtime_template_name`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            module_runtime_template_name is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - type: collaborator call used by this boundary
-            - ValueError: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the module_runtime_template_name operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `module_runtime_template_name`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `module_runtime_template_name`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `module_runtime_template_name`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `module_runtime_template_name`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `module_runtime_template_name`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates template_name, message.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.module_runtime_template_name`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises ValueError; callers must treat these as boundary failures.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         template_name = type(self).runtime_template_name
         if template_name is None:
@@ -731,103 +626,94 @@ class FormatterReporterPlugin(ABC):
     @property
     def module_runtime_path(self) -> str:
         """
-        Handle module runtime path.
+        Performs the module_runtime_path operation within the FormatterReporterPlugin boundary,
+        handling its specific sub-tas.
 
         Responsibility:
-            Handle module runtime path. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the module_runtime_path operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.module_runtime_path` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            module_runtime_path is a distinct method because it encapsulates a specific behavioral concern
+            that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - Path: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the module_runtime_path operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `module_runtime_path`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `module_runtime_path`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `module_runtime_path`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `module_runtime_path`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `module_runtime_path`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return f"formatters/{Path(self.module_runtime_template_name).stem}"
 
     def _option_value(self, option_source: object) -> object:
         """
+        Perform the _option_value operation within the FormatterReporterPlugin boundary, handling its.
+        specific sub-task as p.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._option_value` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Performs the _option_value operation within the FormatterReporterPlugin boundary, handling its
+            specific sub-task as part of the broader FormatterReporterPlugin responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._option_value` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            _option_value is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - option_source.get: collaborator call used by this boundary
-            - option_values.get: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the _option_value operation on FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `_option_value`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `_option_value`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `_option_value`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `_option_value`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `_option_value`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates option_values.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._option_value` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         if isinstance(option_source, dict):
             return option_source.get(self.option_attr)
@@ -838,57 +724,47 @@ class FormatterReporterPlugin(ABC):
 
     def addoption(self, parser: Parser) -> None:
         """
-        Handle addoption.
+        Perform the addoption operation within the FormatterReporterPlugin boundary, handling its.
+        specific sub-task as part .
 
         Responsibility:
-            Handle addoption. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the addoption operation within the FormatterReporterPlugin boundary, handling its
+            specific sub-task as part of the broader FormatterReporterPlugin responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.addoption` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            addoption is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of FormatterReporterPlugin
+            without affecting other operations.
 
         Delegates:
-            - parser.getgroup: collaborator call used by this boundary
-            - self.build_addoption_kwargs: collaborator call used by this boundary
-            - _coerce_cli_aliases: collaborator call used by this boundary
-            - addoption_kwargs.pop: collaborator call used by this boundary
-            - group.addoption: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the addoption operation on FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/code_generator/entrypoint.py: imports or references `addoption`
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `addoption`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `addoption`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `addoption`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `addoption`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates group, addoption_kwargs, cli_aliases.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.addoption` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         group = parser.getgroup("bdd", "Cucumber Formatters")
         addoption_kwargs = self.build_addoption_kwargs()
@@ -898,110 +774,95 @@ class FormatterReporterPlugin(ABC):
     @abstractmethod
     def build_addoption_kwargs(self) -> dict[str, object]:
         """
-        Build addoption kwargs.
-
-        Raises:
-            NotImplementedError: If the operation cannot be completed.
+        Perform the build_addoption_kwargs operation within the FormatterReporterPlugin boundary,.
+        handling its specific sub-.
 
         Responsibility:
-            Build addoption kwargs. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the build_addoption_kwargs operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_addoption_kwargs` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_addoption_kwargs is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_addoption_kwargs operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `build_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `build_addoption_kwargs`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
 
-        Failure semantics:
-            Raises or re-raises NotImplementedError; callers must treat these as boundary failures.
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         raise NotImplementedError
 
     def build_boolean_addoption_kwargs(self) -> dict[str, object]:
         """
-        Build boolean addoption kwargs.
-
-        Returns:
-            Keyword arguments for boolean addoption.
+        Perform the build_boolean_addoption_kwargs operation within the FormatterReporterPlugin.
+        boundary, handling its speci.
 
         Responsibility:
-            Build boolean addoption kwargs. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_boolean_addoption_kwargs operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_boolean_addoption_kwargs`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_boolean_addoption_kwargs is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_boolean_addoption_kwargs operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_boolean_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_boolean_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_boolean_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_boolean_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_boolean_addoption_kwargs`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {
             "dest": self.option_attr,
@@ -1013,58 +874,48 @@ class FormatterReporterPlugin(ABC):
 
     def build_required_path_addoption_kwargs(self) -> dict[str, object]:
         """
-        Build required path addoption kwargs.
-
-        Returns:
-            Keyword arguments for required path addoption.
+        Perform the build_required_path_addoption_kwargs operation within the FormatterReporterPlugin.
+        boundary, handling its.
 
         Responsibility:
-            Build required path addoption kwargs. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_required_path_addoption_kwargs operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_required_path_addoption_kwargs`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_required_path_addoption_kwargs is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_required_path_addoption_kwargs operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_required_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `build_required_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_required_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_required_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_required_path_addoption_kwargs`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {
             "dest": self.option_attr,
@@ -1077,58 +928,48 @@ class FormatterReporterPlugin(ABC):
 
     def build_optional_path_addoption_kwargs(self) -> dict[str, object]:
         """
-        Build optional path addoption kwargs.
-
-        Returns:
-            Keyword arguments for optional path addoption.
+        Perform the build_optional_path_addoption_kwargs operation within the FormatterReporterPlugin.
+        boundary, handling its.
 
         Responsibility:
-            Build optional path addoption kwargs. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_optional_path_addoption_kwargs operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_optional_path_addoption_kwargs`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_optional_path_addoption_kwargs is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_optional_path_addoption_kwargs operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_optional_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `build_optional_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_optional_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_optional_path_addoption_kwargs`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_optional_path_addoption_kwargs`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {
             "dest": self.option_attr,
@@ -1149,57 +990,47 @@ class FormatterReporterPlugin(ABC):
         runtime_template_name: str | None = None,
     ) -> CucumberFormatterRequest:
         """
+        Perform the _build_request operation within the FormatterReporterPlugin boundary, handling its.
+        specific sub-task as .
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._build_request` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Performs the _build_request operation within the FormatterReporterPlugin boundary, handling its
+            specific sub-task as part of the broader FormatterReporterPlugin responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._build_request` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            _build_request is a distinct method because it encapsulates a specific behavioral concern that
+            must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - ValueError: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - CucumberFormatterRequest: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the _build_request operation on FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `_build_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `_build_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `_build_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `_build_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `_build_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates runtime_module_path, runtime_specifier, message.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin._build_request` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises ValueError; callers must treat these as boundary failures.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         runtime_specifier = self.runtime_specifier or self.formatter
         runtime_module_path = None
@@ -1226,109 +1057,95 @@ class FormatterReporterPlugin(ABC):
 
     def build_builtin_terminal_request(self) -> CucumberFormatterRequest:
         """
-        Build builtin terminal request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_builtin_terminal_request operation within the FormatterReporterPlugin.
+        boundary, handling its speci.
 
         Responsibility:
-            Build builtin terminal request. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_builtin_terminal_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_builtin_terminal_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_builtin_terminal_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self._build_request: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_builtin_terminal_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_builtin_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_builtin_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_builtin_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_builtin_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_builtin_terminal_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self._build_request(output_path=None, runtime_kind=FormatterRuntimeKind.builtin)
 
     def build_module_terminal_request(self, *, template_name: str) -> CucumberFormatterRequest:
         """
-        Build module terminal request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_module_terminal_request operation within the FormatterReporterPlugin.
+        boundary, handling its specif.
 
         Responsibility:
-            Build module terminal request. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_module_terminal_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_module_terminal_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_module_terminal_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self._build_request: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_module_terminal_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_module_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_module_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_module_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_module_terminal_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_module_terminal_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self._build_request(
             output_path=None,
@@ -1343,60 +1160,48 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
         """
-        Build builtin required path request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_builtin_required_path_request operation within the FormatterReporterPlugin.
+        boundary, handling its .
 
         Responsibility:
-            Build builtin required path request. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_builtin_required_path_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_builtin_required_path_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_builtin_required_path_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self._build_request: collaborator call used by this boundary
-            - resolve_output_path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_builtin_required_path_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_builtin_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `build_builtin_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_builtin_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_builtin_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_builtin_required_path_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self._build_request(
             output_path=resolve_output_path(str(raw_value)),
@@ -1411,59 +1216,48 @@ class FormatterReporterPlugin(ABC):
         template_name: str,
     ) -> CucumberFormatterRequest:
         """
-        Build module required path request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_module_required_path_request operation within the FormatterReporterPlugin.
+        boundary, handling its s.
 
         Responsibility:
-            Build module required path request. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_module_required_path_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_module_required_path_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_module_required_path_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self._build_request: collaborator call used by this boundary
-            - resolve_output_path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_module_required_path_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_module_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_module_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_module_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_module_required_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_module_required_path_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self._build_request(
             output_path=resolve_output_path(str(raw_value)),
@@ -1478,64 +1272,48 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
         """
-        Build builtin optional path request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_builtin_optional_path_request operation within the FormatterReporterPlugin.
+        boundary, handling its .
 
         Responsibility:
-            Build builtin optional path request. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_builtin_optional_path_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_builtin_optional_path_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_builtin_optional_path_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - resolve_output_path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - self._build_request: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_builtin_optional_path_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_builtin_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `build_builtin_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_builtin_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_builtin_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_builtin_optional_path_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates output_path.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_builtin_optional_path_request`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         output_path = None if raw_value == "-" else resolve_output_path(str(raw_value))
         return self._build_request(output_path=output_path, runtime_kind=FormatterRuntimeKind.builtin)
@@ -1548,63 +1326,48 @@ class FormatterReporterPlugin(ABC):
         template_name: str,
     ) -> CucumberFormatterRequest:
         """
-        Build module optional path request.
-
-        Returns:
-            Cucumber formatter request.
+        Perform the build_module_optional_path_request operation within the FormatterReporterPlugin.
+        boundary, handling its s.
 
         Responsibility:
-            Build module optional path request. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Performs the build_module_optional_path_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_module_optional_path_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_module_optional_path_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - resolve_output_path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - self._build_request: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_module_optional_path_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_module_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_module_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `build_module_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `build_module_optional_path_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_module_optional_path_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates output_path.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_module_optional_path_request`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         output_path = None if raw_value == "-" else resolve_output_path(str(raw_value))
         return self._build_request(
@@ -1621,56 +1384,48 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest:
         """
-        Build request from value.
-
-        Raises:
-            NotImplementedError: If the operation cannot be completed.
+        Perform the build_request_from_value operation within the FormatterReporterPlugin boundary,.
+        handling its specific su.
 
         Responsibility:
-            Build request from value. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_request_from_value operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_request_from_value` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_request_from_value is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_request_from_value operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `build_request_from_value`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_request_from_value`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_request_from_value`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_request_from_value`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `build_request_from_value`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
 
-        Failure semantics:
-            Raises or re-raises NotImplementedError; callers must treat these as boundary failures.
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         raise NotImplementedError
 
@@ -1681,59 +1436,48 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> tuple[CucumberFormatterRequest, ...]:
         """
-        Yield requests from options.
-
-        Returns:
-            Tuple of cucumber formatter requests.
+        Perform the iter_requests_from_options operation within the FormatterReporterPlugin boundary,.
+        handling its specific .
 
         Responsibility:
-            Yield requests from options. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the iter_requests_from_options operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.iter_requests_from_options` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            iter_requests_from_options is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self._option_value: collaborator call used by this boundary
-            - self.build_request_from_value: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the iter_requests_from_options operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `iter_requests_from_options`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `iter_requests_from_options`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `iter_requests_from_options`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `iter_requests_from_options`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `iter_requests_from_options`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates raw_value.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.iter_requests_from_options` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         raw_value = self._option_value(option_source)
         if raw_value in {None, False}:
@@ -1743,48 +1487,48 @@ class FormatterReporterPlugin(ABC):
     @pytest.hookimpl
     def pytest_addoption(self, parser: Parser) -> None:
         """
-        Handle the pytest addoption pytest hook.
+        Perform the pytest_addoption operation within the FormatterReporterPlugin boundary, handling.
+        its specific sub-task a.
 
         Responsibility:
-            Handle the pytest addoption pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs the pytest_addoption operation within the FormatterReporterPlugin boundary, handling
+            its specific sub-task as part of the broader FormatterReporterPlugin responsibility in the
+            pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.pytest_addoption` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            pytest_addoption is a distinct method because it encapsulates a specific behavioral concern
+            that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self.addoption: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the pytest_addoption operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `pytest_addoption`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `pytest_addoption`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `pytest_addoption`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `pytest_addoption`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `pytest_addoption`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         self.addoption(parser)
 
@@ -1795,63 +1539,48 @@ class FormatterReporterPlugin(ABC):
         resolve_output_path: ResolveOutputPath,
     ) -> CucumberFormatterRequest | None:
         """
-        Handle the pytest bdd cucumber formatter request pytest hook.
-
-        Returns:
-            Cucumber formatter request or None.
+        Perform the pytest_bdd_cucumber_formatter_request operation within the FormatterReporterPlugin.
+        boundary, handling it.
 
         Responsibility:
-            Handle the pytest bdd cucumber formatter request pytest hook. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs the pytest_bdd_cucumber_formatter_request operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.pytest_bdd_cucumber_formatter_request`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            pytest_bdd_cucumber_formatter_request is a distinct method because it encapsulates a specific
+            behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self.iter_requests_from_options: collaborator call used by this boundary
-            - setattr: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the pytest_bdd_cucumber_formatter_request operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_request`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_request`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_request`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_request`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_request`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            mutates requests, request.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.pytest_bdd_cucumber_formatter_request`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         requests = self.iter_requests_from_options(config.option, resolve_output_path=resolve_output_path)
         if not requests:
@@ -1861,61 +1590,54 @@ class FormatterReporterPlugin(ABC):
             setattr(config.option, self.option_attr, str(request.output_path))
         return request
 
-    def build_builtin_runtime_assets(
+    def build_builtin_runtime_assets(  # noqa: PLR6301  -- suppressed warning
         self,
-        formatter_request: CucumberFormatterRequest,  # noqa: ARG002
-        formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002
+        formatter_request: CucumberFormatterRequest,  # noqa: ARG002  -- suppressed warning
+        formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002  -- suppressed warning
     ) -> dict[str, str]:
         """
-        Build builtin runtime assets.
-
-        Returns:
-            Empty runtime assets dictionary.
+        Perform the build_builtin_runtime_assets operation within the FormatterReporterPlugin.
+        boundary, handling its specifi.
 
         Responsibility:
-            Build builtin runtime assets. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_builtin_runtime_assets operation within the FormatterReporterPlugin
+            boundary, handling its specific sub-task as part of the broader FormatterReporterPlugin
+            responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_builtin_runtime_assets`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_builtin_runtime_assets is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_builtin_runtime_assets operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_builtin_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_builtin_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_builtin_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_builtin_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `build_builtin_runtime_assets`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return {}
 
@@ -1923,60 +1645,52 @@ class FormatterReporterPlugin(ABC):
         self,
         *,
         formatter_request: CucumberFormatterRequest,
-        formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002
+        formatter_requests: tuple[CucumberFormatterRequest, ...],  # noqa: ARG002  -- suppressed warning
         template_name: str,
     ) -> dict[str, str]:
         """
-        Build module runtime assets.
-
-        Returns:
-            Runtime assets dictionary.
+        Perform the build_module_runtime_assets operation within the FormatterReporterPlugin boundary,.
+        handling its specific.
 
         Responsibility:
-            Build module runtime assets. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the build_module_runtime_assets operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.build_module_runtime_assets`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            build_module_runtime_assets is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - Path: collaborator call used by this boundary
-            - load_formatter_adapter_support_template: collaborator call used by this boundary
-            - load_formatter_adapter_template: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build_module_runtime_assets operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `build_module_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `build_module_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `build_module_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `build_module_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `build_module_runtime_assets`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         if formatter_request.formatter != self.formatter:
             return {}
@@ -1991,53 +1705,48 @@ class FormatterReporterPlugin(ABC):
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
         """
-        Render runtime assets.
-
-        Returns:
-            Rendered runtime assets dictionary.
+        Perform the render_runtime_assets operation within the FormatterReporterPlugin boundary,.
+        handling its specific sub-t.
 
         Responsibility:
-            Render runtime assets. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the render_runtime_assets operation within the FormatterReporterPlugin boundary,
+            handling its specific sub-task as part of the broader FormatterReporterPlugin responsibility in
+            the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.render_runtime_assets` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            render_runtime_assets is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self.build_builtin_runtime_assets: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the render_runtime_assets operation on FormatterReporterPlugin
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references `render_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references `render_runtime_assets`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self.build_builtin_runtime_assets(formatter_request, formatter_requests)
 
@@ -2048,56 +1757,47 @@ class FormatterReporterPlugin(ABC):
         formatter_requests: tuple[CucumberFormatterRequest, ...],
     ) -> dict[str, str]:
         """
-        Handle the pytest bdd cucumber formatter runtime assets pytest hook.
-
-        Returns:
-            Runtime assets dictionary.
+        Perform the pytest_bdd_cucumber_formatter_runtime_assets operation within the.
+        FormatterReporterPlugin boundary, hand.
 
         Responsibility:
-            Handle the pytest bdd cucumber formatter runtime assets pytest hook. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs the pytest_bdd_cucumber_formatter_runtime_assets operation within the
+            FormatterReporterPlugin boundary, handling its specific sub-task as part of the broader
+            FormatterReporterPlugin responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.util.cucumber_formatter_support.base.FormatterReporterPlugin.pytest_bdd_cucumber_formatter_runtime_assets`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            pytest_bdd_cucumber_formatter_runtime_assets is a distinct method because it encapsulates a
+            specific behavioral concern that must be independently callable and potentially overridable by
+            subclasses of FormatterReporterPlugin without affecting other operations.
 
         Delegates:
-            - self.render_runtime_assets: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the pytest_bdd_cucumber_formatter_runtime_assets operation on
+            FormatterReporterPlugin instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FormatterReporterPlugin methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/plugin/cucumber_json_formatter/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_junit/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_pretty/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_runtime_assets`
-            - src/pytest_bdd/plugin/cucumber_progress_bar/plugin.py: imports or references
-              `pytest_bdd_cucumber_formatter_runtime_assets`
+            - `pytest_bdd.*`: callers that raise or catch FormatterReporterPlugin implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self.render_runtime_assets(formatter_request, formatter_requests)

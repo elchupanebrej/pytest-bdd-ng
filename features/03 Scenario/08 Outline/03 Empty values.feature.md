@@ -23,18 +23,21 @@
     ```python
     from pytest_bdd import given, when, then, parsers
 
+
     @given(parsers.re("there are (?P<start>.*?) cucumbers"), target_fixture="captured")
     def _start_cucumbers(start):
-      return {"start": start}
+        return {"start": start}
+
 
     @when(parsers.re("I eat (?P<eat>.*?) cucumbers"))
     def _eat_cucumbers(captured, eat):
-      captured["eat"] = eat
+        captured["eat"] = eat
+
 
     @then(parsers.re("I should have (?P<left>.*?) cucumbers"))
     def _left_cucumbers(captured, left):
-      captured["left"] = left
-      assert captured == {"start": "#", "eat": "", "left": ""}
+        captured["left"] = left
+        assert captured == {"start": "#", "eat": "", "left": ""}
     ```
 
 * And File "test_outline.py" with content:
@@ -42,7 +45,7 @@
     ```python
     from pytest_bdd import scenarios
 
-    test_outline = scenarios('outline.feature')
+    test_outline = scenarios("outline.feature")
     ```
 
 * When run pytest

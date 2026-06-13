@@ -26,43 +26,54 @@
     from pytest_bdd import given, when, then, step
     from pytest import fixture
 
+
     # pytest fixtures could be used from step definitions, so some
     # test preconditions could be stored on the pytest level
     @fixture
     def step_counter():
-      yield {'step': 0, 'given': 0,'when': 0,'then': 0,}
+        yield {
+            "step": 0,
+            "given": 0,
+            "when": 0,
+            "then": 0,
+        }
+
 
     # Step with any kind of keyword could be bounded
     # to step decorated with "step" definition
-    @step('Step is executed by plain step decorator')
+    @step("Step is executed by plain step decorator")
     def plain_step(step_counter):
-      step_counter['step'] += 1
+        step_counter["step"] += 1
+
 
     # Step with "Given" keyword could be bounded
     # to step decorated with "given" definition
-    @given('Step is executed by given step decorator')
+    @given("Step is executed by given step decorator")
     def given_step(step_counter):
-      step_counter['given'] += 1
+        step_counter["given"] += 1
+
 
     # Same as "given"
-    @when('Step is executed by when step decorator')
+    @when("Step is executed by when step decorator")
     def when_step(step_counter):
-      step_counter['when'] += 1
+        step_counter["when"] += 1
+
 
     # Same as "given"
-    @then('Step is executed by then step decorator')
+    @then("Step is executed by then step decorator")
     def then_step(step_counter):
-      step_counter['then'] += 1
+        step_counter["then"] += 1
 
-    @then('there are passed steps by kind:')
+
+    @then("there are passed steps by kind:")
     def check_step_counter(step, step_counter):
-      # Step datatables data could be accessed in the next manner
-      step_data_table = step.argument.data_table
-      oracle_results_header = [cell.value for cell in step_data_table.rows[0].cells]
-      oracle_results_values = [int(cell.value) for cell in step_data_table.rows[1].cells]
-      oracle_result = dict(zip(oracle_results_header, oracle_results_values))
+        # Step datatables data could be accessed in the next manner
+        step_data_table = step.argument.data_table
+        oracle_results_header = [cell.value for cell in step_data_table.rows[0].cells]
+        oracle_results_values = [int(cell.value) for cell in step_data_table.rows[1].cells]
+        oracle_result = dict(zip(oracle_results_header, oracle_results_values))
 
-      assert oracle_result == step_counter
+        assert oracle_result == step_counter
     ```
 
 * When run pytest
@@ -98,23 +109,26 @@ function with multiple step names, decorate it multiple times.
     ```python
     from pytest_bdd import given, when, then, step
 
-    @given('Step counter', target_fixture='step_counter')
-    def step_counter():
-      yield {'steps_count': 0}
 
-    @step('Step is executed by aliased step decorator')
-    @given('Step is executed by aliased step decorator')
-    @when('Step is executed by aliased step decorator')
-    @then('Step is executed by aliased step decorator')
+    @given("Step counter", target_fixture="step_counter")
+    def step_counter():
+        yield {"steps_count": 0}
+
+
+    @step("Step is executed by aliased step decorator")
+    @given("Step is executed by aliased step decorator")
+    @when("Step is executed by aliased step decorator")
+    @then("Step is executed by aliased step decorator")
     def aliased_step(step_counter):
-      step_counter['steps_count'] += 1
+        step_counter["steps_count"] += 1
+
 
     @then(
-      'there are "{int}" passed aliased steps',
-      anonymous_group_names=('oracle_steps',),
+        'there are "{int}" passed aliased steps',
+        anonymous_group_names=("oracle_steps",),
     )
     def then_step(step_counter, oracle_steps):
-      assert step_counter['steps_count'] == oracle_steps
+        assert step_counter["steps_count"] == oracle_steps
     ```
 
 * When run pytest
@@ -166,23 +180,26 @@ so it could be bound to any kind of keyword.
     ```python
     from pytest_bdd import given, when, then, step
 
-    @given('Step counter', target_fixture='step_counter')
-    def step_counter():
-      yield {'steps_count': 0}
 
-    @step('Step is executed by liberal step decorator', liberal=True)
-    @given('Step is executed by liberal given decorator', liberal=True)
-    @when('Step is executed by liberal when decorator', liberal=True)
-    @then('Step is executed by liberal then decorator', liberal=True)
+    @given("Step counter", target_fixture="step_counter")
+    def step_counter():
+        yield {"steps_count": 0}
+
+
+    @step("Step is executed by liberal step decorator", liberal=True)
+    @given("Step is executed by liberal given decorator", liberal=True)
+    @when("Step is executed by liberal when decorator", liberal=True)
+    @then("Step is executed by liberal then decorator", liberal=True)
     def liberal_step(step_counter):
-      step_counter['steps_count'] += 1
+        step_counter["steps_count"] += 1
+
 
     @then(
-      'there are "{int}" passed liberal steps',
-      anonymous_group_names=('oracle_steps',),
+        'there are "{int}" passed liberal steps',
+        anonymous_group_names=("oracle_steps",),
     )
     def then_step(step_counter, oracle_steps):
-      assert step_counter['steps_count'] == oracle_steps
+        assert step_counter["steps_count"] == oracle_steps
     ```
 
 * When run pytest
@@ -198,23 +215,26 @@ so it could be bound to any kind of keyword.
     ```python
     from pytest_bdd import given, when, then, step
 
-    @given('Step counter', target_fixture='step_counter')
-    def step_counter():
-      yield {'steps_count': 0}
 
-    @step('Step is executed by liberal step decorator')
-    @given('Step is executed by liberal given decorator')
-    @when('Step is executed by liberal when decorator')
-    @then('Step is executed by liberal then decorator')
+    @given("Step counter", target_fixture="step_counter")
+    def step_counter():
+        yield {"steps_count": 0}
+
+
+    @step("Step is executed by liberal step decorator")
+    @given("Step is executed by liberal given decorator")
+    @when("Step is executed by liberal when decorator")
+    @then("Step is executed by liberal then decorator")
     def liberal_step(step_counter):
-      step_counter['steps_count'] += 1
+        step_counter["steps_count"] += 1
+
 
     @then(
-      'there are "{int}" passed liberal steps',
-      anonymous_group_names=('oracle_steps',),
+        'there are "{int}" passed liberal steps',
+        anonymous_group_names=("oracle_steps",),
     )
     def then_step(step_counter, oracle_steps):
-      assert step_counter['steps_count'] == oracle_steps
+        assert step_counter["steps_count"] == oracle_steps
     ```
 
 * When run pytest

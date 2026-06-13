@@ -1,49 +1,63 @@
 """
-Run class for the run lifecycle state management.
+Defines the Run class, the root of the scenario execution hierarchy stored in pytest.config.stash under STASH_KEY _py.
 
 Responsibility:
-    Run class for the run lifecycle state management. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Defines the Run class, the root of the scenario execution hierarchy stored in pytest.config.stash under STASH_KEY
+    _pytest_bdd_run. Run manages feature bindings by URI, scenario runs by request, active scenario/step tracking,
+    transition indexing, runtime-step-to-test-step-id mapping, pickles compilation, and identifiable object tree
+    indexing. It inherits StashBound for stash lifecycle and provides factory constructors for session-based and config-
+    based initialization as well as create_scenario_run orchestration.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run.lifecycle._run` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - Run: owns nested behavior below this boundary
+    - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a focused
+    sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain boundaries
+    at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `_run`
+    - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates run, scenario_run, run_ref, key, node; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.ClassVar, typing.Literal, typing.cast.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run.lifecycle._run` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Run must be stored under STASH_KEY _pytest_bdd_run; scenario_runs_by_request must be keyed by request nodeid;
+    active_scenario_run must be set/cleared consistently during scenario lifecycle methods; feature_bindings_by_uri must
+    be keyed by gherkin document URI
 
 Failure semantics:
-    Raises or re-raises AttributeError, RuntimeError; callers must treat these as boundary failures.
+    Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects are
+    unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+    ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions at
+    hook or plugin boundaries to prevent test session crashes
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -91,67 +105,65 @@ NodeKind = Literal["feature", "scenario", "step"]
 @define(slots=True)
 class Run(StashBound):
     """
-    Represent run state.
-
-    Raises:
-        AttributeError: If the operation cannot be completed.
-        RuntimeError: If the operation cannot be completed.
+    Defines the Run class, the root of the scenario execution hierarchy stored in pytest.config.stash under STASH_KEY _py.
 
     Responsibility:
-        Represent run state. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Defines the Run class, the root of the scenario execution hierarchy stored in pytest.config.stash under
+        STASH_KEY _pytest_bdd_run. Run manages feature bindings by URI, scenario runs by request, active scenario/step
+        tracking, transition indexing, runtime-step-to-test-step-id mapping, pickles compilation, and identifiable
+        object tree indexing. It inherits StashBound for stash lifecycle and provides factory constructors for session-
+        based and config-based initialization as well as create_scenario_run orchestration.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - active_feature_binding: owns nested behavior below this boundary
-        - active_scenario_id: owns nested behavior below this boundary
-        - active_step_id: owns nested behavior below this boundary
-        - require_active_scenario_run: owns nested behavior below this boundary
-        - advance_transition: owns nested behavior below this boundary
-        - _build_for_owner: owns nested behavior below this boundary
+        - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+        focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/hook.py: imports or references `Run`
-        - src/pytest_bdd/model/__init__.py: imports or references `Run`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `Run`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `Run`
-        - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `Run`
+        - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates run, scenario_run, run_ref, key, node; depends on pytest_bdd.model.run.transitions.build_lifecycle_ref,
-        pytest_bdd.model.run.transitions.initial_scenario_run_id, pytest_bdd.model.run.transitions.runtime_object_id,
-        pytest_bdd.model.scenario_run.RunNode, pytest_bdd.model.scenario_run.ScenarioRun.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.lifecycle._run.Run` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - Run must be stored under STASH_KEY _pytest_bdd_run; scenario_runs_by_request must be keyed by request nodeid;
+        active_scenario_run must be set/cleared consistently during scenario lifecycle methods; feature_bindings_by_uri
+        must be keyed by gherkin document URI
 
     Failure semantics:
-        Raises or re-raises AttributeError, RuntimeError; callers must treat these as boundary failures.
+        Raises RuntimeError for context-not-initialized or binding-missing conditions when required lifecycle objects
+        are unavailable; raises TypeError for malformed envelopes violating single-payload or type constraints; raises
+        ValueError for missing required fields in deserialized transport payloads; callers must handle these exceptions
+        at hook or plugin boundaries to prevent test session crashes
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
-
     """
 
     STASH_KEY: ClassVar[str] = "_pytest_bdd_run"
@@ -172,48 +184,52 @@ class Run(StashBound):
     @property
     def active_feature_binding(self: Self) -> FeatureRuntimeBinding | None:
         """
-        Retrieve the feature binding associated with the currently executing scenario.
-
-        Returns:
-            The FeatureRuntimeBinding instance, or None if no scenario is active.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the feature binding associated with the currently executing scenario. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.active_feature_binding`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - Nothing.value_or: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `active_feature_binding`
-            - src/pytest_bdd/model/run_access.py: imports or references `active_feature_binding`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         if self.active_scenario_run is None:
             return Nothing.value_or(None)
@@ -222,58 +238,56 @@ class Run(StashBound):
     @property
     def active_scenario_id(self) -> str:
         """
-        Retrieve the unique identifier of the currently executing scenario node.
-
-        Returns:
-            The active scenario's ID string.
-
-        Raises:
-            AttributeError: If no scenario is currently active or initialized.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the unique identifier of the currently executing scenario node. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.active_scenario_id`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - AttributeError: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `active_scenario_id`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates scenario_run, node, msg.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.active_scenario_id` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Failure semantics:
-            Raises or re-raises AttributeError; callers must treat these as boundary failures.
+            Raises AttributeError with a descriptive message when no active scenario or step node exists. Callers should
+            check for active state via optional accessors or ensure lifecycle initialization has completed.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         scenario_run = self.active_scenario_run
         node = scenario_run.scenario_node if scenario_run is not None else None
@@ -285,58 +299,56 @@ class Run(StashBound):
     @property
     def active_step_id(self) -> str:
         """
-        Retrieve the unique identifier of the currently executing step node.
-
-        Returns:
-            The active step's ID string.
-
-        Raises:
-            AttributeError: If no step is currently active or initialized.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the unique identifier of the currently executing step node. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.active_step_id` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - AttributeError: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `active_step_id`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates scenario_run, node, msg.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.active_step_id` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Failure semantics:
-            Raises or re-raises AttributeError; callers must treat these as boundary failures.
+            Raises AttributeError with a descriptive message when no active scenario or step node exists. Callers should
+            check for active state via optional accessors or ensure lifecycle initialization has completed.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         scenario_run = self.active_scenario_run
         node = scenario_run.step_node if scenario_run is not None else None
@@ -347,62 +359,57 @@ class Run(StashBound):
 
     def require_active_scenario_run(self, *, hook_name: str) -> ScenarioRun:
         """
-        Fetch the active scenario run, ensuring it exists before proceeding.
-
-        Returns:
-            The currently active ScenarioRun instance.
-
-        Raises:
-            RuntimeError: If the scenario run is unavailable or the lifecycle context is not initialized.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Fetch the active scenario run, ensuring it exists before proceeding. It directly owns the observable
-            contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._run.Run.require_active_scenario_run` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - RuntimeError: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `require_active_scenario_run`
-            - src/pytest_bdd/model/run_access.py: imports or references `require_active_scenario_run`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-              `require_active_scenario_run`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `require_active_scenario_run`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates scenario_run, msg.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.require_active_scenario_run` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Failure semantics:
-            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+            Raises RuntimeError with a descriptive message when required lifecycle objects are unavailable at the
+            current stage. Callers in hooks and plugins should catch RuntimeError and report the error through the
+            appropriate reporting channel.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         scenario_run = self.active_scenario_run
         if scenario_run is not None:
@@ -412,98 +419,104 @@ class Run(StashBound):
 
     def advance_transition(self) -> None:
         """
-        Increment the internal transition index counter to represent state progression.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Increment the internal transition index counter to represent state progression. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.advance_transition`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `advance_transition`
-            - src/pytest_bdd/plugin/pickle_runner/run_transitions.py: imports or references `advance_transition`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates self.transition_index.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.advance_transition` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.transition_index += 1
 
     @classmethod
     def _build_for_owner(cls, owner: object) -> Run:
         """
+        Perform a specific, focused operation within its owning class boundary.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.model.run.lifecycle._run.Run._build_for_owner` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run._build_for_owner` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - id: collaborator call used by this boundary
-            - LifecycleObjectRef: collaborator call used by this boundary
-            - Run: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `_build_for_owner`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates object_id, run_ref.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run._build_for_owner` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         object_id = getattr(owner, "name", None) or getattr(owner, "nodeid", None) or str(id(owner))
         run_ref = LifecycleObjectRef(kind="run", object_id=str(object_id), name="run", is_active=True)
@@ -517,54 +530,52 @@ class Run(StashBound):
     @classmethod
     def initialize_for_session(cls, *, stash: Stash, session: Session) -> Run:
         """
-        Initialize and bind a new Run state object to the pytest Session context via the stash.
-
-        Returns:
-            The newly initialized Run instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Initialize and bind a new Run state object to the pytest Session context via the stash. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.initialize_for_session`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls._build_for_owner: collaborator call used by this boundary
-            - run.initialize_in_stash: collaborator call used by this boundary
-            - EnvelopeRegistry.initialize_in_stash: collaborator call used by this boundary
-            - EnvelopeRegistry: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `initialize_for_session`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates run.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.initialize_for_session` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         run = cls._build_for_owner(session)
         run.initialize_in_stash(stash)
@@ -574,55 +585,52 @@ class Run(StashBound):
     @classmethod
     def initialize_for_config(cls, *, stash: Stash, config: Config) -> Run:
         """
-        Initialize and bind a new Run state object to the pytest Config context via the stash.
-
-        Returns:
-            The newly initialized Run instance.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Initialize and bind a new Run state object to the pytest Config context via the stash. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.initialize_for_config`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls._build_for_owner: collaborator call used by this boundary
-            - run.initialize_in_stash: collaborator call used by this boundary
-            - EnvelopeRegistry.initialize_in_stash: collaborator call used by this boundary
-            - EnvelopeRegistry: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `initialize_for_config`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `initialize_for_config`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates run.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.initialize_for_config` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         run = cls._build_for_owner(config)
         run.initialize_in_stash(stash)
@@ -632,48 +640,52 @@ class Run(StashBound):
     @staticmethod
     def _request_key(request: FixtureRequest) -> str:
         """
+        Perform a specific, focused operation within its owning class boundary.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.model.run.lifecycle._run.Run._request_key` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run._request_key` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - id: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `_request_key`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates node, node_id.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run._request_key` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         node = getattr(request, "node", None)
         node_id = getattr(node, "nodeid", None)
@@ -684,55 +696,52 @@ class Run(StashBound):
     @classmethod
     def get_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
         """
-        Retrieve the ScenarioRun associated with a given pytest FixtureRequest, if it exists.
-
-        Returns:
-            The ScenarioRun instance linked to the request, or None if not found.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the ScenarioRun associated with a given pytest FixtureRequest, if it exists. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.get_scenario_run` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls.find_in_stash.value_or: collaborator call used by this boundary
-            - cls.find_in_stash: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
-            - cls._request_key: collaborator call used by this boundary
-            - run.scenario_runs_by_request.get: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `get_scenario_run`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates run, key.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.get_scenario_run` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         run = cls.find_in_stash(request.config.stash).value_or(None)
         if run is None:
@@ -743,48 +752,52 @@ class Run(StashBound):
     @classmethod
     def set_scenario_run(cls, request: FixtureRequest, scenario_run: ScenarioRun) -> None:
         """
-        Register a ScenarioRun instance against a pytest FixtureRequest in the active Run state.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Register a ScenarioRun instance against a pytest FixtureRequest in the active Run state. It directly owns
-            the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.set_scenario_run` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls.from_stash: collaborator call used by this boundary
-            - cls._request_key: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `set_scenario_run`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates run, scenario_run.run, key, run.active_scenario_run.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.set_scenario_run` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         run = scenario_run.run
         if run is None:
@@ -797,57 +810,52 @@ class Run(StashBound):
     @classmethod
     def pop_scenario_run(cls, request: FixtureRequest) -> ScenarioRun | None:
         """
-        Remove and finalize a ScenarioRun associated with a pytest FixtureRequest, performing necessary cleanup.
-
-        Returns:
-            The removed ScenarioRun instance, or None if it was not found.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Remove and finalize a ScenarioRun associated with a pytest FixtureRequest, performing necessary cleanup. It
-            directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.pop_scenario_run` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
-            - cls.find_in_stash.value_or: collaborator call used by this boundary
-            - cls.find_in_stash: collaborator call used by this boundary
-            - cls._request_key: collaborator call used by this boundary
-            - run.scenario_runs_by_request.pop: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `pop_scenario_run`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `pop_scenario_run`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates config, stash, run, key, scenario_run.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.pop_scenario_run` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         config = getattr(request, "config", None)
         stash = getattr(config, "stash", None)
@@ -880,71 +888,62 @@ class Run(StashBound):
         feature_source: Source | None = None,
     ) -> ScenarioRun:
         """
-        Instantiate a new ScenarioRun context for a specific test request.
-
-        Optionally binds a Gherkin document and pickle.
-
-        Returns:
-            The newly created ScenarioRun context.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Instantiate a new ScenarioRun context for a specific test request. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.create_scenario_run`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - build_lifecycle_ref: collaborator call used by this boundary
-            - RunNode: collaborator call used by this boundary
-            - LifecycleObjectRef: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - run.ensure_feature_binding: collaborator call used by this boundary
-            - _inactive_feature_ref: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `create_scenario_run`
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `create_scenario_run`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `create_scenario_run`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates run_ref, feature_binding, feature_uri, feature_ref, scenario_ref; depends on
-            pytest_bdd.model.run.transitions.build_lifecycle_ref,
-            pytest_bdd.model.run.transitions.initial_scenario_run_id,
-            pytest_bdd.model.run.transitions.runtime_object_id, pytest_bdd.model.scenario_run.RunNode,
-            pytest_bdd.model.scenario_run.ScenarioRun.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.create_scenario_run` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
-        from pytest_bdd.model.run.transitions import (  # noqa: PLC0415
+        from pytest_bdd.model.run.transitions import (
             build_lifecycle_ref,
             initial_scenario_run_id,
             runtime_object_id,
         )
-        from pytest_bdd.model.scenario_run import RunNode, ScenarioRun  # noqa: PLC0415
+        from pytest_bdd.model.scenario_run import (
+            RunNode,
+            ScenarioRun,
+        )
 
         run_ref = build_lifecycle_ref("run", request.session, is_active=True)
         if run_ref is None:
@@ -1024,96 +1023,110 @@ class Run(StashBound):
             step_object=None,
             previous_step_object=NoPreviousStep(),
         )
-        key = type(self)._request_key(request)  # noqa: SLF001
+        key = type(self)._request_key(request)  # noqa: SLF001  -- suppressed warning
         run.scenario_runs_by_request[key] = scenario_run
         run.active_scenario_run = scenario_run
         return scenario_run
 
     def index_identifiable_tree(self, root: object) -> None:
         """
-        Recursively scan and register all identifiable objects within a tree into the registry.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Recursively scan and register all identifiable objects within a tree into the registry. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.index_identifiable_tree`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.identifiable_registry.index_tree: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/feature_binding.py: imports or references `index_identifiable_tree`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `index_identifiable_tree`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.identifiable_registry.index_tree(root)
 
     def map_runtime_step_to_test_step_id(self, *, pickle_step: PickleStep, test_step_id: str) -> None:
         """
-        Record a mapping from a runtime PickleStep object identity to its corresponding executed test step ID.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Record a mapping from a runtime PickleStep object identity to its corresponding executed test step ID. It
-            directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._run.Run.map_runtime_step_to_test_step_id` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - id: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `map_runtime_step_to_test_step_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `map_runtime_step_to_test_step_id`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         self.reporting_state.runtime_step_to_pickle_step_id[id(pickle_step)] = test_step_id
 
@@ -1126,61 +1139,52 @@ class Run(StashBound):
         pickles: tuple[Pickle, ...] | list[Pickle] | None = None,
     ) -> FeatureRuntimeBinding:
         """
-        Retrieve an existing feature binding for a document or construct a new one if it doesn't exist.
-
-        Returns:
-            The resolved or newly constructed FeatureRuntimeBinding.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve an existing feature binding for a document or construct a new one if it doesn't exist. It directly
-            owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.ensure_feature_binding`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - len: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - self.feature_bindings_by_uri.get: collaborator call used by this boundary
-            - FeatureRuntimeBinding.build: collaborator call used by this boundary
-            - tuple: collaborator call used by this boundary
-            - binding.index_runtime_objects: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `ensure_feature_binding`
-            - src/pytest_bdd/plugin/code_generator/collection.py: imports or references `ensure_feature_binding`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/ide_binding_runtime.py: imports or references
-              `ensure_feature_binding`
-            - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `ensure_feature_binding`
-            - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `ensure_feature_binding`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates binding, uri, binding.run, binding.gherkin_document, binding.source.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.ensure_feature_binding` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         uri = str(gherkin_document.uri)
         binding = self.feature_bindings_by_uri.get(uri)
@@ -1203,55 +1207,57 @@ class Run(StashBound):
             binding.pickles = tuple(pickles)
         binding.index_runtime_objects()
         if not binding.filename:
-            binding.filename = FeatureRuntimeBinding._feature_filename_from_uri(uri)  # noqa: SLF001
+            binding.filename = FeatureRuntimeBinding._feature_filename_from_uri(uri)  # noqa: SLF001  -- suppressed warning
         return binding
 
     def feature_binding_for_uri(self, uri: str | None) -> FeatureRuntimeBinding | None:
         """
-        Look up a previously registered feature binding using its URI.
-
-        Returns:
-            The FeatureRuntimeBinding if found, or None.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Look up a previously registered feature binding using its URI. It directly owns the observable contract,
-            local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.feature_binding_for_uri`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - Nothing.value_or: collaborator call used by this boundary
-            - self.feature_bindings_by_uri.get: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `feature_binding_for_uri`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `feature_binding_for_uri`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         if uri is None:
             return Nothing.value_or(None)
@@ -1259,58 +1265,52 @@ class Run(StashBound):
 
     def feature_binding_for_document(self, gherkin_document: GherkinDocument | None) -> FeatureRuntimeBinding | None:
         """
-        Look up a previously registered feature binding using a Gherkin document reference.
-
-        Returns:
-            The FeatureRuntimeBinding if found, or None.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Look up a previously registered feature binding using a Gherkin document reference. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._run.Run.feature_binding_for_document` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - Nothing.value_or: collaborator call used by this boundary
-            - self.feature_bindings_by_uri.get: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `feature_binding_for_document`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `feature_binding_for_document`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_core.py: imports or references
-              `feature_binding_for_document`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates uri.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.feature_binding_for_document` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         uri = getattr(gherkin_document, "uri", None) if gherkin_document is not None else None
         if uri is None:
@@ -1319,59 +1319,52 @@ class Run(StashBound):
 
     def resolve_test_step_id_for_runtime_step(self, *, pickle_step: PickleStep) -> str | None:
         """
-        Retrieve the generated test step ID mapped to a specific PickleStep instance.
-
-        Returns:
-            The mapped test step ID string, or None if not registered.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Retrieve the generated test step ID mapped to a specific PickleStep instance. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.model.run.lifecycle._run.Run.resolve_test_step_id_for_runtime_step` because it keeps the nearest
-            code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - reporting_state.runtime_step_to_pickle_step_id.get: collaborator call used by this boundary
-            - id: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - reporting_state.runtime_step_to_pickle_step_id.values: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references
-              `resolve_test_step_id_for_runtime_step`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `resolve_test_step_id_for_runtime_step`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates reporting_state, mapped, runtime_step_id_text.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.resolve_test_step_id_for_runtime_step` keeps its documented
-              import path, ownership boundary, and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
-
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         reporting_state = self.reporting_state
         mapped = reporting_state.runtime_step_to_pickle_step_id.get(id(pickle_step))
@@ -1386,59 +1379,52 @@ class Run(StashBound):
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the complete Run state, including its execution stage, configuration, and registered nodes.
-
-        Returns:
-            A dictionary containing the full state of the active run.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the complete Run state, including its execution stage, configuration, and registered nodes. It
-            directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.lifecycle._run.Run.as_dict` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - self.run_ref.as_dict: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - sorted: collaborator call used by this boundary
-            - self.last_error.as_dict: collaborator call used by this boundary
-            - self.reporting_state.as_dict: collaborator call used by this boundary
+            - FeatureRuntimeBinding: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _states: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/facade.py: imports or references `as_dict`
-            - src/pytest_bdd/model/scenario_run.py: imports or references `as_dict`
+            - pickle_runner: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            mutates active_scenario_id, active_step_id.
-
-        Invariants:
-            - `pytest_bdd.model.run.lifecycle._run.Run.as_dict` keeps its documented import path, ownership boundary,
-              and observable behavior stable for callers.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         try:
             active_scenario_id = self.active_scenario_id

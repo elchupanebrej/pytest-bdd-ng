@@ -42,7 +42,7 @@ repos:
       - id: markdownlint
         # Use a managed nodeenv so WSL does not pick up the Windows npm shim.
         language_version: 22.0.0
-        exclude: ^(specs/|AGENTS\.md$)
+        exclude: ^(specs/|AGENTS\.md$|docs/architecture/OBJECT_MAP\.md$)
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
@@ -75,7 +75,7 @@ repos:
         entry: >-
           uv run --python 3.14 pylint
           src/pytest_bdd/
-          src/pytest_bdd_testing/cases/unit/
+          src/pytest_bdd_testing/
         language: python
         additional_dependencies: ["uv"]
         types: [python]

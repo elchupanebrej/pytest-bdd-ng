@@ -175,6 +175,7 @@ if TYPE_CHECKING:
 ```python
 from attrs import define, field
 
+
 @define(slots=True)
 class LifecycleObjectRef:
     kind: LifecycleKind

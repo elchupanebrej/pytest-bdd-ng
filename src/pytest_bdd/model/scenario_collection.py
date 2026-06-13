@@ -1,52 +1,54 @@
 """
-Provide const helpers.
+Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
 Responsibility:
-    Provide const helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature
+    auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes the option names
+    used by the scenario test collector plugin, ensuring that config key names (e.g., bdd_features_base_dir,
+    disable_feature_autoload) are defined once and referenced consistently throughout the collection layer.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.scenario_collection` because it keeps the nearest code,
-    data shape, call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - FeatureAutoLoad: owns nested behavior below this boundary
-    - FeatureBaseLoad: owns nested behavior below this boundary
-    - EmptyScenarios: owns nested behavior below this boundary
+    - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating a
+    focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+    boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/feature_locator.py: imports or references `scenario_collection`
-    - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `scenario_collection`
-    - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `scenario_collection`
-    - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `scenario_collection`
-    - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `scenario_collection`
+    - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+    pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+    state, message handling, and stash access
 
 State and side effects:
-    mutates DISABLE_OPTION, DIR_OPTION, URL_OPTION, ALLOW_OPTION, PYTEST_BDD_MARK; depends on
-    pytest_bdd.compatibility.enum.StrEnum.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.scenario_collection` keeps its documented import path, ownership boundary, and observable
-      behavior stable for callers.
+    - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each configuration
+    namespace must define non-overlapping option names
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -58,102 +60,114 @@ PYTEST_BDD_SCENARIOS_MARK = "scenarios"
 
 class FeatureAutoLoad:
     """
-    Represent feature auto load state.
+    Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
     Responsibility:
-        Represent feature auto load state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature
+        auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes the option
+        names used by the scenario test collector plugin, ensuring that config key names (e.g., bdd_features_base_dir,
+        disable_feature_autoload) are defined once and referenced consistently throughout the collection layer.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureAutoLoad` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - Ini: owns nested behavior below this boundary
-        - Cli: owns nested behavior below this boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `FeatureAutoLoad`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `FeatureAutoLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `FeatureAutoLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `FeatureAutoLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `FeatureAutoLoad`
+        - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates DISABLE_OPTION.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_collection.FeatureAutoLoad` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+        configuration namespace must define non-overlapping option names
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     class Ini(StrEnum):
         """
-        INI option names for feature autoload.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            INI option names for feature autoload. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureAutoLoad.Ini` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `Ini`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates DISABLE_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.FeatureAutoLoad.Ini` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 
@@ -161,51 +175,58 @@ class FeatureAutoLoad:
 
     class Cli(StrEnum):
         """
-        CLI option names for feature autoload.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            CLI option names for feature autoload. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureAutoLoad.Cli` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/code_generator/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `Cli`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates DISABLE_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.FeatureAutoLoad.Cli` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 
@@ -214,101 +235,114 @@ class FeatureAutoLoad:
 
 class FeatureBaseLoad:
     """
-    Represent feature base load state.
+    Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
     Responsibility:
-        Represent feature base load state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature
+        auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes the option
+        names used by the scenario test collector plugin, ensuring that config key names (e.g., bdd_features_base_dir,
+        disable_feature_autoload) are defined once and referenced consistently throughout the collection layer.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureBaseLoad` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - Ini: owns nested behavior below this boundary
-        - Cli: owns nested behavior below this boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `FeatureBaseLoad`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `FeatureBaseLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `FeatureBaseLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `FeatureBaseLoad`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `FeatureBaseLoad`
+        - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates DIR_OPTION, URL_OPTION.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_collection.FeatureBaseLoad` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+        configuration namespace must define non-overlapping option names
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     class Ini(StrEnum):
         """
-        INI option names for feature base loading.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            INI option names for feature base loading. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureBaseLoad.Ini` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `Ini`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates DIR_OPTION, URL_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.FeatureBaseLoad.Ini` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 
@@ -317,50 +351,58 @@ class FeatureBaseLoad:
 
     class Cli(StrEnum):
         """
-        CLI option names for feature base loading.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            CLI option names for feature base loading. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.FeatureBaseLoad.Cli` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/code_generator/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `Cli`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates DIR_OPTION, URL_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.FeatureBaseLoad.Cli` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 
@@ -370,100 +412,114 @@ class FeatureBaseLoad:
 
 class EmptyScenarios:
     """
-    Represent empty scenario handling state.
+    Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
     Responsibility:
-        Represent empty scenario handling state. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature
+        auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes the option
+        names used by the scenario test collector plugin, ensuring that config key names (e.g., bdd_features_base_dir,
+        disable_feature_autoload) are defined once and referenced consistently throughout the collection layer.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.scenario_collection.EmptyScenarios` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - Ini: owns nested behavior below this boundary
-        - Cli: owns nested behavior below this boundary
+        - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface, delegating
+        a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+        domain boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+        codebase
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `EmptyScenarios`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `EmptyScenarios`
-        - src/pytest_bdd/plugin/scenario_test_collector/_helpers.py: imports or references `EmptyScenarios`
-        - src/pytest_bdd/plugin/scenario_test_collector/entrypoint.py: imports or references `EmptyScenarios`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `EmptyScenarios`
+        - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+        pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario execution
+        state, message handling, and stash access
 
     State and side effects:
-        mutates ALLOW_OPTION.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.scenario_collection.EmptyScenarios` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+        configuration namespace must define non-overlapping option names
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     class Ini(StrEnum):
         """
-        INI option names for empty scenario handling.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            INI option names for empty scenario handling. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.EmptyScenarios.Ini` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Ini`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `Ini`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates ALLOW_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.EmptyScenarios.Ini` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 
@@ -471,50 +527,58 @@ class EmptyScenarios:
 
     class Cli(StrEnum):
         """
-        CLI option names for empty scenario handling.
+        Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control feature auto-.
 
         Responsibility:
-            CLI option names for empty scenario handling. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this class.
+            Defines configuration constants and enum classes for pytest.ini option names and CLI flags that control
+            feature auto-loading, base directory/URL resolution, and empty scenario handling. This module centralizes
+            the option names used by the scenario test collector plugin, ensuring that config key names (e.g.,
+            bdd_features_base_dir, disable_feature_autoload) are defined once and referenced consistently throughout the
+            collection layer.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.scenario_collection.EmptyScenarios.Cli` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer.
+            It is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+            validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+            flow confirms this module is the single source of truth for its owned concepts
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - pytest_bdd.compatibility.enum: Provides supporting functionality through a well-defined interface,
+            delegating a focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - scenario_locator: This entity is kept distinct from its peer to prevent callers from coupling to multiple
+            domain boundaries at once, ensuring each concept can evolve independently without cascading changes across
+            the codebase
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/code_generator/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/cucumber_json_dispatcher/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `Cli`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `Cli`
+            - scenario_test_collector: Referenced by collection, runtime, and reporting layer plugins through the
+            pytest_bdd.model public API, defining a stable contract that downstream layers depend on for scenario
+            execution state, message handling, and stash access
 
         State and side effects:
-            mutates ALLOW_OPTION.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Invariants:
-            - `pytest_bdd.model.scenario_collection.EmptyScenarios.Cli` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            - Ini and Cli option names must match the corresponding pytest.ini keys and CLI flags exactly; each
+            configuration namespace must define non-overlapping option names
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=4
+            #arch-eval:cohesion=4
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
 

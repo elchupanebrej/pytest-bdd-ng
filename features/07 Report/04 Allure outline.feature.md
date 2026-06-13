@@ -10,10 +10,11 @@
     ```python
     from pytest_bdd import given
 
+
     @given("value one")
     @given("value two")
     def _value():
-      pass
+        pass
     ```
 
 * And File "test_sample.py" with content:

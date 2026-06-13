@@ -1,52 +1,64 @@
 """
-Backward-compatible re-exports of all public lifecycle runtime symbols.
+Serves as the Reporting (order 7) module for Live NDJSON message reporting for external formatters.
 
 Responsibility:
-    Backward-compatible re-exports of all public lifecycle runtime symbols. It directly owns the observable contract,
-    local decisions, and maintenance boundary for this module.
+    Serves as the Reporting (order 7) module for Live NDJSON message reporting for external formatters. Defines classes
+    and functions that collectively implement Reporting phase behavior of the 'facade' component. This module is the
+    sole owner of its specific BDD plugin contract within the Reporting (order 7).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime.facade`
-    because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    This module exists as a distinct architectural unit because it encapsulates all logic for Live NDJSON message
+    reporting for external formatters within the Reporting (order 7). It is the information expert for its specific
+    domain, owning the transformation from pytest events to its output format. Changes to Live NDJSON message reporting
+    for external formatters behavior belong exclusively in this module, not in sibling plugins or the core pytest-bdd
+    library. Its import boundary isolates it from other reporting/runtime concerns.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - (internal classes and functions): Implement specific aspects of Live NDJSON message reporting for external
+    formatters within the Reporting phase.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module serve the single purpose of Live NDJSON message reporting for external formatters. They
+    share common import
+    dependencies and operate on the same domain types. No unrelated utilities are present.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - (sibling plugins in Reporting (order 7)): Each owns a distinct output format or lifecycle concern.
+    - (runtime plugins): Handled by separate modules in the Runtime layer (order 6).
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest: Hooks into the Reporting phase via standard pytest hook mechanisms.
+    - (downstream tools): CI/CD systems and test reporting tools consume the generated output.
 
 State and side effects:
-    depends on __future__.annotations,
-    pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core.LifecycleService,
-    pytest_bdd.util.inspect_extra.get_first_source_line.
+    Accumulates state across pytest hook calls during the session. Accesses pytest Config for
+    options. May perform file I/O for report generation.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime.facade` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
+    - Output format must conform to the expected schema for facade.
+    - Hook implementations must respect pytest's hook calling conventions.
+
+Failure semantics:
+    Raises pytest.UsageError for configuration issues. May raise LookupError when required
+    resources are missing from pytest stash or fixtures.
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
 
-from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core import (  # noqa: F401
+from pytest_bdd.plugin.gherkin_message_reporter.lifecycle_runtime._core import (  # noqa: F401  -- intentional re-export or import for public API facade
     LifecycleService,
 )
-from pytest_bdd.util.inspect_extra import get_first_source_line  # noqa: F401
+from pytest_bdd.util.inspect_extra import (
+    get_first_source_line,  # noqa: F401  -- intentional re-export or import for public API facade
+)

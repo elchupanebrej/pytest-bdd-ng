@@ -1,51 +1,84 @@
 """
-Provide the parse and cfparse step parsers.
+Owns the python-parse-based step definition parsers: the `parse` class (using base_parse.compile from the `parse` lib.
 
 Responsibility:
-    Provide the parse and cfparse step parsers. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Owns the python-parse-based step definition parsers: the `parse` class (using base_parse.compile from the `parse`
+    library) and the `cfparse` subclass (using parse_type.cfparse.Parser for case-insensitive field type parsing). Both
+    classes satisfy the StepParser protocol with singledispatchmethod-based constructor accepting either a format string
+    or a pre-compiled Parser object, and implement is_matching() (via self.parser.parse(), catching ValueError),
+    parse_arguments() (extracting named and fixed/anonymous groups), and the `arguments` property (exposing regex group
+    names from the compiled parser's internal regex). The module also registers `parse` as the parser wrapper for pre-
+    compiled parse.Parser objects via register_parser().
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.parsers.parse_parser` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    The `parse` library is the legacy/default step parser in pytest-bdd, providing a format-string-based pattern
+    matching with named fields (e.g., "I have {n:d} cucumbers"). This module wraps the third-party `parse` library to
+    conform to pytest-bdd's StepParser protocol, adding FixtureRequest context (unused by the parse parser itself but
+    required by the protocol for other parsers like cucumber_expression). The cfparse variant extends parse with case-
+    insensitive field type matching (e.g., allowing {name:Name} type casts). Without this module, step definition
+    authors would lose the familiar parse-format syntax ("{}" placeholders) that they've used for years.
 
 Delegates:
-    - parse: owns nested behavior below this boundary
-    - cfparse: owns nested behavior below this boundary
+    - parse (third-party library, aliased as base_parse): Provides the Parser.compile() builder and the Parser.parse()
+    matching method. The `parse` class wraps this library.
+    - parse_type.cfparse (aliased as base_cfparse): Provides the cfparse.Parser class that extends base_parse with case-
+    insensitive field type casting. The `cfparse` class wraps this.
+    - pytest_bdd.parsers.base.StepParser: Provides the base class with protocol methods (is_matching, parse_arguments,
+    arguments) that the `parse` class implements.
+    - pytest_bdd.parsers.base.ParserBuildValueError: Raised when the constructor receives an unsupported format_ type.
+    - pytest_bdd.parsers.base.register_parser: Registers the `parse` class as the wrapper for pre-compiled
+    base_parse.Parser objects.
+    - pytest_bdd.util.other.normalize_to_string: Converts StringRepresentable/bytes format values to strings for storage.
+    - pytest_bdd.model.message_extension.StepDefinitionPatternType: Provides the pattern type enum value for classification.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All entities in this module support the parse-format-based step matching. The `parse` class owns the core matching
+    logic, _init_stringable encapsulates the common string-format initialization shared by both constructor overloads
+    and cfparse, and the `cfparse` subclass specializes the builder default. The singledispatchmethod on __init__
+    enables the dual-constructor pattern (string or pre-compiled Parser). Everything serves the same pattern matching
+    domain.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.parsers.re_parser.re: Kept separate because `re` uses stdlib re.Pattern for regex-based matching, while
+    `parse` uses the third-party parse library for format-string-based matching — different matching engines, different
+    pattern syntaxes.
+    - pytest_bdd.parsers.cucumber_expression: Kept separate because cucumber_expression uses the cucumber-expressions
+    library for Gherkin-compatible expression matching, a third distinct matching paradigm.
+    - pytest_bdd.parsers.string_parser.string: Kept separate because string does exact string equality matching (no
+    pattern parsing), the simplest matching strategy.
 
 Main consumers:
-    - src/pytest_bdd/parsers/facade.py: imports or references `parse_parser`
-    - src/pytest_bdd/parsers/heuristic.py: imports or references `parse_parser`
+    - End-user test code: `from pytest_bdd import parsers; parsers.parse("I have {n:d} cucumbers")` or
+    `parsers.cfparse("...")`.
+    - pytest_bdd.steps.manager.StepDefinitionManager: The step registration system uses the StepParser protocol that
+    `parse` implements for matching steps at collection time.
 
 State and side effects:
-    mutates type, self.format, self.parser, builder, match; depends on __future__.annotations,
-    functools.singledispatchmethod, typing.TYPE_CHECKING, typing.cast, parse.
+    None, keeps no persistent state. The `parse` instance stores self.format (string) and self.parser (compiled Parser),
+    both immutable after construction.
 
 Invariants:
-    - `pytest_bdd.parsers.parse_parser` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - self.format must be a string representation of the original pattern (normalized via normalize_to_string).
+    - self.parser must be a compiled parse.Parser instance capable of matching against step text.
+    - The `arguments` property must return the named capture group keys from the compiled parser's internal regex.
+    - is_matching() must catch ValueError from parser.parse() — the parse library raises ValueError (not a custom
+    exception) for non-matching input when using type casts.
 
 Failure semantics:
-    Raises or re-raises ParserBuildValueError; callers must treat these as boundary failures.
+    Raises ParserBuildValueError when __init__ receives a format_ that is not a string, bytes, StringRepresentable, or
+    pre-compiled parse.Parser — the singledispatch catches all other types and raises this error. Callers should handle
+    this as a coding error (wrong argument type passed to the parser constructor).
 
 Architecture score:
     #arch-eval:reason_for_existence=4
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -69,67 +102,71 @@ if TYPE_CHECKING:
 
 class parse(StepParser):  # noqa:N801 intentional API
     """
-    parse step parser.
-
-    #arch-eval:score=reason_for_existence:5
-    #arch-eval:score=srp_expert:5
-    #arch-eval:score=why_not_inline:5
-    #arch-eval:score=why_not_split:4
-    #arch-eval:score=problems_solved:5
-    #arch-eval:score=law_of_demeter:4
-    #arch-eval:score=module_location:5
-
-    Raises:
-        ParserBuildValueError: If the operation cannot be completed.
+    Implements the StepParser protocol using the third-party `parse` library for format-string-based step pattern matchin.
 
     Responsibility:
-        parse step parser. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Implements the StepParser protocol using the third-party `parse` library for format-string-based step pattern
+        matching (e.g., "I have {n:d} cucumbers"). Stores a format string and a compiled parse.Parser instance, provides
+        dual constructors (singledispatchmethod) accepting either a raw format string (compiles using
+        base_parse.compile) or a pre-compiled parse.Parser, implements is_matching() by calling parser.parse() and
+        catching ValueError for non-matches, parse_arguments() extracting both named groups and anonymous (positional)
+        groups into a dict, and exposes the `arguments` property listing named capture group names from the compiled
+        parser's internal regex. Also provides a cfparse() classmethod factory for case-insensitive field type parsing.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This is the legacy/default step parser that pytest-bdd users are most familiar with. The parse library's format-
+        string syntax (with :type casts like {n:d}, {name:w}) provides a concise, readable way to match step patterns
+        while extracting typed arguments. This class wraps the third-party library to conform to pytest-bdd's StepParser
+        protocol (adding FixtureRequest parameter for protocol compatibility even though the parse parser doesn't use
+        it), and handles the dual-constructor pattern needed because step definitions can be registered with either raw
+        strings or pre-compiled parse.Parser objects from earlier parsing phases.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - _init_stringable: owns nested behavior below this boundary
-        - _: owns nested behavior below this boundary
-        - cfparse: owns nested behavior below this boundary
-        - parse_arguments: owns nested behavior below this boundary
-        - arguments: owns nested behavior below this boundary
+        - base_parse.compile: Compiles format strings into parse.Parser instances. Used by _init_stringable when the
+        constructor receives a string format.
+        - base_parse.Parser: The compiled parser object that performs actual step text matching and argument extraction.
+        - _init_stringable: Shared initialization for string-based constructors, setting self.format and self.parser.
+        - normalize_to_string: Converts various string-like inputs to canonical string form.
+        - singledispatchmethod: Enables the dual-constructor pattern (string vs pre-compiled Parser) without if/else chains.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Every method serves the parse-based step matching: __init__ creates the compiled parser from the format,
+        is_matching and parse_arguments delegate to the compiled parser, arguments exposes the parser's capture groups,
+        __str__ returns the format string. The cfparse classmethod is a factory that injects a different builder. All
+        logic is about parse-format matching.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - cfparse (subclass): Kept separate because cfparse specializes with a different builder (base_cfparse.Parser
+        for case-insensitive types) and a different StepDefinitionPatternType, while inheriting all matching logic —
+        builder specialization.
+        - re (from re_parser): Kept separate because re uses stdlib regex patterns, not parse format patterns —
+        different syntax, different library, different matching algorithm.
 
     Main consumers:
-        - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse`
-        - src/pytest_bdd/_pylint/checkers/responsibility_docs.py: imports or references `parse`
-        - src/pytest_bdd/collector_batch.py: imports or references `parse`
-        - src/pytest_bdd/hook.py: imports or references `parse`
-        - src/pytest_bdd/parser.py: imports or references `parse`
+        - End-user test code via parsers.parse("pattern").
+        - pytest_bdd.steps.manager: Uses the StepParser protocol to match and parse step definitions.
+        - register_parser: Registers parse as the wrapper for pre-compiled base_parse.Parser objects via the lambda
+        isinstance check.
 
     State and side effects:
-        mutates self.format, self.parser, type, builder, match.
+        None, keeps no persistent state. self.format (str) and self.parser (parse.Parser) are both immutable after construction.
 
     Invariants:
-        - `pytest_bdd.parsers.parse_parser.parse` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - self.format must be a string normalized from the original input (via normalize_to_string).
+        - self.parser must be a compiled parse.Parser that matches the format pattern.
+        - is_matching() must not raise exceptions — ValueError from non-matching type casts is caught and returns False.
 
     Failure semantics:
-        Raises or re-raises ParserBuildValueError; callers must treat these as boundary failures.
+        Raises ParserBuildValueError when __init__ receives a format_ that is not a
+        string/bytes/StringRepresentable/parse.Parser — this is a defensive catch-all for unsupported types. Callers
+        should ensure they pass valid format values.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -142,61 +179,57 @@ class parse(StepParser):  # noqa:N801 intentional API
     @singledispatchmethod  # type:ignore[misc]  # mypy limitation with singledispatchmethod/dynamic typing
     def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
         """
-        Initialize the parse.
-
-        Raises:
-            ParserBuildValueError: If the operation cannot be completed.
+        Implement the singledispatchmethod-based dual constructor that handles two input types: string-format inputs (str, bytes) and pre-compiled parse.Parser objects.
 
         Responsibility:
-            Initialize the parse. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Implements the singledispatchmethod-based dual constructor that handles two input types: string-format
+            inputs (str, bytes, StringRepresentable) are routed to _init_stringable with a configurable builder
+            (defaulting to base_parse.compile but overridable for cfparse), while all other types raise
+            ParserBuildValueError (a defensive catch-all since the singledispatch register methods handle the expected
+            types). Accepts *args and **kwargs that are passed through to the builder function (base_parse.compile or
+            base_cfparse.Parser).
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.__init__` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            The singledispatchmethod pattern enables type-based constructor dispatch without if/elif chains. String
+            inputs need compilation via a builder function, pre-compiled Parser objects need their internal format
+            extracted, and unsupported types should produce clear errors. The format_ parameter name uses a trailing
+            underscore to avoid shadowing the built-in format() function. The *args/**kwargs passthrough allows each
+            parser implementation to customize its compilation with additional parameters (e.g., case_sensitive for
+            cfparse).
 
         Delegates:
-            - isinstance: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - kwargs.pop: collaborator call used by this boundary
-            - self._init_stringable: collaborator call used by this boundary
-            - ParserBuildValueError: collaborator call used by this boundary
+            - _init_stringable: Handles string-format initialization (self.format and self.parser setup).
+            - singledispatchmethod: Dispatches to the correct registered method based on format_ type.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method is a pure dispatch mechanism — it routes to the appropriate initializer based on input type, with
+            a default error case for unsupported types.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _init_stringable: Kept separate because this method handles dispatch and the error case, while
+            _init_stringable handles the actual string-format initialization — routing vs implementation.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - User code indirectly via parsers.parse("pattern") or parsers.parse(pre_compiled_parser) — the constructor
+            is the entry point for creating parse parser instances.
+            - cfparse.__init__: Calls super().__init__() which triggers this dispatch method.
 
         State and side effects:
-            mutates builder.
-
-        Invariants:
-            - `pytest_bdd.parsers.parse_parser.parse.__init__` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            Sets self.format and self.parser through _init_stringable. No external side effects.
 
         Failure semantics:
-            Raises or re-raises ParserBuildValueError; callers must treat these as boundary failures.
+            Raises ParserBuildValueError for unsupported format_ types — this is a coding error indicating the caller
+            passed a wrong argument type.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=3
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         if isinstance(format_, (StringRepresentable, str, bytes)):
@@ -215,49 +248,50 @@ class parse(StepParser):  # noqa:N801 intentional API
         **kwargs: object,
     ) -> None:
         """
+        Shared initialization for string-format-based parser construction: normalizes the format_ input to a canonical string.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.parsers.parse_parser.parse._init_stringable` owns documented
-            method behavior. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method.
+            Shared initialization for string-format-based parser construction: normalizes the format_ input to a
+            canonical string via normalize_to_string (handling StringRepresentable, bytes, and str), compiles the format
+            string into a parse.Parser using the provided builder callable (base_parse.compile for parse,
+            base_cfparse.Parser for cfparse), and stores both the format string and compiled parser in instance
+            attributes. Accepts *args and **kwargs that are forwarded to the builder function for customization.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse._init_stringable` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Both the parse string constructor and cfparse need the same initialization logic (normalize format → compile
+            → store), differing only in the builder callable. This method factors out the common logic, avoiding
+            duplication between the two singledispatch register methods for string inputs. The builder parameter enables
+            cfparse to inject base_cfparse.Parser without overriding the entire initialization.
 
         Delegates:
-            - normalize_to_string: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - builder: collaborator call used by this boundary
+            - normalize_to_string: Converts various string-like inputs (StringRepresentable, bytes, str) to a canonical str.
+            - builder (base_parse.compile or base_cfparse.Parser): Compiles the normalized format string into a compiled
+            parser object.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs a single initialization pipeline: normalize → compile → store. Every line serves this purpose.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - parse.__init__: Kept separate because __init__ handles dispatch, while _init_stringable handles the actual
+            initialization logic for string inputs.
 
         Main consumers:
-            - src/pytest_bdd/parsers/facade.py: imports or references `_init_stringable`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `_init_stringable`
+            - parse.__init__: Called when the singledispatch detects a string-like format_ input.
+            - cfparse.__init__ (indirectly through super().__init__): Cfparse overrides the default builder to base_cfparse.Parser.
 
         State and side effects:
-            mutates self.format, self.parser.
-
-        Invariants:
-            - `pytest_bdd.parsers.parse_parser.parse._init_stringable` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            Sets self.format and self.parser on the instance. No external side effects.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
+            #arch-eval:consumer_clarity=3
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:entity_fullness=2
+            #arch-eval:locational_stability=4
         """
         self.format = normalize_to_string(format_)
         self.parser = cast("base_parse.Parser", builder(self.format, *args, **kwargs))
@@ -265,104 +299,98 @@ class parse(StepParser):  # noqa:N801 intentional API
     @__init__.register
     def _(self, format_: base_parse.Parser) -> None:
         """
+        Handle the singledispatchmethod registered case for pre-compiled parse.Parser objects: extract the original format string and create a new CFParser wrapping it.
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.parsers.parse_parser.parse._` owns documented method behavior.
-            It directly owns the observable contract, local decisions, and maintenance boundary for this method.
+            Handles the singledispatchmethod registered case for pre-compiled parse.Parser objects: extracts the
+            original format string from the parser's internal _format attribute and stores both the extracted format and
+            the pre-compiled parser instance. This enables users to register step definitions using parser objects that
+            were compiled elsewhere (e.g., during a previous collection phase).
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse._` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+        Step parsers may be pre-compiled during feature file parsing or in shared conftest fixtures, and step definition
+        registration needs to accept these pre-compiled objects without re-compiling. This overload extracts the
+        original format string (needed for string representation and debugging) while reusing the existing compiled
+        parser. The _format attribute access (with SLF001 suppression) is required because the parse library doesn't
+        expose the original format string through a public API.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - format_._format: Accesses the parse library's internal _format attribute to retrieve the original format string.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs a single task: accept pre-compiled Parser → extract format → store both. No other logic.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - _init_stringable: Kept separate because that method handles string-format compilation, while this method
+            handles pre-compiled parser acceptance — different initialization paths for different input types.
 
         Main consumers:
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `_`
-            - src/pytest_bdd/_pylint/checkers/test_import_rules.py: imports or references `_`
-            - src/pytest_bdd/collector_batch.py: imports or references `_`
-            - src/pytest_bdd/model/coverage/inventory.py: imports or references `_`
+            - parse.__init__ singledispatch: This is the registered handler for base_parse.Parser inputs, dispatched
+            automatically when a pre-compiled parser is passed to the constructor.
 
         State and side effects:
-            mutates self.format, self.parser.
-
-        Invariants:
-            - `pytest_bdd.parsers.parse_parser.parse._` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            Sets self.format and self.parser on the instance. The format_._format access is read-only.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
-        self.format = format_._format  # noqa: SLF001
+        self.format = format_._format  # noqa: SLF001  -- access to parse library's internal _format attribute required by the step parser protocol
         self.parser = format_
 
     @classmethod
     def cfparse(cls, *args: object, **kwargs: object) -> parse:
         """
-        Create a cfparse parser.
-
-        Args:
-            args: Positional arguments for parser.
-            kwargs: Keyword arguments for parser.
-
-        Returns:
-            Configured parse parser.
+        Classmethod factory that creates a `parse` instance configured for case-insensitive field type parsing by setting the.
 
         Responsibility:
-            Create a cfparse parser. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Classmethod factory that creates a `parse` instance configured for case-insensitive field type parsing by
+            setting the builder keyword argument to base_cfparse.Parser. This is the programmatic entry point for
+            creating a cfparse-style parser without using the cfparse subclass directly. Returns a `parse` instance (not
+            a `cfparse` instance) with the cfparse builder injected.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.cfparse` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            Provides a composable way to create case-insensitive parse parsers. While the `cfparse` subclass exists for
+            direct use, this classmethod allows code that already has a reference to the `parse` class to create a
+            cfparse-configured instance without importing cfparse separately. The builder default injection pattern
+            means callers pass the format string and any other args, and the cfparse builder is automatically used.
 
         Delegates:
-            - kwargs.setdefault: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - cls: collaborator call used by this boundary
+            - base_cfparse.Parser: The builder class that handles case-insensitive field type matching.
+            - cls(*args, **kwargs): Delegates to the standard constructor with builder injected.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: set builder default → call constructor. The kwargs.setdefault pattern
+            ensures the caller can still override the builder if needed.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - cfparse.__init__: Kept separate because cfparse.__init__ explicitly sets builder=base_cfparse.Parser for
+            the subclass constructor, while this classmethod injects it through kwargs — subclass constructor vs factory
+            method, achieving the same result through different patterns.
 
         Main consumers:
-            - src/pytest_bdd/parsers/__init__.py: imports or references `cfparse`
-            - src/pytest_bdd/parsers/facade.py: imports or references `cfparse`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `cfparse`
+            - Programmatic parser creation: code that builds parsers dynamically and wants case-insensitive behavior
+            without instantiating cfparse directly.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state. Factory method that returns a new instance.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         kwargs.setdefault("builder", base_cfparse.Parser)
@@ -375,63 +403,53 @@ class parse(StepParser):  # noqa:N801 intentional API
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
         """
-        Parse arguments from step name.
-
-        Args:
-            request: Pytest fixture request.
-            name: Step name to parse.
-            anonymous_group_names: Anonymous group names.
-
-        Returns:
-            Dictionary of parsed arguments.
+        Extract step arguments from a matched step name string using the compiled parse.Parser: call parser.parse(name) to obtain named and fixed arguments.
 
         Responsibility:
-            Parse arguments from step name. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Extracts step arguments from a matched step name string using the compiled parse.Parser: calls
+            parser.parse(name) to get a Result object, extracts named groups via result.named (a dict), and if
+            anonymous_group_names are provided, supplements with positional fixed groups via result.fixed, zipping them
+            with the provided names. The FixtureRequest parameter is accepted but unused — it exists for StepParser
+            protocol compatibility with parsers that need request context.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.parse_arguments` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The parse.Parser.parse() method returns a Result object with two key attributes: .named (dict of named
+            fields) and .fixed (tuple of positional matches). This method bridges the parse library's result format to
+            pytest-bdd's step argument dict format. The anonymous_group_names parameter enables mapping of positional
+            regex groups (from other parser types like re) to named arguments, though for parse parsers the named groups
+            are the primary extraction method.
 
         Delegates:
-            - dict: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - self.parser.parse: collaborator call used by this boundary
-            - group_dict.update: collaborator call used by this boundary
-            - zip: collaborator call used by this boundary
+            - self.parser.parse(name): Performs the actual step text matching and returns a Result with .named and
+            .fixed attributes.
+            - cast("_ParseMatchProtocol", ...): Type assertion that the result conforms to the expected match protocol.
+            - dict(match.named): Converts the named groups to a standard dict.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs one operation: extract arguments from matched text → return as dict. The
+            anonymous_group_names zip is a cross-parser compatibility feature.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - is_matching: Kept separate because is_matching checks whether a match exists (boolean), while
+            parse_arguments extracts the matched values (dict) — boolean check vs data extraction, two phases of the
+            matching pipeline.
 
         Main consumers:
-            - src/pytest_bdd/parsers/facade.py: imports or references `parse_arguments`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `parse_arguments`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/step_catalog_runtime/_static_helpers.py: imports or
-              references `parse_arguments`
-            - src/pytest_bdd/steps/definition.py: imports or references `parse_arguments`
+            - pytest_bdd.steps.manager: Called during step execution to extract argument values for injection into step
+            function parameters.
 
         State and side effects:
-            mutates match, group_dict.
-
-        Invariants:
-            - `pytest_bdd.parsers.parse_parser.parse.parse_arguments` keeps its documented import path, ownership
-              boundary, and observable behavior stable for callers.
+            None, keeps no persistent state. Pure function of inputs.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
         """
         match = cast("_ParseMatchProtocol", self.parser.parse(name))
@@ -443,53 +461,51 @@ class parse(StepParser):  # noqa:N801 intentional API
     @property
     def arguments(self) -> Collection[str]:
         """
-        Get argument names.
-
-        Returns:
-            Collection of argument names.
+        Returns the named capture group keys from the compiled parser's internal regex pattern via self.parser._match_re.grou.
 
         Responsibility:
-            Get argument names. It directly owns the observable contract, local decisions, and maintenance boundary for
-            this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Returns the named capture group keys from the compiled parser's internal regex pattern via
+            self.parser._match_re.groupindex.keys(). These are the argument names that the parse format string defines
+            (e.g., for "I have {n:d} cucumbers", returns ["n"]). The collection is used by the step definition manager
+            to determine which fixture names correspond to step arguments.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.arguments` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            The StepParser protocol requires an `arguments` property that exposes the named arguments a step parser can
+            extract, enabling the step definition system to validate that step function parameters match the parser's
+            expected arguments. The parse library stores the compiled regex pattern in _match_re (a private attribute),
+            and this property accesses it via SLF001-suppressed private attribute access — this is a necessary evil
+            because the parse library's public API doesn't expose the group names directly.
 
         Delegates:
-            - self.parser._match_re.groupindex.keys: collaborator call used by this boundary
+            - self.parser._match_re.groupindex.keys(): Accesses the compiled regex's named group index to enumerate argument names.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The property performs exactly one operation: extract argument names from the compiled parser. The list
+            conversion from dict_keys ensures the result is iterable and indexable.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - re.arguments (from re_parser): Kept separate because re.arguments uses stdlib re.Pattern.groupindex, while
+            parse.arguments uses parse.Parser._match_re.groupindex — different compiled parser types, different internal
+            regex storage, but same conceptual operation.
 
         Main consumers:
-            - src/pytest_bdd/feature_locator.py: imports or references `arguments`
-            - src/pytest_bdd/parsers/facade.py: imports or references `arguments`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `arguments`
-            - src/pytest_bdd/plugin/cucumber_json/model.py: imports or references `arguments`
-            - src/pytest_bdd/steps/definition.py: imports or references `arguments`
+            - pytest_bdd.steps.manager: Uses arguments to validate step function signatures and map fixture names.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state. Read-only property.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
-        return [*self.parser._match_re.groupindex.keys()]  # noqa: SLF001
+        return [*self.parser._match_re.groupindex.keys()]  # noqa: SLF001  -- access to parse library's internal _match_re required to enumerate named capture groups
 
     def is_matching(
         self,
@@ -497,50 +513,55 @@ class parse(StepParser):  # noqa:N801 intentional API
         name: str,
     ) -> bool:
         """
-        Check if name matches.
-
-        Returns:
-            True if matches, False otherwise.
+        Test whether a step name string matches the compiled parse format pattern by calling parser.parse(name) and converting the result to a boolean.
 
         Responsibility:
-            Check if name matches. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Tests whether a step name string matches the compiled parse format pattern by calling parser.parse(name) and
+            converting the result to bool. Catches ValueError (raised by the parse library when type-cast fields receive
+            non-matching input, e.g., {n:d} receiving "abc") and returns False, treating type-cast failures as non-
+            matches. The FixtureRequest parameter is accepted but unused — present for protocol compatibility.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.is_matching` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The parse library raises ValueError (not a custom ParseError) when type-cast fields cannot parse their input
+            — this is a quirk of the parse library's error handling. This method catches these ValueErrors and returns
+            False instead of letting the exception propagate, treating type-cast mismatch as "doesn't match" rather than
+            "error." Without this catch, a step like "I have {n:d} cucumbers" would raise ValueError when matched
+            against "I have many cucumbers" instead of simply not matching.
 
         Delegates:
-            - bool: collaborator call used by this boundary
-            - self.parser.parse: collaborator call used by this boundary
+            - self.parser.parse(name): Performs the actual pattern matching and returns a Result on match, or raises
+            ValueError on type-cast failure.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            The method performs exactly one check: does the step text match the pattern? The ValueError catch is
+            integral to this check for parse-format patterns.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - parse_arguments: Kept separate because is_matching is a boolean gate (should we proceed?), while
+            parse_arguments extracts values after matching (what values were matched?) — gate vs extraction.
+            - re.is_matching (from re_parser): Kept separate because re uses regex.fullmatch while parse uses
+            parse.Parser.parse — different matching algorithms, different error handling.
 
         Main consumers:
-            - src/pytest_bdd/hook.py: imports or references `is_matching`
-            - src/pytest_bdd/parsers/facade.py: imports or references `is_matching`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `is_matching`
-            - src/pytest_bdd/steps/matcher.py: imports or references `is_matching`
+            - pytest_bdd.steps.manager: Called during step definition lookup to find which step definition matches the
+            current scenario step text.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state. Pure function of inputs.
+
+        Failure semantics:
+            Returns False on ValueError from type-cast failures — silently treats non-matching type casts as "doesn't
+            match". Does not raise exceptions.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
             #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         try:
@@ -550,105 +571,105 @@ class parse(StepParser):  # noqa:N801 intentional API
 
     def __str__(self) -> str:
         """
-        Get parser format as string.
-
-        Returns:
-            Parser format string.
+        Return the original format string used to create the parser, providing a human-readable representation for debugging.
 
         Responsibility:
-            Get parser format as string. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Returns the original format string used to create the parser, providing a human-readable representation for
+            debugging, error messages, and logging. This is the string that the user originally passed to the parser
+            constructor (e.g., "I have {n:d} cucumbers").
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.parse.__str__` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            The StepParser protocol requires __str__ for display purposes (error messages showing which parser
+            matched/mismatched, debug logging of step definitions). The format string is the most meaningful
+            representation — it shows the pattern the step was matched against. This is simpler than showing the
+            compiled parser object which would be unreadable.
 
         Delegates:
-            - str: collaborator call used by this boundary
+            - self.format: The format string stored during construction, normalized via normalize_to_string.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            Trivially cohesive — returns the stored format string.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other parser __str__ methods: Each parser returns the format that makes sense for its matching paradigm
+            (re.pattern for regex, cucumber_expression.pattern for Cucumber expressions, parse.format for parse
+            parsers).
 
         Main consumers:
-            - src/pytest_bdd/parsers/facade.py: imports or references `__str__`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `__str__`
+            - Error messages in pytest_bdd.steps.manager: Used when reporting step definition mismatches or undefined steps.
+            - Logging and debugging: Provides human-readable parser identification.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state. Read-only.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=2
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=4
         """
         return str(self.format)
 
 
 class cfparse(parse):  # noqa:N801 intentional API
     """
-    cfparse step parser.
-
-    #arch-eval:score=reason_for_existence:4
-    #arch-eval:score=srp_expert:5
-    #arch-eval:score=why_not_inline:4
-    #arch-eval:score=why_not_split:5
-    #arch-eval:score=problems_solved:4
-    #arch-eval:score=law_of_demeter:5
-    #arch-eval:score=module_location:4
+    A subclass of `parse` that specializes the parser builder to base_cfparse.Parser (from the parse_type library) for ca.
 
     Responsibility:
-        cfparse step parser. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        A subclass of `parse` that specializes the parser builder to base_cfparse.Parser (from the parse_type library)
+        for case-insensitive field type matching. This parser treats field type names as case-insensitive (e.g.,
+        {name:Name} and {name:name} match the same type) and handles custom type conversions defined by the parse_type
+        library. Otherwise inherits all matching and argument extraction logic from the parent `parse` class. Has its
+        own StepDefinitionPatternType (pytest_bdd_cfparse_expression) for classification.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.parsers.parse_parser.cfparse` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        The parse_type library extends the standard parse library with case-insensitive type resolution and additional
+        built-in types (e.g., Name, Color, etc.). This class provides pytest-bdd users access to those extended features
+        without modifying the base `parse` parser. The subclass pattern is used rather than a configuration flag because
+        the compiled parser object is fundamentally different (base_cfparse.Parser vs base_parse.Parser), and the
+        pattern type classification needs to distinguish them for message serialization purposes.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - base_cfparse.Parser: The extended parser class from parse_type that handles case-insensitive type casting.
+        - parse (parent class): Inherits all matching (is_matching, parse_arguments), argument extraction (arguments
+        property), and string representation (__str__) logic.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        The class has a single specialization: using the cfparse builder instead of the parse builder. All other
+        behavior is inherited unchanged, making this a clean, focused subclass.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - parse (parent): Kept separate because parse uses base_parse.compile/basic Parser while cfparse uses
+        base_cfparse.Parser — different parser backends, different feature sets, different pattern type classification.
+        - cucumber_expression: Kept separate because cucumber_expression uses the cucumber-expressions library (a
+        completely different parsing paradigm), while cfparse uses the parse-type-extended parse library — different
+        libraries, different syntax.
 
     Main consumers:
-        - src/pytest_bdd/parsers/__init__.py: imports or references `cfparse`
-        - src/pytest_bdd/parsers/facade.py: imports or references `cfparse`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `cfparse`
+        - End-user test code via parsers.cfparse("pattern").
+        - pytest_bdd.steps.manager: Uses the StepParser protocol inherited from parse for matching.
 
     State and side effects:
-        mutates type.
+        None, keeps no persistent state beyond what the parent class stores. The builder default is set during __init__.
 
     Invariants:
-        - `pytest_bdd.parsers.parse_parser.cfparse` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The builder must be base_cfparse.Parser or a compatible subclass for case-insensitive type matching.
+        - Inherits all matching and argument extraction contracts from the parent parse class.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:reason_for_existence=3
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=3
+        #arch-eval:entity_fullness=2
         #arch-eval:locational_stability=4
     """
 
@@ -656,49 +677,47 @@ class cfparse(parse):  # noqa:N801 intentional API
 
     def __init__(self, *args: object, **kwargs: object) -> None:
         """
-        Initialize the cfparse.
+        Override the parent constructor to inject base_cfparse.Parser as the default builder, then delegate to the parent __init__.
 
         Responsibility:
-            Initialize the cfparse. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Overrides the parent constructor to inject base_cfparse.Parser as the default builder, then delegates to the
+            parent __init__ for the actual initialization (which will detect the string format and call _init_stringable
+            with the overridden builder). This ensures that cfparse instances always use the case-insensitive field type
+            parser from parse_type without requiring the user to explicitly specify the builder.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.parsers.parse_parser.cfparse.__init__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The only difference between parse and cfparse is the builder (base_cfparse.Parser vs base_parse.compile).
+            This __init__ override injects that difference cleanly: set the builder default on kwargs, then let the
+            parent class handle the rest. Without this override, users would need to explicitly pass
+            builder=base_cfparse.Parser to the parse constructor, which is less discoverable and more error-prone.
 
         Delegates:
-            - kwargs.setdefault: collaborator call used by this boundary
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__: Passes control to the parent class's singledispatchmethod-based constructor with the
+            builder already injected.
+            - base_cfparse.Parser: The builder that will be used by _init_stringable to compile the format string.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        The method performs a single injection: set builder default → delegate to parent. No other logic.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - parse.__init__: Kept separate because parse.__init__ uses base_parse.compile as the default builder, while
+            cfparse.__init__ overrides it — default builder injection is the sole specialization.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - User code via parsers.cfparse("pattern") — the constructor is the entry point for creating cfparse parsers.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Modifies kwargs in place (sets "builder" key), then delegates. No external side effects.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:reason_for_existence=3
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=2
             #arch-eval:locational_stability=4
         """
         kwargs.setdefault("builder", base_cfparse.Parser)

@@ -37,9 +37,10 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have a bar")
     def _bar():
-      return "bar"
+        return "bar"
     ```
 
 * When run pytest
@@ -80,13 +81,15 @@
     ```python
     from pytest_bdd import given
 
+
     @given("I have a bar")
     def _bar():
-      return "bar"
+        return "bar"
+
 
     @given("I have a baz")
     def _baz():
-      return "baz"
+        return "baz"
     ```
 
 * When run pytest

@@ -161,6 +161,8 @@ tests/e2e/
 
     ```python
     from pytest_bdd import given
+
+
     @given("a step")
     def _(): ...
     ```
@@ -198,6 +200,7 @@ def run_pytest(testdir, step, attach):
 ```python
 # In conftest.py or step file:
 from tests.support.cucumber_formatters import install_fake_node, build_sample_suite
+
 
 @given("Cucumber formatters are available")
 def _(monkeypatch, tmp_path):

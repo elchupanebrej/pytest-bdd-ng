@@ -21,9 +21,10 @@
     ```python
     from pytest_bdd import given
 
-    @given('I check scenario description')
+
+    @given("I check scenario description")
     def step(pickle):
-      assert "My Scenario description" in pickle.description
+        assert "My Scenario description" in pickle.description
     ```
 
 * When run pytest

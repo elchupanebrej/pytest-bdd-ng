@@ -174,14 +174,14 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.mermaid",
     "myst_parser",
-    "feature_tree",   # ← new local extension
+    "feature_tree",  # ← new local extension
 ]
 
 # MyST settings — colon_fence is enabled by default in MyST-Parser >=2.0
 # Enable explicitly if using MyST <2.0 or if directives are not recognised:
 # myst_enable_extensions = ["colon_fence"]
 
-source_suffix = [".rst", ".md"]   # keep .rst for any remaining legacy files
+source_suffix = [".rst", ".md"]  # keep .rst for any remaining legacy files
 ```
 
 The Pandoc-wrapper imports and `ensure_pandoc_installed()` calls are removed from `conf.py` (currently

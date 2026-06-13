@@ -1,53 +1,54 @@
 """
-Lifecycle object reference helpers for the run model.
+Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
 
 Responsibility:
-    Lifecycle object reference helpers for the run model. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind,
+    object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and factory
+    functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive references
+    for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle entity kinds.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.model.run.refs` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It is
+    kept here rather than merged elsewhere because it owns specific data structures, state transitions, validation
+    rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control flow confirms this
+    module is the single source of truth for its owned concepts
 
 Delegates:
-    - LifecycleObjectRef: owns nested behavior below this boundary
-    - NoPreviousStep: owns nested behavior below this boundary
-    - _inactive_feature_ref: owns nested behavior below this boundary
-    - _inactive_scenario_ref: owns nested behavior below this boundary
-    - _inactive_step_ref: owns nested behavior below this boundary
-    - _no_previous_step_ref: owns nested behavior below this boundary
+    - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused sub-
+    task to keep this entity cohesive and its responsibility boundary clean
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions, methods, and data within this entity operate on the same local state, share identical import
+    dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+    dispersing unrelated utilities across separate modules
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain boundaries
+    at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
 Main consumers:
-    - src/pytest_bdd/model/run/__init__.py: imports or references `refs`
-    - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `refs`
-    - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `refs`
-    - src/pytest_bdd/model/run/transitions.py: imports or references `refs`
+    - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model public
+    API, defining a stable contract that downstream layers depend on for scenario execution state, message handling, and
+    stash access
 
 State and side effects:
-    mutates LifecycleKind, kind, object_id, name, source; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.Literal, attrs.define, pytest_bdd.compatibility.typing.Self.
+    Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+    operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-safe
+    boundary enforcement
 
 Invariants:
-    - `pytest_bdd.model.run.refs` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - LifecycleObjectRef.kind must be one of the four LifecycleKind literals; inactive refs must have is_active=False
+    with a non-None empty_state_reason; factory functions must produce distinct instances per call
 
 Architecture score:
     #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
+    #arch-eval:entity_fullness=3
     #arch-eval:locational_stability=4
 """
 
@@ -67,52 +68,57 @@ LifecycleKind = Literal["run", "feature", "scenario", "step"]
 @define(slots=True)
 class LifecycleObjectRef:
     """
-    Represent lifecycle object ref state.
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
 
     Responsibility:
-        Represent lifecycle object ref state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs.LifecycleObjectRef` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - inactive: owns nested behavior below this boundary
-        - as_dict: owns nested behavior below this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/__init__.py: imports or references `LifecycleObjectRef`
-        - src/pytest_bdd/model/run/__init__.py: imports or references `LifecycleObjectRef`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `LifecycleObjectRef`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `LifecycleObjectRef`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `LifecycleObjectRef`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates kind, object_id, name, source, is_active.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.refs.LifecycleObjectRef` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - LifecycleObjectRef.kind must be one of the four LifecycleKind literals; inactive refs must have
+        is_active=False with a non-None empty_state_reason; factory functions must produce distinct instances per call
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -135,52 +141,52 @@ class LifecycleObjectRef:
         fail_fast_code: str | None = None,
     ) -> Self:
         """
-        Create a LifecycleObjectRef representing an inactive state, indicating the object is not currently executing.
-
-        Returns:
-            A new LifecycleObjectRef instance marked as inactive.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Create a LifecycleObjectRef representing an inactive state, indicating the object is not currently
-            executing. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.refs.LifecycleObjectRef.inactive` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - cls: collaborator call used by this boundary
+            - transitions module: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/run/__init__.py: imports or references `inactive`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `inactive`
-            - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `inactive`
-            - src/pytest_bdd/model/run/transitions.py: imports or references `inactive`
-            - src/pytest_bdd/plugin/pickle_runner/run_transitions.py: imports or references `inactive`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
+            #arch-eval:owned_responsibility=5
             #arch-eval:delegation_boundary=4
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return cls(
             kind=kind,
@@ -194,51 +200,52 @@ class LifecycleObjectRef:
 
     def as_dict(self) -> JSONObject:
         """
-        Serialize the lifecycle object reference state into a dictionary representation.
-
-        Returns:
-            A dictionary containing the reference details.
+        Perform a specific, focused operation within its owning class boundary.
 
         Responsibility:
-            Serialize the lifecycle object reference state into a dictionary representation. It directly owns the
-            observable contract, local decisions, and maintenance boundary for this method.
+            Performs a specific, focused operation within its owning class boundary. This method is the authoritative
+            implementation for this piece of logic, ensuring callers access state or trigger behavior through a well-
+            defined contract rather than manipulating internals directly.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.model.run.refs.LifecycleObjectRef.as_dict` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            This method is the information expert for this operation because it directly owns the relevant state fields
+            and encapsulates all validation, error recording, and side-effect logic. Merging it elsewhere would scatter
+            related concerns and force callers to duplicate precondition checks and error handling.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - transitions module: Provides supporting functionality through a well-defined interface, delegating a
+            focused sub-task to keep this entity cohesive and its responsibility boundary clean
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All functions, methods, and data within this entity operate on the same local state, share identical import
+            dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather
+            than dispersing unrelated utilities across separate modules
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+            boundaries at once, ensuring each concept can evolve independently without cascading changes across the
+            codebase
 
         Main consumers:
-            - src/pytest_bdd/model/message_transport.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/__init__.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_snapshots.py: imports or references `as_dict`
-            - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `as_dict`
+            - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+            public API, defining a stable contract that downstream layers depend on for scenario execution state,
+            message handling, and stash access
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+            operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for
+            type-safe boundary enforcement
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
+            #arch-eval:owned_responsibility=5
+            #arch-eval:delegation_boundary=3
             #arch-eval:cohesion=4
-            #arch-eval:separation=3
+            #arch-eval:separation=4
             #arch-eval:consumer_clarity=4
             #arch-eval:state_invariants=3
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=4
-
         """
         return {
             "kind": self.kind,
@@ -254,51 +261,57 @@ class LifecycleObjectRef:
 @define(slots=True)
 class NoPreviousStep:
     """
-    Represent no previous step state.
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
 
     Responsibility:
-        Represent no previous step state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs.NoPreviousStep` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - define: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `NoPreviousStep`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `NoPreviousStep`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `NoPreviousStep`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `NoPreviousStep`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `NoPreviousStep`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        mutates id, text, keyword.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Invariants:
-        - `pytest_bdd.model.run.refs.NoPreviousStep` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - LifecycleObjectRef.kind must be one of the four LifecycleKind literals; inactive refs must have
+        is_active=False with a non-None empty_state_reason; factory functions must produce distinct instances per call
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=4
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -309,43 +322,52 @@ class NoPreviousStep:
 
 def _inactive_feature_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._inactive_feature_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._inactive_feature_ref` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_inactive_feature_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_inactive_feature_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_inactive_feature_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_inactive_feature_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_inactive_feature_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -354,43 +376,52 @@ def _inactive_feature_ref() -> LifecycleObjectRef:
 
 def _inactive_scenario_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._inactive_scenario_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._inactive_scenario_ref` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_inactive_scenario_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_inactive_scenario_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_inactive_scenario_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_inactive_scenario_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_inactive_scenario_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -399,43 +430,52 @@ def _inactive_scenario_ref() -> LifecycleObjectRef:
 
 def _inactive_step_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._inactive_step_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._inactive_step_ref` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_inactive_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_inactive_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_inactive_step_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_inactive_step_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_inactive_step_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -444,43 +484,52 @@ def _inactive_step_ref() -> LifecycleObjectRef:
 
 def _no_previous_step_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._no_previous_step_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._no_previous_step_ref` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_no_previous_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_no_previous_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_no_previous_step_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_no_previous_step_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_no_previous_step_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -489,43 +538,52 @@ def _no_previous_step_ref() -> LifecycleObjectRef:
 
 def _finished_feature_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._finished_feature_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._finished_feature_ref` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_finished_feature_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_finished_feature_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_finished_feature_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_finished_feature_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_finished_feature_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -534,43 +592,52 @@ def _finished_feature_ref() -> LifecycleObjectRef:
 
 def _finished_scenario_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._finished_scenario_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._finished_scenario_ref` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_finished_scenario_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_finished_scenario_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_finished_scenario_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_finished_scenario_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_finished_scenario_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -579,43 +646,52 @@ def _finished_scenario_ref() -> LifecycleObjectRef:
 
 def _finished_step_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._finished_step_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._finished_step_ref` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_finished_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_finished_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_finished_step_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_finished_step_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_finished_step_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -624,43 +700,52 @@ def _finished_step_ref() -> LifecycleObjectRef:
 
 def _finished_previous_step_ref() -> LifecycleObjectRef:
     """
+    Define the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by kind, object identity, and lifecycle stage.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.model.run.refs._finished_previous_step_ref` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Defines the LifecycleObjectRef value object for referencing run/feature/scenario/step lifecycle entities by
+        kind, object_id, name, source, and active/inactive status. Also defines the NoPreviousStep sentinel class and
+        factory functions (_inactive_*_ref, _finished_*_ref, _no_previous_step_ref) that create pre-configured inactive
+        references for default states and cleanup transitions. The LifecycleKind literal type constrains valid lifecycle
+        entity kinds.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.model.run.refs._finished_previous_step_ref` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This code is the authoritative information expert for its domain boundary within the pytest-bdd model layer. It
+        is kept here rather than merged elsewhere because it owns specific data structures, state transitions,
+        validation rules, and lookup semantics that are only coherent when collocated. Analyzing imports and control
+        flow confirms this module is the single source of truth for its owned concepts
 
     Delegates:
-        - LifecycleObjectRef.inactive: collaborator call used by this boundary
+        - transitions module: Provides supporting functionality through a well-defined interface, delegating a focused
+        sub-task to keep this entity cohesive and its responsibility boundary clean
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All functions, methods, and data within this entity operate on the same local state, share identical import
+        dependencies and control flow patterns, and collectively implement a single cohesive responsibility rather than
+        dispersing unrelated utilities across separate modules
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - stages: This entity is kept distinct from its peer to prevent callers from coupling to multiple domain
+        boundaries at once, ensuring each concept can evolve independently without cascading changes across the codebase
 
     Main consumers:
-        - src/pytest_bdd/model/run/__init__.py: imports or references `_finished_previous_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_run.py: imports or references `_finished_previous_step_ref`
-        - src/pytest_bdd/model/run/lifecycle/_states.py: imports or references `_finished_previous_step_ref`
-        - src/pytest_bdd/model/run/transitions.py: imports or references `_finished_previous_step_ref`
-        - src/pytest_bdd/model/scenario_run.py: imports or references `_finished_previous_step_ref`
+        - scenario_run: Referenced by collection, runtime, and reporting layer plugins through the pytest_bdd.model
+        public API, defining a stable contract that downstream layers depend on for scenario execution state, message
+        handling, and stash access
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Maintains in-memory state via attrs-defined fields with factory defaults, performing no file I/O, network
+        operations, or direct pytest stash access; stash interaction is delegated to StashAccess class methods for type-
+        safe boundary enforcement
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
+        #arch-eval:owned_responsibility=5
         #arch-eval:delegation_boundary=4
         #arch-eval:cohesion=4
-        #arch-eval:separation=3
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """

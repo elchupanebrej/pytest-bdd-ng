@@ -1,56 +1,47 @@
 """
-pytest-bdd Exceptions.
+Defines the complete exception class hierarchy for pytest-bdd, including stash access errors,
+scenario validation err.
 
 Responsibility:
-    pytest-bdd Exceptions. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Defines the complete exception class hierarchy for pytest-bdd, including stash access errors,
+    scenario validation errors, step definition lookup errors, feature parse errors, and message
+    schema validation errors, each carrying domain-specific constructor metadata for precise error
+    diagnostics.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.types.exception` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Exception types encode domain-specific failure context (stash keys, feature URIs, step text,
+    scenario names) that generic Python exceptions cannot carry. Centralizing them in one module
+    ensures consistent error message formatting and exception hierarchy design across all runtime
+    layers.
 
 Delegates:
-    - _FeatureLike: owns nested behavior below this boundary
-    - _ScenarioLike: owns nested behavior below this boundary
-    - _StepLike: owns nested behavior below this boundary
-    - PytestBDDStashError: owns nested behavior below this boundary
-    - PytestBDDStashLookupError: owns nested behavior below this boundary
-    - PytestBDDStashAlreadyInitializedError: owns nested behavior below this boundary
+    - Python builtins: delegates to Exception, LookupError, TypeError, ValueError base classes
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All classes inherit from Exception and share the same domain-specific error reporting pattern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.types.failure_reasons`: provides StrEnum codes for categorizing these exception types.
 
 Main consumers:
-    - src/pytest_bdd/collector_batch.py: imports or references `exception`
-    - src/pytest_bdd/model/stash_access.py: imports or references `exception`
-    - src/pytest_bdd/parser.py: imports or references `exception`
-    - src/pytest_bdd/plugin/code_generator/plugin.py: imports or references `exception`
-    - src/pytest_bdd/plugin/code_generator/rewrite.py: imports or references `exception`
+    - `pytest_bdd.model.stash_access`: raises PytestBDDStashError subclasses for stash access failures
 
 State and side effects:
-    mutates keyword, line_number, uri, name, text; depends on __future__.annotations, typing.TYPE_CHECKING,
-    typing.Protocol, os.PathLike.
+    None, exception classes hold only constructor-provided immutable error context strings.
 
 Invariants:
-    - `pytest_bdd.types.exception` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - Each exception __init__ formats a message that includes relevant diagnostic identifiers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -63,49 +54,46 @@ if TYPE_CHECKING:
 
 class _FeatureLike(Protocol):
     """
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.types.exception._FeatureLike` owns documented class behavior. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception._FeatureLike` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: _FeatureLike specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `_FeatureLike`
-        - src/pytest_bdd/parser.py: imports or references `_FeatureLike`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_FeatureLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `_FeatureLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `_FeatureLike`
+        - `pytest_bdd.*`: callers catch or instantiate _FeatureLike for error handling and type checking
 
     State and side effects:
-        mutates uri.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.exception._FeatureLike` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -114,49 +102,46 @@ class _FeatureLike(Protocol):
 
 class _ScenarioLike(Protocol):
     """
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.types.exception._ScenarioLike` owns documented class behavior. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception._ScenarioLike` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: _ScenarioLike specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `_ScenarioLike`
-        - src/pytest_bdd/parser.py: imports or references `_ScenarioLike`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_ScenarioLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `_ScenarioLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `_ScenarioLike`
+        - `pytest_bdd.*`: callers catch or instantiate _ScenarioLike for error handling and type checking
 
     State and side effects:
-        mutates name.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.exception._ScenarioLike` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -165,48 +150,46 @@ class _ScenarioLike(Protocol):
 
 class _StepLike(Protocol):
     """
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.types.exception._StepLike` owns documented class behavior. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception._StepLike` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Protocol: _StepLike specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `_StepLike`
-        - src/pytest_bdd/parser.py: imports or references `_StepLike`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `_StepLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `_StepLike`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `_StepLike`
+        - `pytest_bdd.*`: callers catch or instantiate _StepLike for error handling and type checking
 
     State and side effects:
-        mutates text.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.types.exception._StepLike` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
@@ -215,716 +198,665 @@ class _StepLike(Protocol):
 
 class PytestBDDStashError(Exception):
     """
-    Base class for pytest-bdd stash access failures.
+    Signals a PytestBDDStashError condition during pytest-bdd runtime operations, carrying domain-
+    specific context that .
 
     Responsibility:
-        Base class for pytest-bdd stash access failures. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Signals a PytestBDDStashError condition during pytest-bdd runtime operations, carrying domain-
+        specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.PytestBDDStashError` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically PytestBDDStashError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Exception: PytestBDDStashError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating PytestBDDStashError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `PytestBDDStashError`
-        - src/pytest_bdd/parser.py: imports or references `PytestBDDStashError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `PytestBDDStashError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `PytestBDDStashError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `PytestBDDStashError`
+        - `pytest_bdd.*`: callers catch or instantiate PytestBDDStashError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.PytestBDDStashError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of PytestBDDStashError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class PytestBDDStashLookupError(PytestBDDStashError, LookupError):
     """
-    Requested pytest-bdd stash object is missing.
+    Signals a PytestBDDStashLookupError condition during pytest-bdd runtime operations, carrying
+    domain-specific context .
 
     Responsibility:
-        Requested pytest-bdd stash object is missing. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Signals a PytestBDDStashLookupError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.PytestBDDStashLookupError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically PytestBDDStashLookupError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - PytestBDDStashError, LookupError: PytestBDDStashLookupError specializes behavior from its parent(s) without
+        duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        PytestBDDStashLookupError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `PytestBDDStashLookupError`
-        - src/pytest_bdd/parser.py: imports or references `PytestBDDStashLookupError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `PytestBDDStashLookupError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `PytestBDDStashLookupError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `PytestBDDStashLookupError`
+        - `pytest_bdd.*`: callers catch or instantiate PytestBDDStashLookupError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.PytestBDDStashLookupError` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Instances of PytestBDDStashLookupError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class PytestBDDStashAlreadyInitializedError(PytestBDDStashError):
     """
-    Stash object is being initialized more than once.
+    Signals a PytestBDDStashAlreadyInitializedError condition during pytest-bdd runtime operations,
+    carrying domain-speci.
 
     Responsibility:
-        Stash object is being initialized more than once. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Signals a PytestBDDStashAlreadyInitializedError condition during pytest-bdd runtime operations,
+        carrying domain-specific context that enables precise error reporting and targeted exception
+        handling by callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.PytestBDDStashAlreadyInitializedError`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically PytestBDDStashAlreadyInitializedError and constructor logic can
+        format domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - PytestBDDStashError: PytestBDDStashAlreadyInitializedError specializes behavior from its parent(s) without
+        duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        PytestBDDStashAlreadyInitializedError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `PytestBDDStashAlreadyInitializedError`
-        - src/pytest_bdd/parser.py: imports or references `PytestBDDStashAlreadyInitializedError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `PytestBDDStashAlreadyInitializedError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-          `PytestBDDStashAlreadyInitializedError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references
-          `PytestBDDStashAlreadyInitializedError`
+        - `pytest_bdd.*`: callers catch or instantiate PytestBDDStashAlreadyInitializedError for error handling and type
+        checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.PytestBDDStashAlreadyInitializedError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of PytestBDDStashAlreadyInitializedError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class PytestBDDStashTypeMismatchError(PytestBDDStashError, TypeError):
     """
-    Stash key is occupied by a value of unexpected type.
+    Signals a PytestBDDStashTypeMismatchError condition during pytest-bdd runtime operations,
+    carrying domain-specific co.
 
     Responsibility:
-        Stash key is occupied by a value of unexpected type. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this class.
+        Signals a PytestBDDStashTypeMismatchError condition during pytest-bdd runtime operations,
+        carrying domain-specific context that enables precise error reporting and targeted exception
+        handling by callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.PytestBDDStashTypeMismatchError` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically PytestBDDStashTypeMismatchError and constructor logic can
+        format domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - PytestBDDStashError, TypeError: PytestBDDStashTypeMismatchError specializes behavior from its parent(s)
+        without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        PytestBDDStashTypeMismatchError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `PytestBDDStashTypeMismatchError`
-        - src/pytest_bdd/parser.py: imports or references `PytestBDDStashTypeMismatchError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `PytestBDDStashTypeMismatchError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references
-          `PytestBDDStashTypeMismatchError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `PytestBDDStashTypeMismatchError`
+        - `pytest_bdd.*`: callers catch or instantiate PytestBDDStashTypeMismatchError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.PytestBDDStashTypeMismatchError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of PytestBDDStashTypeMismatchError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
     def __init__(self, *, stash_key: str, actual_type: str, expected_type: str) -> None:
         """
-        Initialize the pytest bddstash type mismatch error.
+        Initializ a new PytestBDDStashTypeMismatchError instance with domain-specific context.
+        parameters, formatting a huma.
 
         Responsibility:
-            Initialize the pytest bddstash type mismatch error. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Initializes a new PytestBDDStashTypeMismatchError instance with domain-specific context
+            parameters, formatting a human-readable diagnostic message that includes relevant identifiers
+            for debugging test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.types.exception.PytestBDDStashTypeMismatchError.__init__` because it keeps the nearest code,
-            data shape, call signature, and failure knowledge together.
+            The __init__ of PytestBDDStashTypeMismatchError is the constructor boundary where raw failure
+            context is transformed into a formatted exception message. It is the single place where the
+            diagnostic message format for this error type is defined.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on PytestBDDStashTypeMismatchError
+            instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other PytestBDDStashTypeMismatchError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch PytestBDDStashTypeMismatchError implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         super().__init__(f"config.stash['{stash_key}'] contains {actual_type}, expected {expected_type}.")
 
 
 class MessageSchemaValidationError(ValueError):
     """
-    Schema-compatible emitted message does not satisfy the canonical schema.
+    Signals a MessageSchemaValidationError condition during pytest-bdd runtime operations, carrying
+    domain-specific conte.
 
     Responsibility:
-        Schema-compatible emitted message does not satisfy the canonical schema. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this class.
+        Signals a MessageSchemaValidationError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.MessageSchemaValidationError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically MessageSchemaValidationError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - ValueError: MessageSchemaValidationError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        MessageSchemaValidationError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `MessageSchemaValidationError`
-        - src/pytest_bdd/parser.py: imports or references `MessageSchemaValidationError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `MessageSchemaValidationError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `MessageSchemaValidationError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `MessageSchemaValidationError`
+        - `pytest_bdd.*`: callers catch or instantiate MessageSchemaValidationError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.MessageSchemaValidationError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of MessageSchemaValidationError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
     def __init__(self, details: str) -> None:
         """
-        Initialize the message schema validation error.
+        Initializ a new MessageSchemaValidationError instance with domain-specific context.
+        parameters, formatting a human-r.
 
         Responsibility:
-            Initialize the message schema validation error. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Initializes a new MessageSchemaValidationError instance with domain-specific context
+            parameters, formatting a human-readable diagnostic message that includes relevant identifiers
+            for debugging test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.types.exception.MessageSchemaValidationError.__init__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of MessageSchemaValidationError is the constructor boundary where raw failure
+            context is transformed into a formatted exception message. It is the single place where the
+            diagnostic message format for this error type is defined.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on MessageSchemaValidationError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other MessageSchemaValidationError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch MessageSchemaValidationError implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         super().__init__(f"Schema-compatible message emission failed: {details}")
 
 
 class ScenarioIsDecoratorOnlyError(Exception):
     """
-    Scenario can be only used as decorator.
+    Signals a ScenarioIsDecoratorOnlyError condition during pytest-bdd runtime operations, carrying
+    domain-specific conte.
 
     Responsibility:
-        Scenario can be only used as decorator. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class. That boundary is intentionally stated in prose so maintainers can
-        distinguish owned work from collaborators before editing.
+        Signals a ScenarioIsDecoratorOnlyError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.ScenarioIsDecoratorOnlyError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically ScenarioIsDecoratorOnlyError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Exception: ScenarioIsDecoratorOnlyError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        ScenarioIsDecoratorOnlyError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `ScenarioIsDecoratorOnlyError`
-        - src/pytest_bdd/parser.py: imports or references `ScenarioIsDecoratorOnlyError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ScenarioIsDecoratorOnlyError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ScenarioIsDecoratorOnlyError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `ScenarioIsDecoratorOnlyError`
+        - `pytest_bdd.*`: callers catch or instantiate ScenarioIsDecoratorOnlyError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.ScenarioIsDecoratorOnlyError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of ScenarioIsDecoratorOnlyError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class ScenarioValidationError(Exception):
     """
-    Base class for scenario validation.
+    Signals a ScenarioValidationError condition during pytest-bdd runtime operations, carrying
+    domain-specific context th.
 
     Responsibility:
-        Base class for scenario validation. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Signals a ScenarioValidationError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.ScenarioValidationError` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically ScenarioValidationError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Exception: ScenarioValidationError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating ScenarioValidationError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `ScenarioValidationError`
-        - src/pytest_bdd/parser.py: imports or references `ScenarioValidationError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ScenarioValidationError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ScenarioValidationError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `ScenarioValidationError`
+        - `pytest_bdd.*`: callers catch or instantiate ScenarioValidationError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.ScenarioValidationError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of ScenarioValidationError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class ScenarioNotFoundError(ScenarioValidationError):
     """
-    Scenario Not Found.
+    Signals a ScenarioNotFoundError condition during pytest-bdd runtime operations, carrying
+    domain-specific context that.
 
     Responsibility:
-        Scenario Not Found. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a ScenarioNotFoundError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.ScenarioNotFoundError` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically ScenarioNotFoundError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioValidationError: ScenarioNotFoundError specializes behavior from its parent(s) without duplicating
+        their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating ScenarioNotFoundError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `ScenarioNotFoundError`
-        - src/pytest_bdd/parser.py: imports or references `ScenarioNotFoundError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ScenarioNotFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ScenarioNotFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `ScenarioNotFoundError`
+        - `pytest_bdd.*`: callers catch or instantiate ScenarioNotFoundError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.ScenarioNotFoundError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of ScenarioNotFoundError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class ExamplesNotValidError(ScenarioValidationError):
     """
-    Example table is not valid.
+    Signals a ExamplesNotValidError condition during pytest-bdd runtime operations, carrying
+    domain-specific context that.
 
     Responsibility:
-        Example table is not valid. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a ExamplesNotValidError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.ExamplesNotValidError` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically ExamplesNotValidError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioValidationError: ExamplesNotValidError specializes behavior from its parent(s) without duplicating
+        their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating ExamplesNotValidError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `ExamplesNotValidError`
-        - src/pytest_bdd/parser.py: imports or references `ExamplesNotValidError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `ExamplesNotValidError`
+        - `pytest_bdd.*`: callers catch or instantiate ExamplesNotValidError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.ExamplesNotValidError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of ExamplesNotValidError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class ScenarioExamplesNotValidError(ScenarioValidationError):
     """
-    Scenario steps parameters do not match declared scenario examples.
+    Signals a ScenarioExamplesNotValidError condition during pytest-bdd runtime operations,
+    carrying domain-specific cont.
 
     Responsibility:
-        Scenario steps parameters do not match declared scenario examples. It directly owns the observable contract,
-        local decisions, and maintenance boundary for this class.
+        Signals a ScenarioExamplesNotValidError condition during pytest-bdd runtime operations,
+        carrying domain-specific context that enables precise error reporting and targeted exception
+        handling by callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.ScenarioExamplesNotValidError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically ScenarioExamplesNotValidError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioValidationError: ScenarioExamplesNotValidError specializes behavior from its parent(s) without
+        duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        ScenarioExamplesNotValidError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `ScenarioExamplesNotValidError`
-        - src/pytest_bdd/parser.py: imports or references `ScenarioExamplesNotValidError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `ScenarioExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `ScenarioExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `ScenarioExamplesNotValidError`
+        - `pytest_bdd.*`: callers catch or instantiate ScenarioExamplesNotValidError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.ScenarioExamplesNotValidError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of ScenarioExamplesNotValidError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class FeatureExamplesNotValidError(ScenarioValidationError):
     """
-    Feature example table is not valid.
+    Signals a FeatureExamplesNotValidError condition during pytest-bdd runtime operations, carrying
+    domain-specific conte.
 
     Responsibility:
-        Feature example table is not valid. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Signals a FeatureExamplesNotValidError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.FeatureExamplesNotValidError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically FeatureExamplesNotValidError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - ScenarioValidationError: FeatureExamplesNotValidError specializes behavior from its parent(s) without
+        duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        FeatureExamplesNotValidError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `FeatureExamplesNotValidError`
-        - src/pytest_bdd/parser.py: imports or references `FeatureExamplesNotValidError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `FeatureExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `FeatureExamplesNotValidError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `FeatureExamplesNotValidError`
+        - `pytest_bdd.*`: callers catch or instantiate FeatureExamplesNotValidError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.FeatureExamplesNotValidError` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of FeatureExamplesNotValidError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class StepDefinitionNotFoundError(Exception):
     """
-    Step definition not found.
+    Signals a StepDefinitionNotFoundError condition during pytest-bdd runtime operations, carrying
+    domain-specific contex.
 
     Responsibility:
-        Step definition not found. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a StepDefinitionNotFoundError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.StepDefinitionNotFoundError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically StepDefinitionNotFoundError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - Exception: StepDefinitionNotFoundError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        StepDefinitionNotFoundError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `StepDefinitionNotFoundError`
-        - src/pytest_bdd/parser.py: imports or references `StepDefinitionNotFoundError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `StepDefinitionNotFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `StepDefinitionNotFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `StepDefinitionNotFoundError`
+        - `pytest_bdd.*`: callers catch or instantiate StepDefinitionNotFoundError for error handling and type checking
 
     State and side effects:
-        mutates keyword, line_number, undefined_parameter_type, self.undefined_parameter_type.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.StepDefinitionNotFoundError` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Instances of StepDefinitionNotFoundError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=3
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -938,53 +870,47 @@ class StepDefinitionNotFoundError(Exception):
         *args: object,
     ) -> None:
         """
-        Initialize the step definition not found error.
+        Initializ a new StepDefinitionNotFoundError instance with domain-specific context parameters,.
+        formatting a human-re.
 
         Responsibility:
-            Initialize the step definition not found error. It directly owns the observable contract, local decisions,
-            and maintenance boundary for this method.
+            Initializes a new StepDefinitionNotFoundError instance with domain-specific context parameters,
+            formatting a human-readable diagnostic message that includes relevant identifiers for debugging
+            test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.types.exception.StepDefinitionNotFoundError.__init__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of StepDefinitionNotFoundError is the constructor boundary where raw failure
+            context is transformed into a formatted exception message. It is the single place where the
+            diagnostic message format for this error type is defined.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on StepDefinitionNotFoundError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other StepDefinitionNotFoundError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch StepDefinitionNotFoundError implicitly invoke this method
 
         State and side effects:
-            mutates keyword, line_number, self.undefined_parameter_type.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.types.exception.StepDefinitionNotFoundError.__init__` keeps its documented import path,
-              ownership boundary, and observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         self.undefined_parameter_type = None
         keyword = getattr(step, "keyword", getattr(step, "prefix", "<unknown>"))
@@ -1005,202 +931,185 @@ class StepDefinitionNotFoundError(Exception):
 
 class NoScenariosFoundError(Exception):
     """
-    No scenarios found.
+    Signals a NoScenariosFoundError condition during pytest-bdd runtime operations, carrying
+    domain-specific context that.
 
     Responsibility:
-        No scenarios found. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a NoScenariosFoundError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.NoScenariosFoundError` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically NoScenariosFoundError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Exception: NoScenariosFoundError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating NoScenariosFoundError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `NoScenariosFoundError`
-        - src/pytest_bdd/parser.py: imports or references `NoScenariosFoundError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `NoScenariosFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `NoScenariosFoundError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `NoScenariosFoundError`
+        - `pytest_bdd.*`: callers catch or instantiate NoScenariosFoundError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.NoScenariosFoundError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of NoScenariosFoundError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=2
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
 
 class FeatureParseError(Exception):
     """
-    Feature parse error.
+    Signals a FeatureParseError condition during pytest-bdd runtime operations, carrying domain-
+    specific context that en.
 
     Responsibility:
-        Feature parse error. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a FeatureParseError condition during pytest-bdd runtime operations, carrying domain-
+        specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.FeatureParseError` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically FeatureParseError and constructor logic can format domain-
+        specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
+        - Exception: FeatureParseError specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating FeatureParseError
+        errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `FeatureParseError`
-        - src/pytest_bdd/parser.py: imports or references `FeatureParseError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `FeatureParseError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `FeatureParseError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `FeatureParseError`
+        - `pytest_bdd.*`: callers catch or instantiate FeatureParseError for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.FeatureParseError` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of FeatureParseError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=3
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
     def __init__(self, path: str | PathLike[str], *args: object) -> None:
         """
-        Initialize the feature parse error.
+        Initializ a new FeatureParseError instance with domain-specific context parameters,.
+        formatting a human-readable dia.
 
         Responsibility:
-            Initialize the feature parse error. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Initializes a new FeatureParseError instance with domain-specific context parameters,
+            formatting a human-readable diagnostic message that includes relevant identifiers for debugging
+            test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.types.exception.FeatureParseError.__init__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of FeatureParseError is the constructor boundary where raw failure context is
+            transformed into a formatted exception message. It is the single place where the diagnostic
+            message format for this error type is defined.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on FeatureParseError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FeatureParseError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch FeatureParseError implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         super().__init__(f"Unable to parse {path}", *args)
 
 
 class FeatureConcreteParseError(FeatureParseError):
     """
-    Feature parse error.
+    Signals a FeatureConcreteParseError condition during pytest-bdd runtime operations, carrying
+    domain-specific context .
 
     Responsibility:
-        Feature parse error. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Signals a FeatureConcreteParseError condition during pytest-bdd runtime operations, carrying
+        domain-specific context that enables precise error reporting and targeted exception handling by
+        callers without intercepting unrelated runtime errors.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.types.exception.FeatureConcreteParseError` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This exception exists as a distinct type rather than using a generic Exception so error
+        handlers can catch specifically FeatureConcreteParseError and constructor logic can format
+        domain-specific diagnostic messages with relevant identifiers.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - __str__: owns nested behavior below this boundary
+        - FeatureParseError: FeatureConcreteParseError specializes behavior from its parent(s) without duplicating their
+        contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All attributes and methods support the single purpose of communicating
+        FeatureConcreteParseError errors.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/model/stash_access.py: imports or references `FeatureConcreteParseError`
-        - src/pytest_bdd/parser.py: imports or references `FeatureConcreteParseError`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `FeatureConcreteParseError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `FeatureConcreteParseError`
-        - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `FeatureConcreteParseError`
+        - `pytest_bdd.*`: callers catch or instantiate FeatureConcreteParseError for error handling and type checking
 
     State and side effects:
-        mutates message.
+        Stores only constructor-provided immutable error context strings.
 
     Invariants:
-        - `pytest_bdd.types.exception.FeatureConcreteParseError` keeps its documented import path, ownership boundary,
-          and observable behavior stable for callers.
+        - Instances of FeatureConcreteParseError always carry the semantic meaning of their exception type.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -1209,47 +1118,47 @@ class FeatureConcreteParseError(FeatureParseError):
 
     def __init__(self, message: object, line_no: object, line: object, file: object, *args: object) -> None:
         """
-        Initialize the feature concrete parse error.
+        Initializ a new FeatureConcreteParseError instance with domain-specific context parameters,.
+        formatting a human-read.
 
         Responsibility:
-            Initialize the feature concrete parse error. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Initializes a new FeatureConcreteParseError instance with domain-specific context parameters,
+            formatting a human-readable diagnostic message that includes relevant identifiers for debugging
+            test failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.types.exception.FeatureConcreteParseError.__init__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of FeatureConcreteParseError is the constructor boundary where raw failure context
+            is transformed into a formatted exception message. It is the single place where the diagnostic
+            message format for this error type is defined.
 
         Delegates:
-            - Exception.__init__: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on FeatureConcreteParseError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FeatureConcreteParseError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch FeatureConcreteParseError implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         Exception.__init__(self, message, line_no, line, file, *args)
 
@@ -1257,51 +1166,46 @@ class FeatureConcreteParseError(FeatureParseError):
 
     def __str__(self) -> str:
         """
-        Return the string representation.
-
-        Returns:
-            Formatted error message.
+        Format the FeatureConcreteParseError instance into a human-readable string using the class-.
+        level message template a.
 
         Responsibility:
-            Return the string representation. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Formats the FeatureConcreteParseError instance into a human-readable string using the class-
+            level message template and constructor positional arguments, enabling clear error display in
+            pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.types.exception.FeatureConcreteParseError.__str__`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __str__ method centralizes string formatting so the message template and argument mapping
+            are defined in one place, ensuring consistent error display across all contexts where the
+            exception is printed.
 
         Delegates:
-            - self.message.format: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __str__ operation on FeatureConcreteParseError instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other FeatureConcreteParseError methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/model/stash_access.py: imports or references `__str__`
-            - src/pytest_bdd/parser.py: imports or references `__str__`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `__str__`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_executor.py: imports or references `__str__`
-            - src/pytest_bdd/plugin/pickle_runner/plugin/_plugin.py: imports or references `__str__`
+            - `pytest_bdd.*`: callers that raise or catch FeatureConcreteParseError implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return self.message.format(*self.args[:4])

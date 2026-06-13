@@ -13,22 +13,23 @@
 
     from pytest_bdd.plugin.struct_bdd.model import Node, Step, Table
 
+
     def test_defaults():
-      node = Node.model_validate({})
-      assert node.tags == []
-      assert node.name is None
-      assert node.description is None
-      assert node.comments == []
+        node = Node.model_validate({})
+        assert node.tags == []
+        assert node.name is None
+        assert node.description is None
+        assert node.comments == []
 
-      table = Table.model_validate({})
-      assert table.type == "Rowed"
-      assert table.parameters == []
-      assert table.values == []
+        table = Table.model_validate({})
+        assert table.type == "Rowed"
+        assert table.parameters == []
+        assert table.values == []
 
-      step = Step.model_validate({})
-      routes = list(step.routes)
-      assert len(routes) == 1
-      assert routes[0].steps[0].action is None
+        step = Step.model_validate({})
+        routes = list(step.routes)
+        assert len(routes) == 1
+        assert routes[0].steps[0].action is None
     ```
 
 * When run pytest
@@ -58,9 +59,10 @@
     from pytest_bdd.plugin.struct_bdd.model_builder import GherkinDocumentBuilder
     from pytest_bdd.util.other import IdGenerator
 
+
     def test_joined_examples_expand():
-      doc = dedent(
-        '''
+        doc = dedent(
+            """
         Tags:
           - TopTag
         Name: StepName
@@ -83,18 +85,18 @@
                     Values:
                       - [g, h, i]
                       - [j, k, l]
-        '''
-      )
-      step = Step.model_validate(load_yaml(doc, Loader=FullLoader))
-      routes = list(step.routes)
-      assert len(routes) == 1
-      assert all(tag in routes[0].tags for tag in ["TopTag", "ExampleTag", "StepTag", "StepExampleTag"])
-      assert len(routes[0].example_table.values) == 4
+        """
+        )
+        step = Step.model_validate(load_yaml(doc, Loader=FullLoader))
+        routes = list(step.routes)
+        assert len(routes) == 1
+        assert all(tag in routes[0].tags for tag in ["TopTag", "ExampleTag", "StepTag", "StepExampleTag"])
+        assert len(routes[0].example_table.values) == 4
 
-      document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
-      document_ast.uri = "uri"
-      pickles = Compiler().compile(message_converter.to_dict(document_ast))
-      assert len(pickles) == 4
+        document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
+        document_ast.uri = "uri"
+        pickles = Compiler().compile(message_converter.to_dict(document_ast))
+        assert len(pickles) == 4
     ```
 
 * When run pytest
@@ -120,9 +122,10 @@
 
     from pytest_bdd.plugin.struct_bdd.model import Step
 
+
     def test_nested_steps_are_valid():
-      doc = dedent(
-        '''
+        doc = dedent(
+            """
         Steps:
           - Alternative:
               - Given: Do something
@@ -131,11 +134,11 @@
           - Given: Do something
           - Step:
               Action: Do final thing
-        '''
-      )
-      step = Step.model_validate(load_yaml(doc, Loader=FullLoader))
-      routes = list(step.routes)
-      assert len(routes) == 3
+        """
+        )
+        step = Step.model_validate(load_yaml(doc, Loader=FullLoader))
+        routes = list(step.routes)
+        assert len(routes) == 3
     ```
 
 * When run pytest

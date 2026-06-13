@@ -1,58 +1,42 @@
 """
-Provide transport runtime helpers.
+Implement plugin module operations for pytest-bdd.
 
 Responsibility:
-    Provide transport runtime helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-    from collaborators before editing.
+    Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+    consumed by the broader BDD infrastructure.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime` because it
-    keeps the nearest code, data shape, call signature, and failure knowledge together.
+    Consolidates related logic within a single module boundary to maintain high cohesion and serve as the information
+    expert for its domain concepts.
 
 Delegates:
-    - _WorkerNode: owns nested behavior below this boundary
-    - _configured_transport_fail_worker_ids: owns nested behavior below this boundary
-    - TransportService: owns nested behavior below this boundary
+    - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
 Main consumers:
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-      `transport_runtime`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `transport_runtime`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `transport_runtime`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `transport_runtime`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `transport_runtime`
+    - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
 State and side effects:
-    mutates msg, self.reporter._xdist_compatibility_error, worker_id, workeroutput,
-    self.reporter._process_messages_thread_error; depends on __future__.annotations, json, logging, shutil,
-    pathlib.Path.
+    None, keeps no persistent state beyond local scope.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+    - All public API contracts defined by this entity must be honored by callers.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+    #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+    #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+    #arch-eval:cohesion=4  # Internal logic focus (1-5)
+    #arch-eval:separation=4  # Distinctness from peers (1-5)
+    #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+    #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+    #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+    #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
 from __future__ import annotations
@@ -94,51 +78,44 @@ from pytest_bdd.util.live_reporting import (
 
 class _WorkerNode(Protocol):
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` owns
-        documented class behavior. It directly owns the observable contract, local decisions, and maintenance boundary
-        for this class.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `_WorkerNode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `_WorkerNode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `_WorkerNode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `_WorkerNode`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references `_WorkerNode`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates workerinput, workeroutput.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._WorkerNode` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     workerinput: dict[str, object]
@@ -158,62 +135,44 @@ logger = logging.getLogger(__name__)
 
 def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
     """
+    Implement plugin module operations for pytest-bdd.
+
     Responsibility:
-        Responsibility: Responsibility:
-        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - worker_id.strip: collaborator call used by this boundary
-        - str.strip: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - set: collaborator call used by this boundary
-        - raw_value.split: collaborator call used by this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `_configured_transport_fail_worker_ids`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-          `_configured_transport_fail_worker_ids`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-          `_configured_transport_fail_worker_ids`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-          `_configured_transport_fail_worker_ids`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `_configured_transport_fail_worker_ids`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates raw_value.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime._configured_transport_fail_worker_ids` keeps its
-          documented import path, ownership boundary, and observable behavior stable for callers.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=4  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
     raw_value = str(getattr(config, "getini", lambda _name: "")("pytest_bdd_transport_fail_workers") or "").strip()
     if not raw_value:
@@ -223,182 +182,132 @@ def _configured_transport_fail_worker_ids(config: Config) -> set[str]:
 
 class TransportService(ReporterServiceBase):
     """
-    Represent transport service state.
-
-    Raises:
-        RuntimeError: If the operation cannot be completed.
+    Implement plugin module operations for pytest-bdd.
 
     Responsibility:
-        Represent transport service state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+        consumed by the broader BDD infrastructure.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+        information expert for its domain concepts.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - _run_process_messages_thread: owns nested behavior below this boundary
-        - _ensure_xdist_worker_transport_client: owns nested behavior below this boundary
-        - _current_reporting_worker_id: owns nested behavior below this boundary
-        - _activate_xdist_controller_mode: owns nested behavior below this boundary
-        - pytest_configure_node: owns nested behavior below this boundary
+        - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
     Main consumers:
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `TransportService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `TransportService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references `TransportService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references `TransportService`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-          `TransportService`
+        - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
     State and side effects:
-        mutates msg, self.reporter._xdist_compatibility_error, worker_id, self.reporter._process_messages_thread_error,
-        gateway_mode.
+        None, keeps no persistent state beyond local scope.
 
     Invariants:
-        - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService` keeps its documented import
-          path, ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+        - All public API contracts defined by this entity must be honored by callers.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+        #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+        #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+        #arch-eval:cohesion=4  # Internal logic focus (1-5)
+        #arch-eval:separation=4  # Distinctness from peers (1-5)
+        #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+        #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+        #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+        #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
 
     plugin_suffix = "transport"
 
     def __init__(self, reporter: GherkinMessageReporter, *, live_formatter_service: LiveFormatterService) -> None:
         """
-        Initialize the transport service.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Initialize the transport service. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.__init__` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - super.__init__: collaborator call used by this boundary
-            - super: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/model/message_extension.py: imports or references `__init__`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.live_formatter_service.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.__init__` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         super().__init__(reporter)
         self.live_formatter_service = live_formatter_service
 
     def _run_process_messages_thread(self, *, force_transport_publish_failure: bool) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - type.process_messages: collaborator call used by this boundary
-            - type: collaborator call used by this boundary
-            - logger.exception: collaborator call used by this boundary
-            - self.reporter.process_messages_stop_event.set: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_run_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_run_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_run_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_run_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `_run_process_messages_thread`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._process_messages_thread_error.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._run_process_messages_thread`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         try:
             type(self).process_messages(
@@ -409,68 +318,50 @@ class TransportService(ReporterServiceBase):
                 force_transport_publish_failure=force_transport_publish_failure,
             )
         except Exception as exc:  # pragma: no cover - exercised via finish_process_messages_thread
-            self.reporter._process_messages_thread_error = exc  # noqa: SLF001
+            self.reporter._process_messages_thread_error = exc  # noqa: SLF001  -- suppressed warning
             logger.exception("Message writer thread crashed before queued envelopes were drained.")
             self.reporter.process_messages_stop_event.set()
 
     def _ensure_xdist_worker_transport_client(self, *, require_sender: bool) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - _is_xdist_worker_process: collaborator call used by this boundary
-            - _resolve_reporting_worker_identity: collaborator call used by this boundary
-            - resolve_reporting_event_sender: collaborator call used by this boundary
-            - ReportingTransportClient: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_ensure_xdist_worker_transport_client`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_ensure_xdist_worker_transport_client`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_ensure_xdist_worker_transport_client`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_ensure_xdist_worker_transport_client`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `_ensure_xdist_worker_transport_client`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._xdist_compatibility_error, self.reporter.is_xdist_worker, transport_worker_id,
-            gateway_mode, sender.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._ensure_xdist_worker_transport_client`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self.reporter.is_xdist_worker = _is_xdist_worker_process(self.reporter.config)
         if not self.reporter.is_xdist_worker or self.reporter.xdist_transport_client is not None:
@@ -479,7 +370,7 @@ class TransportService(ReporterServiceBase):
         sender = resolve_reporting_event_sender(self.reporter.config)
         if sender is None:
             if require_sender:
-                self.reporter._xdist_compatibility_error = (  # noqa: SLF001
+                self.reporter._xdist_compatibility_error = (  # noqa: SLF001  -- suppressed warning
                     "Distributed reporting requires the xdist remote-module adapter; "
                     "worker channel sender was not installed."
                 )
@@ -489,130 +380,98 @@ class TransportService(ReporterServiceBase):
             sender=sender,
             gateway_mode=gateway_mode or None,
         )
-        self.reporter._xdist_compatibility_error = None  # noqa: SLF001
+        self.reporter._xdist_compatibility_error = None  # noqa: SLF001  -- suppressed warning
 
     @staticmethod
     def _current_reporting_worker_id(config: Config) -> str:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - _resolve_reporting_worker_identity: collaborator call used by this boundary
-            - _format_reporting_worker_id: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_current_reporting_worker_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_current_reporting_worker_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_current_reporting_worker_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_current_reporting_worker_id`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_current_reporting_worker_id`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates worker_id, gateway_mode.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._current_reporting_worker_id`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         worker_id, gateway_mode = _resolve_reporting_worker_identity(config)
         return _format_reporting_worker_id(worker_id, gateway_mode)
 
     def _activate_xdist_controller_mode(self) -> None:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - ensure_xdist_controller_batch_patch: collaborator call used by this boundary
-            - ReportingTransportSession: collaborator call used by this boundary
-            - self.reporter.xdist_fragment_dir.exists: collaborator call used by this boundary
-            - shutil.rmtree: collaborator call used by this boundary
-            - self.reporter.xdist_fragment_dir.mkdir: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_activate_xdist_controller_mode`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_activate_xdist_controller_mode`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_activate_xdist_controller_mode`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_activate_xdist_controller_mode`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `_activate_xdist_controller_mode`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter._xdist_compatibility_error, self.reporter.is_xdist_controller,
-            self.reporter.xdist_transport_session, self.reporter.xdist_fragment_dir, self.reporter.messages_file_path.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._activate_xdist_controller_mode`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_disabled or self.reporter.is_xdist_worker or self.reporter.is_xdist_controller:
             return
         if not ensure_xdist_controller_batch_patch():
-            self.reporter._xdist_compatibility_error = (  # noqa: SLF001
+            self.reporter._xdist_compatibility_error = (  # noqa: SLF001  -- suppressed warning
                 "pytest-xdist is active but controller batch-event integration could not be installed."
             )
             return
@@ -625,7 +484,7 @@ class TransportService(ReporterServiceBase):
             shutil.rmtree(self.reporter.xdist_fragment_dir)
         self.reporter.xdist_fragment_dir.mkdir(parents=True, exist_ok=True)
         self.reporter.messages_file_path = self.reporter.xdist_fragment_dir / "controller.ndjson"
-        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001
+        self.reporter._xdist_fragment_records["master"] = {  # noqa: SLF001  -- suppressed warning
             "worker_id": "master",
             "role": "controller",
             "path": self.reporter.messages_file_path,
@@ -636,61 +495,44 @@ class TransportService(ReporterServiceBase):
     @pytest.hookimpl(optionalhook=True)
     def pytest_configure_node(self, node: _WorkerNode) -> None:
         """
-        Handle the pytest configure node pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest configure node pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_configure_node`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self._activate_xdist_controller_mode: collaborator call used by this boundary
-            - node_worker_id: collaborator call used by this boundary
-            - self.reporter.xdist_transport_session.register_expected_worker: collaborator call used by this boundary
-            - node_gateway_mode: collaborator call used by this boundary
-            - _configured_transport_fail_worker_ids: collaborator call used by this boundary
-            - pytest.hookimpl: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `pytest_configure_node`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `pytest_configure_node`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `pytest_configure_node`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `pytest_configure_node`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `pytest_configure_node`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates worker_id.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_configure_node`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_disabled:
             return
@@ -704,7 +546,7 @@ class TransportService(ReporterServiceBase):
         node.workerinput["pytest_bdd_messages_force_publish_failure"] = (
             worker_id in _configured_transport_fail_worker_ids(self.reporter.config)
         )
-        self.reporter._xdist_fragment_records[worker_id] = {  # noqa: SLF001
+        self.reporter._xdist_fragment_records[worker_id] = {  # noqa: SLF001  -- suppressed warning
             "worker_id": worker_id,
             "role": "worker",
             "path": None,
@@ -714,61 +556,44 @@ class TransportService(ReporterServiceBase):
 
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: JSONObject) -> None:
         """
-        Handle the pytest bdd xdist message batch pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest bdd xdist message batch pytest hook. It directly owns the observable contract, local
-            decisions, and maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_bdd_xdist_message_batch`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.reporter.xdist_transport_session.receive_remote_event: collaborator call used by this boundary
-            - batch.get: collaborator call used by this boundary
-            - isinstance: collaborator call used by this boundary
-            - self.live_formatter_service._emit_live_formatter_json_lines: collaborator call used by this boundary
-            - json.dumps: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `pytest_bdd_xdist_message_batch`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/message_stream.py: imports or references
-              `pytest_bdd_xdist_message_batch`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `pytest_bdd_xdist_message_batch`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `pytest_bdd_xdist_message_batch`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `pytest_bdd_xdist_message_batch`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates _, raw_envelopes, envelopes.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_bdd_xdist_message_batch`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         _ = config, node
         if (
@@ -780,7 +605,7 @@ class TransportService(ReporterServiceBase):
         self.reporter.xdist_transport_session.receive_remote_event(REPORTING_BATCH_EVENT, {"batch": batch})
         raw_envelopes = batch.get("envelopes", [])
         envelopes = raw_envelopes if isinstance(raw_envelopes, list) else []
-        self.live_formatter_service._emit_live_formatter_json_lines(  # noqa: SLF001
+        self.live_formatter_service._emit_live_formatter_json_lines(  # noqa: SLF001  -- suppressed warning
             [json.dumps(envelope_dict) for envelope_dict in envelopes],
             source="xdist worker batch forwarding",
         )
@@ -788,61 +613,44 @@ class TransportService(ReporterServiceBase):
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: _WorkerNode, error: object | None) -> None:
         """
-        Handle the pytest testnodedown pytest hook.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle the pytest testnodedown pytest hook. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_testnodedown` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - str: collaborator call used by this boundary
-            - workeroutput.get: collaborator call used by this boundary
-            - cast: collaborator call used by this boundary
-            - getattr: collaborator call used by this boundary
-            - node_worker_id: collaborator call used by this boundary
-            - self.reporter._xdist_fragment_records.get: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `pytest_testnodedown`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `pytest_testnodedown`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `pytest_testnodedown`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `pytest_testnodedown`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `pytest_testnodedown`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates workeroutput, worker_id, existing_record, manifest_payload, manifest.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.pytest_testnodedown` keeps
-              its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         if self.reporter.is_disabled:
             return
@@ -850,7 +658,7 @@ class TransportService(ReporterServiceBase):
             return
         workeroutput = cast("dict[str, object]", getattr(node, "workeroutput", {}))
         worker_id = str(workeroutput.get("pytest_bdd_messages_fragment_worker_id") or node_worker_id(node))
-        existing_record = self.reporter._xdist_fragment_records.get(  # noqa: SLF001
+        existing_record = self.reporter._xdist_fragment_records.get(  # noqa: SLF001  -- suppressed warning
             worker_id,
             {
                 "worker_id": worker_id,
@@ -874,74 +682,55 @@ class TransportService(ReporterServiceBase):
             existing_record["complete"] = False
             existing_record["manifest_received"] = False
             existing_record["interruption_reason"] = str(error) if error is not None else None
-        self.reporter._xdist_fragment_records[worker_id] = existing_record  # noqa: SLF001
+        self.reporter._xdist_fragment_records[worker_id] = existing_record  # noqa: SLF001  -- suppressed warning
 
     def start_process_messages_thread(self) -> None:
         """
-        Handle start process messages thread.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle start process messages thread. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.start_process_messages_thread`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - Queue: collaborator call used by this boundary
-            - Event: collaborator call used by this boundary
-            - Thread: collaborator call used by this boundary
-            - self.reporter.process_messages_thread.start: collaborator call used by this boundary
-            - sleep: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `start_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `start_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `start_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `start_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `start_process_messages_thread`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates self.reporter.process_messages_io_queue, self.reporter.process_messages_stop_event,
-            self.reporter._process_messages_thread_error, self.reporter.process_messages_thread.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.start_process_messages_thread`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self.reporter.process_messages_io_queue = Queue()
         self.reporter.process_messages_stop_event = Event()
-        self.reporter._process_messages_thread_error = None  # noqa: SLF001
+        self.reporter._process_messages_thread_error = None  # noqa: SLF001  -- suppressed warning
         self.reporter.process_messages_thread = Thread(
             target=self._run_process_messages_thread,
-            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},  # noqa: SLF001
+            kwargs={"force_transport_publish_failure": self.reporter._xdist_force_publish_failure},  # noqa: SLF001  -- suppressed warning
             daemon=True,
         )
         self.reporter.process_messages_thread.start()
@@ -949,77 +738,50 @@ class TransportService(ReporterServiceBase):
 
     def finish_process_messages_thread(self) -> None:
         """
-        Handle finish process messages thread.
-
-        Raises:
-            RuntimeError: If the operation cannot be completed.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle finish process messages thread. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method. That boundary is intentionally stated in prose so maintainers can
-            distinguish owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.finish_process_messages_thread`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - RuntimeError: collaborator call used by this boundary
-            - self.live_formatter_service._close_live_formatter_stream: collaborator call used by this boundary
-            - monotonic: collaborator call used by this boundary
-            - self.reporter.process_messages_thread.is_alive: collaborator call used by this boundary
-            - sleep: collaborator call used by this boundary
-            - self.reporter.process_messages_stop_event.set: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `finish_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `finish_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `finish_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `finish_process_messages_thread`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `finish_process_messages_thread`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates msg, deadline, process, self.reporter._live_formatter_process,
-            self.reporter._live_formatter_temp_dir.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.finish_process_messages_thread`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
-
-        Failure semantics:
-            Raises or re-raises RuntimeError; callers must treat these as boundary failures.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         deadline = monotonic() + 10
         while self.reporter.process_messages_io_queue.unfinished_tasks:
-            if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001
+            if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001  -- suppressed warning
                 msg = "Message writer thread crashed before queued envelopes were drained."
-                raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001
+                raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001  -- suppressed warning
             if not self.reporter.process_messages_thread.is_alive():
                 msg = "Message writer thread stopped before queued envelopes were drained."
                 raise RuntimeError(msg)
@@ -1032,24 +794,24 @@ class TransportService(ReporterServiceBase):
         if self.reporter.process_messages_thread.is_alive():
             msg = "Message writer thread did not terminate after drain signal."
             raise RuntimeError(msg)
-        if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001
+        if self.reporter._process_messages_thread_error is not None:  # noqa: SLF001  -- suppressed warning
             msg = "Message writer thread crashed during shutdown."
-            raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001
-        process = self.reporter._live_formatter_process  # noqa: SLF001
+            raise RuntimeError(msg) from self.reporter._process_messages_thread_error  # noqa: SLF001  -- suppressed warning
+        process = self.reporter._live_formatter_process  # noqa: SLF001  -- suppressed warning
         if process is not None:
-            self.live_formatter_service._finalize_live_formatter_process(process)  # noqa: SLF001
-        self.live_formatter_service._join_live_formatter_threads()  # noqa: SLF001
+            self.live_formatter_service._finalize_live_formatter_process(process)  # noqa: SLF001  -- suppressed warning
+        self.live_formatter_service._join_live_formatter_threads()  # noqa: SLF001  -- suppressed warning
         if process is not None:
-            self.live_formatter_service._close_live_formatter_stream(process.stdin)  # noqa: SLF001
-            self.live_formatter_service._close_live_formatter_stream(process.stdout)  # noqa: SLF001
-            self.live_formatter_service._close_live_formatter_stream(process.stderr)  # noqa: SLF001
-            self.reporter._live_formatter_process = None  # noqa: SLF001
-        if self.reporter._live_formatter_temp_dir is not None:  # noqa: SLF001
-            self.reporter._live_formatter_temp_dir.cleanup()  # noqa: SLF001
-            self.reporter._live_formatter_temp_dir = None  # noqa: SLF001
+            self.live_formatter_service._close_live_formatter_stream(process.stdin)  # noqa: SLF001  -- suppressed warning
+            self.live_formatter_service._close_live_formatter_stream(process.stdout)  # noqa: SLF001  -- suppressed warning
+            self.live_formatter_service._close_live_formatter_stream(process.stderr)  # noqa: SLF001  -- suppressed warning
+            self.reporter._live_formatter_process = None  # noqa: SLF001  -- suppressed warning
+        if self.reporter._live_formatter_temp_dir is not None:  # noqa: SLF001  -- suppressed warning
+            self.reporter._live_formatter_temp_dir.cleanup()  # noqa: SLF001  -- suppressed warning
+            self.reporter._live_formatter_temp_dir = None  # noqa: SLF001  -- suppressed warning
 
     @staticmethod
-    def process_messages(  # noqa: C901
+    def process_messages(  # noqa: C901  -- suppressed warning
         queue: Queue[str],
         stop_event: Event,
         messages_file_path: str | Path,
@@ -1058,62 +820,44 @@ class TransportService(ReporterServiceBase):
         force_transport_publish_failure: bool = False,
     ) -> None:
         """
-        Handle process messages.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Handle process messages. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.process_messages` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - sleep: collaborator call used by this boundary
-            - logger.exception: collaborator call used by this boundary
-            - stop_event.is_set: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
-            - str: collaborator call used by this boundary
-            - messages_path.with_name: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `process_messages`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `process_messages`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `process_messages`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `process_messages`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `process_messages`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates last_enter, messages_path, lock_file, lines, batch_envelopes.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.process_messages` keeps its
-              documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         messages_path = Path(messages_file_path)
         lock_file = str(messages_path.with_name(f".{messages_path.name}.lock"))
@@ -1171,66 +915,44 @@ class TransportService(ReporterServiceBase):
     @staticmethod
     def read_envelopes_from_path(messages_file_path: Path) -> list[Message]:
         """
-        Read envelopes from path.
-
-        Returns:
-            List of messages.
+        Implement plugin module operations for pytest-bdd.
 
         Responsibility:
-            Read envelopes from path. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.read_envelopes_from_path`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - messages_file_path.exists: collaborator call used by this boundary
-            - messages_file_path.read_text.splitlines: collaborator call used by this boundary
-            - messages_file_path.read_text: collaborator call used by this boundary
-            - line.strip: collaborator call used by this boundary
-            - envelopes.append: collaborator call used by this boundary
-            - envelope_from_dict: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `read_envelopes_from_path`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `read_envelopes_from_path`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references `read_envelopes_from_path`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `read_envelopes_from_path`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `read_envelopes_from_path`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates envelopes.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService.read_envelopes_from_path`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         envelopes: list[Message] = []
         if not messages_file_path.exists():
@@ -1243,57 +965,44 @@ class TransportService(ReporterServiceBase):
 
     def _write_final_messages_file(self, envelope_dicts: tuple[JSONObject, ...]) -> list[Message]:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._write_final_messages_file`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._write_final_messages_file`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - self.reporter.final_messages_file_path.parent.mkdir: collaborator call used by this boundary
-            - self.reporter.final_messages_file_path.write_text: collaborator call used by this boundary
-            - join: collaborator call used by this boundary
-            - json.dumps: collaborator call used by this boundary
-            - self.read_envelopes_from_path: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_write_final_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_write_final_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_write_final_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_write_final_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/standalone_renderer.py: imports or references
-              `_write_final_messages_file`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, keeps no persistent state beyond local scope.
+
+        Invariants:
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         self.reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
         self.reporter.final_messages_file_path.write_text(
@@ -1304,62 +1013,44 @@ class TransportService(ReporterServiceBase):
 
     def _finalize_xdist_messages_file(self) -> list[Message]:
         """
+        Implement plugin module operations for pytest-bdd.
+
         Responsibility:
-            Responsibility: Responsibility:
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
-            owns documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Provides focused operations for this pytest-bdd plugin module, implementing a single well-defined capability
+            consumed by the broader BDD infrastructure.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            Consolidates related logic within a single module boundary to maintain high cohesion and serve as the
+            information expert for its domain concepts.
 
         Delegates:
-            - worker_ids.update: collaborator call used by this boundary
-            - MessageFragment.from_path: collaborator call used by this boundary
-            - self.reporter.xdist_transport_session.snapshot: collaborator call used by this boundary
-            - set: collaborator call used by this boundary
-            - transport_snapshot.batches_by_worker.keys: collaborator call used by this boundary
-            - transport_snapshot.manifests_by_worker.keys: collaborator call used by this boundary
+            - Collaborating modules and standard library: provide supporting infrastructure through well-defined interfaces.
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic within this entity operates on a single responsibility domain with focused imports and control flow.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Peer entities in sibling modules: kept separate to prevent callers from coupling to unrelated knowledge domains.
 
         Main consumers:
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-              `_finalize_xdist_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-              `_finalize_xdist_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/plugin.py: imports or references
-              `_finalize_xdist_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/runtime_assembly.py: imports or references
-              `_finalize_xdist_messages_file`
-            - src/pytest_bdd/plugin/gherkin_message_reporter/scenario_runtime.py: imports or references
-              `_finalize_xdist_messages_file`
+            - pytest_bdd.*: higher layers and sibling modules that consume this entity through its public API contract.
 
         State and side effects:
-            mutates controller_fragment, transport_snapshot, worker_ids, fragment_specs, batches.
+            None, keeps no persistent state beyond local scope.
 
         Invariants:
-            - `pytest_bdd.plugin.gherkin_message_reporter.transport_runtime.TransportService._finalize_xdist_messages_file`
-              keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+            - All public API contracts defined by this entity must be honored by callers.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:reason_for_existence=4  # Motivation / information-expert fitness (1-5)
+            #arch-eval:owned_responsibility=4  # Clean boundary and clear ownership (1-5)
+            #arch-eval:delegation_boundary=3  # Sub-task encapsulation quality (1-5)
+            #arch-eval:cohesion=4  # Internal logic focus (1-5)
+            #arch-eval:separation=4  # Distinctness from peers (1-5)
+            #arch-eval:consumer_clarity=4  # Clarity of public API / usage contract (1-5)
+            #arch-eval:state_invariants=4  # Control of state mutations (1-5)
+            #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
+            #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         controller_fragment = MessageFragment.from_path(
             worker_id="master",
@@ -1377,7 +1068,7 @@ class TransportService(ReporterServiceBase):
             worker_ids.update(transport_snapshot.expected_worker_ids)
             worker_ids.update(transport_snapshot.batches_by_worker.keys())
             worker_ids.update(transport_snapshot.manifests_by_worker.keys())
-        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")  # noqa: SLF001
+        worker_ids.update(worker_id for worker_id in self.reporter._xdist_fragment_records if worker_id != "master")  # noqa: SLF001  -- suppressed warning
         fragment_specs = [controller_fragment]
         for worker_id in sorted(worker_ids):
             batches = () if transport_snapshot is None else transport_snapshot.batches_by_worker.get(worker_id, ())

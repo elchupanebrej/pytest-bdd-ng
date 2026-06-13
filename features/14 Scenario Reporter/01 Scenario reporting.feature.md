@@ -15,13 +15,16 @@
 
     from pytest_bdd import given
 
+
     @given("a passing step")
     def _pass():
         pass
 
+
     @given("I attach data")
     def attach_data(attach):
         attach("scenario evidence", media_type="text/plain")
+
 
     def pytest_runtest_logreport(report):
         scenario = getattr(report, "scenario", None)
@@ -31,6 +34,7 @@
 * And File "test_sample.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     test_scenarios = scenarios("test.feature.md")
     ```
 * And File "pytest.ini" with content:

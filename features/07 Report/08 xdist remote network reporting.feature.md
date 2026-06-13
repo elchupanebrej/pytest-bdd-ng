@@ -1,3 +1,4 @@
+@xdist
 # Feature: xdist remote network reporting
   This feature documents that pytest-bdd-ng produces one consolidated NDJSON
   report when test workers communicate with the controller over real network

@@ -1,90 +1,98 @@
 # init: public-api  # init: no-check
 """
-pytest-bdd-ng — BDD testing plugin for pytest.
-
-pytest-bdd-ng brings Behavior-Driven Development to Python testing.
-Users write Gherkin feature files (``.feature`` or ``.feature.md``),
-define step implementations with ``@given``/``@when``/``@then``
-decorators, and get full Cucumber-compatible reporting.
-
-Public API exports (9 items):
-
-- ``scenario``: Load and bind a single Gherkin scenario to a test function.
-- ``scenarios``: Bulk-load scenarios from feature files and bind to test functions.
-- ``given``: Define a Given step (precondition). Lazy-loaded from ``steps``.
-- ``when``: Define a When step (action). Lazy-loaded from ``steps``.
-- ``then``: Define a Then step (assertion). Lazy-loaded from ``steps``.
-- ``step``: Define a liberal step matching any keyword. Lazy-loaded from ``steps``.
-- ``not_implemented``: Mark intentional WIP step definitions. Lazy-loaded from ``steps``.
-- ``tolerant``: Mark step definitions with tolerant failure policy. Lazy-loaded from ``steps``.
-- ``FeaturePathType``: Enum controlling feature path resolution (PATH/URL/UNDEFINED).
-- ``PytestBDDStepDefinitionWarning``: Warning for ambiguous step definitions.
-
-For Sphinx autodoc::
-
-    .. autofunction:: pytest_bdd.scenario
-    .. autofunction:: pytest_bdd.scenarios
-    .. autoclass:: pytest_bdd.FeaturePathType
-    .. autofunction:: pytest_bdd.steps.given
-    .. autofunction:: pytest_bdd.steps.when
-    .. autofunction:: pytest_bdd.steps.then
-    .. autofunction:: pytest_bdd.steps.step
-    .. autofunction:: pytest_bdd.steps.not_implemented
-    .. autofunction:: pytest_bdd.steps.tolerant
-    .. autoclass:: pytest_bdd.PytestBDDStepDefinitionWarning
-
-Note: ``given``, ``when``, ``then``, ``step``, ``not_implemented``, ``tolerant``, and
-``PytestBDDStepDefinitionWarning`` are lazy-loaded via ``__getattr__``
-(PEP 562) to avoid import overhead. Their docstrings are defined in
-the source modules (``steps.py``, ``types/warning.py``).
+Top-level public API entry point for the pytest-bdd-ng library.
 
 Responsibility:
-    pytest-bdd-ng — BDD testing plugin for pytest. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Top-level public API entry point for the pytest-bdd-ng library. Directly re-exports the three primary user-facing
+    symbols (scenario, scenarios, FeaturePathType) and provides PEP 562 lazy-loading for seven additional symbols
+    (given, when, then, step, tolerant, not_implemented, PytestBDDStepDefinitionWarning) plus a computed __version__
+    attribute. This module is the only import path end users should use: `from pytest_bdd import scenario, given, when,
+    then`. All internal layout changes are hidden behind this stable facade.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd` because it keeps the nearest code, data shape, call
-    signature, and failure knowledge together.
+    This module exists as the library's public contract boundary. It is the information expert for "what does pytest-
+    bdd-ng expose to users." Every other module in the codebase is an internal implementation detail that may be
+    refactored, renamed, or re-layered; only the names re-exported from here form the semantic versioning contract. The
+    lazy-loading via __getattr__ (PEP 562) means step decorators and warning types are not imported until actually
+    accessed, keeping the import footprint minimal for users who only need scenario() or scenarios(). The __version__
+    attribute is computed dynamically from the installed distribution metadata rather than being hardcoded, ensuring
+    accuracy even when multiple versions coexist.
 
 Delegates:
-    - __getattr__: owns nested behavior below this boundary
+    - pytest_bdd.scenario: Owns the scenario() and scenarios() functions and the FeaturePathType enum. This module
+    simply re-exports them.
+    - pytest_bdd.steps: Owns the step decorator functions (given, when, then, step, tolerant, not_implemented). Lazily
+    loaded in __getattr__.
+    - pytest_bdd.types.warning: Owns PytestBDDStepDefinitionWarning. Lazily loaded in __getattr__.
+    - pytest_bdd.util.packaging: Owns get_distribution_version(). Lazily loaded in __getattr__ for __version__.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All logic in this module serves the single purpose of defining and enforcing the public API surface. The direct re-
+    exports (scenario, scenarios, FeaturePathType) are always available; the lazy-loaded symbols reduce import overhead
+    while maintaining discoverability. There are no unrelated concerns — no parsing, no collection, no runtime logic.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - pytest_bdd.scenario: Kept separate because it owns the full implementation of scenario() and scenarios() with all
+    their parameter handling, overloads, and marker composition. Merging that logic here would couple the facade to
+    implementation details.
+    - pytest_bdd.steps: Kept separate because step decorators involve the full Definition/Registry/Matcher subsystem.
+    The lazy-load ensures users who never write step definitions (e.g., they only run features) never pay the import
+    cost.
+    - pytest_bdd.types.warning: Kept separate because warning type definitions belong in the types module alongside
+    other custom exception and warning types.
 
 Main consumers:
-    - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `pytest_bdd`
+    - End-user test suites: Import from pytest_bdd to decorate test functions with @scenario, or use @given/@when/@then
+    for step definitions. This is the primary documented import path.
+    - pytest_bdd.plugin.scenario_test_collector: Imports from pytest_bdd to access scenario() for automatic test
+    generation during pytest collection.
+    - Downstream libraries/packages: Depend on the stable re-export surface defined by this module.
 
 State and side effects:
-    mutates msg; depends on __future__.annotations, typing.TYPE_CHECKING, pytest_bdd.scenario.FeaturePathType,
-    pytest_bdd.scenario.scenario, pytest_bdd.scenario.scenarios.
+    Module-level state consists of lazy-loaded attribute cache (Python's module attribute dict populated on first access
+    via __getattr__). The __version__ attribute is computed once per process via get_distribution_version() and cached
+    internally by the packaging utility. No pytest stash access, no file I/O, no configuration reads.
 
 Invariants:
-    - `pytest_bdd` keeps its documented import path, ownership boundary, and observable behavior stable for callers.
+    - Every public symbol re-exported here must have a semantically versioned stability contract; internal-only symbols
+    must not be added to __getattr__.
+    - The lazy-load mapping in __getattr__ must stay in sync with the actual exports from pytest_bdd.steps; if a
+    decorator is added or removed there, __getattr__ must be updated.
+    - __getattr__ must raise AttributeError with a descriptive message for unrecognized names to conform to PEP 562.
 
 Failure semantics:
-    Raises or re-raises AttributeError; callers must treat these as boundary failures.
+    __getattr__ raises AttributeError for any name not in the known set of lazy-loaded symbols (given, when, then, step,
+    tolerant, not_implemented, PytestBDDStepDefinitionWarning, __version__). Callers should catch AttributeError if
+    probing for optional attributes, though in practice this is handled by Python's normal attribute access protocol.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=3
-    #arch-eval:locational_stability=3
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=2
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
+__all__: list[str] = [
+    "FeaturePathType",
+    "PytestBDDStepDefinitionWarning",
+    "given",
+    "not_implemented",
+    "scenario",
+    "scenarios",
+    "step",
+    "then",
+    "tolerant",
+    "when",
+]
 
 from pytest_bdd.scenario import FeaturePathType as FeaturePathType
 from pytest_bdd.scenario import scenario as scenario
@@ -102,54 +110,74 @@ if TYPE_CHECKING:  # pragma: no cover
 
 def __getattr__(name: str) -> object:
     """
+    PEP 562 module-level __getattr__ that implements lazy-loading for the step decorator functions.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.__getattr__` owns documented function behavior. It directly owns the
-        observable contract, local decisions, and maintenance boundary for this function.
+        PEP 562 module-level __getattr__ that implements lazy-loading for the step decorator functions (given, when,
+        then, step, tolerant, not_implemented), the PytestBDDStepDefinitionWarning exception type, and the computed
+        __version__ string. When a consumer accesses `pytest_bdd.given` or `pytest_bdd.__version__`, this function
+        dynamically imports the relevant sub-module, caches the result in the module's __dict__, and returns it. For any
+        unrecognized name, it raises AttributeError as required by PEP 562.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.__getattr__` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        Without lazy loading, importing pytest_bdd would eagerly pull in the entire steps subsystem (Definition,
+        Registry, Matcher, all parser backends) and the packaging utility for every user, even those who only call
+        scenario() and never write step definitions. This function concentrates the lazy-load decision into a single
+        dispatch point, making it the information expert for "what symbols are available but not eagerly imported." The
+        PEP 562 protocol is the standard Python mechanism for module-level attribute access control; this is the natural
+        location for it since it sits on the public API boundary.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - get_distribution_version: collaborator call used by this boundary
-        - AttributeError: collaborator call used by this boundary
+        - pytest_bdd.steps: Provides the actual given, when, then, step, tolerant, and not_implemented decorator
+        functions that are imported and returned on first access.
+        - pytest_bdd.types.warning: Provides the PytestBDDStepDefinitionWarning class returned on first access.
+        - pytest_bdd.util.packaging.get_distribution_version: Computes the installed package version
+          string for __version__.
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All branches of this function serve the same purpose: resolve a name to its implementation via lazy import. The
+        dispatch is a simple dictionary-like lookup; there is no unrelated logic, no side effects beyond the import, and
+        no shared mutable state between calls.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - pytest_bdd.scenario: The scenario() and scenarios() functions are eagerly imported at module level because
+        they are the most commonly used entry points. They are not routed through __getattr__.
+        - pytest_bdd.steps.decorators: The individual decorator functions are defined in decorators.py and re-exported
+        through steps/__init__.py; __getattr__ only needs to know about the latter.
 
     Main consumers:
-        - src/pytest_bdd/plugin/pickle_runner/entrypoint.py: imports or references `__getattr__`
+        - End-user test code: Accesses `pytest_bdd.given`, `pytest_bdd.when`, `pytest_bdd.then` etc. which triggers this
+        function on first use.
+        - Code introspection tools: Accessing `pytest_bdd.__version__` calls this function to compute and return the
+        version string.
+        - Python's attribute access machinery: The interpreter itself calls __getattr__ for any module attribute not
+        found in the module's __dict__.
 
     State and side effects:
-        mutates msg; depends on pytest_bdd.steps.given, pytest_bdd.steps.not_implemented, pytest_bdd.steps.step,
-        pytest_bdd.steps.then, pytest_bdd.steps.tolerant.
-
-    Invariants:
-        - `pytest_bdd.__getattr__` keeps its documented import path, ownership boundary, and observable behavior stable
-          for callers.
+        On first access of each lazy symbol, this function performs a one-time import and caches the result in the
+        module's __dict__ (via normal Python attribute set). Subsequent accesses for the same name bypass __getattr__
+        entirely. No file I/O, no pytest stash access, no configuration reads. The __version__ cache (inside
+        get_distribution_version) may persist across calls.
 
     Failure semantics:
-        Raises or re-raises AttributeError; callers must treat these as boundary failures.
+        Raises AttributeError with the message `module 'pytest_bdd' has no attribute '{name}'` for any name not in the
+        recognized set {given, not_implemented, step, then, tolerant, when, PytestBDDStepDefinitionWarning,
+        __version__}. If the lazy import itself fails (e.g., missing dependency), the ImportError propagates to the
+        caller and is not caught here.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
-        #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=3
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=5
+        #arch-eval:delegation_boundary=5
+        #arch-eval:cohesion=5
+        #arch-eval:separation=5
+        #arch-eval:consumer_clarity=5
+        #arch-eval:state_invariants=5
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=5
     """
     if name in {"given", "not_implemented", "step", "then", "tolerant", "when"}:
-        from pytest_bdd.steps import (  # noqa: PLC0415 -- PEP 562 lazy loading
+        from pytest_bdd.steps import (
             given,
             not_implemented,
             step,
@@ -167,11 +195,11 @@ def __getattr__(name: str) -> object:
             "when": when,
         }[name]
     if name == "PytestBDDStepDefinitionWarning":
-        from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning  # noqa: PLC0415 -- PEP 562 lazy loading
+        from pytest_bdd.types.warning import PytestBDDStepDefinitionWarning
 
         return PytestBDDStepDefinitionWarning
     if name == "__version__":
-        from pytest_bdd.util.packaging import get_distribution_version  # noqa: PLC0415 -- PEP 562 lazy loading
+        from pytest_bdd.util.packaging import get_distribution_version
 
         return str(get_distribution_version("pytest-bdd-ng"))
     msg = f"module {__name__!r} has no attribute {name!r}"

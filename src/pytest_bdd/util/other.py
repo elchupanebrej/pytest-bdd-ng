@@ -1,55 +1,46 @@
 """
-Provide other helpers.
+Provides miscellaneous general-purpose utility functions and constants that do not warrant
+their own dedicated module.
 
 Responsibility:
-    Provide other helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides miscellaneous general-purpose utility functions and constants that do not warrant
+    their own dedicated module, offering helper operations consumed by multiple layers across the
+    pytest-bdd codebase where a single-function module would be excessive.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.other` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    Small utilities that are too focused for a separate module but too broadly useful to inline at
+    each call site live here as a pragmatic catch-all. This module serves as the last-resort home
+    for genuinely shared helper functions that resist further architectural decomposition.
 
 Delegates:
-    - format_as_python_identifier: owns nested behavior below this boundary
-    - format_as_simplified_python_identifier: owns nested behavior below this boundary
-    - StringRepresentable: owns nested behavior below this boundary
-    - normalize_to_string: owns nested behavior below this boundary
-    - IdGenerator: owns nested behavior below this boundary
+    - Python standard library: delegates core operations to stdlib modules
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions are standalone pure utilities that each serve a single independent helper
+    purpose.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - `pytest_bdd.util.matrix`: matrix provides parameterized test utilities while other provides general helpers.
 
 Main consumers:
-    - src/pytest_bdd/collector.py: imports or references `other`
-    - src/pytest_bdd/compatibility/parser.py: imports or references `other`
-    - src/pytest_bdd/feature_locator.py: imports or references `other`
-    - src/pytest_bdd/parsers/heuristic.py: imports or references `other`
-    - src/pytest_bdd/parsers/parse_parser.py: imports or references `other`
+    - `pytest_bdd.*`: widely imported across multiple layers for general-purpose helpers
 
 State and side effects:
-    mutates self._id_counter, s1, s2, s3, s4; depends on __future__.annotations, re, typing.ClassVar, typing.Protocol,
-    typing.runtime_checkable.
+    None, all functions are pure and stateless with no side effects.
 
 Invariants:
-    - `pytest_bdd.util.other` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - Each function is independently usable without module-level initialization or ordering dependencies.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=5
     #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=5
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -65,61 +56,47 @@ from pytest_bdd.model.stash_access import StashBound
 
 def format_as_python_identifier(s: object) -> str:
     """
-    Format an object as a valid Python identifier.
-
-    Args:
-        s: Object to format.
-
-    Returns:
-        Valid Python identifier string.
+    Perform the `format_as_python_identifier` operation within its module boundary, implementing a.
+    focused helper functi.
 
     Responsibility:
-        Format an object as a valid Python identifier. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `format_as_python_identifier` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.other.format_as_python_identifier` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `format_as_python_identifier` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - re.sub: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - s3.strip: collaborator call used by this boundary
-        - re.match: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the format_as_python_identifier operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `format_as_python_identifier`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `format_as_python_identifier`
-        - src/pytest_bdd/feature_locator.py: imports or references `format_as_python_identifier`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `format_as_python_identifier`
-        - src/pytest_bdd/parsers/parse_parser.py: imports or references `format_as_python_identifier`
+        - `pytest_bdd.*`: callers import and invoke format_as_python_identifier for its specific utility
 
     State and side effects:
-        mutates s1, s2, s3, s4.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.other.format_as_python_identifier` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The format_as_python_identifier function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     s1: str = str(s)
     s2 = re.sub(r"[^.a-zA-Z0-9]", "_", s1)
@@ -130,60 +107,47 @@ def format_as_python_identifier(s: object) -> str:
 
 def format_as_simplified_python_identifier(string: str) -> str:
     """
-    Format a string as a simplified Python identifier.
-
-    Args:
-        string: String to format.
-
-    Returns:
-        Simplified identifier string.
+    Perform the `format_as_simplified_python_identifier` operation within its module boundary,.
+    implementing a focused he.
 
     Responsibility:
-        Format a string as a simplified Python identifier. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `format_as_simplified_python_identifier` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.other.format_as_simplified_python_identifier` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `format_as_simplified_python_identifier` exists as a standalone function because it
+        encapsulates an operation that does not require shared instance state and benefits from being
+        independently callable and testable without class instantiation overhead.
 
     Delegates:
-        - re.sub: collaborator call used by this boundary
-        - string.replace: collaborator call used by this boundary
-        - re.sub.lower: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the format_as_simplified_python_identifier operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `format_as_simplified_python_identifier`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `format_as_simplified_python_identifier`
-        - src/pytest_bdd/feature_locator.py: imports or references `format_as_simplified_python_identifier`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `format_as_simplified_python_identifier`
-        - src/pytest_bdd/parsers/parse_parser.py: imports or references `format_as_simplified_python_identifier`
+        - `pytest_bdd.*`: callers import and invoke format_as_simplified_python_identifier for its specific utility
 
     State and side effects:
-        mutates string.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.other.format_as_simplified_python_identifier` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The format_as_simplified_python_identifier function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     string = re.sub(PYTHON_REPLACE_REGEX, "", string.replace(" ", "_"))
     return re.sub(ALPHA_REGEX, "", string).lower()
@@ -192,205 +156,182 @@ def format_as_simplified_python_identifier(string: str) -> str:
 @runtime_checkable
 class StringRepresentable(Protocol):
     """
-    Represent string representable state.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Represent string representable state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.other.StringRepresentable` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - __str__: owns nested behavior below this boundary
+        - Protocol: StringRepresentable specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `StringRepresentable`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `StringRepresentable`
-        - src/pytest_bdd/feature_locator.py: imports or references `StringRepresentable`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `StringRepresentable`
-        - src/pytest_bdd/parsers/parse_parser.py: imports or references `StringRepresentable`
+        - `pytest_bdd.*`: callers catch or instantiate StringRepresentable for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.util.other.StringRepresentable` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
     def __str__(self) -> str:
         """
-        Return the value as a string.
+        Format the StringRepresentable instance into a human-readable string using the class-level.
+        message template and cons.
 
         Responsibility:
-            Return the value as a string. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Formats the StringRepresentable instance into a human-readable string using the class-level
+            message template and constructor positional arguments, enabling clear error display in pytest
+            output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.other.StringRepresentable.__str__` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            The __str__ method centralizes string formatting so the message template and argument mapping
+            are defined in one place, ensuring consistent error display across all contexts where the
+            exception is printed.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __str__ operation on StringRepresentable instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other StringRepresentable methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `__str__`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `__str__`
-            - src/pytest_bdd/feature_locator.py: imports or references `__str__`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `__str__`
-            - src/pytest_bdd/parsers/parse_parser.py: imports or references `__str__`
+            - `pytest_bdd.*`: callers that raise or catch StringRepresentable implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         ...  # pragma: no cover
 
 
 def normalize_to_string(value: StringRepresentable | str | bytes) -> str:
     """
-    Normalize a value to a string.
-
-    Args:
-        value: Value to normalize.
-
-    Returns:
-        Normalized string.
+    Perform the `normalize_to_string` operation within its module boundary, implementing a focused.
+    helper function that .
 
     Responsibility:
-        Normalize a value to a string. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `normalize_to_string` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.other.normalize_to_string` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `normalize_to_string` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the normalize_to_string operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `normalize_to_string`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `normalize_to_string`
-        - src/pytest_bdd/feature_locator.py: imports or references `normalize_to_string`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `normalize_to_string`
-        - src/pytest_bdd/parsers/parse_parser.py: imports or references `normalize_to_string`
+        - `pytest_bdd.*`: callers import and invoke normalize_to_string for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The normalize_to_string function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return str(value, **({"encoding": "utf-8"} if isinstance(value, bytes) else {}))
 
 
 class IdGenerator(BaseIdGenerator, StashBound):
     """
-    Represent id generator state.
+    Encapsulates the IdGenerator concern within pytest-bdd, providing a focused set of
+    collaborating operations that toge.
 
     Responsibility:
-        Represent id generator state. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Encapsulates the IdGenerator concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.other.IdGenerator` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        IdGenerator is a distinct class because its methods share internal state and collaborate on a
+        cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - __init__: owns nested behavior below this boundary
-        - __next__: owns nested behavior below this boundary
-        - stash_missing_message: owns nested behavior below this boundary
-        - stash_duplicate_message: owns nested behavior below this boundary
+        - BaseIdGenerator, StashBound: IdGenerator specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single IdGenerator domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `IdGenerator`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `IdGenerator`
-        - src/pytest_bdd/feature_locator.py: imports or references `IdGenerator`
-        - src/pytest_bdd/model/feature_binding.py: imports or references `IdGenerator`
-        - src/pytest_bdd/parsers/heuristic.py: imports or references `IdGenerator`
+        - `pytest_bdd.*`: callers catch or instantiate IdGenerator for error handling and type checking
 
     State and side effects:
-        mutates self._id_counter, STASH_KEY, get_next_id.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.other.IdGenerator` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - Instances of IdGenerator maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
@@ -401,107 +342,92 @@ class IdGenerator(BaseIdGenerator, StashBound):
 
     def __init__(self) -> None:
         """
-        Initialize the id generator.
+        Initializ a new IdGenerator instance with domain-specific context parameters, formatting a.
+        human-readable diagnosti.
 
         Responsibility:
-            Initialize the id generator. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Initializes a new IdGenerator instance with domain-specific context parameters, formatting a
+            human-readable diagnostic message that includes relevant identifiers for debugging test
+            failures in pytest output and log files.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.other.IdGenerator.__init__` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            The __init__ of IdGenerator is the constructor boundary where raw failure context is
+            transformed into a formatted exception message. It is the single place where the diagnostic
+            message format for this error type is defined.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __init__ operation on IdGenerator instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other IdGenerator methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/_types.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/layer_rules.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `__init__`
-            - src/pytest_bdd/_pylint/checkers/quality_gates.py: imports or references `__init__`
-            - src/pytest_bdd/collector.py: imports or references `__init__`
+            - `pytest_bdd.*`: callers that raise or catch IdGenerator implicitly invoke this method
 
         State and side effects:
-            mutates self._id_counter.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.other.IdGenerator.__init__` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         self._id_counter = 0
 
     def __next__(self) -> str:
         """
-        Return the next generated ID.
-
-        Returns:
-            String representation of the next ID.
+        Perform the __next__ operation within the IdGenerator boundary, handling its specific sub-task.
+        as part of the broade.
 
         Responsibility:
-            Return the next generated ID. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method. That boundary is intentionally stated in prose so maintainers can distinguish
-            owned work from collaborators before editing.
+            Performs the __next__ operation within the IdGenerator boundary, handling its specific sub-task
+            as part of the broader IdGenerator responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.other.IdGenerator.__next__` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+            __next__ is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of IdGenerator without
+            affecting other operations.
 
         Delegates:
-            - str: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __next__ operation on IdGenerator instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other IdGenerator methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `__next__`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `__next__`
-            - src/pytest_bdd/feature_locator.py: imports or references `__next__`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `__next__`
-            - src/pytest_bdd/parsers/parse_parser.py: imports or references `__next__`
+            - `pytest_bdd.*`: callers that raise or catch IdGenerator implicitly invoke this method
 
         State and side effects:
-            mutates self._id_counter.
+            None, this method is stateless and only formats or stores its input arguments.
 
         Invariants:
-            - `pytest_bdd.util.other.IdGenerator.__next__` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         try:
             return str(self._id_counter)
@@ -513,51 +439,47 @@ class IdGenerator(BaseIdGenerator, StashBound):
     @classmethod
     def stash_missing_message(cls) -> str:
         """
-        Return error message for missing stash.
-
-        Returns:
-            Error message string.
+        Perform the stash_missing_message operation within the IdGenerator boundary, handling its.
+        specific sub-task as part .
 
         Responsibility:
-            Return error message for missing stash. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs the stash_missing_message operation within the IdGenerator boundary, handling its
+            specific sub-task as part of the broader IdGenerator responsibility in the pytest-bdd runtime
+            lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.other.IdGenerator.stash_missing_message` because
-            it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            stash_missing_message is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            IdGenerator without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the stash_missing_message operation on IdGenerator instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other IdGenerator methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `stash_missing_message`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `stash_missing_message`
-            - src/pytest_bdd/feature_locator.py: imports or references `stash_missing_message`
-            - src/pytest_bdd/model/stash_access.py: imports or references `stash_missing_message`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `stash_missing_message`
+            - `pytest_bdd.*`: callers that raise or catch IdGenerator implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return (
             "`pytest_bdd_id_generator` is unavailable in config.stash. "
@@ -567,51 +489,47 @@ class IdGenerator(BaseIdGenerator, StashBound):
     @classmethod
     def stash_duplicate_message(cls) -> str:
         """
-        Return error message for duplicate stash.
-
-        Returns:
-            Error message string.
+        Perform the stash_duplicate_message operation within the IdGenerator boundary, handling its.
+        specific sub-task as par.
 
         Responsibility:
-            Return error message for duplicate stash. It directly owns the observable contract, local decisions, and
-            maintenance boundary for this method.
+            Performs the stash_duplicate_message operation within the IdGenerator boundary, handling its
+            specific sub-task as part of the broader IdGenerator responsibility in the pytest-bdd runtime
+            lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.util.other.IdGenerator.stash_duplicate_message`
-            because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+            stash_duplicate_message is a distinct method because it encapsulates a specific behavioral
+            concern that must be independently callable and potentially overridable by subclasses of
+            IdGenerator without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the stash_duplicate_message operation on IdGenerator instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other IdGenerator methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `stash_duplicate_message`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `stash_duplicate_message`
-            - src/pytest_bdd/feature_locator.py: imports or references `stash_duplicate_message`
-            - src/pytest_bdd/model/stash_access.py: imports or references `stash_duplicate_message`
-            - src/pytest_bdd/parsers/heuristic.py: imports or references `stash_duplicate_message`
+            - `pytest_bdd.*`: callers that raise or catch IdGenerator implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
-
+            #arch-eval:locational_stability=3
         """
         return (
             "`pytest_bdd_id_generator` is already initialized in config.stash. "

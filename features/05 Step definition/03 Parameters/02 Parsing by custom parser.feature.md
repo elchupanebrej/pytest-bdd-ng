@@ -15,14 +15,11 @@
     import re
     from pytest_bdd import given, parsers
 
+
     class Parser(parsers.StepParser):
-        def __init__(self, name, *args,**kwargs):
+        def __init__(self, name, *args, **kwargs):
             self.name = name
-            self.regex = re.compile(
-              re.sub("%(.+)%", r"(?P<\1>.+)", name),
-              *args,
-              **kwargs
-            )
+            self.regex = re.compile(re.sub("%(.+)%", r"(?P<\1>.+)", name), *args, **kwargs)
 
         def parse_arguments(self, request, name, **kwargs):
             __doc__ = "Parse step arguments"
@@ -32,18 +29,15 @@
         def arguments(self):
             return [*self.regex.groupindex.keys()]
 
-        def is_matching(self, request ,name):
+        def is_matching(self, request, name):
             __doc__ = "Match given name with the step name."
             return bool(self.regex.match(name))
 
         def __str__(self):
-          return self.name
+            return self.name
 
-    @given(
-      Parser("there are %start% cucumbers"),
-      target_fixture="start_cucumbers",
-      converters=dict(start=int)
-    )
+
+    @given(Parser("there are %start% cucumbers"), target_fixture="start_cucumbers", converters=dict(start=int))
     def start_cucumbers(start):
         assert start == 10
     ```

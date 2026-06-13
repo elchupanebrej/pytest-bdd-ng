@@ -10,9 +10,9 @@
     ```python
     from pytest_bdd import given
 
-    @given('passing step')
-    def _():
-      ...
+
+    @given("passing step")
+    def _(): ...
     ```
 
 * And File "test_sample.py" with content:

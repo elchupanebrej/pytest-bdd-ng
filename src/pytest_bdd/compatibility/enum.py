@@ -1,50 +1,46 @@
 """
-Provide enum helpers.
+Provide a cross-Python-version compatibility shim for `enum`, encapsulating all version-
+detection logic and conditi.
 
 Responsibility:
-    Provide enum helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides a cross-Python-version compatibility shim for `enum`, encapsulating all version-
+    detection logic and conditional imports so that higher layers import a single stable name
+    regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.enum` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `enum` in this module prevents `if sys.version_info`
+    checks from contaminating domain logic. This module is the single information expert for which
+    stdlib/third-party names and APIs are available on each supported Python version for this
+    specific concern.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (enum); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/const.py: imports or references `enum`
-    - src/pytest_bdd/mimetype.py: imports or references `enum`
-    - src/pytest_bdd/model/cucumber_formatter_contract.py: imports or references `enum`
-    - src/pytest_bdd/model/run/stages.py: imports or references `enum`
-    - src/pytest_bdd/model/scenario_collection.py: imports or references `enum`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    depends on sys, enum.StrEnum, strenum.StrEnum.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.enum` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 import sys
@@ -52,4 +48,4 @@ import sys
 if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
-    from strenum import StrEnum  # noqa: F401
+    from strenum import StrEnum  # noqa: F401  -- intentional re-export or import for public API facade

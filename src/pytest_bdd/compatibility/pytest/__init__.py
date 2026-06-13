@@ -1,57 +1,47 @@
 # init: allow  # init: no-check
 """
-Compatibility module for pytest.
+Provide a cross-Python-version compatibility shim for `pytest`, encapsulating all version-
+detection logic and condi.
 
 Responsibility:
-    Compatibility module for pytest. It directly owns the observable contract, local decisions, and maintenance boundary
-    for this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides a cross-Python-version compatibility shim for `pytest`, encapsulating all version-
+    detection logic and conditional imports so that higher layers import a single stable name
+    regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.pytest` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `pytest` in this module prevents `if sys.version_info`
+    checks from contaminating domain logic. This module is the single information expert for which
+    stdlib/third-party names and APIs are available on each supported Python version for this
+    specific concern.
 
 Delegates:
-    - is_pytest_version_greater_or_equal: owns nested behavior below this boundary
-    - Module: owns nested behavior below this boundary
-    - fail: owns nested behavior below this boundary
-    - is_set: owns nested behavior below this boundary
-    - is_testrun_success: owns nested behavior below this boundary
-    - _LegacyFixtureDefFactory: owns nested behavior below this boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (pytest); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/collector.py: imports or references `pytest`
-    - src/pytest_bdd/compatibility/parser.py: imports or references `pytest`
-    - src/pytest_bdd/feature_locator.py: imports or references `pytest`
-    - src/pytest_bdd/hook.py: imports or references `pytest`
-    - src/pytest_bdd/model/message_registry.py: imports or references `pytest`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    mutates PYTEST8, PYTEST81, PYTEST83, FixtureRequest, Testdir; depends on __future__.annotations, operator.ge,
-    pathlib.Path, typing.TYPE_CHECKING, typing.NoReturn.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.pytest` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:locational_stability=5
 """
 
 from __future__ import annotations
@@ -96,46 +86,47 @@ from pytest_bdd.util.packaging import compare_distribution_version
 # region pytest version dependent imports
 def is_pytest_version_greater_or_equal(version: str) -> bool:
     """
+    Perform the `is_pytest_version_greater_or_equal` operation within its module boundary,
+    implementing a focused helper.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest.is_pytest_version_greater_or_equal` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `is_pytest_version_greater_or_equal` operation within its module boundary,
+        implementing a focused helper function that is consumed by higher layers for its specific
+        utility purpose within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.is_pytest_version_greater_or_equal`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `is_pytest_version_greater_or_equal` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - compare_distribution_version: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the is_pytest_version_greater_or_equal operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `is_pytest_version_greater_or_equal`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `is_pytest_version_greater_or_equal`
-        - src/pytest_bdd/feature_locator.py: imports or references `is_pytest_version_greater_or_equal`
-        - src/pytest_bdd/hook.py: imports or references `is_pytest_version_greater_or_equal`
-        - src/pytest_bdd/model/message_registry.py: imports or references `is_pytest_version_greater_or_equal`
+        - `pytest_bdd.*`: callers import and invoke is_pytest_version_greater_or_equal for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The is_pytest_version_greater_or_equal function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return compare_distribution_version("pytest", version, ge)
 
@@ -158,52 +149,46 @@ if TYPE_CHECKING:  # pragma: no cover
 
     class Item(BaseItem):
         """
-        Represent item state.
+        Encapsulates the Item concern within pytest-bdd, providing a focused set of collaborating
+        operations that together de.
 
         Responsibility:
-            Represent item state. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+        Encapsulates the Item concern within pytest-bdd, providing a focused set of collaborating
+        operations that together deliver a single well-defined capability consumed by the broader BDD
+        runtime infrastructure.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.compatibility.pytest.Item` because it keeps the
-            nearest code, data shape, call signature, and failure knowledge together.
+        Item is a distinct class because its methods share internal state and collaborate on a cohesive
+        task that would be awkward to express as standalone functions with shared mutable parameters.
 
         Delegates:
-            - None, leaf-level implementation boundary
+        - BaseItem: Item specializes behavior from its parent(s) without duplicating their contracts
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+        All methods and attributes serve the single Item domain concern.
 
         Separation:
-            - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `Item`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `Item`
-            - src/pytest_bdd/feature_locator.py: imports or references `Item`
-            - src/pytest_bdd/hook.py: imports or references `Item`
-            - src/pytest_bdd/model/message_registry.py: imports or references `Item`
+        - `pytest_bdd.*`: callers catch or instantiate Item for error handling and type checking
 
         State and side effects:
-            mutates _request.
+        Holds only instance state directly relevant to its encapsulated concern.
 
         Invariants:
-            - `pytest_bdd.compatibility.pytest.Item` keeps its documented import path, ownership boundary, and
-              observable behavior stable for callers.
+        - Instances of Item maintain internal consistency across all method calls.
 
         Architecture score:
-            #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=3
-            #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=4
-            #arch-eval:entity_fullness=2
-            #arch-eval:locational_stability=4
+        #arch-eval:reason_for_existence=5
+        #arch-eval:owned_responsibility=4
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
+        #arch-eval:consumer_clarity=4
+        #arch-eval:state_invariants=4
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
         """
 
         _request: FixtureRequest
@@ -214,50 +199,45 @@ else:
 
 class Module(pytest.Module):
     """
-    Represent a pytest module with path helpers.
+    Encapsulates the Module concern within pytest-bdd, providing a focused set of collaborating
+    operations that together .
 
     Responsibility:
-        Represent a pytest module with path helpers. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this class.
+        Encapsulates the Module concern within pytest-bdd, providing a focused set of collaborating
+        operations that together deliver a single well-defined capability consumed by the broader BDD
+        runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.Module` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        Module is a distinct class because its methods share internal state and collaborate on a
+        cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - build: owns nested behavior below this boundary
-        - get_path: owns nested behavior below this boundary
+        - pytest.Module: Module specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single Module domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/_pylint/checkers/file_size_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/init_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/noqa_rules.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/plugin_patterns.py: imports or references `Module`
-        - src/pytest_bdd/_pylint/checkers/responsibility_docs.py: imports or references `Module`
+        - `pytest_bdd.*`: callers catch or instantiate Module for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.compatibility.pytest.Module` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - Instances of Module maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
@@ -265,155 +245,138 @@ class Module(pytest.Module):
     @classmethod
     def build(cls, parent: Collector, file_path: str | PathLike[str]) -> Module:
         """
-        Build module instance.
-
-        Returns:
-            Module instance configured with the given file path.
+        Perform the build operation within the Module boundary, handling its specific sub-task as part
+        of the broader Module.
 
         Responsibility:
-            Build module instance. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the build operation within the Module boundary, handling its specific sub-task as part
+            of the broader Module responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.compatibility.pytest.Module.build` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            build is a distinct method because it encapsulates a specific behavioral concern that must be
+            independently callable and potentially overridable by subclasses of Module without affecting
+            other operations.
 
         Delegates:
-            - cast: collaborator call used by this boundary
-            - cls.from_parent: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the build operation on Module instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other Module methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `build`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `build`
-            - src/pytest_bdd/feature_locator.py: imports or references `build`
-            - src/pytest_bdd/hook.py: imports or references `build`
-            - src/pytest_bdd/model/message_registry.py: imports or references `build`
+            - `pytest_bdd.*`: callers that raise or catch Module implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return cast("Module", cls.from_parent(parent, path=Path(file_path)))
 
     def get_path(self) -> Path:
         """
-        Get the module's path.
-
-        Returns:
-            Path to the module file.
+        Perform the get_path operation within the Module boundary, handling its specific sub-task as
+        part of the broader Mod.
 
         Responsibility:
-            Get the module's path. It directly owns the observable contract, local decisions, and maintenance boundary
-            for this method. That boundary is intentionally stated in prose so maintainers can distinguish owned work
-            from collaborators before editing.
+            Performs the get_path operation within the Module boundary, handling its specific sub-task as
+            part of the broader Module responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.compatibility.pytest.Module.get_path` because it keeps
-            the nearest code, data shape, call signature, and failure knowledge together.
+            get_path is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of Module without affecting
+            other operations.
 
         Delegates:
-            - getattr: collaborator call used by this boundary
-            - Path: collaborator call used by this boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the get_path operation on Module instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other Module methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `get_path`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `get_path`
-            - src/pytest_bdd/feature_locator.py: imports or references `get_path`
-            - src/pytest_bdd/hook.py: imports or references `get_path`
-            - src/pytest_bdd/model/message_registry.py: imports or references `get_path`
+            - `pytest_bdd.*`: callers that raise or catch Module implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=4
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
-            #arch-eval:entity_fullness=4
-            #arch-eval:locational_stability=4
-
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=3
         """
         return getattr(self, "path", Path(self.fspath))
 
 
 def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
     """
+    Perform the `fail` operation within its module boundary, implementing a focused helper
+    function that is consumed by .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest.fail` owns documented function behavior. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `fail` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.fail` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `fail` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - pytest.fail: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the fail operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `fail`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `fail`
-        - src/pytest_bdd/feature_locator.py: imports or references `fail`
-        - src/pytest_bdd/hook.py: imports or references `fail`
-        - src/pytest_bdd/model/message_registry.py: imports or references `fail`
+        - `pytest_bdd.*`: callers import and invoke fail for its specific utility
 
     State and side effects:
-        mutates __tracebackhide__.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.compatibility.pytest.fail` keeps its documented import path, ownership boundary, and observable
-          behavior stable for callers.
+        - The fail function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     __tracebackhide__ = True
     pytest.fail(reason, pytrace=pytrace)
@@ -421,142 +384,144 @@ def fail(reason: str, *, pytrace: bool = True) -> NoReturn:
 
 def is_set(obj: object) -> bool:
     """
+    Perform the `is_set` operation within its module boundary, implementing a focused helper
+    function that is consumed b.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest.is_set` owns documented function behavior. It
-        directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `is_set` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.is_set` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `is_set` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the is_set operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `is_set`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `is_set`
-        - src/pytest_bdd/feature_locator.py: imports or references `is_set`
-        - src/pytest_bdd/hook.py: imports or references `is_set`
-        - src/pytest_bdd/model/message_registry.py: imports or references `is_set`
+        - `pytest_bdd.*`: callers import and invoke is_set for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The is_set function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return not isinstance(obj, NotSetType)
 
 
 def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     """
+    Perform the `is_testrun_success` operation within its module boundary, implementing a focused
+    helper function that i.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest.is_testrun_success` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `is_testrun_success` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.is_testrun_success` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `is_testrun_success` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the is_testrun_success operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `is_testrun_success`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `is_testrun_success`
-        - src/pytest_bdd/feature_locator.py: imports or references `is_testrun_success`
-        - src/pytest_bdd/hook.py: imports or references `is_testrun_success`
-        - src/pytest_bdd/model/message_registry.py: imports or references `is_testrun_success`
+        - `pytest_bdd.*`: callers import and invoke is_testrun_success for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The is_testrun_success function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
 
 
 class _LegacyFixtureDefFactory(Protocol):
     """
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest._LegacyFixtureDefFactory` owns documented class
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this class.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest._LegacyFixtureDefFactory` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - __call__: owns nested behavior below this boundary
+        - Protocol: _LegacyFixtureDefFactory specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `_LegacyFixtureDefFactory`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `_LegacyFixtureDefFactory`
-        - src/pytest_bdd/feature_locator.py: imports or references `_LegacyFixtureDefFactory`
-        - src/pytest_bdd/hook.py: imports or references `_LegacyFixtureDefFactory`
-        - src/pytest_bdd/model/message_registry.py: imports or references `_LegacyFixtureDefFactory`
+        - `pytest_bdd.*`: callers catch or instantiate _LegacyFixtureDefFactory for error handling and type checking
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.compatibility.pytest._LegacyFixtureDefFactory` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=3
+        #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
 
-    def __call__(  # noqa: PLR0913, PLR0917
+    def __call__(  # noqa: PLR0913, PLR0917  -- suppressed warning
         self,
         fixturemanager: object,
         baseid: str | None,
@@ -569,52 +534,52 @@ class _LegacyFixtureDefFactory(Protocol):
         _ispytest: bool = False,
     ) -> FixtureDef:
         """
+        Perform the __call__ operation within the _LegacyFixtureDefFactory boundary, handling its
+        specific sub-task as part .
+
         Responsibility:
-            Responsibility: Responsibility: `pytest_bdd.compatibility.pytest._LegacyFixtureDefFactory.__call__` owns
-            documented method behavior. It directly owns the observable contract, local decisions, and maintenance
-            boundary for this method.
+            Performs the __call__ operation within the _LegacyFixtureDefFactory boundary, handling its
+            specific sub-task as part of the broader _LegacyFixtureDefFactory responsibility in the pytest-
+            bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for
-            `pytest_bdd.compatibility.pytest._LegacyFixtureDefFactory.__call__` because it keeps the nearest code, data
-            shape, call signature, and failure knowledge together.
+            __call__ is a distinct method because it encapsulates a specific behavioral concern that must
+            be independently callable and potentially overridable by subclasses of _LegacyFixtureDefFactory
+            without affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the __call__ operation on _LegacyFixtureDefFactory instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other _LegacyFixtureDefFactory methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/collector.py: imports or references `__call__`
-            - src/pytest_bdd/compatibility/parser.py: imports or references `__call__`
-            - src/pytest_bdd/feature_locator.py: imports or references `__call__`
-            - src/pytest_bdd/hook.py: imports or references `__call__`
-            - src/pytest_bdd/model/message_registry.py: imports or references `__call__`
+            - `pytest_bdd.*`: callers that raise or catch _LegacyFixtureDefFactory implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         ...
 
 
-def build_fixture_def(  # noqa: PLR0913
+def build_fixture_def(  # noqa: PLR0913  -- suppressed warning
     request: FixtureRequest,
     *,
     baseid: str | None,
@@ -624,51 +589,47 @@ def build_fixture_def(  # noqa: PLR0913
     params: Sequence[object] | None,
 ) -> FixtureDef:
     """
+    Perform the `build_fixture_def` operation within its module boundary, implementing a focused
+    helper function that is.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.compatibility.pytest.build_fixture_def` owns documented function
-        behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this function.
+        Performs the `build_fixture_def` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.build_fixture_def` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `build_fixture_def` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - FixtureDef: collaborator call used by this boundary
-        - cast: collaborator call used by this boundary
-        - legacy_fixture_def: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the build_fixture_def operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `build_fixture_def`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `build_fixture_def`
-        - src/pytest_bdd/feature_locator.py: imports or references `build_fixture_def`
-        - src/pytest_bdd/hook.py: imports or references `build_fixture_def`
-        - src/pytest_bdd/model/message_registry.py: imports or references `build_fixture_def`
+        - `pytest_bdd.*`: callers import and invoke build_fixture_def for its specific utility
 
     State and side effects:
-        mutates legacy_fixture_def.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.compatibility.pytest.build_fixture_def` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The build_fixture_def function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if PYTEST81:
         return FixtureDef(  # type: ignore[call-arg]  # pytest private API: _ispytest kwarg not in public types
@@ -682,7 +643,7 @@ def build_fixture_def(  # noqa: PLR0913
             _ispytest=PYTEST8,
         )
     legacy_fixture_def = cast("_LegacyFixtureDefFactory", FixtureDef)
-    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)  # noqa: SLF001
+    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)  # noqa: SLF001  -- suppressed warning
 
 
 Expression = _mark_expression.Expression
@@ -696,56 +657,47 @@ def make_mark(
     kwargs: dict[str, object] | None = None,
 ) -> Mark:
     """
-    Create a pytest Mark using the private Mark constructor.
-
-    The public pytest API expects ``pytest.mark.NAME()`` decorators, but programmatic
-    mark creation requires the private ``Mark()`` constructor with the internal
-    ``_ispytest`` flag. This helper isolates the ``type: ignore`` to a single
-    well-documented location.
+    Perform the `make_mark` operation within its module boundary, implementing a focused helper
+    function that is consume.
 
     Responsibility:
-        Create a pytest Mark using the private Mark constructor. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this function.
+        Performs the `make_mark` operation within its module boundary, implementing a focused helper
+        function that is consumed by higher layers for its specific utility purpose within the pytest-
+        bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.make_mark` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        `make_mark` exists as a standalone function because it encapsulates an operation that does not
+        require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - Mark: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the make_mark operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `make_mark`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `make_mark`
-        - src/pytest_bdd/feature_locator.py: imports or references `make_mark`
-        - src/pytest_bdd/hook.py: imports or references `make_mark`
-        - src/pytest_bdd/model/message_registry.py: imports or references `make_mark`
+        - `pytest_bdd.*`: callers import and invoke make_mark for its specific utility
 
     State and side effects:
-        mutates kwargs.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.compatibility.pytest.make_mark` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The make_mark function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     if kwargs is None:
         kwargs = {}
@@ -754,48 +706,46 @@ def make_mark(
 
 def make_mark_decorator(mark: Mark) -> MarkDecorator:
     """
-    Wrap a Mark in a MarkDecorator using the private constructor.
-
-    See :func:`make_mark` for rationale.
+    Perform the `make_mark_decorator` operation within its module boundary, implementing a focused
+    helper function that .
 
     Responsibility:
-        Wrap a Mark in a MarkDecorator using the private constructor. It directly owns the observable contract, local
-        decisions, and maintenance boundary for this function.
+        Performs the `make_mark_decorator` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.pytest.make_mark_decorator` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `make_mark_decorator` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - MarkDecorator: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the make_mark_decorator operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/collector.py: imports or references `make_mark_decorator`
-        - src/pytest_bdd/compatibility/parser.py: imports or references `make_mark_decorator`
-        - src/pytest_bdd/feature_locator.py: imports or references `make_mark_decorator`
-        - src/pytest_bdd/hook.py: imports or references `make_mark_decorator`
-        - src/pytest_bdd/model/message_registry.py: imports or references `make_mark_decorator`
+        - `pytest_bdd.*`: callers import and invoke make_mark_decorator for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The make_mark_decorator function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return MarkDecorator(mark, _ispytest=True)  # type: ignore[call-arg]  # pytest private API

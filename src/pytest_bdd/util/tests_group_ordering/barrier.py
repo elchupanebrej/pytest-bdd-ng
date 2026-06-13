@@ -1,54 +1,47 @@
 """
-Test group barrier synchronization helpers for xdist.
+Provides focused utility functions for the `barrier` concern within pytest-bdd utility layer,
+offering helper operati.
 
 Responsibility:
-    Test group barrier synchronization helpers for xdist. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Provides focused utility functions for the `barrier` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier` because it keeps the
-    nearest code, data shape, call signature, and failure knowledge together.
+    Keeping `barrier` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `barrier`-related helper operations within the
+    utility layer.
 
 Delegates:
-    - _BarrierState: owns nested behavior below this boundary
-    - _coerce_string_list: owns nested behavior below this boundary
-    - _coerce_int_mapping: owns nested behavior below this boundary
-    - _replace_with_retry: owns nested behavior below this boundary
-    - write_barrier_state: owns nested behavior below this boundary
-    - read_barrier_state_once: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `barrier` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `barrier`
-    - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `barrier`
+    - `pytest_bdd.plugin.*`: imports `barrier` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    mutates state, expected, finished, state_path, groups; depends on __future__.annotations, json, logging, os, time.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.tests_group_ordering.barrier` keeps its documented import path, ownership boundary, and
-      observable behavior stable for callers.
-
-Failure semantics:
-    Raises or re-raises re-raise, TimeoutError; callers must treat these as boundary failures.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
     #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=3
+    #arch-eval:locational_stability=4
 """
 
 from __future__ import annotations
@@ -83,47 +76,47 @@ logger = logging.getLogger(__name__)
 
 class _BarrierState(TypedDict):
     """
+    Encapsulates the _BarrierState concern within pytest-bdd, providing a focused set of
+    collaborating operations that to.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._BarrierState` owns documented
-        class behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        class.
+        Encapsulates the _BarrierState concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._BarrierState` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        _BarrierState is a distinct class because its methods share internal state and collaborate on a
+        cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - TypedDict: _BarrierState specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single _BarrierState domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_BarrierState`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_BarrierState`
+        - `pytest_bdd.*`: callers catch or instantiate _BarrierState for error handling and type checking
 
     State and side effects:
-        mutates groups, expected, finished, finished_nodeids.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._BarrierState` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - Instances of _BarrierState maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
-        #arch-eval:locational_stability=3
+        #arch-eval:entity_fullness=4
+        #arch-eval:locational_stability=4
     """
 
     groups: list[str]
@@ -134,44 +127,46 @@ class _BarrierState(TypedDict):
 
 def _coerce_string_list(value: object) -> list[str]:
     """
+    Perform the `_coerce_string_list` operation within its module boundary, implementing a focused.
+    helper function that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._coerce_string_list` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_coerce_string_list` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._coerce_string_list`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_coerce_string_list` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - str: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
-        - str.strip: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _coerce_string_list operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_coerce_string_list`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_coerce_string_list`
+        - `pytest_bdd.*`: callers import and invoke _coerce_string_list for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _coerce_string_list function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if not isinstance(value, list):
@@ -181,48 +176,46 @@ def _coerce_string_list(value: object) -> list[str]:
 
 def _coerce_int_mapping(value: object) -> dict[str, int]:
     """
+    Perform the `_coerce_int_mapping` operation within its module boundary, implementing a focused.
+    helper function that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._coerce_int_mapping` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_coerce_int_mapping` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._coerce_int_mapping`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_coerce_int_mapping` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - isinstance: collaborator call used by this boundary
-        - value.items: collaborator call used by this boundary
-        - int: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _coerce_int_mapping operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_coerce_int_mapping`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_coerce_int_mapping`
+        - `pytest_bdd.*`: callers import and invoke _coerce_int_mapping for its specific utility
 
     State and side effects:
-        mutates result.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._coerce_int_mapping` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _coerce_int_mapping function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if not isinstance(value, dict):
@@ -240,58 +233,53 @@ def _coerce_int_mapping(value: object) -> dict[str, int]:
 
 def _replace_with_retry(temp_path: Path, state_path: Path) -> None:
     """
+    Perform the `_replace_with_retry` operation within its module boundary, implementing a focused.
+    helper function that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._replace_with_retry` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_replace_with_retry` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._replace_with_retry`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_replace_with_retry` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - range: collaborator call used by this boundary
-        - temp_path.replace: collaborator call used by this boundary
-        - time.sleep: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _replace_with_retry operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_replace_with_retry`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_replace_with_retry`
+        - `pytest_bdd.*`: callers import and invoke _replace_with_retry for its specific utility
 
     State and side effects:
-        mutates attempts.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._replace_with_retry` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises re-raise; callers must treat these as boundary failures.
+        - The _replace_with_retry function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     attempts = 50
     for attempt in range(attempts):
         try:
             temp_path.replace(state_path)
-        except (PermissionError, OSError):  # noqa: PERF203
+        except (PermissionError, OSError):  # noqa: PERF203  -- suppressed warning
             if attempt == attempts - 1:
                 raise
             time.sleep(0.01)
@@ -301,56 +289,46 @@ def _replace_with_retry(temp_path: Path, state_path: Path) -> None:
 
 def write_barrier_state(state_path: Path, state: _BarrierState) -> None:
     """
-    Write barrier state to a file.
+    Perform the `write_barrier_state` operation within its module boundary, implementing a focused.
+    helper function that .
 
     Responsibility:
-        Write barrier state to a file. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `write_barrier_state` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier.write_barrier_state`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `write_barrier_state` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - state_path.with_suffix: collaborator call used by this boundary
-        - os.getpid: collaborator call used by this boundary
-        - temp_path.write_text: collaborator call used by this boundary
-        - json.dumps: collaborator call used by this boundary
-        - _replace_with_retry: collaborator call used by this boundary
-        - logger.warning: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the write_barrier_state operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `write_barrier_state`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `write_barrier_state`
+        - `pytest_bdd.*`: callers import and invoke write_barrier_state for its specific utility
 
     State and side effects:
-        mutates temp_path.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.write_barrier_state` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises re-raise; callers must treat these as boundary failures.
+        - The write_barrier_state function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     temp_path = state_path.with_suffix(f".{os.getpid()}.tmp")
@@ -366,59 +344,46 @@ def write_barrier_state(state_path: Path, state: _BarrierState) -> None:
 
 def read_barrier_state_once(state_path: Path) -> _BarrierState | None:
     """
-    Read barrier state from a file once.
-
-    Args:
-        state_path: Path to the barrier state file.
-
-    Returns:
-        Barrier state dictionary or None if decoding failed.
+    Perform the `read_barrier_state_once` operation within its module boundary, implementing a.
+    focused helper function t.
 
     Responsibility:
-        Read barrier state from a file once. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `read_barrier_state_once` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier.read_barrier_state_once`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `read_barrier_state_once` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - payload.get: collaborator call used by this boundary
-        - _coerce_string_list: collaborator call used by this boundary
-        - _coerce_int_mapping: collaborator call used by this boundary
-        - json.loads: collaborator call used by this boundary
-        - state_path.read_text: collaborator call used by this boundary
-        - isinstance: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the read_barrier_state_once operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `read_barrier_state_once`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `read_barrier_state_once`
+        - `pytest_bdd.*`: callers import and invoke read_barrier_state_once for its specific utility
 
     State and side effects:
-        mutates payload.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.read_barrier_state_once` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The read_barrier_state_once function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     try:
@@ -439,63 +404,46 @@ def read_barrier_state_once(state_path: Path) -> _BarrierState | None:
 
 def read_barrier_state(state_path: Path) -> _BarrierState:
     """
-    Read barrier state from a file with retry logic.
-
-    Args:
-        state_path: Path to the barrier state file.
-
-    Returns:
-        Barrier state dictionary.
-
-    Raises:
-        PermissionError: If the file cannot be accessed.
-        OSError: If an OS error occurs.
+    Perform the `read_barrier_state` operation within its module boundary, implementing a focused.
+    helper function that i.
 
     Responsibility:
-        Read barrier state from a file with retry logic. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `read_barrier_state` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier.read_barrier_state`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `read_barrier_state` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - time.sleep: collaborator call used by this boundary
-        - state_path.exists: collaborator call used by this boundary
-        - range: collaborator call used by this boundary
-        - read_barrier_state_once: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the read_barrier_state operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `read_barrier_state`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `read_barrier_state`
+        - `pytest_bdd.*`: callers import and invoke read_barrier_state for its specific utility
 
     State and side effects:
-        mutates attempts, state.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.read_barrier_state` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises re-raise; callers must treat these as boundary failures.
+        - The read_barrier_state function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if not state_path.exists():
@@ -505,7 +453,7 @@ def read_barrier_state(state_path: Path) -> _BarrierState:
     for attempt in range(attempts):
         try:
             state = read_barrier_state_once(state_path)
-        except (PermissionError, OSError):  # noqa: PERF203
+        except (PermissionError, OSError):  # noqa: PERF203  -- suppressed warning
             if attempt == attempts - 1:
                 raise
             time.sleep(0.01)
@@ -520,50 +468,46 @@ def read_barrier_state(state_path: Path) -> _BarrierState:
 @contextmanager
 def _barrier_lock(state_path: Path) -> Iterator[None]:
     """
+    Perform the `_barrier_lock` operation within its module boundary, implementing a focused.
+    helper function that is con.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._barrier_lock` owns documented
-        function behavior. It directly owns the observable contract, local decisions, and maintenance boundary for this
-        function.
+        Performs the `_barrier_lock` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._barrier_lock` because
-        it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_barrier_lock` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - state_path.with_suffix: collaborator call used by this boundary
-        - lock_path.mkdir: collaborator call used by this boundary
-        - time.sleep: collaborator call used by this boundary
-        - suppress: collaborator call used by this boundary
-        - lock_path.rmdir: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _barrier_lock operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_barrier_lock`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_barrier_lock`
+        - `pytest_bdd.*`: callers import and invoke _barrier_lock for its specific utility
 
     State and side effects:
-        mutates lock_path.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._barrier_lock` keeps its documented import path, ownership
-          boundary, and observable behavior stable for callers.
+        - The _barrier_lock function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     lock_path = state_path.with_suffix(".lock")
@@ -582,50 +526,46 @@ def _barrier_lock(state_path: Path) -> Iterator[None]:
 
 def _initialize_barrier_state(state_path: Path, groups: list[str], expected: dict[str, int]) -> None:
     """
+    Perform the `_initialize_barrier_state` operation within its module boundary, implementing a.
+    focused helper function.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._initialize_barrier_state` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_initialize_barrier_state` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.barrier._initialize_barrier_state` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `_initialize_barrier_state` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - _barrier_lock: collaborator call used by this boundary
-        - state_path.exists: collaborator call used by this boundary
-        - dict.fromkeys: collaborator call used by this boundary
-        - write_barrier_state: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _initialize_barrier_state operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_initialize_barrier_state`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_initialize_barrier_state`
+        - `pytest_bdd.*`: callers import and invoke _initialize_barrier_state for its specific utility
 
     State and side effects:
-        mutates state.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._initialize_barrier_state` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The _initialize_barrier_state function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     with _barrier_lock(state_path):
@@ -645,49 +585,46 @@ def _initialize_barrier_state(state_path: Path, groups: list[str], expected: dic
 
 def _previous_groups_finished(state: _BarrierState, assignment: GroupAssignment) -> bool:
     """
+    Perform the `_previous_groups_finished` operation within its module boundary, implementing a.
+    focused helper function.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._previous_groups_finished` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_previous_groups_finished` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.barrier._previous_groups_finished` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `_previous_groups_finished` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - int: collaborator call used by this boundary
-        - finished.get: collaborator call used by this boundary
-        - expected.get: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _previous_groups_finished operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_previous_groups_finished`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_previous_groups_finished`
+        - `pytest_bdd.*`: callers import and invoke _previous_groups_finished for its specific utility
 
     State and side effects:
-        mutates groups, expected, finished.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._previous_groups_finished` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The _previous_groups_finished function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     groups = state["groups"]
@@ -701,51 +638,46 @@ def _previous_groups_finished(state: _BarrierState, assignment: GroupAssignment)
 
 def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> None:
     """
+    Perform the `_record_barrier_finish` operation within its module boundary, implementing a.
+    focused helper function th.
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._record_barrier_finish` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_record_barrier_finish` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._record_barrier_finish`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_record_barrier_finish` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - _barrier_lock: collaborator call used by this boundary
-        - read_barrier_state: collaborator call used by this boundary
-        - set: collaborator call used by this boundary
-        - int: collaborator call used by this boundary
-        - finished.get: collaborator call used by this boundary
-        - finished_nodeids.add: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _record_barrier_finish operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_record_barrier_finish`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_record_barrier_finish`
+        - `pytest_bdd.*`: callers import and invoke _record_barrier_finish for its specific utility
 
     State and side effects:
-        mutates state, finished_nodeids, finished.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier._record_barrier_finish` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The _record_barrier_finish function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     with _barrier_lock(state_path):
@@ -763,42 +695,46 @@ def _record_barrier_finish(state_path: Path, assignment: GroupAssignment) -> Non
 
 def _is_terminal_report(report: pytest.TestReport) -> bool:
     """
+    Perform the `_is_terminal_report` operation within its module boundary, implementing a focused.
+    helper function that .
+
     Responsibility:
-        Responsibility: Responsibility: `pytest_bdd.util.tests_group_ordering.barrier._is_terminal_report` owns
-        documented function behavior. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function.
+        Performs the `_is_terminal_report` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier._is_terminal_report`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `_is_terminal_report` exists as a standalone function because it encapsulates an operation that
+        does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - cast: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the _is_terminal_report operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `_is_terminal_report`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `_is_terminal_report`
+        - `pytest_bdd.*`: callers import and invoke _is_terminal_report for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The _is_terminal_report function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if report.when == "call":
@@ -812,53 +748,46 @@ def configure_runtime_barrier(
     assignments: dict[str, GroupAssignment],
 ) -> None:
     """
-    Configure runtime barrier state for xdist execution.
+    Perform the `configure_runtime_barrier` operation within its module boundary, implementing a.
+    focused helper function.
 
     Responsibility:
-        Configure runtime barrier state for xdist execution. It directly owns the observable contract, local decisions,
-        and maintenance boundary for this function.
+        Performs the `configure_runtime_barrier` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.barrier.configure_runtime_barrier` because it keeps the nearest code, data
-        shape, call signature, and failure knowledge together.
+        `configure_runtime_barrier` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - hasattr: collaborator call used by this boundary
-        - str: collaborator call used by this boundary
-        - config.workerinput.get: collaborator call used by this boundary
-        - state_path.parent.mkdir: collaborator call used by this boundary
-        - dict.fromkeys: collaborator call used by this boundary
-        - assignments.values: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the configure_runtime_barrier operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `configure_runtime_barrier`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `configure_runtime_barrier`
+        - `pytest_bdd.*`: callers import and invoke configure_runtime_barrier for its specific utility
 
     State and side effects:
-        mutates run_uid, state_path, expected.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.configure_runtime_barrier` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The configure_runtime_barrier function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if not hasattr(config, "workerinput"):
@@ -878,59 +807,46 @@ def configure_runtime_barrier(
 
 def wait_for_group_barrier(item: pytest.Item) -> None:
     """
-    Handle wait for group barrier.
-
-    Raises:
-        TimeoutError: If the operation cannot be completed.
+    Perform the `wait_for_group_barrier` operation within its module boundary, implementing a.
+    focused helper function th.
 
     Responsibility:
-        Handle wait for group barrier. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `wait_for_group_barrier` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.tests_group_ordering.barrier.wait_for_group_barrier`
-        because it keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `wait_for_group_barrier` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - getattr: collaborator call used by this boundary
-        - time.monotonic: collaborator call used by this boundary
-        - float: collaborator call used by this boundary
-        - os.environ.get: collaborator call used by this boundary
-        - read_barrier_state: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the wait_for_group_barrier operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `wait_for_group_barrier`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `wait_for_group_barrier`
+        - `pytest_bdd.*`: callers import and invoke wait_for_group_barrier for its specific utility
 
     State and side effects:
-        mutates assignment, state_path, timeout, deadline, state.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.wait_for_group_barrier` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
-
-    Failure semantics:
-        Raises or re-raises TimeoutError; callers must treat these as boundary failures.
+        - The wait_for_group_barrier function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     assignment = getattr(item, ASSIGNMENT_ATTR, None)
@@ -955,53 +871,46 @@ def wait_for_group_barrier(item: pytest.Item) -> None:
 
 def record_group_barrier_report(report: pytest.TestReport) -> None:
     """
-    Handle record group barrier report.
+    Perform the `record_group_barrier_report` operation within its module boundary, implementing a.
+    focused helper functi.
 
     Responsibility:
-        Handle record group barrier report. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `record_group_barrier_report` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for
-        `pytest_bdd.util.tests_group_ordering.barrier.record_group_barrier_report` because it keeps the nearest code,
-        data shape, call signature, and failure knowledge together.
+        `record_group_barrier_report` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - _is_terminal_report: collaborator call used by this boundary
-        - _RUNTIME_BARRIER_STATE_PATHS.get: collaborator call used by this boundary
-        - _RUNTIME_BARRIER_ASSIGNMENTS.get: collaborator call used by this boundary
-        - _record_barrier_finish: collaborator call used by this boundary
-        - Path: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the record_group_barrier_report operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/util/tests_group_ordering/facade.py: imports or references `record_group_barrier_report`
-        - src/pytest_bdd/util/tests_group_ordering/marker.py: imports or references `record_group_barrier_report`
+        - `pytest_bdd.*`: callers import and invoke record_group_barrier_report for its specific utility
 
     State and side effects:
-        mutates state_path, assignment.
+        None, this function is stateless and produces its output purely from input arguments.
 
     Invariants:
-        - `pytest_bdd.util.tests_group_ordering.barrier.record_group_barrier_report` keeps its documented import path,
-          ownership boundary, and observable behavior stable for callers.
+        - The record_group_barrier_report function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
-        #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=4
+        #arch-eval:consumer_clarity=3
+        #arch-eval:state_invariants=3
+        #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=3
     """
     if not _is_terminal_report(report):

@@ -1,50 +1,45 @@
 """
-Provide packaging helpers.
+Provides focused utility functions for the `packaging` concern within pytest-bdd utility layer,
+offering helper opera.
 
 Responsibility:
-    Provide packaging helpers. It directly owns the observable contract, local decisions, and maintenance boundary for
-    this module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-    collaborators before editing.
+    Provides focused utility functions for the `packaging` concern within pytest-bdd utility layer,
+    offering helper operations consumed by higher layers (collection, runtime, reporting) without
+    pulling in pytest plugin machinery or creating import cycles.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.util.packaging` because it keeps the nearest code, data shape,
-    call signature, and failure knowledge together.
+    Keeping `packaging` utilities in a dedicated module prevents cross-cutting helper code from
+    accumulating in larger modules where it would create unclear ownership or hidden dependency
+    issues. This module is the single authority for `packaging`-related helper operations within
+    the utility layer.
 
 Delegates:
-    - get_distribution_version: owns nested behavior below this boundary
-    - parse_version: owns nested behavior below this boundary
-    - compare_distribution_version: owns nested behavior below this boundary
+    - Python standard library: delegates core data structure and I/O operations to stdlib
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All functions and classes serve the single `packaging` utility concern.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling utility modules: each handles a distinct helper concern to prevent callers from coupling to unrelated
+    functionality.
 
 Main consumers:
-    - src/pytest_bdd/__init__.py: imports or references `packaging`
-    - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `packaging`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references `packaging`
-    - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references `packaging`
-    - src/pytest_bdd/script/sync_messages_contract_schemas.py: imports or references `packaging`
+    - `pytest_bdd.plugin.*`: imports `packaging` utilities for reporting, collection, and runtime operations
 
 State and side effects:
-    depends on __future__.annotations, functools.lru_cache, operator.eq, typing.TYPE_CHECKING, packaging.utils.Version.
+    None, this module keeps no persistent state and performs no file or network I/O.
 
 Invariants:
-    - `pytest_bdd.util.packaging` keeps its documented import path, ownership boundary, and observable behavior stable
-      for callers.
+    - The public API surface (exported names) remains stable across internal refactors.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
+    #arch-eval:cohesion=4
+    #arch-eval:separation=4
     #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=3
+    #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=4
     #arch-eval:locational_stability=4
 """
@@ -65,115 +60,94 @@ from pytest_bdd.compatibility.importlib.metadata import version
 
 def get_distribution_version(distribution_name: str) -> Version:
     """
-    Get the version of a distribution.
-
-    Args:
-        distribution_name: Name of the distribution.
-
-    Returns:
-        Version object.
+    Perform the `get_distribution_version` operation within its module boundary, implementing a.
+    focused helper function .
 
     Responsibility:
-        Get the version of a distribution. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this function. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Performs the `get_distribution_version` operation within its module boundary, implementing a
+        focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.packaging.get_distribution_version` because it keeps
-        the nearest code, data shape, call signature, and failure knowledge together.
+        `get_distribution_version` exists as a standalone function because it encapsulates an operation
+        that does not require shared instance state and benefits from being independently callable and
+        testable without class instantiation overhead.
 
     Delegates:
-        - Version: collaborator call used by this boundary
-        - version: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the get_distribution_version operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/__init__.py: imports or references `get_distribution_version`
-        - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `get_distribution_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `get_distribution_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-          `get_distribution_version`
-        - src/pytest_bdd/script/sync_messages_contract_schemas.py: imports or references `get_distribution_version`
+        - `pytest_bdd.*`: callers import and invoke get_distribution_version for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The get_distribution_version function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return Version(version(distribution_name))
 
 
 def parse_version(version: str) -> Version:
     """
-    Parse a version string.
-
-    Args:
-        version: Version string to parse.
-
-    Returns:
-        Version object.
+    Perform the `parse_version` operation within its module boundary, implementing a focused.
+    helper function that is con.
 
     Responsibility:
-        Parse a version string. It directly owns the observable contract, local decisions, and maintenance boundary for
-        this function. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-        collaborators before editing.
+        Performs the `parse_version` operation within its module boundary, implementing a focused
+        helper function that is consumed by higher layers for its specific utility purpose within the
+        pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.packaging.parse_version` because it keeps the nearest
-        code, data shape, call signature, and failure knowledge together.
+        `parse_version` exists as a standalone function because it encapsulates an operation that does
+        not require shared instance state and benefits from being independently callable and testable
+        without class instantiation overhead.
 
     Delegates:
-        - Version: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the parse_version operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/__init__.py: imports or references `parse_version`
-        - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `parse_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `parse_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-          `parse_version`
-        - src/pytest_bdd/script/sync_messages_contract_schemas.py: imports or references `parse_version`
+        - `pytest_bdd.*`: callers import and invoke parse_version for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The parse_version function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return Version(version)
 
@@ -185,59 +159,46 @@ def compare_distribution_version(
     operator: Callable[[Version, Version], bool] = eq,
 ) -> bool:
     """
-    Compare distribution version against a target.
-
-    Args:
-        distribution_name: Name of the distribution.
-        version: Target version string.
-        operator: Comparison operator.
-
-    Returns:
-        True if version matches.
+    Perform the `compare_distribution_version` operation within its module boundary, implementing.
+    a focused helper funct.
 
     Responsibility:
-        Compare distribution version against a target. It directly owns the observable contract, local decisions, and
-        maintenance boundary for this function.
+        Performs the `compare_distribution_version` operation within its module boundary, implementing
+        a focused helper function that is consumed by higher layers for its specific utility purpose
+        within the pytest-bdd architecture.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.util.packaging.compare_distribution_version` because it
-        keeps the nearest code, data shape, call signature, and failure knowledge together.
+        `compare_distribution_version` exists as a standalone function because it encapsulates an
+        operation that does not require shared instance state and benefits from being independently
+        callable and testable without class instantiation overhead.
 
     Delegates:
-        - operator: collaborator call used by this boundary
-        - get_distribution_version: collaborator call used by this boundary
-        - parse_version: collaborator call used by this boundary
+        - Python standard library: delegates core operations to stdlib
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All logic directly supports the compare_distribution_version operation.
 
     Separation:
-        - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-          without widening caller knowledge.
+        - Other functions in this module: each function handles a distinct helper concern.
 
     Main consumers:
-        - src/pytest_bdd/__init__.py: imports or references `compare_distribution_version`
-        - src/pytest_bdd/compatibility/pytest/__init__.py: imports or references `compare_distribution_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_core.py: imports or references
-          `compare_distribution_version`
-        - src/pytest_bdd/plugin/gherkin_message_reporter/lifecycle_runtime/_hooks.py: imports or references
-          `compare_distribution_version`
-        - src/pytest_bdd/script/sync_messages_contract_schemas.py: imports or references `compare_distribution_version`
+        - `pytest_bdd.*`: callers import and invoke compare_distribution_version for its specific utility
 
     State and side effects:
-        keeps no local persistent state beyond call-local values.
+        None, this function is stateless and produces its output purely from input arguments.
+
+    Invariants:
+        - The compare_distribution_version function returns consistent results for equivalent inputs.
 
     Architecture score:
         #arch-eval:reason_for_existence=4
-        #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=4
+        #arch-eval:owned_responsibility=3
+        #arch-eval:delegation_boundary=3
+        #arch-eval:cohesion=5
         #arch-eval:separation=3
-        #arch-eval:consumer_clarity=4
+        #arch-eval:consumer_clarity=3
         #arch-eval:state_invariants=3
-        #arch-eval:entity_fullness=4
-        #arch-eval:locational_stability=4
-
+        #arch-eval:entity_fullness=3
+        #arch-eval:locational_stability=3
     """
     return operator(get_distribution_version(distribution_name), parse_version(version))

@@ -16,9 +16,10 @@
     ```python
     from pytest_bdd import given
 
-    @given('I check step docstring')
+
+    @given("I check step docstring")
     def _(step):
-      assert step.argument.doc_string.content == "Step docstring"
+        assert step.argument.doc_string.content == "Step docstring"
     ```
 
 * When run pytest

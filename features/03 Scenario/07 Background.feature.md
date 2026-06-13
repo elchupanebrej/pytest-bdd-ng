@@ -32,38 +32,46 @@
     import pytest
     from pytest_bdd import given, then, parsers
 
+
     @pytest.fixture
     def foo():
-      return {}
+        return {}
+
 
     @given(parsers.re(r"a background step .*"))
     def _multiline(step):
-      assert step.argument.doc_string.content == "one\ntwo"
+        assert step.argument.doc_string.content == "one\ntwo"
+
 
     @given('foo has a value "bar"')
     def _bar(foo):
-      foo["bar"] = "bar"
+        foo["bar"] = "bar"
+
 
     @given('foo has a value "dummy"')
     def _dummy(foo):
-      foo["dummy"] = "dummy"
+        foo["dummy"] = "dummy"
+
 
     @given('foo has no value "bar"')
     def _no_bar(foo):
-      assert foo["bar"] == "bar"
-      del foo["bar"]
+        assert foo["bar"] == "bar"
+        del foo["bar"]
+
 
     @then('foo should have value "bar"')
     def _then_bar(foo):
-      assert foo["bar"] == "bar"
+        assert foo["bar"] == "bar"
+
 
     @then('foo should have value "dummy"')
     def _then_dummy(foo):
-      assert foo["dummy"] == "dummy"
+        assert foo["dummy"] == "dummy"
+
 
     @then('foo should not have value "bar"')
     def _then_no_bar(foo):
-      assert "bar" not in foo
+        assert "bar" not in foo
     ```
 
 * And File "test_background.py" with content:
@@ -71,13 +79,15 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("background.feature", "Basic usage")
     def test_background_basic():
-      pass
+        pass
+
 
     @scenario("background.feature", "Background steps are executed first")
     def test_background_order():
-      pass
+        pass
     ```
 
 * When run pytest

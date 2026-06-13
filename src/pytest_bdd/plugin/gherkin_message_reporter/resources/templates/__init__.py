@@ -1,47 +1,49 @@
 # init: no-check
 """
-Template assets for gherkin message reporting.
-
-The package contains checked-in runtime bridge templates and formatter adapter
-templates that are materialized on demand for Node-based report rendering.
+Serves as the Reporting layer (order 7) package init for the gherkin message reporter's Jinja2 templates sub-package.
 
 Responsibility:
-    Template assets for gherkin message reporting. It directly owns the observable contract, local decisions, and
-    maintenance boundary for this module.
+    Serves as the Reporting layer (order 7) package init for the gherkin message reporter's Jinja2 templates sub-
+    package. Acts as a namespace marker that makes the templates directory discoverable as a Python package for
+    `importlib.resources`-based template loading. Contains no executable code — purely structural for resource
+    discovery.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.plugin.gherkin_message_reporter.resources.templates` because
-    it keeps the nearest code, data shape, call signature, and failure knowledge together.
+    This module exists as a Python package marker to enable template file discovery. The live formatter system uses
+    `importlib.resources` to find and load Jinja2 template files (.j2, .html) from a well-defined package location.
+    Without this init, the directory would not be importable as a Python package.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - formatters: Sub-package containing formatter-specific template files.
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    Purely a structural package marker with no executable logic. All template rendering logic lives in
+    `live_formatter_process` and `html_report`.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - formatters/__init__.py: Sub-package marker for formatter-specific templates.
+    - resources/__init__.py: Parent package marker for shared static resources.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - pytest_bdd.plugin.gherkin_message_reporter.live_formatter_process: Loads templates from this package via
+    importlib.resources.files().
+    - pytest_bdd.plugin.gherkin_message_reporter.html_report: Loads templates for HTML report generation.
 
 State and side effects:
-    keeps no local persistent state beyond call-local values.
+    None, keeps no persistent state. Purely a namespace marker module.
 
 Invariants:
-    - `pytest_bdd.plugin.gherkin_message_reporter.resources.templates` keeps its documented import path, ownership
-      boundary, and observable behavior stable for callers.
+    - Must be importable as a Python package for template resource discovery.
+    - Template file paths relative to this package must be stable across versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
+    #arch-eval:reason_for_existence=2
+    #arch-eval:owned_responsibility=2
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=4
     #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
-    #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:consumer_clarity=3
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=4
+    #arch-eval:locational_stability=5
 """

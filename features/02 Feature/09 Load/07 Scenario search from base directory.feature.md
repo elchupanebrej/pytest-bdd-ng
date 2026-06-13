@@ -24,13 +24,14 @@
     from pytest_bdd import step
     from pytest_bdd.compatibility.pytest import fail
 
-    @step('Passing step')
-    def _():
-      ...
 
-    @step('Failing step')
+    @step("Passing step")
+    def _(): ...
+
+
+    @step("Failing step")
     def _():
-      fail('Intentional')
+        fail("Intentional")
     ```
 
 * And File "test_feature.py" with content:
@@ -38,7 +39,7 @@
     ```python
     from pytest_bdd import scenarios
 
-    test = scenarios('Passing.feature')
+    test = scenarios("Passing.feature")
     ```
 
 ## Scenario: Search from configured base directory

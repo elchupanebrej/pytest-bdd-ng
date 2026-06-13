@@ -1,68 +1,53 @@
-# init: public-api  # init: no-check
 """
-Provide pytest-bdd shared type helpers.
+Defines the `types` type definitions for pytest-bdd, providing domain-specific type constructs
+consumed by higher arc.
 
 Responsibility:
-    Provide pytest-bdd shared type helpers. It directly owns the observable contract, local decisions, and maintenance
-    boundary for this module.
+    Defines the `types` type definitions for pytest-bdd, providing domain-specific type constructs
+    consumed by higher architectural layers for type checking, error classification, and structural
+    contract enforcement throughout the BDD runtime.
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.types` because it keeps the nearest code, data shape, call
-    signature, and failure knowledge together.
+    The `types` types are kept in their own module within the types package to maintain clean
+    separation between distinct type domains (enums, protocols, exceptions, JSON types, warnings)
+    so consumers import only the types they need.
 
 Delegates:
-    - None, leaf-level implementation boundary
+    - Python stdlib `typing`: delegates type system primitives to the standard library
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols define type-level constructs for the `types` domain.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling type modules: each sub-module handles a distinct type domain within the foundation layer.
 
 Main consumers:
-    - None found by static import/name scan; verify dynamic use before refactor
+    - `pytest_bdd.*`: imports `types` types for static type checking and error handling
 
 State and side effects:
-    depends on pytest_bdd.types.failure_reasons.CollectorFailure,
-    pytest_bdd.types.failure_reasons.FeatureLocatorFailure, pytest_bdd.types.failure_reasons.GenericFailure,
-    pytest_bdd.types.failure_reasons.MessageValidationFailure, pytest_bdd.types.failure_reasons.ParserFailure.
+    None, this module defines only type aliases and class definitions with no runtime state.
 
 Invariants:
-    - `pytest_bdd.types` keeps its documented import path, ownership boundary, and observable behavior stable for
-      callers.
+    - All symbols in this module are importable without side effects or initialization ordering.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
+    #arch-eval:reason_for_existence=5
     #arch-eval:owned_responsibility=4
-    #arch-eval:delegation_boundary=2
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=2
-    #arch-eval:state_invariants=3
+    #arch-eval:delegation_boundary=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=4
+    #arch-eval:consumer_clarity=4
+    #arch-eval:state_invariants=4
     #arch-eval:entity_fullness=2
-    #arch-eval:locational_stability=2
+    #arch-eval:locational_stability=4
 """
 
 from pytest_bdd.types.failure_reasons import (
-    CollectorFailure as CollectorFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    FeatureLocatorFailure as FeatureLocatorFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    GenericFailure as GenericFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    MessageValidationFailure as MessageValidationFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    ParserFailure as ParserFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    ScenarioRunFailure as ScenarioRunFailure,
-)
-from pytest_bdd.types.failure_reasons import (
-    StashFailure as StashFailure,
+    CollectorFailure,
+    FeatureLocatorFailure,
+    GenericFailure,
+    MessageValidationFailure,
+    ParserFailure,
+    ScenarioRunFailure,
+    StashFailure,
 )

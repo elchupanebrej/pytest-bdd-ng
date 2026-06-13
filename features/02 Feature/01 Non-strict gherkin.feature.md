@@ -32,22 +32,26 @@
     import pytest
     from pytest_bdd import when
 
+
     @pytest.fixture
     def foo():
-      return {}
+        return {}
+
 
     @when('foo has a value "bar"')
     def _bar(foo):
-      foo["bar"] = "bar"
-      assert foo["bar"] == "bar"
+        foo["bar"] = "bar"
+        assert foo["bar"] == "bar"
 
-    @when('foo is not boolean')
+
+    @when("foo is not boolean")
     def _not_boolean(foo):
-      assert foo is not bool
+        assert foo is not bool
+
 
     @when('foo has not a value "baz"')
     def _has_not_baz(foo):
-      assert "baz" not in foo
+        assert "baz" not in foo
     ```
 
 * And File "test_no_strict.py" with content:
@@ -55,13 +59,15 @@
     ```python
     from pytest_bdd import scenario
 
+
     @scenario("no_strict_background.feature", "Test background")
     def test_background_no_strict():
-      pass
+        pass
+
 
     @scenario("no_strict_scenario.feature", "Test scenario")
     def test_scenario_no_strict():
-      pass
+        pass
     ```
 
 * When run pytest

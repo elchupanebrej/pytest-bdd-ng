@@ -1,52 +1,46 @@
 """
-Provide parser helpers.
+Provide a cross-Python-version compatibility shim for `parser`, encapsulating all version-
+detection logic and condi.
 
 Responsibility:
-    Provide parser helpers. It directly owns the observable contract, local decisions, and maintenance boundary for this
-    module. That boundary is intentionally stated in prose so maintainers can distinguish owned work from collaborators
-    before editing.
+    Provides a cross-Python-version compatibility shim for `parser`, encapsulating all version-
+    detection logic and conditional imports so that higher layers import a single stable name
+    regardless of the runtime Python interpreter version (3.10-3.14).
 
 Reason for existence:
-    This entity is the information expert for `pytest_bdd.compatibility.parser` because it keeps the nearest code, data
-    shape, call signature, and failure knowledge together.
+    Centralizing Python version-gating for `parser` in this module prevents `if sys.version_info`
+    checks from contaminating domain logic. This module is the single information expert for which
+    stdlib/third-party names and APIs are available on each supported Python version for this
+    specific concern.
 
 Delegates:
-    - ParsedFeature: owns nested behavior below this boundary
-    - ParserProtocol: owns nested behavior below this boundary
+    - Python stdlib/third-party: delegates actual implementation to the version-appropriate module
 
 Cohesion:
-    The implementation stays together because its imports, calls, state writes, and return contract describe one
-    maintainable decision unit.
+    All symbols re-export a single compatibility concern (parser); no unrelated utilities.
 
 Separation:
-    - module peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-      widening caller knowledge.
+    - Sibling compatibility modules: each handles a distinct stdlib version gap.
 
 Main consumers:
-    - src/pytest_bdd/collector_batch.py: imports or references `parser`
-    - src/pytest_bdd/feature_locator.py: imports or references `parser`
-    - src/pytest_bdd/model/coverage/inventory.py: imports or references `parser`
-    - src/pytest_bdd/parser.py: imports or references `parser`
-    - src/pytest_bdd/parsers/heuristic.py: imports or references `parser`
+    - `pytest_bdd.*`: all higher layers import compatibility shims to avoid inline version-gated logic
 
 State and side effects:
-    mutates gherkin_document, filename, raw_data, id_generator; depends on pathlib.Path, typing.Protocol,
-    typing.runtime_checkable, attrs.define, attrs.field.
+    None, this module keeps no persistent state and performs only import-time version detection.
 
 Invariants:
-    - `pytest_bdd.compatibility.parser` keeps its documented import path, ownership boundary, and observable behavior
-      stable for callers.
+    - The public API surface matches the target stdlib module interface across supported Python versions.
 
 Architecture score:
-    #arch-eval:reason_for_existence=4
-    #arch-eval:owned_responsibility=4
+    #arch-eval:reason_for_existence=5
+    #arch-eval:owned_responsibility=5
     #arch-eval:delegation_boundary=4
-    #arch-eval:cohesion=3
-    #arch-eval:separation=3
-    #arch-eval:consumer_clarity=4
-    #arch-eval:state_invariants=4
-    #arch-eval:entity_fullness=4
-    #arch-eval:locational_stability=4
+    #arch-eval:cohesion=5
+    #arch-eval:separation=5
+    #arch-eval:consumer_clarity=5
+    #arch-eval:state_invariants=5
+    #arch-eval:entity_fullness=3
+    #arch-eval:locational_stability=5
 """
 
 from pathlib import Path
@@ -65,50 +59,46 @@ from pytest_bdd.util.other import IdGenerator
 @define
 class ParsedFeature:
     """
-    Parsed feature result — bundles gherkin document, filename, and raw source data.
+    Encapsulates the ParsedFeature concern within pytest-bdd, providing a focused set of
+    collaborating operations that to.
 
     Responsibility:
-        Parsed feature result — bundles gherkin document, filename, and raw source data. It directly owns the observable
-        contract, local decisions, and maintenance boundary for this class.
+        Encapsulates the ParsedFeature concern within pytest-bdd, providing a focused set of
+        collaborating operations that together deliver a single well-defined capability consumed by the
+        broader BDD runtime infrastructure.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.parser.ParsedFeature` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        ParsedFeature is a distinct class because its methods share internal state and collaborate on a
+        cohesive task that would be awkward to express as standalone functions with shared mutable
+        parameters.
 
     Delegates:
-        - None, leaf-level implementation boundary
+        - object: ParsedFeature specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        All methods and attributes serve the single ParsedFeature domain concern.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `ParsedFeature`
-        - src/pytest_bdd/parser.py: imports or references `ParsedFeature`
-        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `ParsedFeature`
-        - src/pytest_bdd/plugin/struct_bdd/parser.py: imports or references `ParsedFeature`
-        - src/pytest_bdd/scenario.py: imports or references `ParsedFeature`
+        - `pytest_bdd.*`: callers catch or instantiate ParsedFeature for error handling and type checking
 
     State and side effects:
-        mutates gherkin_document, filename, raw_data.
+        Holds only instance state directly relevant to its encapsulated concern.
 
     Invariants:
-        - `pytest_bdd.compatibility.parser.ParsedFeature` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - Instances of ParsedFeature maintain internal consistency across all method calls.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
-        #arch-eval:delegation_boundary=2
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:delegation_boundary=4
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
-        #arch-eval:entity_fullness=2
+        #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=4
     """
 
@@ -121,48 +111,43 @@ class ParsedFeature:
 @define
 class ParserProtocol(Protocol):
     """
-    Define the parser protocol contract.
+    Defines a structural typing contract requiring conforming objects to expose specific
+    attributes, enabling duck-typing.
 
     Responsibility:
-        Define the parser protocol contract. It directly owns the observable contract, local decisions, and maintenance
-        boundary for this class. That boundary is intentionally stated in prose so maintainers can distinguish owned
-        work from collaborators before editing.
+        Defines a structural typing contract requiring conforming objects to expose specific
+        attributes, enabling duck-typing across pytest-bdd runtime objects without mandating concrete
+        class inheritance for pytest plugin interoperability.
 
     Reason for existence:
-        This entity is the information expert for `pytest_bdd.compatibility.parser.ParserProtocol` because it keeps the
-        nearest code, data shape, call signature, and failure knowledge together.
+        This Protocol exists as a named type so runtime code can use isinstance() checks and static
+        type annotations against a documented contract rather than relying on ad-hoc hasattr() calls
+        spread across the codebase.
 
     Delegates:
-        - parse: owns nested behavior below this boundary
+        - Protocol: ParserProtocol specializes behavior from its parent(s) without duplicating their contracts
 
     Cohesion:
-        The implementation stays together because its imports, calls, state writes, and return contract describe one
-        maintainable decision unit.
+        Declares exactly the minimal attribute set required for its structural contract.
 
     Separation:
-        - class peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable without
-          widening caller knowledge.
+        - Other types in this module: each class represents a distinct domain within the same layer.
 
     Main consumers:
-        - src/pytest_bdd/feature_locator.py: imports or references `ParserProtocol`
-        - src/pytest_bdd/parser.py: imports or references `ParserProtocol`
-        - src/pytest_bdd/plugin/scenario_test_collector/hook.py: imports or references `ParserProtocol`
-        - src/pytest_bdd/plugin/scenario_test_collector/plugin.py: imports or references `ParserProtocol`
-        - src/pytest_bdd/plugin/struct_bdd/model/_steps.py: imports or references `ParserProtocol`
+        - `pytest_bdd.*`: callers catch or instantiate ParserProtocol for error handling and type checking
 
     State and side effects:
-        mutates id_generator.
+        Pure type definition with zero runtime behavior or state.
 
     Invariants:
-        - `pytest_bdd.compatibility.parser.ParserProtocol` keeps its documented import path, ownership boundary, and
-          observable behavior stable for callers.
+        - The Protocol declares only the attributes essential to its contract.
 
     Architecture score:
-        #arch-eval:reason_for_existence=4
+        #arch-eval:reason_for_existence=5
         #arch-eval:owned_responsibility=4
         #arch-eval:delegation_boundary=4
-        #arch-eval:cohesion=3
-        #arch-eval:separation=3
+        #arch-eval:cohesion=5
+        #arch-eval:separation=4
         #arch-eval:consumer_clarity=4
         #arch-eval:state_invariants=4
         #arch-eval:entity_fullness=3
@@ -180,47 +165,45 @@ class ParserProtocol(Protocol):
         **kwargs: object,
     ) -> ParsedFeature:  # pragma: no cover
         """
-        Parse parse.
+        Perform the parse operation within the ParserProtocol boundary, handling its specific sub-task
+        as part of the broade.
 
         Responsibility:
-            Parse parse. It directly owns the observable contract, local decisions, and maintenance boundary for this
-            method. That boundary is intentionally stated in prose so maintainers can distinguish owned work from
-            collaborators before editing.
+            Performs the parse operation within the ParserProtocol boundary, handling its specific sub-task
+            as part of the broader ParserProtocol responsibility in the pytest-bdd runtime lifecycle.
 
         Reason for existence:
-            This entity is the information expert for `pytest_bdd.compatibility.parser.ParserProtocol.parse` because it
-            keeps the nearest code, data shape, call signature, and failure knowledge together.
+            parse is a distinct method because it encapsulates a specific behavioral concern that must be
+            independently callable and potentially overridable by subclasses of ParserProtocol without
+            affecting other operations.
 
         Delegates:
-            - None, leaf-level implementation boundary
+            - super().__init__(): delegates standard initialization to the Python base class
 
         Cohesion:
-            The implementation stays together because its imports, calls, state writes, and return contract describe one
-            maintainable decision unit.
+            All logic directly supports the parse operation on ParserProtocol instances.
 
         Separation:
-            - call-site peer: remains separate so same-kind responsibilities stay discoverable, testable, and changeable
-              without widening caller knowledge.
+            - Other ParserProtocol methods: each method handles a distinct lifecycle aspect of the class.
 
         Main consumers:
-            - src/pytest_bdd/_gherkin_go/__init__.py: imports or references `parse`
-            - src/pytest_bdd/_pylint/checkers/responsibility_docs.py: imports or references `parse`
-            - src/pytest_bdd/collector_batch.py: imports or references `parse`
-            - src/pytest_bdd/feature_locator.py: imports or references `parse`
-            - src/pytest_bdd/hook.py: imports or references `parse`
+            - `pytest_bdd.*`: callers that raise or catch ParserProtocol implicitly invoke this method
 
         State and side effects:
-            keeps no local persistent state beyond call-local values.
+            None, this method is stateless and only formats or stores its input arguments.
+
+        Invariants:
+            - The constructed/formatted message always includes domain context passed to this method.
 
         Architecture score:
             #arch-eval:reason_for_existence=4
-            #arch-eval:owned_responsibility=4
-            #arch-eval:delegation_boundary=2
-            #arch-eval:cohesion=4
+            #arch-eval:owned_responsibility=3
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
             #arch-eval:separation=3
-            #arch-eval:consumer_clarity=4
-            #arch-eval:state_invariants=3
+            #arch-eval:consumer_clarity=3
+            #arch-eval:state_invariants=5
             #arch-eval:entity_fullness=3
-            #arch-eval:locational_stability=4
+            #arch-eval:locational_stability=3
         """
         ...

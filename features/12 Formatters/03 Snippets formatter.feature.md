@@ -16,6 +16,7 @@
 * And File "test_sample.py" with content:
     ```python
     from pytest_bdd import scenarios
+
     scenarios("test.feature.md")
     ```
 
