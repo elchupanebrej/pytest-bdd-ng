@@ -1,0 +1,1 @@
+"""Integration formatter tests."""
