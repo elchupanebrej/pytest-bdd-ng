@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from pytest_bdd.model.message_outcome_mapping import ObservedOutcome, validate_outcome_mappings
+from pytest_bdd_testing.tool.e2e_filter import exclude_default_bdd_features
 from pytest_bdd_testing.tool.message.capability_fixtures import make_mapping_rule
 
 pytestmark = [pytest.mark.e2e]

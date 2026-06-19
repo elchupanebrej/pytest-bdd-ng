@@ -23,7 +23,7 @@ def cck_sample_available(name: str, tmp_path: Path) -> Path:
     return download_cck_sample(name, cache_dir)
 
 
-@given("the allure-formatter converter processes the sample", target_fixture="allure_output")
+@given("the allure-cucumber converter processes the sample", target_fixture="allure_output")
 def allure_converter_processes(cck_sample: Path, tmp_path: Path) -> Path:
     """Convert the CCK sample to Allure results."""
     output_dir = tmp_path / "allure-results"
@@ -182,7 +182,7 @@ def step_visible(step: str, cck_allure_state: dict) -> None:
 
 
 @then(parsers.parse('the test status "{status}" is visible'))
-def test_status_visible(status: str, cck_allure_state: dict) -> None:
+def cck_test_status_visible(status: str, cck_allure_state: dict) -> None:
     """Assert that a test status is visible in the Allure report."""
     page = cck_allure_state["_playwright_page"]
 

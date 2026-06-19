@@ -34,7 +34,7 @@
     scenarios("valid.feature.md")
     ```
 * When run pytest
-    | cli_args | -k | valid.feature.md |
+    | cli_args | -k | valid |
 * Then pytest outcome must contain tests with statuses:
     | passed |
     |--------|

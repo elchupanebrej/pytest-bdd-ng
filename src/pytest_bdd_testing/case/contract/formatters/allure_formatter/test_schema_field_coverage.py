@@ -587,7 +587,9 @@ class TestFieldCoverageMatrix:
             assert ft in VALID_FIXTURE_TYPES
 
 
-DOCKER_ASSETS_DIR = Path(__file__).resolve().parents[5] / "tests" / "assets" / "docker" / "allure_field_coverage"
+DOCKER_ASSETS_DIR = (
+    Path(__file__).resolve().parents[6] / "src" / "pytest_bdd_testing" / "resource" / "docker" / "allure_field_coverage"
+)
 
 
 @pytest.fixture(scope="module")

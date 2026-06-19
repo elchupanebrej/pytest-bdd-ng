@@ -24,9 +24,9 @@ def mock_config() -> MagicMock:
     """Create a mock pytest Config."""
     config = MagicMock(spec=Config)
     config.option = MagicMock()
-    config.option.allure_formatter_output_dir = None
-    config.option.allure_formatter_output_dir = None
-    config.option.allure_formatter_messages_in = None
+    config.option.allure_cucumber_output_dir = None
+    config.option.allure_cucumber_output_dir = None
+    config.option.allure_cucumber_messages_in = None
     config.getini = MagicMock(return_value=None)
     config.pluginmanager = MagicMock()
     return config
@@ -40,7 +40,7 @@ def test_plugin_not_registered_by_default(mock_config: MagicMock) -> None:
 
 def test_listener_registered_with_output_dir(mock_config: MagicMock) -> None:
     """Verify AllureFormatter is registered when output directory option is provided."""
-    mock_config.option.allure_formatter_output_dir = "allure-results"
+    mock_config.option.allure_cucumber_output_dir = "allure-results"
     # Configure get_plugin to return None (not already registered)
     mock_config.pluginmanager.get_plugin = MagicMock(return_value=None)
     with patch("allure_commons.plugin_manager") as mock_pm:
@@ -48,7 +48,7 @@ def test_listener_registered_with_output_dir(mock_config: MagicMock) -> None:
             # Call early hook first (registers listener for import mode only)
             from pytest_bdd.plugin.allure_formatter.entrypoint import pytest_load_initial_conftests
 
-            pytest_load_initial_conftests(mock_config, MagicMock(), ["--allure-formatter-output", "allure-results"])
+            pytest_load_initial_conftests(mock_config, MagicMock(), ["--allure-cucumber-out", "allure-results"])
             # Then call configure
             pytest_configure(mock_config)
     mock_config.pluginmanager.register.assert_called()

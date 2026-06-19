@@ -63,15 +63,15 @@ class TestAllureHookVsImportGolden:
         # Step 2: Run in hook mode to generate Allure results
         hook_output = tmp_path / "hook-allure"
         hook_output.mkdir()
-        result = testdir.runpytest(f"--allure-formatter-output={hook_output}")
+        result = testdir.runpytest(f"--allure-cucumber-out={hook_output}")
         assert result.ret == 0, f"Hook mode failed: {result.stdout.str()}"
 
         # Step 3: Run in import mode using the NDJSON from step 1
         import_output = tmp_path / "import-allure"
         import_output.mkdir()
         result = testdir.runpytest(
-            f"--allure-formatter-output={import_output}",
-            f"--cucumber-messages={ndjson_file}",
+            f"--allure-cucumber-out={import_output}",
+            f"--allure-cucumber-messages-in={ndjson_file}",
         )
         # Import mode exits 5 (NO_TESTS_COLLECTED) because collection is cleared
         assert result.ret in {0, 5}, f"Import mode failed: {result.stdout.str()}"

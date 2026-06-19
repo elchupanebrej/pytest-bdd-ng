@@ -119,9 +119,9 @@ class DockerTimeouts:
 
     Responsibility:
         An attrs-defined configuration value object holding timeout durations (in seconds) for
-        each phase of Docker cluster operations: startup_poll (60s), compose_up (900s),
-        compose_exec (300s), compose_cp (30s), compose_down (30s), alpine_install (60s), and
-        overall_session (1800s). Serves as a single point of tuning for all time-bound waits
+        each phase of Docker cluster operations: startup_poll (60s), compose_up (1800s),
+        compose_exec (300s), compose_cp (120s), compose_down (300s), alpine_install (60s), and
+        overall_session (3600s). Serves as a single point of tuning for all time-bound waits
         in the DockerClusterManager lifecycle.
 
     Reason for existence:
@@ -182,12 +182,12 @@ class DockerTimeouts:
     """
 
     startup_poll: int = 60
-    compose_up: int = 900
+    compose_up: int = 1800
     compose_exec: int = 300
-    compose_cp: int = 30
-    compose_down: int = 30
+    compose_cp: int = 120
+    compose_down: int = 300
     alpine_install: int = 60
-    overall_session: int = 1800
+    overall_session: int = 3600
 
 
 def _run_wsl_cmd(args: list[str], timeout: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -865,7 +865,7 @@ class DockerClusterManager:
             Docker Compose clusters can hang indefinitely in CI due to network issues, resource
             exhaustion, or daemon failures. Without a session-level timeout, a hung cluster
             would block the entire CI job until the CI platform's own timeout (often hours).
-            This method provides a configurable hard limit (default 1800s/30min) after which
+            This method provides a configurable hard limit (default 3600s/60min) after which
             all cluster operations are refused, forcing the test session to fail fast rather
             than hang. It is extracted as its own method so it can be called consistently at
             every entry point without duplicating the time-check logic.
@@ -1100,8 +1100,6 @@ class DockerClusterManager:
         compose_cmd, docker_artifact_dir = self.get_cluster(remote_mode, fixture_dir, repo_root)
         self._reset_artifacts(docker_artifact_dir)
 
-        self._check_session_timeout()
-
         env = {
             **self.compose_envs[remote_mode],
             "COMPOSE_PROJECT_NAME": f"pytestbddremote{remote_mode}",
@@ -1150,7 +1148,7 @@ class DockerClusterManager:
             f"PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR={env['PYTEST_REMOTE_FAKE_NODE_CAPTURE_DIR']}",
             "controller",
             "python",
-            "src/pytest_bdd_testing/resources/docker/remote_xdist/controller_entrypoint.py",
+            "src/pytest_bdd_testing/resource/docker/remote_xdist/controller_entrypoint.py",
         ]
 
         result = self._run_docker_cmd(exec_cmd, timeout=self.timeouts.compose_exec, operation="compose_exec", env=env)

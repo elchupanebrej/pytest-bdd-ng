@@ -23,7 +23,7 @@ from pytest_bdd_testing.tool.docker.docker import (
     require_docker_daemon,
 )
 
-REMOTE_XDIST_ASSETS = Path(__file__).parents[3] / "assets" / "docker" / "remote_xdist"
+REMOTE_XDIST_ASSETS = Path(__file__).parents[2] / "resource" / "docker" / "remote_xdist"
 
 
 def test_prefers_path_lookup():
@@ -1183,12 +1183,12 @@ def test_default_values():
     """
     timeouts = DockerTimeouts()
     assert timeouts.startup_poll == 60
-    assert timeouts.compose_up == 900
+    assert timeouts.compose_up == 1800
     assert timeouts.compose_exec == 300
-    assert timeouts.compose_cp == 30
-    assert timeouts.compose_down == 30
+    assert timeouts.compose_cp == 120
+    assert timeouts.compose_down == 300
     assert timeouts.alpine_install == 60
-    assert timeouts.overall_session == 1800
+    assert timeouts.overall_session == 3600
 
 
 def test_overall_session_gte_sum_of_per_step():
@@ -2083,6 +2083,68 @@ def test_session_timer_starts_on_first_cluster_use():
         mgr.get_cluster("ssh", Path("/fixtures"), Path("/repo"))
 
         assert mgr._session_start == pytest.approx(1000.0)
+
+
+def test_active_cluster_exec_is_limited_by_compose_exec_timeout(tmp_path):
+    """
+    Verify active cluster exec is limited by compose exec timeout.
+
+    Test target:
+        Enforce framework invariants and stable API contracts.
+    Test type:
+        Unit test
+    Test scenario:
+        Given an already-running Docker cluster whose manager session is older than the
+        overall session budget, when a controller command is executed, then the command is
+        still attempted under the bounded compose_exec timeout instead of failing before
+        execution.
+    BDD reference:
+        None
+    Fixtures:
+        - tmp_path
+    Mocks:
+        - DockerClusterManager._run_docker_cmd
+    Side effects:
+        Writes only to pytest tmp_path.
+    Reduction:
+        Directly exercises manager state without launching Docker.
+    Escalation:
+        Higher-level coverage exists in remote xdist tests; this isolates the timeout contract.
+    Atomicity:
+        One setup and one assertion group validate a single timeout boundary.
+    Autonomy:
+        Covers long full-suite reuse of an active cluster.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=2
+        #test-eval:assertions_clarity=5
+    """
+    artifact_dir = tmp_path / "artifacts"
+    artifact_dir.mkdir()
+    result = subprocess.CompletedProcess(args=["docker", "compose", "exec"], returncode=0, stdout="", stderr="")
+    mgr = DockerClusterManager(backend="native", timeouts=DockerTimeouts(overall_session=1, compose_exec=7))
+    mgr.active_clusters["ssh"] = ["docker", "compose", "-f", "docker-compose.yml"]
+    mgr.artifact_dirs["ssh"] = artifact_dir
+    mgr.compose_envs["ssh"] = {}
+    mgr._session_start = 1000.0
+
+    with (
+        patch("pytest_bdd_testing.docker_cluster.time.monotonic", return_value=1002.0),
+        patch.object(mgr, "_run_docker_cmd", return_value=result) as run_docker_cmd,
+    ):
+        actual, actual_artifact_dir = mgr.run_in_controller(
+            "ssh",
+            Path("/fixtures"),
+            Path("/repo"),
+            "success",
+            "",
+        )
+
+    assert actual is result
+    assert actual_artifact_dir == artifact_dir
+    run_docker_cmd.assert_called_once()
+    assert run_docker_cmd.call_args.kwargs["timeout"] == 7
 
 
 def test_local_images_have_build_config():

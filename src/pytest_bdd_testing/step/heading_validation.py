@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pytest_bdd import given, parsers, step, then
 
 
@@ -27,7 +29,9 @@ def collect_feature_files(testdir):
 def file_with_content_heading(testdir, filename, step) -> None:
     doc_string = getattr(step.argument, "doc_string", None) if getattr(step, "argument", None) else None
     content = doc_string.content if doc_string else ""
-    testdir.makefile("", **{filename.rsplit(".", 1)[0]: content})
+    target = Path(str(testdir.tmpdir)) / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
     testdir.makeini("""
 [pytest]
 bdd_features_base_dir = .

@@ -44,7 +44,7 @@ Separation:
 
 Main consumers:
     - controller_entrypoint._build_pytest_cmd: Includes this module's fully-qualified path
-      (`pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case`) in
+      (`pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case`) in
       the pytest command for --pyargs collection.
     - pytest inside Docker controller container: Collects and executes this module's tests,
       producing the NDJSON report used by verify_report.

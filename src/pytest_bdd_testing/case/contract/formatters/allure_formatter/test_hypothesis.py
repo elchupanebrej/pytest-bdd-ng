@@ -1,4 +1,4 @@
-"""Property-based tests for allure-formatter converter using Hypothesis."""
+"""Property-based tests for allure-cucumber converter using Hypothesis."""
 
 from __future__ import annotations
 

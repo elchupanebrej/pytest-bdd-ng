@@ -37,7 +37,7 @@ Separation:
 
 Main consumers:
     - pytest collection inside Docker containers: When the controller runs `pytest --pyargs
-      pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case`, this
+      pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case`, this
       conftest is discovered as part of the package and applies the ignore rule.
     - pytest collection on the host (defensive): If this directory were to be collected by
       the host test session, this conftest would prevent duplicate feature file collection.

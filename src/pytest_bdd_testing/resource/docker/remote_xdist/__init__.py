@@ -33,17 +33,17 @@ Separation:
       (docker.py, docker_cluster.py, pytest_results.py); this sub-package owns the Docker-
       specific scripts and test modules that run inside containers. The separation prevents
       the general testing utilities from depending on Docker container-specific entrypoint logic.
-    - pytest_bdd_testing.assets.docker.remote_xdist.project: The project sub-package contains
+    - pytest_bdd_testing.resource.docker.remote_xdist.project: The project sub-package contains
       the actual pytest test files; this __init__.py only marks the parent namespace.
 
 Main consumers:
     - controller_entrypoint.py: The controller script runs inside the Docker controller container
       and imports from this package's sibling modules (verify_report) and sub-packages (project).
     - DockerClusterManager.run_in_controller: References
-      `pytest_bdd_testing.assets.docker.remote_xdist.controller_entrypoint` as the script path
+      `pytest_bdd_testing.resource.docker.remote_xdist.controller_entrypoint` as the script path
       for `docker compose exec`.
     - pytest collection inside Docker containers: Uses `--pyargs
-      pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case` to collect
+      pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case` to collect
       the test module via Python import path.
 
 State and side effects:

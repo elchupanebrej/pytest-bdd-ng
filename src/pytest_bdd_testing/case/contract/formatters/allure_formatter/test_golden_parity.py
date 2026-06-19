@@ -1,4 +1,4 @@
-"""Golden file parity tests for allure-formatter converter."""
+"""Golden file parity tests for allure-cucumber converter."""
 
 from __future__ import annotations
 

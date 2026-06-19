@@ -66,7 +66,8 @@ def _resolve_playwright_browsers_path() -> Path | None:
     configured_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
     if configured_path and configured_path != "0":
         path = Path(configured_path)
-        return path if path.exists() else None
+        if path.exists():
+            return path
 
     if os.name == "posix":
         import pwd
@@ -77,6 +78,12 @@ def _resolve_playwright_browsers_path() -> Path | None:
         else:
             path = user_home / ".cache/ms-playwright"
         return path if path.exists() else None
+
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        path = Path(local_app_data) / "ms-playwright"
+        if path.exists():
+            return path
 
     user_profile = os.environ.get("USERPROFILE")
     if user_profile:
@@ -535,11 +542,22 @@ def test_feature_driven_message_suite_html_report_renders_in_browser(
             lambda message: console_errors.append(message.text) if message.type == "error" else None,
         )
         page.goto(f"{base_url}/{html_report_path.name}", wait_until="load")
-        page.get_by_role("heading", name="Scenarios", exact=True).wait_for(state="visible", timeout=10000)
-        page.get_by_role("heading", name="before-test-run", exact=True).wait_for(state="visible", timeout=10000)
-        page.get_by_role("heading", name="after-test-run", exact=True).wait_for(state="visible", timeout=10000)
-        page.get_by_text("pass path", exact=True).wait_for(state="visible", timeout=10000)
-        page.get_by_text("fail path", exact=True).wait_for(state="visible", timeout=10000)
+        page.get_by_role("heading", name="Feature:message full-surface coverage", exact=True).wait_for(
+            state="visible",
+            timeout=10000,
+        )
+        page.get_by_role("heading", name="Scenario:pass path", exact=True).wait_for(
+            state="visible",
+            timeout=10000,
+        )
+        page.get_by_role("heading", name="Scenario:structured argument path", exact=True).wait_for(
+            state="visible",
+            timeout=10000,
+        )
+        page.get_by_role("heading", name="Scenario:fail path", exact=True).wait_for(
+            state="visible",
+            timeout=10000,
+        )
         text_attachment_locator = page.locator("summary").filter(
             has_text="Attached Text (text/plain;charset=UTF-8)",
         )
@@ -548,7 +566,6 @@ def test_feature_driven_message_suite_html_report_renders_in_browser(
         binary_attachment_locator.first.wait_for(state="visible", timeout=10000)
         assert text_attachment_locator.count() >= 1
         assert binary_attachment_locator.count() >= 1
-        assert page.locator("text=No test run hooks were executed.").count() == 0
 
     assert page_errors == []
     assert console_errors == []

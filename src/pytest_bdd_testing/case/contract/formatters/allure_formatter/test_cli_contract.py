@@ -1,4 +1,4 @@
-"""Contract tests for allure-formatter CLI entry point."""
+"""Contract tests for allure-cucumber CLI entry point."""
 
 from __future__ import annotations
 
@@ -15,16 +15,16 @@ pytestmark = [pytest.mark.contract]
 
 def _load_pyproject() -> dict:
     """Load and parse the project pyproject.toml."""
-    path = Path(__file__).resolve().parents[5] / "pyproject.toml"
+    path = Path(__file__).resolve().parents[6] / "pyproject.toml"
     return loads(path.read_text(encoding="utf-8"))
 
 
 def test_cli_registered_in_pyproject() -> None:
-    """allure-formatter entry exists in pyproject.toml [project.scripts]."""
+    """allure-cucumber entry exists in pyproject.toml [project.scripts]."""
     config = _load_pyproject()
     scripts = config.get("project", {}).get("scripts", {})
-    assert "allure-formatter" in scripts, (
-        f"allure-formatter not found in [project.scripts]; found: {list(scripts.keys())}"
+    assert "allure-cucumber" in scripts, (
+        f"allure-cucumber not found in [project.scripts]; found: {list(scripts.keys())}"
     )
 
 
@@ -41,7 +41,7 @@ def test_converter_has_no_allure_python_runtime_dependency() -> None:
     normalized = [dependency.lower().replace("_", "-") for dependency in dependencies]
     assert not any(dependency.startswith(forbidden_name) for dependency in normalized for forbidden_name in forbidden)
 
-    source_root = Path(__file__).resolve().parents[5] / "src" / "pytest_bdd" / "plugin" / "allure_formatter"
+    source_root = Path(__file__).resolve().parents[6] / "src" / "pytest_bdd" / "plugin" / "allure_formatter"
 
     # Check standalone converter and CLI only
     files_to_check = [*list((source_root / "converter").rglob("*.py")), source_root / "cli.py"]

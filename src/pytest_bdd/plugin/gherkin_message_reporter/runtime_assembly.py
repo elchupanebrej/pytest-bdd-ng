@@ -81,11 +81,16 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # no
     reporter._services = ()
     reporter._hook_services = ()
 
+    hook = getattr(reporter.config, "hook", None)
+    runtime_messages_enabled = True
+    if hook is not None:
+        runtime_messages_enabled = hook.pytest_bdd_enable_runtime_messages(config=reporter.config)
+
     reporter.is_disabled = all(
         [
             reporter.config.option.messages_ndjson_path is None,
             reporter.config.option.cucumber_html_path is None,
-            not reporter.config.hook.pytest_bdd_enable_runtime_messages(config=reporter.config),
+            not runtime_messages_enabled,
             not reporter.requested_cucumber_formatters,
         ],
     )
@@ -150,6 +155,7 @@ def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServi
         step_catalog_service,
         scenario_service,
         attachment_service,
+        ide_binding_service,
     )
     return ReporterServiceGraph(
         lifecycle_service=lifecycle_service,
@@ -161,7 +167,7 @@ def assemble_reporter_runtime(reporter: GherkinMessageReporter) -> ReporterServi
         live_formatter_service=live_formatter_service,
         ide_binding_service=ide_binding_service,
         hook_services=hook_services,
-        services=(*hook_services, live_formatter_service, ide_binding_service),
+        services=(*hook_services, live_formatter_service),
     )
 
 

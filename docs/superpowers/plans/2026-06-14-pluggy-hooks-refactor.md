@@ -162,7 +162,7 @@ def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Allure Cucumber")
     group.addoption(
-        "--allure-cucumber-output",
+        "--allure-cucumber-out",
         action="store",
         dest="allure_cucumber_output_dir",
         metavar="PATH",
@@ -197,7 +197,7 @@ def pytest_configure(config: Config) -> None:
     # Fail early if there is a configuration conflict
     if messages_in is not None and not output_dir:
         raise pytest.UsageError(
-            "--allure-cucumber-messages-in requires --allure-cucumber-output to write results."
+            "--allure-cucumber-messages-in requires --allure-cucumber-out to write results."
         )
 
     has_output = getattr(config.option, "allure_cucumber_output_dir", None) is not None or bool(output_dir)
@@ -835,7 +835,7 @@ def test_plugin_requires_output_with_input(mock_config: MagicMock) -> None:
     mock_config.option.allure_cucumber_output_dir = None
     mock_config.getini.return_value = None
 
-    with pytest.raises(pytest.UsageError, match="requires --allure-cucumber-output"):
+    with pytest.raises(pytest.UsageError, match="requires --allure-cucumber-out"):
         pytest_configure(mock_config)
 
 

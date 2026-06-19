@@ -11,7 +11,7 @@ import pytest
 @pytest.fixture
 def allure_schema_path() -> Path:
     """Path to committed Allure3 events JSON Schema."""
-    repo_root = Path(__file__).resolve().parents[5]
+    repo_root = Path(__file__).resolve().parents[6]
     return repo_root / "docs" / "allure3-events.schema.json"
 
 

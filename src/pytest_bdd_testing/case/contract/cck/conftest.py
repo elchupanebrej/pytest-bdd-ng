@@ -27,6 +27,7 @@ from pytest_bdd.testing.cck import (
 from pytest_bdd_testing.tool.docker.docker import ensure_allure3_image, require_docker_daemon
 
 ALLURE_DOCKER_IMAGE = "allure3-local:latest"
+ALLURE_DOCKER_TIMEOUT = 300
 
 
 @pytest.fixture(scope="session")
@@ -87,7 +88,7 @@ def _run_allure_docker(allure_results: Path, output_dir: Path) -> subprocess.Com
         ],
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=ALLURE_DOCKER_TIMEOUT,
         check=False,
     )
 
@@ -115,7 +116,8 @@ def _resolve_playwright_browsers_path() -> Path | None:
     configured_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
     if configured_path and configured_path != "0":
         path = Path(configured_path)
-        return path if path.exists() else None
+        if path.exists():
+            return path
 
     if os.name == "posix":
         import pwd
@@ -126,6 +128,12 @@ def _resolve_playwright_browsers_path() -> Path | None:
         else:
             path = user_home / ".cache/ms-playwright"
         return path if path.exists() else None
+
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        path = Path(local_app_data) / "ms-playwright"
+        if path.exists():
+            return path
 
     user_profile = os.environ.get("USERPROFILE")
     if user_profile:

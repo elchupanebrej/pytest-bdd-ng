@@ -1,38 +1,19 @@
 # Feature: Allure scenario reporting
-  This feature documents Allure reporting for regular scenarios and validates
-  plugin-gated execution when Allure integration is unavailable.
+  This feature documents pytest-native Allure-Cucumber result generation for
+  regular scenarios.
 
-## Scenario: Scenario reporting is guarded by Allure availability
-* Given Copy path from "features/07 Report/06 Allure/01 scenario.feature" to test path "scenario.feature"
-
-* And File "conftest.py" with content:
-
-    ```python
-    from pytest_bdd import given
-
-
-    @given("passing step")
-    def _(): ...
-    ```
-
-* And File "test_sample.py" with content:
-
-    ```python
-    import pytest
-    from pytest_bdd import scenarios
-    from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-
-    pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
-    test = scenarios("scenario.feature")
-    ```
+## Scenario: Scenario reporting writes Allure-Cucumber results
+* Given Copy path from "src/pytest_bdd_testing/resource/allure_reporting/simple_scenario" to test path "."
 
 * When run pytest
 
-    | cli_args | -k test_sample.py |
-    |----------|-------------------|
+    | cli_args | --allure-cucumber-out | allure-output | -k | test_sample.py |
+    |----------|--------------------------|---------------|----|----------------|
 
 * Then pytest outcome must contain tests with statuses:
 
-    | skipped |
-    |---------|
-    | 1       |
+    | passed |
+    |--------|
+    | 1      |
+
+* And Directory "allure-output" contains Allure result JSON files

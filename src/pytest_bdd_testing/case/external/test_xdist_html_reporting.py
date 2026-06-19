@@ -11,6 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from pytest_bdd import given, scenario, then, when
+from pytest_bdd_testing.tool.e2e_filter import exclude_default_bdd_features
 
 pytestmark = [pytest.mark.xdist, pytest.mark.slow]
 

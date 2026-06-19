@@ -176,12 +176,12 @@ def get_test_paths() -> list[str]:
                 .get("tool", {})
                 .get("pytest", {})
                 .get("ini_options", {})
-                .get("testpaths", ["src/pytest_bdd_testing/cases"])
+                .get("testpaths", ["src/pytest_bdd_testing/case"])
             )
             return cast("list[str]", paths)
     except Exception:  # noqa: BLE001  -- config read is best-effort; fall back to project default test paths
         pass
-    return ["src/pytest_bdd_testing/cases"]
+    return ["src/pytest_bdd_testing/case"]
 
 
 def get_test_package_prefixes() -> list[str]:

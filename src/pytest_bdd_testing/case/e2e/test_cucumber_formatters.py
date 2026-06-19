@@ -58,10 +58,10 @@ def test_fake_runtime_support_uses_template_assets_from_shared_support_module() 
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    repo_root = Path(__file__).resolve().parents[5]
-    support_source = (repo_root / "src" / "pytest_bdd_testing" / "cucumber_formatters" / "rendering.py").read_text(
-        encoding="utf-8",
-    )
+    repo_root = Path(__file__).resolve().parents[4]
+    support_source = (
+        repo_root / "src" / "pytest_bdd_testing" / "tool" / "cucumber_formatter" / "rendering.py"
+    ).read_text(encoding="utf-8")
 
     assert "fake_node_runtime.py.j2" in support_source
     assert "fake_npm_runtime.py.j2" in support_source

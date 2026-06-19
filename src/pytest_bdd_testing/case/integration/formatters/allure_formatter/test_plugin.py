@@ -66,7 +66,7 @@ def _make_minimal_ndjson(path: Path) -> None:
 
 
 def test_live_mode_emits_results(testdir, tmp_path: Path) -> None:
-    """pytest with --allure-formatter-output (live mode) runs BDD and produces results."""
+    """pytest with --allure-cucumber-out (live mode) runs BDD and produces results."""
     output = tmp_path / "allure-results"
     testdir.makeconftest("")
     testdir.makepyfile(
@@ -76,7 +76,7 @@ def test_noop():
 """,
     )
     result = testdir.runpytest_subprocess(
-        "--allure-formatter-output",
+        "--allure-cucumber-out",
         str(output),
     )
     result.assert_outcomes(passed=1)
@@ -84,7 +84,7 @@ def test_noop():
 
 
 def test_import_mode_replays_ndjson(testdir, tmp_path: Path) -> None:
-    """pytest with --cucumber-messages replays NDJSON into Allure results."""
+    """pytest with --allure-cucumber-messages-in replays NDJSON into Allure results."""
     messages = tmp_path / "messages.ndjson"
     _make_minimal_ndjson(messages)
     output = tmp_path / "allure-results"
@@ -96,9 +96,9 @@ def test_noop():
 """,
     )
     result = testdir.runpytest_subprocess(
-        "--cucumber-messages",
+        "--allure-cucumber-messages-in",
         str(messages),
-        "--allure-formatter-output",
+        "--allure-cucumber-out",
         str(output),
     )
     json_files = list(output.glob("*.json")) if output.exists() else []
@@ -118,9 +118,9 @@ def test_noop():
 """,
     )
     result = testdir.runpytest_subprocess(
-        "--cucumber-messages",
+        "--allure-cucumber-messages-in",
         str(messages),
-        "--allure-formatter-output",
+        "--allure-cucumber-out",
         str(output),
     )
     # Import mode deselects all collected items, so ExitCode.NO_TESTS_COLLECTED (5) is expected
@@ -129,8 +129,8 @@ def test_noop():
     assert len(json_files) >= 1, f"Expected Allure output from NDJSON replay, found: {json_files}"
 
 
-def test_deprecated_allure_messages_in_option(testdir, tmp_path: Path) -> None:
-    """pytest with deprecated --cucumber-messages replays NDJSON into Allure results."""
+def test_import_mode_accepts_equals_form(testdir, tmp_path: Path) -> None:
+    """pytest accepts --allure-cucumber-messages-in=PATH for NDJSON replay."""
     messages = tmp_path / "messages.ndjson"
     _make_minimal_ndjson(messages)
     output = tmp_path / "allure-results"
@@ -142,9 +142,8 @@ def test_noop():
 """,
     )
     result = testdir.runpytest_subprocess(
-        "--cucumber-messages",
-        str(messages),
-        "--allure-formatter-output",
+        f"--allure-cucumber-messages-in={messages}",
+        "--allure-cucumber-out",
         str(output),
     )
     json_files = list(output.glob("*.json")) if output.exists() else []
@@ -152,7 +151,7 @@ def test_noop():
 
 
 def test_plugin_respects_ini_config(testdir, tmp_path: Path) -> None:
-    """Plugin reads allure_formatter_output_dir from INI and loads without error."""
+    """Plugin reads allure_cucumber_output_dir from INI and loads without error."""
     output = tmp_path / "custom-allure"
     output.mkdir()
     testdir.makeconftest("")
@@ -162,7 +161,7 @@ def test_noop():
     pass
 """,
     )
-    ini_content = f"[pytest]\nallure_formatter_output_dir = {output.as_posix()}\n"
+    ini_content = f"[pytest]\nallure_cucumber_output_dir = {output.as_posix()}\n"
     testdir.makefile(".ini", pytest=ini_content)
     result = testdir.runpytest_subprocess()
     result.assert_outcomes(passed=1)

@@ -56,7 +56,7 @@ Separation:
 
 Main consumers:
     - controller_entrypoint.main: Runs verify_report as a subprocess via
-      `python -m pytest_bdd_testing.assets.docker.remote_xdist.verify_report` after pytest.
+      `python -m pytest_bdd_testing.resource.docker.remote_xdist.verify_report` after pytest.
     - Direct CLI invocation: Can be run standalone for debugging:
       `python verify_report.py <report.ndjson> <mode> <transport>`.
 

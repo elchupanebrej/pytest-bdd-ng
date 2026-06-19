@@ -279,7 +279,6 @@ class TestResponsibilityDocsChecker(BaseChecker):
             #arch-eval:entity_fullness=3
             #arch-eval:locational_stability=5
         """
-        # Module-level validation is disabled; only test functions are validated.
         return
 
     def visit_functiondef(self, node: nodes.FunctionDef) -> None:
@@ -359,7 +358,7 @@ class TestResponsibilityDocsChecker(BaseChecker):
         filename = Path(filepath).name
         is_test_file = (
             (filename.startswith("test_") or filename.endswith("_test.py"))
-            and ("cases/" in normalized or "/tests/" in normalized or normalized.startswith("tests/"))
+            and ("case/" in normalized or "/tests/" in normalized or normalized.startswith("tests/"))
             and filename not in {"conftest.py", "__init__.py", "test_pylint_checkers.py"}
         )
         if not is_test_file:

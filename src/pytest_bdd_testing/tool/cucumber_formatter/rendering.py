@@ -32,7 +32,7 @@ Reason for existence:
 
 Delegates:
     - `pytest_bdd.compatibility.importlib.resources.files("pytest_bdd_testing")`: Provides access to the
-    `resources/templates/cucumber_formatters/` directory as a traversable package resource, used by
+    `resource/templates/cucumber_formatters/` directory as a traversable package resource, used by
     `_load_support_template` to read Jinja2-style template files bundled with the package.
     - `pytest_bdd.plugin.gherkin_message_reporter.session.CucumberFormatterRequest`: The typed request object used by
     `materialize_live_formatter_runtime` to construct per-formatter requests from plugin metadata; each request carries
@@ -109,8 +109,8 @@ Invariants:
     `--formatter` flag accepts; the keys are the formatter names used in test assertions and must match the names in
     `FormatterPluginCatalog`.
     - `_REPO_ROOT` is computed as `Path(__file__).resolve().parents[4]` and must resolve to the repository root; this is
-    coupled to the directory depth of this file under `src/pytest_bdd_testing/cucumber_formatters/`.
-    - `_TEMPLATE_RESOURCE_DIR` must point to the `resources/templates/cucumber_formatters/` directory inside the
+    coupled to the directory depth of this file under `src/pytest_bdd_testing/tool/cucumber_formatter/`.
+    - `_TEMPLATE_RESOURCE_DIR` must point to the `resource/templates/cucumber_formatters/` directory inside the
     `pytest_bdd_testing` package; templates placed there are loaded by name without path prefixes.
     - The fake node runtime shim scripts (`fake_node_runtime.py.j2`, `fake_npm_runtime.py.j2`) must accept the
     `__FORMATTER_OUTPUTS__` replacement placeholder, which receives the `repr()` of `_FAKE_FORMATTER_OUTPUTS`.
@@ -176,7 +176,7 @@ _FAKE_FORMATTER_OUTPUTS = {
 }
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-_TEMPLATE_RESOURCE_DIR = files("pytest_bdd_testing").joinpath("resources", "templates", "cucumber_formatters")
+_TEMPLATE_RESOURCE_DIR = files("pytest_bdd_testing").joinpath("resource", "templates", "cucumber_formatters")
 
 
 def _load_support_template(template_name: str) -> str:

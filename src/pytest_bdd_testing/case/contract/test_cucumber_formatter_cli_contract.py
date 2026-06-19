@@ -554,7 +554,7 @@ def test_formatter_plugins_have_independent_pytest11_entrypoints() -> None:
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    pyproject_path = Path(__file__).resolve().parents[5] / "pyproject.toml"
+    pyproject_path = Path(__file__).resolve().parents[4] / "pyproject.toml"
     pyproject = loads(pyproject_path.read_text(encoding="utf-8"))
     pytest11_entrypoints = pyproject["project"]["entry-points"]["pytest11"]
 
@@ -596,7 +596,7 @@ def test_runtime_session_resolves_formatter_requests_via_hooks_not_entrypoint_re
         #test-eval:assertions_clarity=5
     """
     session_source = (
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[4]
         / "src"
         / "pytest_bdd"
         / "plugin"
@@ -681,7 +681,7 @@ def test_entrypoint_source_does_not_fall_back_to_private_reporter_methods() -> N
         #test-eval:assertions_clarity=5
     """
     entrypoint_source = (
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[4]
         / "src"
         / "pytest_bdd"
         / "plugin"

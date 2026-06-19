@@ -1,4 +1,4 @@
-"""Contract tests for allure-formatter converter mapping guarantees."""
+"""Contract tests for allure-cucumber converter mapping guarantees."""
 
 from __future__ import annotations
 

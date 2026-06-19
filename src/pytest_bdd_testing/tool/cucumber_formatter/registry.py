@@ -95,7 +95,7 @@ Invariants:
     - `_VISIBLE_PYTEST_TERMINAL_FRAGMENTS` defines the exact set of substrings that MUST appear in output when no
     terminal formatter is active.
     - `_REPO_ROOT` is computed as `Path(__file__).resolve().parents[4]` and must resolve to the repository root; the
-    parent count (4) is coupled to the directory depth of this file under `src/pytest_bdd_testing/cucumber_formatters/`.
+    parent count (4) is coupled to the directory depth of this file under `src/pytest_bdd_testing/tool/cucumber_formatter/`.
     - `run_pytest_via_real_entrypoint` strips all `PYTEST_*` environment variables (except `PYTEST_BDD_*`) from the
     subprocess environment to prevent test-session leakage.
     - `with_pytester_terminal_capture_disabled` must inject `--capture=no` only when a terminal formatter flag is

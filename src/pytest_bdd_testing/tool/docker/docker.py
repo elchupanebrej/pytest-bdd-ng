@@ -802,3 +802,36 @@ def require_docker_daemon() -> str:  # pylint: disable=inconsistent-return-state
         pytest.skip("WSL2 Alpine dist not found")
 
     pytest.skip("Docker Desktop did not start within timeout")
+
+
+def ensure_allure3_image() -> None:
+    """Ensure the local Allure 3 Docker image used by UI contract tests exists."""
+    docker_bin = _resolve_tool_path("docker")
+    if docker_bin is None:
+        pytest.skip("Docker CLI not found")
+
+    image = "allure3-local:latest"
+    inspect = subprocess.run(  # noqa: S603  # subprocess with trusted docker command
+        [docker_bin, "image", "inspect", image],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if inspect.returncode == 0:
+        return
+
+    dockerfile_dir = Path(__file__).resolve().parents[2] / "resource" / "docker" / "allure3"
+    dockerfile = dockerfile_dir / "Dockerfile"
+    if not dockerfile.exists():
+        pytest.fail(f"Allure 3 Dockerfile not found: {dockerfile}")
+
+    build = subprocess.run(  # noqa: S603  # subprocess with trusted docker command
+        [docker_bin, "build", "-t", image, str(dockerfile_dir)],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if build.returncode != 0:
+        pytest.skip(f"Allure 3 Docker image build failed: {build.stderr[:500]}")

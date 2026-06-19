@@ -34,7 +34,7 @@ def test_two():
 """,
     )
     result = testdir.runpytest_subprocess(
-        "--allure-formatter-output",
+        "--allure-cucumber-out",
         str(tmp_path / "allure-results"),
     )
     result.assert_outcomes(passed=2)
@@ -45,8 +45,8 @@ def test_message_flow_unit_level() -> None:
     """Verify the full message flow: pytest_bdd_message -> adapter -> allure lifecycle."""
     config = MagicMock(spec=Config)
     config.option = MagicMock()
-    config.option.allure_formatter_output_dir = "test-allure-results"
-    config.option.allure_formatter_messages_in = None
+    config.option.allure_cucumber_output_dir = "test-allure-results"
+    config.option.allure_cucumber_messages_in = None
     config.getini = MagicMock(return_value=None)
 
     listener = AllureFormatter(config=config, output_dir="test-allure-results")
@@ -99,8 +99,8 @@ def test_message_flow_failure_status() -> None:
     """Verify that FAILED status is correctly mapped through the message flow."""
     config = MagicMock(spec=Config)
     config.option = MagicMock()
-    config.option.allure_formatter_output_dir = "test-allure-results"
-    config.option.allure_formatter_messages_in = None
+    config.option.allure_cucumber_output_dir = "test-allure-results"
+    config.option.allure_cucumber_messages_in = None
     config.getini = MagicMock(return_value=None)
 
     listener = AllureFormatter(config=config, output_dir="test-allure-results")
@@ -154,8 +154,8 @@ def test_message_flow_multiple_scenarios() -> None:
     """Verify the message flow handles multiple sequential scenarios."""
     config = MagicMock(spec=Config)
     config.option = MagicMock()
-    config.option.allure_formatter_output_dir = "test-allure-results"
-    config.option.allure_formatter_messages_in = None
+    config.option.allure_cucumber_output_dir = "test-allure-results"
+    config.option.allure_cucumber_messages_in = None
     config.getini = MagicMock(return_value=None)
 
     listener = AllureFormatter(config=config, output_dir="test-allure-results")
@@ -201,7 +201,7 @@ def test_message_flow_multiple_scenarios() -> None:
 
 
 def test_plugin_with_ini_config(testdir, tmp_path: Path) -> None:
-    """Verify the plugin reads allure_formatter_output_dir from INI when CLI flag is absent."""
+    """Verify the plugin reads allure_cucumber_output_dir from INI when CLI flag is absent."""
     output = tmp_path / "custom-allure"
     output.mkdir()
     testdir.makeconftest("")
@@ -211,7 +211,7 @@ def test_one():
     pass
 """,
     )
-    ini_content = f"[pytest]\nallure_formatter_output_dir = {output.as_posix()}\n"
+    ini_content = f"[pytest]\nallure_cucumber_output_dir = {output.as_posix()}\n"
     testdir.makefile(".ini", pytest=ini_content)
     result = testdir.runpytest_subprocess()
     result.assert_outcomes(passed=1)

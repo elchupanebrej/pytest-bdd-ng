@@ -66,7 +66,7 @@ class AllureFormatterPlugin:
             self._listener.stop()
             self._listener = None
 
-    def pytest_bdd_enable_runtime_messages(self, config: Config) -> bool:
+    def pytest_bdd_enable_runtime_messages(self, config: Config) -> bool:  # noqa: PLR6301  -- pluggy hook keeps instance-method shape
         """
         Enable producing runtime messages in live mode.
 

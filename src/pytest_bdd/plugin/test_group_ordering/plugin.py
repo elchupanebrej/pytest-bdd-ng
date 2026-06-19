@@ -52,3 +52,18 @@ Architecture score:
     #arch-eval:entity_fullness=4
     #arch-eval:locational_stability=5
 """
+
+from __future__ import annotations
+
+from typing import Any
+
+from pytest_bdd.util.tests_group_ordering import register_group_config_options
+
+
+class TestGroupOrderingPlugin:
+    """Pytest plugin adapter for test group ordering options."""
+
+    @staticmethod
+    def pytest_addoption(parser: Any) -> None:
+        """Register test group ordering configuration options."""
+        register_group_config_options(parser)

@@ -25,7 +25,7 @@ class AllureFormatterHookSpec:
     """
 
     @pytest.hookspec(firstresult=True)
-    def pytest_bdd_consume_messages(self, config: Config) -> bool:
+    def pytest_bdd_consume_messages(self, config: Config) -> bool:  # noqa: PLR6301  -- pluggy hookspec keeps instance-method shape
         """
         Return True if a plugin wants to consume the NDJSON message stream.
 

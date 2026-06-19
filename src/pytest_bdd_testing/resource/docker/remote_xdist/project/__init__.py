@@ -7,7 +7,7 @@ Responsibility:
     collection ignore rules) and the remote_aggregation_case test module that defines BDD
     step definitions and scenario loading for the aggregation.feature file. The __init__.py
     itself is empty — it exists solely to make the directory importable so that the controller
-    entrypoint can collect tests via `--pyargs pytest_bdd_testing.assets.docker.remote_xdist.
+    entrypoint can collect tests via `--pyargs pytest_bdd_testing.resource.docker.remote_xdist.
     project.remote_aggregation_case`.
 
 Reason for existence:
@@ -28,14 +28,14 @@ Cohesion:
     meaningfully applicable to an empty namespace marker.
 
 Separation:
-    - pytest_bdd_testing.assets.docker.remote_xdist (parent package): Contains entrypoint
+    - pytest_bdd_testing.resource.docker.remote_xdist (parent package): Contains entrypoint
       scripts; this sub-package contains the actual test code executed inside containers.
     - pytest_bdd_testing (root testing package): Contains general testing utilities; this
       sub-package is a Docker-container-specific test project.
 
 Main consumers:
     - controller_entrypoint._build_pytest_cmd: References this package via
-      `--pyargs pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case`
+      `--pyargs pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case`
       to collect and execute the remote aggregation test module inside the controller container.
     - pytest collection inside Docker containers: The package is imported when pytest runs
       with --pyargs in the container.

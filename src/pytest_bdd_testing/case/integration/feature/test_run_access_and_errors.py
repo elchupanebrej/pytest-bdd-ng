@@ -198,7 +198,7 @@ def test_scenario_cleanup_after_error_succeeds(testdir):
                     Then cleanup should work
         """,
     )
-    result = testdir.runpytest("-v")
+    result = testdir.runpytest("-v", "-W", "ignore::ResourceWarning")
     result.assert_outcomes(failed=1, passed=1)
 
 

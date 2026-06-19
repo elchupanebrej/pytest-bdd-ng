@@ -512,7 +512,7 @@ def nonexistent_ndjson_path(tmp_path):
     return tmp_path / "nonexistent.ndjson"
 
 
-@when("the allure-formatter converter processes the file")
+@when("the allure-cucumber converter processes the file")
 def process_with_converter(tmp_path, request, cucumber_messages_ndjson_one_passing):  # noqa: ARG001  # fixture injection
     """Process the NDJSON file with the converter."""
     output_dir = tmp_path / "allure-results"
@@ -521,7 +521,7 @@ def process_with_converter(tmp_path, request, cucumber_messages_ndjson_one_passi
     return output_dir
 
 
-@when(parsers.parse("the allure-formatter converter processes the file"))
+@when(parsers.parse("the allure-cucumber converter processes the file"))
 def process_with_converter(tmp_path, request, cucumber_messages_ndjson):  # pylint: disable=function-redefined  # noqa: ARG001, F811  # fixture injection, overloaded step
     """Process the NDJSON file with the converter."""
     output_dir = tmp_path / "allure-results"
@@ -530,7 +530,7 @@ def process_with_converter(tmp_path, request, cucumber_messages_ndjson):  # pyli
     return output_dir
 
 
-@when("the allure-formatter CLI is invoked with that path")
+@when("the allure-cucumber CLI is invoked with that path")
 def invoke_cli(nonexistent_ndjson_path):
     """Invoke the CLI with a nonexistent file."""
     return subprocess.run(
@@ -844,7 +844,8 @@ def _resolve_playwright_browsers_path() -> Path | None:
     configured_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
     if configured_path and configured_path != "0":
         path = Path(configured_path)
-        return path if path.exists() else None
+        if path.exists():
+            return path
 
     if os.name == "posix":
         import pwd  # pylint: disable=import-error  # posix-only module
@@ -855,6 +856,12 @@ def _resolve_playwright_browsers_path() -> Path | None:
         else:
             path = user_home / ".cache/ms-playwright"
         return path if path.exists() else None
+
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        path = Path(local_app_data) / "ms-playwright"
+        if path.exists():
+            return path
 
     user_profile = os.environ.get("USERPROFILE")
     if user_profile:
@@ -879,7 +886,7 @@ def _allure_result_files(output_dir: Path) -> list[Path]:
     return result_files
 
 
-@then(parsers.parse('the local allure-formatter plugin generated results for "{expected_count:d}" scenarios'))
+@then(parsers.parse('the local allure-cucumber plugin generated results for "{expected_count:d}" scenarios'))
 def check_local_plugin_result_count(testdir, expected_count: int) -> None:
     """Assert local plugin generated expected scenario result count."""
     output_dir = Path(testdir.tmpdir.strpath) / "allure-full-results"

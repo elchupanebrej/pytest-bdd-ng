@@ -33,7 +33,9 @@ from pytest_bdd_testing.tool.message.stream_assertions import (
 
 pytestmark = [pytest.mark.xdist, pytest.mark.docker, pytest.mark.slow]
 
-FIXTURE_DIR = Path(__file__).resolve().parents[5] / "src" / "pytest_bdd_testing" / "assets" / "docker" / "remote_xdist"
+FIXTURE_DIR = (
+    Path(__file__).resolve().parents[4] / "src" / "pytest_bdd_testing" / "resource" / "docker" / "remote_xdist"
+)
 REPORT_NAME = "remote-xdist.ndjson"
 LOCAL_REMOTE_TEST_TIMEOUT_SECONDS = 240
 SSH_REMOTE_TEST_TIMEOUT_SECONDS = 1500
@@ -138,7 +140,7 @@ def _run_local_xdist(  # noqa: C901
     else:
         extra_args = []
 
-    repo_root = Path(__file__).resolve().parents[5]
+    repo_root = Path(__file__).resolve().parents[4]
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo_root / "src"), env.get("PYTHONPATH", "")]))
 
     report_path = tmp_path / REPORT_NAME
@@ -147,8 +149,6 @@ def _run_local_xdist(  # noqa: C901
         sys.executable,
         "-m",
         "pytest",
-        "-p",
-        "pytest_bdd.plugin.test_group_ordering.entrypoint",
         "-o",
         "log_cli=true",
         "--log-cli-level=WARNING",
@@ -157,7 +157,7 @@ def _run_local_xdist(  # noqa: C901
         *xdist_args,
         f"--messages-ndjson={report_path}",
         "--pyargs",
-        "pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+        "pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case",
         *extra_args,
         "-q",
     ]
@@ -169,7 +169,7 @@ def _run_local_xdist(  # noqa: C901
         verify_cmd = [
             sys.executable,
             "-m",
-            "pytest_bdd_testing.assets.docker.remote_xdist.verify_report",
+            "pytest_bdd_testing.resource.docker.remote_xdist.verify_report",
             str(report_path),
             "success" if verify_mode == "success-live" else verify_mode,
             remote_mode,
@@ -229,7 +229,7 @@ def _run_remote_xdist_in_controller(
 ) -> subprocess.CompletedProcess[str]:
     mgr = get_cluster_manager()
     mgr.set_backend(require_docker_daemon())
-    repo_root = Path(__file__).resolve().parents[5]
+    repo_root = Path(__file__).resolve().parents[4]
 
     if verify_mode == "success-live":
         _, artifact_dir = mgr.get_cluster(remote_mode, FIXTURE_DIR, repo_root)
@@ -242,7 +242,7 @@ def _run_remote_xdist_in_controller(
         if compose_cmd:
             mgr._run_docker_cmd(
                 [*compose_cmd, "exec", "-T", "controller", "rm", "-rf", "/fake-node-runtime"],
-                timeout=30,
+                timeout=mgr.timeouts.compose_exec,
                 env=mgr.compose_envs.get(remote_mode),
             )
             cp_res = mgr._run_docker_cmd(
@@ -252,7 +252,7 @@ def _run_remote_xdist_in_controller(
                     str(Path(artifact_dir) / "fake-node-runtime"),
                     "controller:/fake-node-runtime",
                 ],
-                timeout=60,
+                timeout=mgr.timeouts.compose_cp,
                 env=mgr.compose_envs.get(remote_mode),
             )
             assert cp_res.returncode == 0, (
@@ -266,6 +266,8 @@ def _run_remote_xdist_in_controller(
         verify_mode,
         fail_transport_workers,
     )
+    if result.returncode != 0:
+        return result
 
     docker_report_path = docker_artifact_dir / "remote-xdist.ndjson"
     if docker_report_path.exists():
@@ -275,7 +277,7 @@ def _run_remote_xdist_in_controller(
         if compose_cmd:
             cp_res = mgr._run_docker_cmd(
                 [*compose_cmd, "cp", "controller:/artifacts/remote-xdist.ndjson", str(tmp_path / REPORT_NAME)],
-                timeout=30,
+                timeout=mgr.timeouts.compose_cp,
                 env=mgr.compose_envs.get(remote_mode),
             )
             assert cp_res.returncode == 0, (
@@ -295,7 +297,7 @@ def _run_remote_xdist_in_controller(
                     "controller:/fake-node-runtime/fake-node-captures",
                     str(tmp_path / "fake-node-captures"),
                 ],
-                timeout=30,
+                timeout=mgr.timeouts.compose_cp,
                 env=mgr.compose_envs.get(remote_mode),
             )
             assert cp_res.returncode == 0, (

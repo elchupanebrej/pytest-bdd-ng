@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from types import SimpleNamespace
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 Namespace: TypeAlias = SimpleNamespace
 
@@ -23,7 +25,7 @@ def _iter_tag_names(feature: Namespace, pickle: Namespace) -> Iterable[str]:
     yield from (str(tag.name).lstrip("@").lower() for tag in getattr(pickle, "tags", ()))
 
 
-def exclude_default_bdd_features(config: object, feature: Namespace, pickle: Namespace) -> bool:  # noqa: ARG001
+def exclude_default_bdd_features(config: object, feature: Namespace, pickle: Namespace) -> bool:  # noqa: ARG001  # pytest-bdd filter hook passes config
     """Return whether a feature scenario belongs in the default broad e2e sweep."""
     feature_uri = str(getattr(feature, "uri", "")).lower()
     feature_name = str(getattr(getattr(feature, "feature", None), "name", "")).lower()

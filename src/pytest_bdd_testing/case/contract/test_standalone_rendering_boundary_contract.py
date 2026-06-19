@@ -10,9 +10,9 @@ from pathlib import Path
 from pytest_bdd.plugin.gherkin_message_reporter.standalone_renderer import StandaloneCucumberFormatterRenderer
 from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 
-CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contract" / "fixtures" / "standalone_rendering_boundary.md"
+CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contract" / "fixtures" / "standalone_rendering_boundary.md"
 STANDALONE_RENDERER_PATH = (
-    Path(__file__).resolve().parents[5]
+    Path(__file__).resolve().parents[4]
     / "src"
     / "pytest_bdd"
     / "plugin"

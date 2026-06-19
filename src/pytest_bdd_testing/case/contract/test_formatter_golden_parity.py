@@ -16,7 +16,7 @@ from pytest_bdd.script.render_cucumber_formatters import main
 from pytest_bdd.util.cucumber_formatter_support.registry import FormatterPluginCatalog
 from pytest_bdd_testing.tool.cucumber_formatter import install_fake_node
 
-GOLDEN_PATH = Path(__file__).resolve().parents[3] / "fixtures" / "cucumber_formatter_golden.json"
+GOLDEN_PATH = Path(__file__).resolve().parents[2] / "resource" / "expected" / "cucumber_formatter_golden.json"
 EXPECTED_FORMATTERS = {
     "json",
     "junit",

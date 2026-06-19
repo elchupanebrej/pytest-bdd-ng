@@ -9,7 +9,6 @@ pytest.register_assert_rewrite(
     "pytest_bdd_testing.step.debug_mcp",
     "pytest_bdd_testing.step.formatters",
     "pytest_bdd_testing.step.go_parser",
-    "pytest_bdd_testing.step.heading_validation",
     "pytest_bdd_testing.step.mimetype",
     "pytest_bdd_testing.step.scenario_reporter",
     "pytest_bdd_testing.step.struct_bdd",
@@ -23,7 +22,6 @@ from pytest_bdd_testing.step.debug_mcp import *  # noqa: F403, E402
 from pytest_bdd_testing.step.formatters import *  # noqa: F403, E402
 from pytest_bdd_testing.step.go_parser import *  # noqa: F403, E402
 from pytest_bdd_testing.step.harness import *  # noqa: F403, E402
-from pytest_bdd_testing.step.heading_validation import *  # noqa: F403, E402
 from pytest_bdd_testing.step.mimetype import *  # noqa: F403, E402
 from pytest_bdd_testing.step.scenario_reporter import *  # noqa: F403, E402
 from pytest_bdd_testing.step.struct_bdd import *  # noqa: F403, E402

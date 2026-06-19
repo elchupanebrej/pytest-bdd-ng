@@ -1,7 +1,7 @@
 """Contract tests: validate NDJSON import mode.
 
 Tests that the plugin correctly reads NDJSON from file and produces
-Allure results when --cucumber-messages is provided.
+Allure results when --allure-cucumber-messages-in is provided.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class TestAllurePluginNdjsonImport:
     """Validate NDJSON import mode produces Allure results."""
 
     def test_import_mode_produces_allure_results(self, testdir: Testdir, tmp_path: Path):
-        """Running with --cucumber-messages reads from file and produces results."""
+        """Running with --allure-cucumber-messages-in reads from file and produces results."""
         # Create a minimal NDJSON file with a passing scenario
         ndjson_path = tmp_path / "messages.ndjson"
         lines = [
@@ -74,10 +74,10 @@ class TestAllurePluginNdjsonImport:
         ndjson_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         output_dir = tmp_path / "allure-results"
-        # Import mode requires both --allure-formatter-output and --cucumber-messages
+        # Import mode requires both --allure-cucumber-out and --allure-cucumber-messages-in
         result = testdir.runpytest(
-            f"--allure-formatter-output={output_dir}",
-            f"--cucumber-messages={ndjson_path}",
+            f"--allure-cucumber-out={output_dir}",
+            f"--allure-cucumber-messages-in={ndjson_path}",
         )
 
         # Import mode clears collection, so exit code 5 (NO_TESTS_COLLECTED) is expected
@@ -152,8 +152,8 @@ class TestAllurePluginNdjsonImport:
 
         output_dir = tmp_path / "allure-results"
         result = testdir.runpytest(
-            f"--allure-formatter-output={output_dir}",
-            f"--cucumber-messages={ndjson_path}",
+            f"--allure-cucumber-out={output_dir}",
+            f"--allure-cucumber-messages-in={ndjson_path}",
         )
 
         # Should pass or exit 5 (NO_TESTS_COLLECTED) because import mode skips the failing BDD scenario
@@ -166,8 +166,8 @@ class TestAllurePluginNdjsonImport:
 
         output_dir = tmp_path / "allure-results"
         result = testdir.runpytest(
-            f"--allure-formatter-output={output_dir}",
-            f"--cucumber-messages={ndjson_path}",
+            f"--allure-cucumber-out={output_dir}",
+            f"--allure-cucumber-messages-in={ndjson_path}",
         )
 
         # Should not crash (exit 0 or 5 for no tests collected)
@@ -178,8 +178,8 @@ class TestAllurePluginNdjsonImport:
         nonexistent = tmp_path / "nonexistent.ndjson"
         output_dir = tmp_path / "allure-results"
         result = testdir.runpytest(
-            f"--allure-formatter-output={output_dir}",
-            f"--cucumber-messages={nonexistent}",
+            f"--allure-cucumber-out={output_dir}",
+            f"--allure-cucumber-messages-in={nonexistent}",
         )
 
         # Plugin should handle missing file gracefully (not crash)

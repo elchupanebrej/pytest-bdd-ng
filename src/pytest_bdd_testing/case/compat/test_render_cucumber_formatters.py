@@ -465,7 +465,7 @@ def test_pyproject_lists_live_formatter_bridge_template_as_package_data() -> Non
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    pyproject = loads((Path(__file__).resolve().parents[5] / "pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = loads((Path(__file__).resolve().parents[4] / "pyproject.toml").read_text(encoding="utf-8"))
     package_data = pyproject["tool"]["setuptools"]["package-data"]
 
     assert "pytest_bdd.plugin.gherkin_message_reporter.resources.templates" in package_data

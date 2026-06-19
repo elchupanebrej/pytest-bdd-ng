@@ -34,7 +34,7 @@ def formatter_artifacts(tmp_path: Path) -> dict[str, object]:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[5]
+    return Path(__file__).resolve().parents[4]
 
 
 def test_e2e_formatter_support_module_is_only_a_thin_reexport() -> None:
@@ -71,12 +71,12 @@ def test_e2e_formatter_support_module_is_only_a_thin_reexport() -> None:
         #test-eval:assertions_clarity=5
     """
     shim_source = (
-        _repo_root() / "src" / "pytest_bdd_testing" / "tool" / "cucumber_formatter" / "cucumber_formatter_support.py"
+        _repo_root() / "src" / "pytest_bdd_testing" / "tool" / "cucumber_formatter" / "support.py"
     ).read_text(
         encoding="utf-8",
     )
 
-    assert "from pytest_bdd_testing.cucumber_formatters import (" in shim_source
+    assert "from pytest_bdd_testing.tool.cucumber_formatter import (" in shim_source
     assert "materialize_fake_node_runtime" in shim_source
 
 

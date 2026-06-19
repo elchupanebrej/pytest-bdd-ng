@@ -1219,6 +1219,21 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
 
+def _run_message_replay_if_requested(config: Config) -> None:
+    """Replay configured Cucumber Messages through pytest hooks when a hook relay is available."""
+    hook = getattr(config, "hook", None)
+    if hook is None:
+        return
+
+    source_iterator = hook.pytest_cucumber_message_source(config=config)
+    if source_iterator is None:
+        return
+
+    for message in source_iterator:
+        hook.pytest_bdd_message(config=config, message=message)
+    pytest.exit("NDJSON replay complete.", returncode=0)
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """
@@ -1278,11 +1293,7 @@ def pytest_configure(config: Config) -> None:
 
     # Gherkin Message Replay Mode
     try:
-        source_iterator = config.hook.pytest_cucumber_message_source(config=config)
-        if source_iterator is not None:
-            for message in source_iterator:
-                config.hook.pytest_bdd_message(config=config, message=message)
-            pytest.exit("NDJSON replay complete.", returncode=0)
+        _run_message_replay_if_requested(config)
     except Exception as exc:
         from pytest_bdd.compatibility.pytest.outcomes import Exit
 
@@ -1304,7 +1315,7 @@ def pytest_cucumber_message_source(config: Config) -> Iterator[EventEnvelope] | 
         msg = f"Cucumber messages file not found (does not exist): {path}"
         raise pytest.UsageError(msg)
 
-    from pytest_bdd.plugin.allure_formatter.converter.reader import read_envelopes
+    from pytest_bdd.model.execution_message_reader import read_envelopes
 
     def envelope_generator() -> Iterator[EventEnvelope]:
         for projection in read_envelopes(path):

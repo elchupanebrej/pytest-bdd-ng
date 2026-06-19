@@ -18,6 +18,7 @@ def _run_pylint(path: Path, *symbols: str, cwd: Path | None = None) -> subproces
             "-m",
             "pylint",
             "--load-plugins=pytest_bdd._pylint",
+            "--ignore-paths=^$",
             "--disable=all",
             f"--enable={','.join(symbols)}",
             "--reports=n",
@@ -61,7 +62,7 @@ def bad_except():
 
 def test_no_testcase_checker_reports_class_based_tests(tmp_path: Path) -> None:
     target = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_sample.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_sample.py",
         """
 class TestExample:
     def test_case(self):
@@ -289,7 +290,7 @@ Architecture score:
 def test_test_responsibility_docs_checker_reports_violations(tmp_path: Path) -> None:
     # 1. Missing test responsibility sections in function docstring
     target_missing = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_missing_sections.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_missing_sections.py",
         '''
 def test_func():
     """
@@ -305,7 +306,7 @@ def test_func():
 
     # 2. Short test scenario description
     target_short = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_short_sections.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_short_sections.py",
         '''
 def test_func():
     """
@@ -347,7 +348,7 @@ def test_func():
 
     # 3. Unfilled test responsibility placeholder
     target_placeholder = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_placeholder_sections.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_placeholder_sections.py",
         '''
 def test_func():
     """
@@ -389,7 +390,7 @@ def test_func():
 
     # 4. Missing test quality score
     target_missing_score = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_missing_score.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_missing_score.py",
         '''
 def test_func():
     """
@@ -430,7 +431,7 @@ def test_func():
 def test_test_responsibility_docs_checker_reports_violations_for_functions(tmp_path: Path) -> None:
     # 1. Missing test responsibility sections in function docstring
     target_missing = _write(
-        tmp_path / "src" / "pytest_bdd_testing" / "cases" / "unit" / "test_func_missing.py",
+        tmp_path / "src" / "pytest_bdd_testing" / "case" / "unit" / "test_func_missing.py",
         '''
 def test_something():
     """

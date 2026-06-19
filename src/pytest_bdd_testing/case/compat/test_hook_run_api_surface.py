@@ -48,7 +48,7 @@ def test_external_api_surface_remains_additive_only() -> None:
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
+    baseline_path = Path(__file__).resolve().parents[2] / "resource" / "expected" / "hook_public_api_baseline.json"
     baseline = load_api_baseline(baseline_path)
 
     record = build_external_api_compatibility_record(
@@ -94,7 +94,7 @@ def test_external_api_compatibility_record_is_serializable() -> None:
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
+    baseline_path = Path(__file__).resolve().parents[2] / "resource" / "expected" / "hook_public_api_baseline.json"
     baseline = load_api_baseline(baseline_path)
 
     record = build_external_api_compatibility_record(
@@ -141,7 +141,7 @@ def test_current_hook_public_symbols_cover_the_saved_baseline() -> None:
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    baseline_path = Path(__file__).with_name("hook_public_api_baseline.json")
+    baseline_path = Path(__file__).resolve().parents[2] / "resource" / "expected" / "hook_public_api_baseline.json"
     baseline = load_api_baseline(baseline_path)
 
     current_symbols = collect_hook_public_symbols()

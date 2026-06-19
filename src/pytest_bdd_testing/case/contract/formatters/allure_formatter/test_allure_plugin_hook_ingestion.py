@@ -22,7 +22,7 @@ class TestAllurePluginHookIngestion:
     """Validate hook ingestion mode produces Allure results."""
 
     def test_live_mode_produces_allure_results(self, testdir: Testdir, tmp_path: Path):
-        """Running pytest with --allure-formatter-output only produces Allure results."""
+        """Running pytest with --allure-cucumber-out only produces Allure results."""
         testdir.makepyprojecttoml(
             """
             [tool.pytest.ini_options]
@@ -55,7 +55,7 @@ class TestAllurePluginHookIngestion:
         )
 
         output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-formatter-output={output_dir}")
+        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
         assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 
@@ -69,7 +69,7 @@ class TestAllurePluginHookIngestion:
             assert "status" in data, f"Result file {result_file.name} missing 'status' field"
 
     def test_live_mode_does_not_use_messages_ndjson(self, testdir: Testdir, tmp_path: Path):
-        """Live mode works without --cucumber-messages flag."""
+        """Live mode works without an NDJSON import flag."""
         testdir.makepyprojecttoml(
             """
             [tool.pytest.ini_options]
@@ -102,7 +102,7 @@ class TestAllurePluginHookIngestion:
         )
 
         output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-formatter-output={output_dir}")
+        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
         assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 

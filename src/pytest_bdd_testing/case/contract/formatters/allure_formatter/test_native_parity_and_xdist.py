@@ -10,7 +10,7 @@ pytestmark = [pytest.mark.contract]
 
 
 def test_native_allure_reporting(testdir, tmp_path) -> None:
-    """Verify that live pytest execution with --allure-formatter-output produces valid Allure results."""
+    """Verify that live pytest execution with --allure-cucumber-out produces valid Allure results."""
     output_dir = tmp_path / "allure-results"
 
     # Create feature file
@@ -31,7 +31,7 @@ def test_native_allure_reporting(testdir, tmp_path) -> None:
     )
 
     result = testdir.runpytest_subprocess(
-        f"--allure-formatter-output={output_dir}",
+        f"--allure-cucumber-out={output_dir}",
     )
     result.assert_outcomes(passed=1)
 
@@ -52,7 +52,7 @@ def test_native_allure_reporting(testdir, tmp_path) -> None:
 
 
 def test_native_import_mode_runs_no_scenarios(testdir, tmp_path) -> None:
-    """Verify that --cucumber-messages skips scenario run and writes results from NDJSON."""
+    """Verify that --allure-cucumber-messages-in skips scenario run and writes results from NDJSON."""
     output_dir = tmp_path / "allure-results"
     messages_file = tmp_path / "messages.ndjson"
 
@@ -140,8 +140,8 @@ def test_native_import_mode_runs_no_scenarios(testdir, tmp_path) -> None:
     )
 
     result = testdir.runpytest_subprocess(
-        f"--allure-formatter-output={output_dir}",
-        f"--cucumber-messages={messages_file}",
+        f"--allure-cucumber-out={output_dir}",
+        f"--allure-cucumber-messages-in={messages_file}",
     )
 
     # 3. Assert no tests executed, session success
@@ -191,7 +191,7 @@ def test_native_xdist_allure_reporting(testdir, tmp_path) -> None:
         "xdist",
         "-n",
         "2",
-        f"--allure-formatter-output={output_dir}",
+        f"--allure-cucumber-out={output_dir}",
     )
     result.assert_outcomes(passed=2)
 

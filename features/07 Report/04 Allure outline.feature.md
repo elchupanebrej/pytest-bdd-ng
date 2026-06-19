@@ -1,40 +1,19 @@
 # Feature: Allure outline reporting
-  This feature documents Allure reporting behavior for scenario outlines,
-  including plugin-gated execution when Allure integration is unavailable.
+  This feature documents pytest-native Allure-Cucumber result generation for
+  scenario outlines.
 
-## Scenario: Outline reporting is guarded by Allure availability
-* Given Copy path from "features/07 Report/06 Allure/02 outline.feature" to test path "outline.feature"
-
-* And File "conftest.py" with content:
-
-    ```python
-    from pytest_bdd import given
-
-
-    @given("value one")
-    @given("value two")
-    def _value():
-        pass
-    ```
-
-* And File "test_sample.py" with content:
-
-    ```python
-    import pytest
-    from pytest_bdd import scenarios
-    from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-
-    pytestmark = [pytest.mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")]
-    test = scenarios("outline.feature", "Scenario outline")
-    ```
+## Scenario: Outline reporting writes Allure-Cucumber results
+* Given Copy path from "src/pytest_bdd_testing/resource/allure_reporting/outline" to test path "."
 
 * When run pytest
 
-    | cli_args | -k test_sample |
-    |----------|----------------|
+    | cli_args | --allure-cucumber-out | allure-output | -k | test_sample |
+    |----------|--------------------------|---------------|----|-------------|
 
 * Then pytest outcome must contain tests with statuses:
 
-    | skipped |
-    |---------|
-    | 1       |
+    | passed |
+    |--------|
+    | 2      |
+
+* And Directory "allure-output" contains Allure result JSON files

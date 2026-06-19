@@ -105,6 +105,8 @@ requires-python = ">=3.10"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
+# allure_cucumber: Allure 3 result formatter
+"pytest-bdd-allure-cucumber" = "pytest_bdd.plugin.allure_formatter.entrypoint"
 # --- CODE-GEN (extra: code-gen) ---
 # code_generator: Test code generation from feature files
 "pytest-bdd-code-generator" = "pytest_bdd.plugin.code_generator.entrypoint"
@@ -217,6 +219,7 @@ testtypes = [
 ]
 
 [project.scripts]
+allure-cucumber = "pytest_bdd.plugin.allure_formatter.cli:main"
 compatibility_matrix = "pytest_bdd.script.compatibility_matrix:main"
 render_cucumber_formatters = "pytest_bdd.script.render_cucumber_formatters:main"
 
@@ -228,15 +231,15 @@ Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
 root = "src/pytest_bdd"
 
 [tool.architecture.collect_scores]
-exclude = ["cases"]
+exclude = ["case"]
 root = ["src/pytest_bdd", "src/pytest_bdd_testing"]
 
 [tool.architecture.collect_test_scores]
 exclude = ["__init__.py", "conftest.py"]
-root = ["src/pytest_bdd_testing/cases"]
+root = ["src/pytest_bdd_testing/case"]
 
 [tool.architecture.fill_tests]
-exclude = ["cases", "__init__.py", "conftest.py"]
+exclude = ["case", "__init__.py", "conftest.py"]
 root = ["src/pytest_bdd_testing"]
 
 [tool.architecture.inject_source]
@@ -244,7 +247,7 @@ exclude = []
 root = "src/pytest_bdd"
 
 [tool.architecture.inject_tests]
-exclude = ["cases", "conftest.py"]
+exclude = ["case", "conftest.py"]
 root = ["src/pytest_bdd_testing"]
 
 [tool.mypy]
@@ -668,10 +671,10 @@ max-complexity = 10
 "src/pytest_bdd_testing/case/**" = ["ANN", "D", "DOC201", "E501", "E741", "EM101", "ERA001", "F401", "F821", "F841", "I001", "PLC0415", "PLC2701", "PLR0913", "PLR0914", "PLR0915", "PLR0917", "PLR2004", "PLR6201", "PLR6301", "PLW1510", "PT006", "S101", "S404", "S506", "S603", "SIM108", "SIM117", "SLF001", "TC003", "W391"]  # Test tree keeps broad ignores for fixture-style code.
 "src/pytest_bdd_testing/case/external/e2e/test_xdist_remote_message_aggregation.py" = ["S603"]  # S603 version mismatch between ruff 0.12 and 0.15
 "src/pytest_bdd_testing/case/integration/struct_bdd/test_steps.py" = ["E501"]  # E501: raw JSON strings exceed line length
-"src/pytest_bdd_testing/cucumber_formatters/*" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101", "TC003"]  # Test support helper intentionally mirrors pytest-style assertion and dynamic hook objects
 "src/pytest_bdd_testing/step/**" = ["ANN", "F821", "I001", "PLC0415", "PLC2701", "PLR0913", "PLR0917", "PLR2004", "PLR6301", "PT006", "S101", "S404", "S603"]  # Step definition plugins mirror the harness ignore set
 "src/pytest_bdd_testing/step/harness.py" = ["ANN", "F821", "I001", "PLC0415", "PLR0913", "PLR0917", "PLR2004", "S101", "S404", "S603"]  # Step definitions use pytest-bdd fixture injection (untyped by design)
 "src/pytest_bdd_testing/tool/**" = ["ANN401", "D205", "D301", "DOC201", "DOC501", "E501", "PLC0415", "PLR6301", "S101"]  # Test support tools with generated responsibility docs and assertion helpers
+"src/pytest_bdd_testing/tool/cucumber_formatter/*" = ["ANN", "DOC201", "PLC0415", "PLR6301", "S101", "TC003"]  # Test support helper intentionally mirrors pytest-style assertion and dynamic hook objects
 "stubs/**" = ["A", "ANN", "F811", "N"]  # A: shadowed builtins intentional in stubs; ANN: Any is deliberate for untyped libraries; F811: redefinitions in package stubs; N: library names must match
 
 [tool.ruff.lint.pyupgrade]
@@ -713,7 +716,7 @@ pytest_bdd = [
   "test.py.jinja2"
 ]
 "pytest_bdd_testing" = [
-  "resources/templates/cucumber_formatters/*.j2"
+  "resource/templates/cucumber_formatters/*.j2"
 ]
 stubs = [
   "**/*.pyi",

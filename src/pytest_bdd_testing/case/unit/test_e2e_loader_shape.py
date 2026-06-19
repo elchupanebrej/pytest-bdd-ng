@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 E2E_ROOTS = (REPO_ROOT / "tests" / "cases" / "e2e",)
 
 pytestmark = [pytest.mark.unit]

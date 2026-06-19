@@ -10,7 +10,7 @@ from pathlib import Path
 from pytest_bdd.compatibility.tomllib import loads
 from pytest_bdd.plugin.cucumber_json_dispatcher.const import CucumberJsonDispatcher
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 DISPATCHER_DIR = REPO_ROOT / "src" / "pytest_bdd" / "plugin" / "cucumber_json_dispatcher"
 
 

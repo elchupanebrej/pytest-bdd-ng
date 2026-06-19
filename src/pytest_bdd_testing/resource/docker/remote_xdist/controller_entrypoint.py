@@ -517,20 +517,20 @@ def _build_pytest_cmd(
 
     Responsibility:
         Assembles the complete pytest command list for remote xdist execution. Returns a list
-        starting with "pytest", including: the test_group_ordering plugin (-p), log_cli
-        configuration (-o), ini override args, --dist=load, the xdist connection args (split
+        starting with "pytest", including: log_cli configuration (-o), ini override args,
+        --dist=load, the xdist connection args (split
         from the xdist_args string), the NDJSON messages output path (--messages-ndjson), the
         target test module via --pyargs, extra pytest args (e.g., --cucumber-progress), and
         -q for quiet mode. All arguments are keyword-only for clarity at the call site.
 
     Reason for existence:
         The pytest command for remote acceptance testing has many fixed requirements: it must
-        enable the test_group_ordering entrypoint plugin, set log_cli to suppress noisy logs,
-        use --dist=load for xdist, output NDJSON messages to the report path, and collect the
-        specific remote_aggregation_case test module. This function centralizes all these
-        requirements into a single command builder, ensuring consistency across all transport
-        modes and verify modes. The keyword-only parameters (local_report_rel, xdist_args,
-        extra_pytest_args, ini_override_args) make the call site in main() self-documenting.
+        set log_cli to suppress noisy logs, use --dist=load for xdist, output NDJSON messages to
+        the report path, and collect the specific remote_aggregation_case test module. This
+        function centralizes all these requirements into a single command builder, ensuring
+        consistency across all transport modes and verify modes. The keyword-only parameters
+        (local_report_rel, xdist_args, extra_pytest_args, ini_override_args) make the call site in
+        main() self-documenting.
 
     Delegates:
         - None directly — the function is a pure list constructor with no subprocess or I/O.
@@ -570,8 +570,6 @@ def _build_pytest_cmd(
     # injected `-s` or `--capture=no` flags.
     return [
         "pytest",
-        "-p",
-        "pytest_bdd.plugin.test_group_ordering.entrypoint",
         "-o",
         "log_cli=true",
         "--log-cli-level=WARNING",
@@ -580,7 +578,7 @@ def _build_pytest_cmd(
         *xdist_args,
         f"--messages-ndjson={local_report_rel}",
         "--pyargs",
-        "pytest_bdd_testing.assets.docker.remote_xdist.project.remote_aggregation_case",
+        "pytest_bdd_testing.resource.docker.remote_xdist.project.remote_aggregation_case",
         *extra_pytest_args,
         "-q",
     ]
@@ -592,7 +590,7 @@ def _build_verify_cmd(local_report_path: Path, *, remote_mode: str) -> list[str]
 
     Responsibility:
         Builds the command list for invoking verify_report.py after pytest completes. The base
-        command is `python -m pytest_bdd_testing.assets.docker.remote_xdist.verify_report`
+        command is `python -m pytest_bdd_testing.resource.docker.remote_xdist.verify_report`
         with the local report path, VERIFY_REPORT_MODE from the environment, and remote_mode.
         Conditionally appends --min-console-writes (from VERIFY_MIN_CONSOLE_WRITES env var)
         and --expect-controller-only (from VERIFY_EXPECT_CONTROLLER_ONLY env var, parsed as
@@ -643,7 +641,7 @@ def _build_verify_cmd(local_report_path: Path, *, remote_mode: str) -> list[str]
     verify_cmd = [
         "python",
         "-m",
-        "pytest_bdd_testing.assets.docker.remote_xdist.verify_report",
+        "pytest_bdd_testing.resource.docker.remote_xdist.verify_report",
         str(local_report_path),
         os.environ.get("VERIFY_REPORT_MODE", "success"),
         remote_mode,

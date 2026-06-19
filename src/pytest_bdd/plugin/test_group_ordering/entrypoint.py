@@ -57,7 +57,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pytest_bdd.util.tests_group_ordering import register_group_config_options
+from pytest_bdd.plugin.test_group_ordering.plugin import TestGroupOrderingPlugin
 
 
 def pytest_addoption(parser: Any) -> None:
@@ -105,4 +105,4 @@ def pytest_addoption(parser: Any) -> None:
             #arch-eval:entity_fullness=4
             #arch-eval:locational_stability=4
     """
-    register_group_config_options(parser)
+    TestGroupOrderingPlugin.pytest_addoption(parser)

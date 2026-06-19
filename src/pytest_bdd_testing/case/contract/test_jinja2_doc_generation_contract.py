@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 CONTRACT_PATH = (
-    Path(__file__).resolve().parents[5]
+    Path(__file__).resolve().parents[4]
     / "specs"
     / "004-migrate-jinja2-docs"
     / "contracts"

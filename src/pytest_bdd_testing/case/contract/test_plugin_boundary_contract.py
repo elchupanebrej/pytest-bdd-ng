@@ -8,7 +8,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 PLUGIN_ROOT = REPO_ROOT / "src" / "pytest_bdd" / "plugin"
 ALLOWED_PLUGIN_OWNERS = {"compatibility", "model", "util"}
 

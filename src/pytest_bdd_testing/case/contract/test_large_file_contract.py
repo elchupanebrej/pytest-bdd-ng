@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 MAX_PHYSICAL_LINES = 399
 TARGETS = (
     REPO_ROOT / "src" / "pytest_bdd" / "plugin" / "gherkin_message_reporter" / "live_formatter_runtime.py",

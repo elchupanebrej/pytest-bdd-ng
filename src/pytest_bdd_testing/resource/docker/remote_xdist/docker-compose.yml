@@ -5,7 +5,7 @@ services:
     build:
       context: ../../../../..
       dockerfile: >-
-        src/pytest_bdd_testing/assets/docker/remote_xdist/controller.Dockerfile
+        src/pytest_bdd_testing/resource/docker/remote_xdist/controller.Dockerfile
     entrypoint: ["sleep", "infinity"]
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
@@ -28,7 +28,7 @@ services:
     build:
       context: ../../../../..
       dockerfile: >-
-        src/pytest_bdd_testing/assets/docker/remote_xdist/worker.Dockerfile
+        src/pytest_bdd_testing/resource/docker/remote_xdist/worker.Dockerfile
     environment:
       PYTEST_REMOTE_MODE: proxy
     depends_on:
@@ -39,7 +39,7 @@ services:
     build:
       context: ../../../../..
       dockerfile: >-
-        src/pytest_bdd_testing/assets/docker/remote_xdist/worker.Dockerfile
+        src/pytest_bdd_testing/resource/docker/remote_xdist/worker.Dockerfile
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
 
@@ -48,7 +48,7 @@ services:
     build:
       context: ../../../../..
       dockerfile: >-
-        src/pytest_bdd_testing/assets/docker/remote_xdist/worker.Dockerfile
+        src/pytest_bdd_testing/resource/docker/remote_xdist/worker.Dockerfile
     environment:
       PYTEST_REMOTE_MODE: ${PYTEST_REMOTE_MODE:-socket}
     depends_on:

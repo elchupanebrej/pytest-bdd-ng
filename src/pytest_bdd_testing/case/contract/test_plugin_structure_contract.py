@@ -7,12 +7,12 @@ from pathlib import Path
 
 from pytest_bdd.compatibility.tomllib import loads
 
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 SOURCE_ROOT = REPO_ROOT / "src"
 PLUGIN_ROOT = SOURCE_ROOT / "pytest_bdd" / "plugin"
 PYPROJECT_PATH = REPO_ROOT / "pyproject.toml"
 
-EXPECTED_PLUGIN_COUNT = 19
+EXPECTED_PLUGIN_COUNT = 20
 EXPECTED_PLUGIN_CLASSES = {
     "pytest-bdd-code-generator": "CodeGeneratorPlugin",
 }

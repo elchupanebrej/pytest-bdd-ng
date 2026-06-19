@@ -65,7 +65,7 @@ def test_parse_plain_gherkin_parses_valid_gherkin() -> None:
     #test-eval:assertions_clarity=5
     """
     with (
-        patch("pytest_bdd._gherkin_go._bridge.gherkin_go_available", return_value=True),
+        patch("pytest_bdd._gherkin_go.gherkin_go_available", return_value=True),
         patch("pytest_bdd._gherkin_go._bridge.parse_gherkin_document", return_value=VALID_GHERKIN_DOCUMENT),
     ):
         from pytest_bdd._gherkin_go import parse
@@ -107,7 +107,7 @@ def test_parse_plain_gherkin_raises_on_parse_error() -> None:
     #test-eval:assertions_clarity=5
     """
     with (
-        patch("pytest_bdd._gherkin_go._bridge.gherkin_go_available", return_value=True),
+        patch("pytest_bdd._gherkin_go.gherkin_go_available", return_value=True),
         patch("pytest_bdd._gherkin_go._bridge.parse_gherkin_document", return_value=PARSE_ERROR_ARRAY),
     ):
         from pytest_bdd._gherkin_go import parse
@@ -147,7 +147,7 @@ def test_parse_plain_gherkin_raises_when_library_unavailable() -> None:
     #test-eval:setup_complexity=1
     #test-eval:assertions_clarity=5
     """
-    with patch("pytest_bdd._gherkin_go._bridge.gherkin_go_available", return_value=False):
+    with patch("pytest_bdd._gherkin_go.gherkin_go_available", return_value=False):
         from pytest_bdd._gherkin_go import parse
 
         with pytest.raises(GherkinGoNotAvailable, match="not available"):
@@ -186,7 +186,7 @@ def test_parse_markdown_gherkin_parses_markdown_via_go() -> None:
     #test-eval:assertions_clarity=5
     """
     with (
-        patch("pytest_bdd._gherkin_go._bridge.gherkin_go_available", return_value=True),
+        patch("pytest_bdd._gherkin_go.gherkin_go_available", return_value=True),
         patch("pytest_bdd._gherkin_go._bridge.parse_gherkin_markdown", return_value=VALID_GHERKIN_DOCUMENT),
     ):
         from pytest_bdd._gherkin_go import parse

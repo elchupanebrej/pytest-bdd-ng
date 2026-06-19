@@ -62,7 +62,7 @@ class TestAllureXdistTotalReport:
         )
 
         output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-formatter-output={output_dir}")
+        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
         assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 
@@ -108,7 +108,7 @@ class TestAllureXdistTotalReport:
         )
 
         output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-formatter-output={output_dir}")
+        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
         assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 

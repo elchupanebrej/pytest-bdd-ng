@@ -1,6 +1,6 @@
 """Contract tests: validate CCK NDJSON to Allure conversion.
 
-Tests the allure-formatter converter with all 45 CCK sample NDJSON files
+Tests the allure-cucumber converter with all 45 CCK sample NDJSON files
 and edge cases (empty NDJSON, single-line, failed scenarios).
 """
 
@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.contract]
 
 
 class TestCCKAllureConversion:
-    """Validate allure-formatter converter handles all CCK samples."""
+    """Validate allure-cucumber converter handles all CCK samples."""
 
     @pytest.mark.parametrize("sample_name", CCK_SAMPLE_NAMES)
     def test_sample_produces_allure_results(

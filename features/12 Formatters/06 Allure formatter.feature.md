@@ -5,25 +5,25 @@
 
 ## Scenario: Convert a minimal valid NDJSON to Allure results
   Given a cucumber messages NDJSON file with one passing scenario
-  When the allure-formatter converter processes the file
+  When the allure-cucumber converter processes the file
   Then an Allure result JSON file is created
   And the result JSON validates against the Allure3 events schema
   And the result has status "passed"
 
 ## Scenario: Convert NDJSON with multiple scenarios
   Given a cucumber messages NDJSON file with two scenarios
-  When the allure-formatter converter processes the file
+  When the allure-cucumber converter processes the file
   Then two Allure result JSON files are created
   And a container JSON file references both results
 
 ## Scenario: Handle empty NDJSON gracefully
   Given an empty cucumber messages NDJSON file
-  When the allure-formatter converter processes the file
+  When the allure-cucumber converter processes the file
   Then no error occurs
 
 ## Scenario: CLI rejects nonexistent input file
   Given a nonexistent NDJSON file path
-  When the allure-formatter CLI is invoked with that path
+  When the allure-cucumber CLI is invoked with that path
   Then the CLI exits with a non-zero code
 
 ## Scenario: Runtime plugin generates Allure results during pytest run
@@ -57,7 +57,7 @@
 
   When run pytest
 
-    | cli_args | --allure-formatter-output | allure-output | -k | test_sample.py |
+    | cli_args | --allure-cucumber-out | allure-output | -k | test_sample.py |
 
   Then pytest outcome must contain tests with statuses:
 
@@ -107,7 +107,7 @@
 
   When run pytest
 
-    | cli_args | --allure-formatter-output | allure-live-output | -k | test_live.py |
+    | cli_args | --allure-cucumber-out | allure-live-output | -k | test_live.py |
 
   Then pytest outcome must contain tests with statuses:
 
@@ -232,7 +232,7 @@
 
   When run pytest
 
-    | cli_args | --messages-ndjson | messages.ndjson | --allure-formatter-messages-in | messages.ndjson | --allure-formatter-output | allure-full-results | test_full_surface.py |
+    | cli_args | --messages-ndjson | messages.ndjson | --allure-cucumber-messages-in | messages.ndjson | --allure-cucumber-out | allure-full-results | test_full_surface.py |
 
   Then pytest outcome must contain tests with statuses:
 
@@ -240,7 +240,7 @@
     |--------|--------|
     | 2      | 2      |
 
-  And the local allure-formatter plugin generated results for "4" scenarios
+  And the local allure-cucumber plugin generated results for "4" scenarios
 
   When run docker
 

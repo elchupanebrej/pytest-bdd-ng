@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contract" / "fixtures" / "xdist_consolidated_stream.md"
-LIVE_CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
+CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contract" / "fixtures" / "xdist_consolidated_stream.md"
+LIVE_CONTRACT_PATH = Path(__file__).resolve().parents[2] / "contract" / "fixtures" / "xdist_live_reporting_boundary.md"
 
 
 def _contract_text() -> str:

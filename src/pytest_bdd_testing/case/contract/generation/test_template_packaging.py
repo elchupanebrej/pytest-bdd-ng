@@ -174,7 +174,7 @@ def test_pyproject_package_data_lists_testing_formatter_templates() -> None:
     pyproject = _load_pyproject()
     package_data = pyproject["tool"]["setuptools"]["package-data"]
 
-    assert package_data["pytest_bdd_testing"] == ["resources/templates/cucumber_formatters/*.j2"]
+    assert package_data["pytest_bdd_testing"] == ["resource/templates/cucumber_formatters/*.j2"]
 
 
 def test_release_workflow_syncs_message_schemas_before_build() -> None:

@@ -15,13 +15,13 @@ def _parse_import_mode_args(args: list[str]) -> tuple[str | None, str | None]:
     messages_in = None
     output_dir = None
     for i, arg in enumerate(args):
-        if arg in {"--allure-cucumber-messages-in", "--cucumber-messages"} and i + 1 < len(args):
+        if arg == "--allure-cucumber-messages-in" and i + 1 < len(args):
             messages_in = args[i + 1]
-        elif arg.startswith(("--allure-cucumber-messages-in=", "--cucumber-messages=")):
+        elif arg.startswith("--allure-cucumber-messages-in="):
             messages_in = arg.split("=", 1)[1]
-        elif arg in {"--allure-formatter-output", "--allure-cucumber-output"} and i + 1 < len(args):
+        elif arg == "--allure-cucumber-out" and i + 1 < len(args):
             output_dir = args[i + 1]
-        elif arg.startswith(("--allure-formatter-output=", "--allure-cucumber-output=")):
+        elif arg.startswith("--allure-cucumber-out="):
             output_dir = arg.split("=", 1)[1]
     return messages_in, output_dir
 
@@ -33,7 +33,7 @@ def pytest_load_initial_conftests(
 ) -> None:
     """Register the facade plugin early so that it is present before gherkin_message_reporter configure."""
     _, output_dir = _parse_import_mode_args(args)
-    ini_output = early_config.getini("allure_formatter_output_dir") or early_config.getini("allure_cucumber_output_dir")
+    ini_output = early_config.getini("allure_cucumber_output_dir")
     output_dir = output_dir or ini_output
 
     if output_dir:
@@ -48,7 +48,7 @@ def pytest_load_initial_conftests(
             config=early_config,
             output_dir=str(output_path),
         )
-        early_config.pluginmanager.register(plugin, "allure-formatter-plugin")
+        early_config.pluginmanager.register(plugin, "allure-cucumber-plugin")
         plugin.start()
 
 
@@ -56,10 +56,9 @@ def pytest_addoption(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Allure Formatter")
     group.addoption(
-        "--allure-formatter-output",
-        "--allure-cucumber-output",
+        "--allure-cucumber-out",
         action="store",
-        dest="allure_formatter_output_dir",
+        dest="allure_cucumber_output_dir",
         metavar="PATH",
         default=None,
         help="Output directory for Allure result JSON files.",
@@ -70,22 +69,17 @@ def pytest_addoption(parser: Parser) -> None:
         dest="allure_cucumber_messages_in",
         metavar="PATH",
         default=None,
-        help="Deprecated. Use --cucumber-messages instead.",
-    )
-    parser.addini(
-        "allure_formatter_output_dir",
-        help="Output directory for Allure result JSON files.",
-        default="allure-results",
+        help="Read Cucumber Messages NDJSON from PATH and write Allure result JSON files.",
     )
     parser.addini(
         "allure_cucumber_output_dir",
-        help="Deprecated. Output directory for Allure result JSON files.",
-        default="allure-results",
+        help="Output directory for Allure result JSON files.",
+        default="",
     )
 
 
 def pytest_addhooks(pluginmanager: object) -> None:
-    """Register allure-formatter hookspecs."""
+    """Register allure-cucumber hookspecs."""
     from pytest_bdd.compatibility.pytest import PytestPluginManager
     from pytest_bdd.plugin.allure_formatter.hook import AllureFormatterHookSpec
 
@@ -95,22 +89,15 @@ def pytest_addhooks(pluginmanager: object) -> None:
 
 def pytest_configure(config: Config) -> None:
     """Handle configure."""
-
     messages_in = getattr(config.option, "allure_cucumber_messages_in", None)
     if messages_in is not None:
-        # Map deprecated option to the new generic option
         config.option.cucumber_messages_path = messages_in
 
-    output_dir = (
-        getattr(config.option, "allure_formatter_output_dir", None)
-        or getattr(config.option, "allure_cucumber_output_dir", None)
-        or config.getini("allure_formatter_output_dir")
-        or config.getini("allure_cucumber_output_dir")
+    output_dir = getattr(config.option, "allure_cucumber_output_dir", None) or config.getini(
+        "allure_cucumber_output_dir",
     )
 
-    has_output = output_dir is not None
-
-    if not has_output:
+    if not output_dir:
         return
 
     from pytest_bdd.plugin.allure_formatter.plugin import AllureFormatterPlugin
@@ -118,13 +105,13 @@ def pytest_configure(config: Config) -> None:
     output_path = Path(os.path.expandvars(output_dir or "allure-results")).expanduser().resolve()
 
     # Check if already registered by pytest_load_initial_conftests
-    plugin = config.pluginmanager.get_plugin("allure-formatter-plugin")
+    plugin = config.pluginmanager.get_plugin("allure-cucumber-plugin")
     if plugin is None:
         plugin = AllureFormatterPlugin(
             config=config,
             output_dir=str(output_path),
         )
-        config.pluginmanager.register(plugin, "allure-formatter-plugin")
+        config.pluginmanager.register(plugin, "allure-cucumber-plugin")
         config.add_cleanup(plugin.stop)
         plugin.start()
     else:
