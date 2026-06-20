@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from hamcrest import assert_that, contains_string, equal_to, is_
 from pytest_bdd import given, parsers, then, when
 from pytest_bdd.plugin.allure_formatter.converter import convert
 from pytest_bdd.testing.cck import download_cck_sample
@@ -67,10 +68,10 @@ def allure_html_report_generated(allure_output: Path, tmp_path: Path) -> Path:
         check=False,
     )
 
-    assert result.returncode == 0, f"Allure Docker command failed: {result.stderr[:500]}"
+    assert_that(result.returncode, equal_to(0), f"Allure Docker command failed: {result.stderr[:500]}")
 
     index_html = report_dir / "index.html"
-    assert index_html.exists(), "Allure report index.html not generated"
+    assert_that(index_html.exists(), is_(True), "Allure report index.html not generated")
 
     return report_dir
 
@@ -164,7 +165,7 @@ def scenario_name_visible(name: str, cck_allure_state: dict) -> None:
 
     # Try to find the scenario name in the page content
     content = page.content()
-    assert name in content, f"Scenario name '{name}' not found in report"
+    assert_that(content, contains_string(name), f"Scenario name '{name}' not found in report")
 
 
 @then(parsers.parse('the step "{step}" is visible'))
@@ -178,7 +179,7 @@ def step_visible(step: str, cck_allure_state: dict) -> None:
         page.wait_for_timeout(1000)
 
     content = page.content()
-    assert step in content, f"Step '{step}' not found in report"
+    assert_that(content, contains_string(step), f"Step '{step}' not found in report")
 
 
 @then(parsers.parse('the test status "{status}" is visible'))
@@ -188,4 +189,4 @@ def cck_test_status_visible(status: str, cck_allure_state: dict) -> None:
 
     content = page.content()
     # Allure reports typically show status in various ways
-    assert status.lower() in content.lower(), f"Status '{status}' not found in report"
+    assert_that(content.lower(), contains_string(status.lower()), f"Status '{status}' not found in report")

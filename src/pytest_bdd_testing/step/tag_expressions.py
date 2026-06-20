@@ -1,5 +1,6 @@
 import ast
 
+from hamcrest import assert_that, equal_to
 from pytest_bdd import given, parsers, then
 from pytest_bdd.tag_expression import MarksTagExpression
 
@@ -28,4 +29,4 @@ def tag_expression_evaluates(tag_expression, result, marks) -> None:
     marks_list = ast.literal_eval(marks_clean)
     mock_marks = [MockMark(m) for m in marks_list]
     actual = tag_expression.evaluate(mock_marks)
-    assert actual == expected
+    assert_that(actual, equal_to(expected))

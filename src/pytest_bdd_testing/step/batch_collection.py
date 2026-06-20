@@ -1,3 +1,4 @@
+from hamcrest import assert_that, is_
 from pytest_bdd import given, parsers, then
 
 
@@ -28,14 +29,18 @@ def batch_collection_cache_is_used(pytest_result, testdir) -> None:
     pytest_result.assert_outcomes(passed=3)
     second_result = testdir.runpytest_inprocess()
     second_result.assert_outcomes(passed=3)
-    assert testdir.tmpdir.join(".pytest_cache").check(dir=1)
+    assert_that(testdir.tmpdir.join(".pytest_cache").check(dir=1), is_(True))
 
 
 @then("Batch collection processes many scenarios correctly")
 def batch_collection_processes_many(pytest_result) -> None:
     """Verify batch collection discovers all scenarios."""
     stdout = pytest_result.stdout.str()
-    assert "5 tests collected" in stdout or "collected 5 items" in stdout, stdout
+    assert_that(
+        "5 tests collected" in stdout or "collected 5 items" in stdout,
+        is_(True),
+        stdout,
+    )
 
 
 @given("Batch collection is disabled")

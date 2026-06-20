@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
+from hamcrest import assert_that, equal_to, greater_than, is_
 from pytest_bdd import given, parsers, then, when
 from pytest_bdd.plugin.debug_mcp.discovery import SessionDiscovery
 from pytest_bdd.plugin.debug_mcp.failure import FailureSummary, QueuedFailure
@@ -129,54 +130,54 @@ def agent_writes_invalid_artifact(debug_mcp_context: dict[str, Any]) -> None:
 def root_discovery_lists_worker(debug_mcp_context: dict[str, Any], worker_id: str) -> None:
     """Assert root discovery references a worker."""
     workers = _workers(debug_mcp_context)
-    assert worker_id in workers
+    assert_that(worker_id in workers, is_(True))
 
 
 @then(parsers.parse('worker "{worker_id}" exposes mcp-pdb and sidecar endpoints'))
 def worker_exposes_endpoints(debug_mcp_context: dict[str, Any], worker_id: str) -> None:
     """Assert endpoint details are visible."""
     worker = _workers(debug_mcp_context)[worker_id]
-    assert worker["mcp_pdb"]["port"] > 0
-    assert worker["sidecar"]["port"] > 0
+    assert_that(worker["mcp_pdb"]["port"], greater_than(0))
+    assert_that(worker["sidecar"]["port"], greater_than(0))
 
 
 @then(parsers.parse('worker "{worker_id}" is holding a "{phase}" failure'))
 def worker_is_holding_failure(debug_mcp_context: dict[str, Any], worker_id: str, phase: str) -> None:
     """Assert worker active failure state."""
     worker = _workers(debug_mcp_context)[worker_id]
-    assert worker["status"] == "holding_failure"
-    assert worker["active_failure"]["pytest_phase"] == phase
+    assert_that(worker["status"], equal_to("holding_failure"))
+    assert_that(worker["active_failure"]["pytest_phase"], equal_to(phase))
 
 
 @then(parsers.parse('worker "{worker_id}" is waiting for a failure'))
 def worker_is_waiting(debug_mcp_context: dict[str, Any], worker_id: str) -> None:
     """Assert worker waiting state."""
     worker = _workers(debug_mcp_context)[worker_id]
-    assert worker["status"] == "waiting_for_failure"
-    assert worker["active_failure"] is None
+    assert_that(worker["status"], equal_to("waiting_for_failure"))
+    assert_that(worker["active_failure"], is_(None))
 
 
 @then("the investigation artifact JSON is accepted")
 def artifact_json_is_accepted(debug_mcp_context: dict[str, Any]) -> None:
     """Assert artifact JSON was written."""
     result = debug_mcp_context["results"]["artifact"]
-    assert result["ok"] is True
-    assert Path(result["artifact"]["json_path"]).exists()
+    assert_that(result["ok"], is_(True))
+    assert_that(Path(result["artifact"]["json_path"]).exists(), is_(True))
 
 
 @then("the investigation artifact Markdown is created")
 def artifact_markdown_is_created(debug_mcp_context: dict[str, Any]) -> None:
     """Assert artifact Markdown was written."""
     result = debug_mcp_context["results"]["artifact"]
-    assert Path(result["artifact"]["markdown_path"]).exists()
+    assert_that(Path(result["artifact"]["markdown_path"]).exists(), is_(True))
 
 
 @then("the investigation artifact is rejected")
 def artifact_is_rejected(debug_mcp_context: dict[str, Any]) -> None:
     """Assert invalid artifact response."""
     result = debug_mcp_context["results"]["artifact"]
-    assert result["ok"] is False
-    assert result["error"] == "validation_error"
+    assert_that(result["ok"], is_(False))
+    assert_that(result["error"], equal_to("validation_error"))
 
 
 @then("the investigation artifact JSON contains BDD metadata")
@@ -184,8 +185,11 @@ def artifact_contains_bdd_metadata(debug_mcp_context: dict[str, Any]) -> None:
     """Assert persisted artifact includes BDD context."""
     result = debug_mcp_context["results"]["artifact"]
     payload = json.loads(Path(result["artifact"]["json_path"]).read_text(encoding="utf-8"))
-    assert payload["bdd_metadata"]["feature_name"] == "Agentic debugging"
-    assert payload["bdd_metadata"]["scenario_name"] == "BDD metadata is included in investigation artifacts"
+    assert_that(payload["bdd_metadata"]["feature_name"], equal_to("Agentic debugging"))
+    assert_that(
+        payload["bdd_metadata"]["scenario_name"],
+        equal_to("BDD metadata is included in investigation artifacts"),
+    )
 
 
 def _entry(debug_mcp_context: dict[str, Any], worker_id: str) -> dict[str, Any]:

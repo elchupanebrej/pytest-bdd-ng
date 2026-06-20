@@ -18,6 +18,14 @@ import pytest
 from cucumber_messages import Envelope  # type:ignore[attr-defined]  # cucumber_messages has no py.typed marker
 from pytest_httpserver import HTTPServer
 
+from hamcrest import (
+    assert_that,
+    contains_string,
+    equal_to,
+    greater_than_or_equal_to,
+    is_,
+    is_not,
+)
 from pytest_bdd import given, parsers, step, then, when
 from pytest_bdd.mimetype import Mimetype
 from pytest_bdd.model import message_converter
@@ -284,8 +292,8 @@ def _assert_remote_run_succeeds(remote_xdist_result, step=None):
     result = remote_xdist_result["result"]
     report = remote_xdist_result["report"]
     remote_mode = remote_xdist_result["remote_mode"]
-    assert result.returncode == 0, result.stdout + "\n" + result.stderr
-    assert report.exists(), f"NDJSON report not found at {report}"
+    assert_that(result.returncode, equal_to(0), result.stdout + "\n" + result.stderr)
+    assert_that(report.exists(), is_(True), f"NDJSON report not found at {report}")
     messages = parse_ndjson_messages(report)
     validation_result = validate_message_stream(messages, track_coverage=False)
     payload_counts = count_payload_kinds(messages)
@@ -299,14 +307,14 @@ def _assert_remote_run_succeeds(remote_xdist_result, step=None):
         header = [cell.value for cell in data_table.rows[0].cells]
         values = [int(cell.value) for cell in data_table.rows[1].cells]
         expected = dict(zip(header, values, strict=True))
-    assert validation_result.status == "pass"
-    assert payload_counts["meta"] == 1
-    assert payload_counts["test_run_started"] == 1
-    assert payload_counts["test_run_finished"] == 1
+    assert_that(validation_result.status, equal_to("pass"))
+    assert_that(payload_counts["meta"], equal_to(1))
+    assert_that(payload_counts["test_run_started"], equal_to(1))
+    assert_that(payload_counts["test_run_finished"], equal_to(1))
     if "tests" in expected:
-        assert payload_counts["test_case_started"] == expected["tests"]
-    assert len(worker_ids) >= 2
-    assert remote_mode in gateway_modes
+        assert_that(payload_counts["test_case_started"], equal_to(expected["tests"]))
+    assert_that(len(worker_ids), greater_than_or_equal_to(2))
+    assert_that(remote_mode in gateway_modes, is_(True))
 
 
 @step("pytest outcome must contain tests with statuses:")
@@ -320,12 +328,16 @@ def check_pytest_test_statuses(pytest_result, step):
         return
     parsed_counts = _parse_outcome_counts(pytest_result)
     for outcome_name, expected_count in outcome_result.items():
-        assert parsed_counts.get(outcome_name, 0) == expected_count, combined_result_output(pytest_result)
+        assert_that(
+            parsed_counts.get(outcome_name, 0),
+            equal_to(expected_count),
+            combined_result_output(pytest_result),
+        )
 
 
 @step("pytest exits with test failures")
 def check_pytest_test_failures(pytest_result):
-    assert _coerce_pytest_return_code(pytest_result) == pytest.ExitCode.TESTS_FAILED
+    assert_that(_coerce_pytest_return_code(pytest_result), equal_to(pytest.ExitCode.TESTS_FAILED))
 
 
 @step("pytest outcome must match lines:")
@@ -338,7 +350,7 @@ def check_pytest_stdout_lines(pytest_result, step):
         fnmatch_lines(lines)
         return
     for line in lines:
-        assert re.search(re.escape(line).replace("\\*", ".*"), stdout_text), stdout_text
+        assert_that(re.search(re.escape(line).replace("\\*", ".*"), stdout_text), is_(True), stdout_text)
 
 
 @when(parsers.parse("run `{command}`"), target_fixture="renderer_result")
@@ -370,7 +382,7 @@ def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> N
         ])
     combined_output = "\n".join(fragment for fragment in output_fragments if fragment)
     for line in lines:
-        assert re.search(re.escape(line).replace("\\*", ".*"), combined_output), combined_output
+        assert_that(re.search(re.escape(line).replace("\\*", ".*"), combined_output), is_(True), combined_output)
 
 
 @given(re.compile(r'Copy path from "(?P<initial_path>[^"]+)" to test path "(?P<final_path>[^"]+)"'))
@@ -392,7 +404,7 @@ def _(file_path: Path, line_count: int, testdir: "Testdir"):  # pylint: disable=
     output_path = _resolve_test_output_path(testdir, file_path)
     with output_path.open("r") as fp:
         real_line_count = reduce(lambda _, last: last, map(itemgetter(0), enumerate(fp, start=1)), 0)
-    assert line_count == real_line_count
+    assert_that(line_count, equal_to(real_line_count))
 
 
 @then(
@@ -403,12 +415,12 @@ def _(file_path: Path, line_count: int, testdir: "Testdir"):  # pylint: disable=
     output_path = _resolve_test_output_path(testdir, file_path)
     with output_path.open("r") as fp:
         real_line_count = reduce(lambda _, last: last, map(itemgetter(0), enumerate(fp, start=1)), 0)
-    assert real_line_count >= line_count
+    assert_that(real_line_count, greater_than_or_equal_to(line_count))
 
 
 @then(re.compile(r'File "(?P<file_path>[^"]+)" is not empty'), converters={"file_path": Path})
 def _(file_path: Path, testdir):  # pylint: disable=E0102  # intentional redefinition for step type
-    assert _resolve_test_output_path(testdir, file_path).stat().st_size != 0
+    assert_that(_resolve_test_output_path(testdir, file_path).stat().st_size, is_not(0))
 
 
 @then(re.compile(r'HTML report "(?P<file_path>[^"]+)" contains scenario outcomes:'), converters={"file_path": Path})
@@ -421,14 +433,14 @@ def _(file_path: Path, testdir, step):  # pylint: disable=E0102  # intentional r
     for row in data_table.rows[1:]:
         scenario = row.cells[0].value.lower()
         status = row.cells[1].value.lower()
-        assert scenario in report_text, parser.text
-        assert status in report_text, parser.text
+        assert_that(report_text, contains_string(scenario), parser.text)
+        assert_that(report_text, contains_string(status), parser.text)
 
 
 @then(parsers.parse('File "{file_path}" contains the line "{line}"'))
 def file_contains_line(testdir, file_path: str, line: str) -> None:
     output_path = _resolve_test_output_path(testdir, Path(file_path))
-    assert line in output_path.read_text(encoding="utf-8")
+    assert_that(output_path.read_text(encoding="utf-8"), contains_string(line))
 
 
 @then(re.compile(r'Report "(?P<file_path>[^"]+)" parsable into messages'), converters={"file_path": Path})
@@ -451,7 +463,7 @@ def _(file_path: Path, query: str, expected: str, testdir):  # pylint: disable=E
         pytest.skip("jq package is unavailable on this platform")
     payload = json.loads((Path(str(testdir.tmpdir)) / file_path).read_text(encoding="utf-8"))
     actual = jq.compile(query).input(payload).first()
-    assert str(actual) == expected
+    assert_that(str(actual), equal_to(expected))
 
 
 # Backward-compatible re-exports for conftest

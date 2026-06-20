@@ -1,5 +1,6 @@
 import pytest
 
+from hamcrest import assert_that, is_
 from pytest_bdd import given, parsers, step, then
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 
@@ -57,7 +58,10 @@ def struct_bdd_not_installed(monkeypatch) -> None:
 @then("skipped gracefully")
 def skipped_gracefully(pytest_result) -> None:
     stdout = pytest_result.stdout.str()
-    assert "skipped" in stdout.lower() or "no tests ran" in stdout.lower()
+    assert_that(
+        "skipped" in stdout.lower() or "no tests ran" in stdout.lower(),
+        is_(True),
+    )
 
 
 @then("StructBDD deserialization fails with expected error")
@@ -65,7 +69,10 @@ def struct_bdd_deserialization_fails_expected(pytest_result) -> None:
     stdout = pytest_result.stdout.str()
     stderr = pytest_result.stderr.str()
     combined = stdout + stderr
-    assert "error" in combined.lower() or "failed" in combined.lower() or "invalid" in combined.lower()
+    assert_that(
+        "error" in combined.lower() or "failed" in combined.lower() or "invalid" in combined.lower(),
+        is_(True),
+    )
 
 
 @step("run pytest with StructBDD feature", target_fixture="pytest_result")

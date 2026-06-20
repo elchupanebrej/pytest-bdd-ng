@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from hamcrest import assert_that, equal_to, is_
 from pytest_bdd import given, parsers, then
 from pytest_bdd.mimetype import Mimetype, Suffix
 
@@ -27,16 +28,16 @@ def file_extension(testdir, ext):
 def mimetype_resolves_to(file_path, mimetype) -> None:
     ext = file_path.suffix
     matched = _SUFFIX_TO_MIMETYPE.get(Suffix(ext))
-    assert matched
-    assert matched.value == mimetype
+    assert_that(matched, is_(True))
+    assert_that(matched.value, equal_to(mimetype))
 
 
 @then(parsers.parse("Suffix resolves to {suffix}"))
 def suffix_resolves_to(file_path, suffix) -> None:
     ext = file_path.suffix
     matched = Suffix(ext)
-    assert matched
-    assert matched.value == suffix
+    assert_that(matched, is_(True))
+    assert_that(matched.value, equal_to(suffix))
 
 
 @given("Mimetype hook override is set")
@@ -53,11 +54,14 @@ def no_mimetype_is_resolved(file_path) -> None:
     # For .feature.bak, suffix is .bak → not in _SUFFIX_TO_MIMETYPE → None
     # For .feature.md.renamed, suffix is .renamed → not in map → None
     matched = _SUFFIX_TO_MIMETYPE.get(Suffix(ext))
-    assert matched is None, f"Expected no mimetype for {ext}, got {matched}"
+    assert_that(matched, is_(None), f"Expected no mimetype for {ext}, got {matched}")
 
 
 @then("custom mimetype is used")
 def custom_mimetype_is_used(pytest_result) -> None:
     # Verify that the file was processed successfully
     stdout = pytest_result.stdout.str()
-    assert "error" not in stdout.lower() or "passed" in stdout.lower()
+    assert_that(
+        "error" not in stdout.lower() or "passed" in stdout.lower(),
+        is_(True),
+    )
