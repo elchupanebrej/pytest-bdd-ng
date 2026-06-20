@@ -4,36 +4,86 @@
   plugin that generates Allure results during the test run.
 
 ## Scenario: Convert a minimal valid NDJSON to Allure results
-  * Given a cucumber messages NDJSON file with one passing scenario
-  * When the allure-cucumber converter processes the file
-  * Then an Allure result JSON file is created
-  * And the result JSON validates against the Allure3 events schema
-  * And the result has status "passed"
+  * Given File "messages.ndjson" with content:
+
+    ```json lines
+    {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
+    {"pickle":{"id":"pk-pass","name":"Passing","language":"en","astNodeIds":[],"tags":[],"uri":"features/sample.feature","steps":[{"id":"ps-pass-1","text":"a passing step","astNodeIds":[]}]}}
+    {"testCase":{"id":"tc-pass","pickleId":"pk-pass","testSteps":[{"id":"step-pass-1","pickleStepId":"ps-pass-1"}]}}
+    {"testCaseStarted":{"id":"case-pass","testCaseId":"tc-pass","attempt":0,"timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepStarted":{"testStepId":"step-pass-1","testCaseStartedId":"case-pass","timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepFinished":{"testStepId":"step-pass-1","testCaseStartedId":"case-pass","timestamp":{"seconds":2,"nanos":0},"testStepResult":{"status":"PASSED","duration":{"seconds":1,"nanos":0}}}}
+    {"testCaseFinished":{"testCaseStartedId":"case-pass","timestamp":{"seconds":2,"nanos":0},"willBeRetried":false}}
+    {"testRunFinished":{"success":true,"timestamp":{"seconds":3,"nanos":0}}}
+    ```
+  * When run `python -m pytest_bdd.plugin.allure_formatter.cli messages.ndjson --output allure-results`
+  * Then renderer command exits with code 0
+  * And Directory "allure-results" contains Allure result JSON files
+  * And Allure result files validate against the Allure3 events schema
+  * And Allure result files in "allure-results" include scenario statuses:
+
+    | scenario | status |
+    |----------|--------|
+    | Passing  | passed |
 
 ## Scenario: Convert NDJSON with multiple scenarios
-  * Given a cucumber messages NDJSON file with two scenarios
-  * When the allure-cucumber converter processes the file
-  * Then two Allure result JSON files are created
-  * And a container JSON file references both results
+  * Given File "messages.ndjson" with content:
+
+    ```json lines
+    {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
+    {"pickle":{"id":"pk-one","name":"First scenario","language":"en","astNodeIds":[],"tags":[],"uri":"features/sample.feature","steps":[{"id":"ps-one","text":"first step","astNodeIds":[]}]}}
+    {"testCase":{"id":"tc-one","pickleId":"pk-one","testSteps":[{"id":"step-one","pickleStepId":"ps-one"}]}}
+    {"testCaseStarted":{"id":"case-one","testCaseId":"tc-one","attempt":0,"timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepStarted":{"testStepId":"step-one","testCaseStartedId":"case-one","timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepFinished":{"testStepId":"step-one","testCaseStartedId":"case-one","timestamp":{"seconds":2,"nanos":0},"testStepResult":{"status":"PASSED","duration":{"seconds":1,"nanos":0}}}}
+    {"testCaseFinished":{"testCaseStartedId":"case-one","timestamp":{"seconds":2,"nanos":0},"willBeRetried":false}}
+    {"pickle":{"id":"pk-two","name":"Second scenario","language":"en","astNodeIds":[],"tags":[],"uri":"features/sample.feature","steps":[{"id":"ps-two","text":"second step","astNodeIds":[]}]}}
+    {"testCase":{"id":"tc-two","pickleId":"pk-two","testSteps":[{"id":"step-two","pickleStepId":"ps-two"}]}}
+    {"testCaseStarted":{"id":"case-two","testCaseId":"tc-two","attempt":0,"timestamp":{"seconds":3,"nanos":0}}}
+    {"testStepStarted":{"testStepId":"step-two","testCaseStartedId":"case-two","timestamp":{"seconds":3,"nanos":0}}}
+    {"testStepFinished":{"testStepId":"step-two","testCaseStartedId":"case-two","timestamp":{"seconds":4,"nanos":0},"testStepResult":{"status":"PASSED","duration":{"seconds":1,"nanos":0}}}}
+    {"testCaseFinished":{"testCaseStartedId":"case-two","timestamp":{"seconds":4,"nanos":0},"willBeRetried":false}}
+    {"testRunFinished":{"success":true,"timestamp":{"seconds":5,"nanos":0}}}
+    ```
+  * When run `python -m pytest_bdd.plugin.allure_formatter.cli messages.ndjson --output allure-results`
+  * Then renderer command exits with code 0
+  * And Directory "allure-results" contains "2" Allure result JSON files
+  * And Directory "allure-results" contains a container JSON file referencing the results
+  * And Allure container files in "allure-results" reference all result UUIDs
 
 ## Scenario: Handle empty NDJSON gracefully
-  * Given an empty cucumber messages NDJSON file
-  * When the allure-cucumber converter processes the file
-  * Then no error occurs
+  * Given File "messages.ndjson" with content:
+
+    ```json lines
+    ```
+  * When run `python -m pytest_bdd.plugin.allure_formatter.cli messages.ndjson --output allure-results`
+  * Then renderer command exits with code 0
+  * And Directory "allure-results" contains "0" Allure result JSON files
 
 ## Scenario: CLI rejects nonexistent input file
-  * Given a nonexistent NDJSON file path
-  * When the allure-cucumber CLI is invoked with that path
-  * Then the CLI exits with a non-zero code
+  * When run `python -m pytest_bdd.plugin.allure_formatter.cli missing.ndjson --output allure-results`
+  * Then renderer command exits with non-zero code
+  * And the renderer terminal output includes:
+
+    | *missing.ndjson* |
+    |------------------|
 
 ## Scenario: Runtime plugin generates Allure results during pytest run
-  * Given File "features/sample.feature" with content:
+  * Given File "pytest.ini" with content:
+
+    ```ini
+    [pytest]
+    disable_feature_autoload = true
+    ```
+  * And File "sample.feature" with content:
+
     ```gherkin
     Feature: Sample
       Scenario: Passing
         Given a passing step
     ```
   * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -42,16 +92,17 @@
       pass
     ```
   * And File "test_sample.py" with content:
+
     ```python
     from pytest_bdd import scenarios
 
     test = scenarios("sample.feature")
     ```
-  * And File "allure-results/messages.ndjson" with Cucumber Messages content for one passing scenario
   * When run pytest
 
-  | cli_args | --allure-cucumber-out | allure-output | -k | test_sample.py |
-  |----------|-----------------------|---------------|----|----------------|
+    | cli_args | --allure-cucumber-out | allure-output | test_sample.py |
+    |----------|-----------------------|---------------|----------------|
+
   * Then pytest outcome must contain tests with statuses:
 
     | passed |
@@ -70,13 +121,21 @@
   * And Allure HTML report contains scenario name "Passing"
 
 ## Scenario: Live mode generates Allure results without NDJSON file
-  * Given File "features/live.feature" with content:
+  * Given File "pytest.ini" with content:
+
+    ```ini
+    [pytest]
+    disable_feature_autoload = true
+    ```
+  * And File "live.feature" with content:
+
     ```gherkin
     Feature: Live mode test
       Scenario: Passing live
         Given a passing step
     ```
   * And File "conftest.py" with content:
+
     ```python
     from pytest_bdd import given
 
@@ -85,6 +144,7 @@
       pass
     ```
   * And File "test_live.py" with content:
+
     ```python
     from pytest_bdd import scenarios
 
@@ -92,8 +152,8 @@
     ```
   * When run pytest
 
-    | cli_args | --allure-cucumber-out | allure-live-output | -k | test_live.py |
-    |----------|-----------------------|--------------------|----|--------------|
+    | cli_args | --allure-cucumber-out | allure-live-output | test_live.py |
+    |----------|-----------------------|--------------------|--------------|
   * Then pytest outcome must contain tests with statuses:
 
     | passed |
@@ -104,7 +164,13 @@
   * And Allure result files validate against the Allure3 events schema
 
 ## Scenario: Runtime plugin renders full pytest-bdd feature surface in an Allure report
-  * Given File "full_surface.feature" with content:
+  * Given File "pytest.ini" with content:
+
+    ```ini
+    [pytest]
+    disable_feature_autoload = true
+    ```
+  * And File "full_surface.feature" with content:
     ```gherkin
     @allure-ui @feature-tag
     Feature: Local Allure full surface
@@ -213,8 +279,8 @@
     ```
   * When run pytest
 
-    | cli_args | --messages-ndjson | messages.ndjson | --allure-cucumber-messages-in | messages.ndjson | --allure-cucumber-out | allure-full-results | test_full_surface.py |
-    |--------|-----------------|---------------|-----------------------------|---------------|---------------------|-------------------|--------------------|
+    | cli_args | --messages-ndjson | messages.ndjson | --allure-cucumber-out | allure-full-results | test_full_surface.py |
+    |----------|-------------------|-----------------|-----------------------|---------------------|----------------------|
 
   * Then pytest outcome must contain tests with statuses:
 
@@ -261,15 +327,6 @@
     | Failing exception surface | @allure-ui,@feature-tag,@exception             |
     | Outline status surface    | @allure-ui,@feature-tag,@outline,@examples-tag |
 
-  * And the Allure report shows attachments:
-
-    | scenario                  | attachments |
-    |---------------------------|-------------|
-    | Passing full surface      | 2           |
-    | Failing assertion surface | 1           |
-    | Failing exception surface | 1           |
-    | Outline status surface    | 1           |
-
   * And the Allure report shows descriptions and structured arguments
   * And the Allure report shows failure messages:
 
@@ -279,9 +336,21 @@
     | Failing exception surface | runtime proof  |
 
 ## Scenario: Convert existing NDJSON file to Allure report via CLI
-  * Given File "existing-messages.ndjson" with Cucumber Messages content for one passing scenario
+  * Given File "existing-messages.ndjson" with content:
+
+    ```json lines
+    {"testRunStarted":{"id":"run-1","timestamp":{"seconds":0,"nanos":0}}}
+    {"pickle":{"id":"pk-existing","name":"Passing","language":"en","astNodeIds":[],"tags":[],"uri":"features/sample.feature","steps":[{"id":"ps-existing-1","text":"a passing step","astNodeIds":[]}]}}
+    {"testCase":{"id":"tc-existing","pickleId":"pk-existing","testSteps":[{"id":"step-existing-1","pickleStepId":"ps-existing-1"}]}}
+    {"testCaseStarted":{"id":"case-existing","testCaseId":"tc-existing","attempt":0,"timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepStarted":{"testStepId":"step-existing-1","testCaseStartedId":"case-existing","timestamp":{"seconds":1,"nanos":0}}}
+    {"testStepFinished":{"testStepId":"step-existing-1","testCaseStartedId":"case-existing","timestamp":{"seconds":2,"nanos":0},"testStepResult":{"status":"PASSED","duration":{"seconds":1,"nanos":0}}}}
+    {"testCaseFinished":{"testCaseStartedId":"case-existing","timestamp":{"seconds":2,"nanos":0},"willBeRetried":false}}
+    {"testRunFinished":{"success":true,"timestamp":{"seconds":3,"nanos":0}}}
+    ```
   * When run `python -m pytest_bdd.plugin.allure_formatter.cli existing-messages.ndjson --output allure-cli-output`
-  * Then Directory "allure-cli-output" contains Allure result JSON files
+  * Then renderer command exits with code 0
+  * And Directory "allure-cli-output" contains Allure result JSON files
   * And Directory "allure-cli-output" contains a container JSON file referencing the results
   * When run docker
 

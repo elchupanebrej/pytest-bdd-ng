@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 from contextlib import closing, contextmanager
@@ -16,7 +17,6 @@ from pytest_bdd import given, parsers, then, when
 from pytest_bdd.plugin.allure_formatter.converter import convert
 from pytest_bdd_testing.tool.docker.docker import require_docker_daemon
 from pytest_bdd_testing.tool.pytest_results import attach_command_result_outputs
-from pytest_bdd.util.data_table import data_table_to_dicts
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -744,6 +744,82 @@ def _write_ndjson_file(path: Path, content: list) -> None:
         f.writelines(json.dumps(entry) + "\n" for entry in content)
 
 
+def _testdir_path(testdir, path: str | Path) -> Path:
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return Path(testdir.tmpdir.strpath) / candidate
+
+
+def _load_json_files(directory: Path, pattern: str) -> list[dict]:
+    return [json.loads(path.read_text(encoding="utf-8")) for path in sorted(directory.glob(pattern))]
+
+
+def _scenario_result_payloads(output_dir: Path) -> list[dict]:
+    return [
+        payload
+        for payload in _load_json_files(output_dir, "*-result.json")
+        if not str(payload.get("name", "")).startswith("Test Run")
+    ]
+
+
+def _schema_path() -> Path:
+    candidates = [
+        Path(__file__).parent.parent.parent.parent / "docs" / "allure3-events.schema.json",
+        Path(__file__).parent.parent.parent.parent.parent / "docs" / "allure3-events.schema.json",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    msg = "Allure3 events schema not found"
+    raise AssertionError(msg)
+
+
+def _collect_named_lists(payload: object, name: str) -> list[dict]:
+    found: list[dict] = []
+    if isinstance(payload, dict):
+        value = payload.get(name)
+        if isinstance(value, list):
+            found.extend(item for item in value if isinstance(item, dict))
+        for child in payload.values():
+            found.extend(_collect_named_lists(child, name))
+    elif isinstance(payload, list):
+        for item in payload:
+            found.extend(_collect_named_lists(item, name))
+    return found
+
+
+def _objects_for_group(payloads: list[dict], group: str) -> list[dict]:
+    if group in {"result", "container"}:
+        return payloads
+    if group == "statusDetails":
+        return [item for payload in payloads if isinstance(item := payload.get("statusDetails"), dict)]
+    if group.endswith("[]"):
+        key = group[:-2]
+        return [item for payload in payloads for item in _collect_named_lists(payload, key)]
+    msg = f"Unsupported Allure JSON field group: {group}"
+    raise AssertionError(msg)
+
+
+def _assert_json_field_groups(payloads: list[dict], step) -> None:
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    missing: list[str] = []
+    for row in data_table.rows[1:]:
+        group = row.cells[0].value
+        fields = [field.strip() for field in row.cells[1].value.split(",") if field.strip()]
+        objects = _objects_for_group(payloads, group)
+        missing.extend(f"{group}.{field}" for field in fields if not any(field in item for item in objects))
+    assert not missing, f"Missing Allure JSON fields: {missing!r}"
+
+
+@given(re.compile(r'File "(?P<file_path>(?:[^"]*[\\/][^"]+|[^"]*-[^"]*))" with content:'))
+def write_path_file_with_content(testdir, file_path: str, step) -> None:
+    """Write a testdir file whose path contains directories or hyphenated names."""
+    output_path = _testdir_path(testdir, file_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(step.argument.doc_string.content, encoding="utf-8")
+
+
 @given(parsers.parse('File "{filename}" with Cucumber Messages content for one passing scenario'))
 def create_messages_ndjson(testdir, filename):
     """Create an NDJSON file with Cucumber Messages content for one passing scenario."""
@@ -759,6 +835,17 @@ def check_directory_has_results(testdir, dirname):
     assert output_dir.exists(), f"Directory does not exist: {output_dir}"
     result_files = list(output_dir.glob("*-result.json"))
     assert len(result_files) > 0, f"No result files found in {output_dir}"
+
+
+@then(parsers.parse('Directory "{dirname}" contains "{expected_count:d}" Allure result JSON files'))
+def check_directory_has_result_count(testdir, dirname: str, expected_count: int) -> None:
+    """Check that a directory contains expected Allure result JSON file count."""
+    output_dir = Path(testdir.tmpdir.strpath) / dirname
+    if expected_count == 0 and not output_dir.exists():
+        return
+    assert output_dir.exists(), f"Directory does not exist: {output_dir}"
+    result_files = _scenario_result_payloads(output_dir)
+    assert len(result_files) == expected_count, f"Expected {expected_count} result files, got {len(result_files)}"
 
 
 @then("Allure result files validate against the Allure3 events schema")
@@ -797,6 +884,74 @@ def check_directory_has_container(testdir, dirname):
             data = json.load(f)
         assert "children" in data, "Container file missing children field"
         assert len(data["children"]) > 0, "Container has no children"
+
+
+@then(parsers.parse("renderer command exits with code {return_code:d}"))
+def check_renderer_command_exit_code(renderer_result, return_code: int) -> None:
+    """Assert standalone command exit code."""
+    assert renderer_result.returncode == return_code
+
+
+@then("renderer command exits with non-zero code")
+def check_renderer_command_nonzero(renderer_result) -> None:
+    """Assert standalone command failed."""
+    assert renderer_result.returncode != 0
+
+
+@then(parsers.parse('Allure result files in "{dirname}" include scenario statuses:'))
+def check_allure_result_statuses(testdir, dirname: str, step) -> None:
+    """Assert generated Allure result files include expected scenario statuses."""
+    output_dir = _testdir_path(testdir, dirname)
+    payloads = _scenario_result_payloads(output_dir)
+    statuses = {payload.get("name"): payload.get("status") for payload in payloads}
+    data_table = getattr(step.argument, "data_table", None) if getattr(step, "argument", None) else None
+    for row in data_table.rows[1:]:
+        scenario = row.cells[0].value
+        status = row.cells[1].value
+        assert statuses.get(scenario) == status, statuses
+
+
+@then(parsers.parse('Allure result files in "{dirname}" contain JSON field groups:'))
+def check_allure_result_json_field_groups(testdir, dirname: str, step) -> None:
+    """Assert generated Allure result files expose expected schema field groups."""
+    output_dir = _testdir_path(testdir, dirname)
+    payloads = _load_json_files(output_dir, "*-result.json")
+    assert payloads, f"No result files found in {output_dir}"
+    _assert_json_field_groups(payloads, step)
+
+
+@then(parsers.parse('Allure container files in "{dirname}" validate against the Allure3 events schema'))
+def check_allure_container_files_validate_schema(testdir, dirname: str) -> None:
+    """Validate generated Allure container files against the Allure3 schema."""
+    import jsonschema
+
+    output_dir = _testdir_path(testdir, dirname)
+    payloads = _load_json_files(output_dir, "*-container.json")
+    assert payloads, f"No container files found in {output_dir}"
+    schema = json.loads(_schema_path().read_text(encoding="utf-8"))
+    for payload in payloads:
+        jsonschema.validate(payload, schema)
+
+
+@then(parsers.parse('Allure container files in "{dirname}" contain JSON field groups:'))
+def check_allure_container_json_field_groups(testdir, dirname: str, step) -> None:
+    """Assert generated Allure container files expose expected schema field groups."""
+    output_dir = _testdir_path(testdir, dirname)
+    payloads = _load_json_files(output_dir, "*-container.json")
+    assert payloads, f"No container files found in {output_dir}"
+    _assert_json_field_groups(payloads, step)
+
+
+@then(parsers.parse('Allure container files in "{dirname}" reference all result UUIDs'))
+def check_allure_container_references_result_uuids(testdir, dirname: str) -> None:
+    """Assert container children include every generated result UUID."""
+    output_dir = _testdir_path(testdir, dirname)
+    results = _load_json_files(output_dir, "*-result.json")
+    containers = _load_json_files(output_dir, "*-container.json")
+    result_uuids = {str(result["uuid"]) for result in results}
+    child_uuids = {str(child) for container in containers for child in container.get("children", [])}
+    assert result_uuids
+    assert result_uuids.issubset(child_uuids), f"Missing container children: {result_uuids - child_uuids}"
 
 
 # --- Docker and HTML report validation steps ---
@@ -918,7 +1073,10 @@ def run_docker(testdir, step, attach):
     if data_table is None:
         raise ValueError("run docker requires a data table with at least 'image' column")  # noqa: EM101, TRY003  # BDD step validation
 
-    options_dict = data_table_to_dicts(data_table)
+    options_dict: dict[str, list[str]] = {}
+    for row in data_table.rows:
+        key = row.cells[0].value
+        options_dict.setdefault(key, []).extend(cell.value for cell in row.cells[1:])
 
     image = options_dict.get("image", [None])[0]
     if not image:
@@ -938,8 +1096,12 @@ def run_docker(testdir, step, attach):
 
     docker_args = ["docker", "run", "--rm"]
 
+    results_path = Path(testdir.tmpdir.strpath)
     for vol in volumes:
-        docker_args.extend(["-v", str(vol)])
+        volume_parts = str(vol).split(":")
+        if volume_parts and volume_parts[0] and not Path(volume_parts[0]).is_absolute():
+            volume_parts[0] = (results_path / volume_parts[0]).as_posix()
+        docker_args.extend(["-v", ":".join(volume_parts)])
 
     for env in env_vars:
         docker_args.extend(["-e", str(env)])
@@ -949,8 +1111,6 @@ def run_docker(testdir, step, attach):
     if command_parts:
         for part in command_parts:
             docker_args.extend(part.split())
-
-    results_path = Path(testdir.tmpdir.strpath)
 
     result = subprocess.run(
         docker_args,
@@ -985,17 +1145,15 @@ def check_directory_has_html_report(testdir, dirname):
 def check_html_report_contains_scenario(testdir, scenario_name):
     """Check that the Allure HTML report contains a specific scenario name."""
     testdir_path = Path(testdir.tmpdir.strpath)
-    index_files = list(testdir_path.rglob("index.html"))
-    assert index_files, "No index.html files found"
+    report_files = [*testdir_path.rglob("index.html"), *testdir_path.rglob("*.json")]
+    assert report_files, "No Allure report files found"
 
-    found = False
-    for index_file in index_files:
-        content = index_file.read_text(encoding="utf-8")
+    for report_file in report_files:
+        content = report_file.read_text(encoding="utf-8")
         if scenario_name in content:
-            found = True
-            break
+            return
 
-    assert found, f"Scenario name '{scenario_name}' not found in any Allure HTML report"
+    pytest.fail(f"Scenario name '{scenario_name}' not found in any Allure HTML report")
 
 
 @when("the Allure report is opened in a browser", target_fixture="allure_report_data")
