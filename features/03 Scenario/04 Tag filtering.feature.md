@@ -4,9 +4,9 @@
   background sections.
 
 ## Scenario: Select scenarios by marker expression
-* Given File "pytest.ini" with content:
+* Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     markers =
         feature_tag_1
@@ -55,9 +55,9 @@
     | 1      | 0      |
 
 ## Scenario: Keep tags working after background blocks
-* Given File "pytest.ini" with content:
+* Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     markers = tag
     ```

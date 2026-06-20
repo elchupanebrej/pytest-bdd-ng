@@ -4,9 +4,9 @@
   scenarios are found.
 
 ## Scenario: Load scenarios with `scenarios()` and keep bound scenario explicit
-* Given File "pytest.ini" with fixture templated content:
+* Given File "pytest.toml" with fixture templated content:
 
-    ```ini
+    ```toml
     [pytest]
     console_output_style=classic
     bdd_features_base_dir={tmp_path}

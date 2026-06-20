@@ -53,8 +53,8 @@
 * Then Go parser version is logged
 
 ## Scenario: Environment variable controls backend selection
-* Given File "pytest.ini" with content:
-    ```ini
+* Given File "pytest.toml" with content:
+    ```toml
     [pytest]
     ```
 * When run pytest with environment:

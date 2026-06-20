@@ -1,7 +1,7 @@
 # Feature: Feature files search is started from base directory
   By default, pytest-bdd-ng will use current module's path as base path for
   finding feature files, but this behavior can be changed in the pytest
-  configuration file (i.e. `pytest.ini`, `tox.ini` or `setup.cfg`)
+  configuration file (i.e. `pytest.toml`, `tox.ini` or `setup.cfg`)
   by declaring the new base path in the `bdd_features_base_dir` key.
   The path is interpreted as relative to the pytest root directory.
   You can also override features base path on a per-scenario basis
@@ -43,9 +43,9 @@
     ```
 
 ## Scenario: Search from configured base directory
-* Given File "pytest.ini" with fixture templated content:
+* Given File "pytest.toml" with fixture templated content:
 
-    ```ini
+    ```toml
     [pytest]
     bdd_features_base_dir={tmp_path}
     ```

@@ -69,9 +69,9 @@
     |------------------|
 
 ## Scenario: Runtime plugin generates Allure results during pytest run
-  * Given File "pytest.ini" with content:
+  * Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     disable_feature_autoload = true
     ```
@@ -121,9 +121,9 @@
   * And Allure HTML report contains scenario name "Passing"
 
 ## Scenario: Live mode generates Allure results without NDJSON file
-  * Given File "pytest.ini" with content:
+  * Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     disable_feature_autoload = true
     ```
@@ -164,9 +164,9 @@
   * And Allure result files validate against the Allure3 events schema
 
 ## Scenario: Runtime plugin renders full pytest-bdd feature surface in an Allure report
-  * Given File "pytest.ini" with content:
+  * Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     disable_feature_autoload = true
     ```

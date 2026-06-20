@@ -41,7 +41,7 @@
     |--------|--------|
     | 1      | 0      |
 
-## Scenario: Load feature using HTTP base URL from pytest.ini
+## Scenario: Load feature using HTTP base URL from pytest.toml
 * Given Localserver endpoint "/feature" responding content:
 
     ```gherkin
@@ -89,7 +89,7 @@
 
 * And File "test_http.url" with fixture templated content:
 
-    ```ini
+    ```toml
     [InternetShortcut]
     URL=http://localhost:{httpserver_port}/feature
     ```
@@ -146,7 +146,7 @@
 
 * And File "test_http.desktop" with fixture templated content:
 
-    ```ini
+    ```toml
     [Desktop Entry]
     Type=Link
     URL=http://localhost:{httpserver_port}/feature

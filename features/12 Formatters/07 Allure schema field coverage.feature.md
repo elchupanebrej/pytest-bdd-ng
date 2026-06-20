@@ -7,9 +7,9 @@
   and concrete examples of input files and generated output fields.
 
 ## Scenario: Live pytest CLI run produces TestResult schema fields
-* Given File "pytest.ini" with content:
+* Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     disable_feature_autoload = true
     ```

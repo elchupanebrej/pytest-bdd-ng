@@ -38,9 +38,9 @@
     test_report = scenarios("test.feature")
     ```
 
-* And Set pytest.ini content to:
+* And Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     cucumber_json_path = out.json
     ```

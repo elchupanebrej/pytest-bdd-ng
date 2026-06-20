@@ -61,6 +61,27 @@ def _read_attachment_payloads(ndjson_path: Path, media_type: str) -> list[dict[s
     return payloads
 
 
+def _testdir_path(testdir, file_path: str) -> Path:
+    path = Path(file_path)
+    if path.is_absolute():
+        return path
+    return Path(str(testdir.tmpdir)) / path
+
+
+def _pytest_return_code(pytest_result) -> int:
+    return_code = getattr(pytest_result, "ret", None)
+    if return_code is None:
+        return_code = pytest_result.returncode
+    return int(return_code)
+
+
+def _payload_field_contains(payload: dict[str, object], field: str, expected: str) -> bool:
+    value = payload.get(field)
+    if isinstance(value, str):
+        return expected in value
+    return expected in json.dumps(value, sort_keys=True)
+
+
 @given("a BDD module with one missing scenario binding and one missing step", target_fixture="codegen_case")
 def bdd_module_with_missing_artifacts(testdir):
     """Create a fixture project with one bound scenario and one unbound scenario."""
@@ -509,3 +530,50 @@ def generated_python_code_defines_functions(pytest_result, step) -> None:
 def generated_code_is_printed(pytest_result) -> None:
     assert pytest_result.ret == 0
     assert _generated_python_module(pytest_result).body
+
+
+@then(parsers.parse("pytest exits with code {return_code:d}"))
+def assert_pytest_exits_with_code(pytest_result, return_code: int) -> None:
+    assert _pytest_return_code(pytest_result) == return_code
+
+
+@then(parsers.parse('File "{file_path}" does not exist'))
+def file_does_not_exist(testdir, file_path: str) -> None:
+    assert not _testdir_path(testdir, file_path).exists()
+
+
+@then(parsers.parse('File "{file_path}" contains "{text}" exactly {count:d} times'))
+def file_contains_text_exactly_count_times(testdir, file_path: str, text: str, count: int) -> None:
+    content = _testdir_path(testdir, file_path).read_text(encoding="utf-8")
+    assert content.count(text) == count
+
+
+@then(parsers.parse('File "{file_path}" contains text:'))
+def file_contains_text(testdir, file_path: str, step) -> None:
+    expected = step.argument.doc_string.content
+    content = _testdir_path(testdir, file_path).read_text(encoding="utf-8")
+    assert expected in content
+
+
+@then(parsers.parse('NDJSON report "{file_path}" contains attachment media type "{media_type}"'))
+def ndjson_report_contains_attachment_media_type(testdir, file_path: str, media_type: str) -> None:
+    payloads = _read_attachment_payloads(_testdir_path(testdir, file_path), media_type)
+    assert payloads
+
+
+@then(parsers.parse('NDJSON report "{file_path}" contains diagnostic "{kind}" with fields:'))
+def ndjson_report_contains_diagnostic_with_fields(testdir, file_path: str, kind: str, step) -> None:
+    diagnostics = _read_attachment_payloads(
+        _testdir_path(testdir, file_path),
+        "application/vnd.pytest-bdd.diagnostic+json",
+    )
+    matching = [payload for payload in diagnostics if payload.get("kind") == kind]
+    assert matching
+    rows = step.argument.data_table.rows[1:]
+    missing: list[str] = []
+    for row in rows:
+        field = row.cells[0].value
+        expected = row.cells[1].value
+        if not any(_payload_field_contains(payload, field, expected) for payload in matching):
+            missing.append(f"{field}={expected}")
+    assert not missing, f"Missing diagnostic fields {missing!r} in {matching!r}"

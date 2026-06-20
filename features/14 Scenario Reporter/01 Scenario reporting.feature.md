@@ -37,8 +37,8 @@
 
     test_scenarios = scenarios("test.feature.md")
     ```
-* And File "pytest.ini" with content:
-    ```ini
+* And File "pytest.toml" with content:
+    ```toml
     [pytest]
     bdd_features_base_dir = .
     ```

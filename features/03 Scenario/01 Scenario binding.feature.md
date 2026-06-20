@@ -35,9 +35,9 @@
         return "bar"
     ```
 
-* And File "pytest.ini" with content:
+* And File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     bdd_features_base_dir=missing
     ```
@@ -71,9 +71,9 @@
         pass
     ```
 
-* And File "pytest.ini" with content:
+* And File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     bdd_features_base_dir=missing
     ```

@@ -64,9 +64,9 @@
     ```
 
 ### Scenario: Resolve by ini-configured base directory
-* Given Set pytest.ini content to:
+* Given Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     bdd_features_base_dir=features
     ```
@@ -83,9 +83,9 @@
     | 2      | 0      | 0       |
 
 ### Scenario: Explicit argument overrides invalid ini base directory
-* Given Set pytest.ini content to:
+* Given Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     bdd_features_base_dir=/does/not/exist
     ```

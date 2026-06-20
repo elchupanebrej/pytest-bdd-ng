@@ -26,9 +26,9 @@
           |failed |
     ```
 
-* Given File "pytest.ini" with content:
+* Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     markers =
       passed
@@ -141,9 +141,9 @@
           |failed |
     ```
 
-* Given File "pytest.ini" with content:
+* Given File "pytest.toml" with content:
 
-    ```ini
+    ```toml
     [pytest]
     markers =
       feature_tag

@@ -62,10 +62,10 @@
     |--------|
     | 3      |
 
-### Scenario: Batch collection can be disabled via pytest.ini
-* Given Set pytest.ini content to:
+### Scenario: Batch collection can be disabled via pytest.toml
+* Given Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     disable_batch_collection=true
     ```
@@ -77,10 +77,10 @@
     |--------|
     | 3      |
 
-### Scenario: Batch threshold can be set via pytest.ini
-* Given Set pytest.ini content to:
+### Scenario: Batch threshold can be set via pytest.toml
+* Given Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     batch_threshold=1
     ```

@@ -51,10 +51,10 @@
     |--------|
     | 0      |
 
-### Scenario: Feature autoload could be disabled via pytest.ini
-* Given Set pytest.ini content to:
+### Scenario: Feature autoload could be disabled via pytest.toml
+* Given Set pytest.toml content to:
 
-    ```ini
+    ```toml
     [pytest]
     disable_feature_autoload=true
     ```
