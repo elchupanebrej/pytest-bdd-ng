@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed handoff and committed all changes (Phase 20 Pylint / docstring cleanups)
-last_updated: "2026-06-13T14:56:00Z"
-last_activity: 2026-06-20 - Completed quick task 260620-o6j: rewrite all assert statements in src/pytest_bdd_testing/step to use pyhamcrest matchers
+status: Milestone v1.0 audit passed
+stopped_at: Phase 26 context gathered
+last_updated: "2026-06-20T21:21:15.591Z"
+last_activity: 2026-06-13 -- remaining gaps closed; docs/api/generated moved to docs/_build
 progress:
-  total_phases: 20
-  completed_phases: 19
-  total_plans: 99
-  completed_plans: 98
+  total_phases: 22
+  completed_phases: 21
+  total_plans: 107
+  completed_plans: 107
   percent: 95
 ---
 
@@ -21,8 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-<<<<<<< HEAD
-**Current focus:** Phase 20 — multiple-refactorings
+**Current focus:** Phase 26 - Test CLI scripts in a separate Cucumber Development flow
 
 ## Current Position
 
@@ -97,9 +96,10 @@ Recent decisions affecting current work:
 - Phase 17 added: Adapt GitHub CI to use make and validate with act.
 - Phase 18 added: Split xdist-remote tests into separate parallel GHA executor job.
 - Phase 19 added: HTML doc generation simplification.
-<<<<<<< HEAD
 - Phase 20 added: multiple refactorings
 - Phase 20a added: docs/architecture/allure.md
+- Phase 26 added: Test CLI scripts in a separate Cucumber Development flow
+- Phase 26 ingested: development-script BDD requirements, roadmap detail, and phase planning artifacts from `specs/026-dev-scripts-bdd/`
 
 ### Pending Todos
 
@@ -144,6 +144,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-06-13T17:54:40+03:00
-Stopped at: Completed handoff and committed all changes (Phase 20 Pylint / docstring cleanups)
-Resume file: None
+Last session: 2026-06-20T21:21:15.530Z
+Stopped at: Phase 26 context gathered
+Resume file: .planning/phases/26-test-cli-scripts-in-a-separate-cucumber-development-flow/26-CONTEXT.md
