@@ -64,6 +64,7 @@
 * When run pytest
 
     | cli_args | -k | test_outline.py |
+    |----------|----|-----------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
@@ -112,6 +113,7 @@
 * When run pytest
 
     | cli_args | -k | outline.feature |
+    |----------|----|-----------------|
 * Then pytest outcome must contain tests with statuses:
 
     | errors |
@@ -121,3 +123,4 @@
 * And pytest outcome must match lines:
 
     | *FeatureConcreteParseError* |
+    |-----------------------------|

@@ -46,8 +46,11 @@
     ```
 * Given Pytest mark expression is "smoke and not slow"
 * When run pytest
+
     | cli_args | test_mark_expression.py | -m | smoke and not slow |
+    |----------|-------------------------|----|--------------------|
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

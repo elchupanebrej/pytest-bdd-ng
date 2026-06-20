@@ -26,11 +26,17 @@
     ```
 
 ## Scenario: Summary shows run statistics
-* When run pytest with summary formatter
+* When run pytest
+
+    | cli_args | --cucumber-summary |
+    |----------|--------------------|
 * Then Summary output contains 1 passed
 
 ## Scenario: Summary shows duration
-* When run pytest with summary formatter
+* When run pytest
+
+    | cli_args | --cucumber-summary |
+    |----------|--------------------|
 * Then Summary output contains m
 
 ## Scenario: Summary shows failed test count
@@ -49,5 +55,8 @@
     def _fail():
         assert False
     ```
-* When run pytest with summary formatter
+* When run pytest
+
+    | cli_args | --cucumber-summary |
+    |----------|--------------------|
 * Then Summary output contains 1 failed

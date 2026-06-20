@@ -57,6 +57,7 @@ function for `Given` and `When` steps.
 * When run pytest
 
     | cli_args | -k | test_alias.py |
+    |----------|----|---------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |

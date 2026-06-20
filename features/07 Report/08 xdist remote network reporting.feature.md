@@ -18,9 +18,12 @@
 * Given Docker is available
 
 * When run pytest across xdist workers over socket gateway with CLI options:
+
     | cli_args | -n | 2 | --dist | load | --tx | socket=worker-1 | --tx | socket=worker-2 | --cucumber-messages | remote-xdist.ndjson |
+    |----------|----|---|--------|------|------|-----------------|------|-----------------|---------------------|---------------------|
 
 * Then the distributed run succeeds and a consolidated NDJSON report is produced:
+
     | tests |
     |-------|
     | 4     |
@@ -32,9 +35,12 @@
 * Given Docker is available
 
 * When run pytest across xdist workers over relay gateway with CLI options:
+
     | cli_args | -n | 2 | --dist | load | --tx | socket=worker-1 | --tx | via=relay//socket=worker-2 | --cucumber-messages | remote-xdist.ndjson |
+    |----------|----|---|--------|------|------|-----------------|------|----------------------------|---------------------|---------------------|
 
 * Then the distributed run succeeds and a consolidated NDJSON report is produced:
+
     | tests |
     |-------|
     | 4     |
@@ -46,9 +52,12 @@
 * Given Docker is available
 
 * When run pytest across xdist workers over ssh gateway with CLI options:
+
     | cli_args | -n | 2 | --dist | load | --tx | ssh=worker-1 | --tx | ssh=worker-2 | --cucumber-messages | remote-xdist.ndjson |
+    |----------|----|---|--------|------|------|--------------|------|--------------|---------------------|---------------------|
 
 * Then the distributed run succeeds and a consolidated NDJSON report is produced:
+
     | tests |
     |-------|
     | 4     |

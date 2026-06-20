@@ -73,6 +73,7 @@
 * When run pytest
 
     | cli_args | -k | test_no_strict.py |
+    |----------|----|-------------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |

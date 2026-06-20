@@ -58,13 +58,14 @@ requiring an extra `-s`.
 
     | cli_args   | --cucumber-summary | -k | test_report.py |
     |------------|--------------------|----|----------------|
-    | subprocess | true | | |
+    | subprocess | true               |    |                |
 
 * Then pytest exits with test failures
 
 * And the renderer terminal output includes:
 
     | *Summary: 2 scenarios (1 passed, 1 failed)* |
+    |---------------------------------------------|
 
 ## Scenario: File formatter flags can be rendered during the pytest run
 
@@ -75,10 +76,9 @@ the run and finalize their files when the formatter session closes.
 
 * When run pytest
 
-    <!-- markdownlint-disable-next-line MD013 -->
     | cli_args   | --cucumber-json=report.json | --cucumber-junit=report.xml | --cucumber-usage=usage.txt | --cucumber-usage-json=usage.json | -k | test_report.py |
-    |------------|-----------------------------|------------------------------|-----------------------------|----------------------------------|----|----------------|
-    | subprocess | true | | | | | |
+    |------------|-----------------------------|-----------------------------|----------------------------|----------------------------------|----|----------------|
+    | subprocess | true                        |                             |                            |                                  |    |                |
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -105,13 +105,14 @@ consistent with the final canonical NDJSON report.
 
     | cli_args   | --cucumber-summary | --cucumber-json=report.json | --cucumber-usage-json=usage.json | -k | test_report.py |
     |------------|--------------------|-----------------------------|----------------------------------|----|----------------|
-    | subprocess | true | | | | |
+    | subprocess | true               |                             |                                  |    |                |
 
 * Then pytest exits with test failures
 
 * And the renderer terminal output includes:
 
     | *Summary: 2 scenarios (1 passed, 1 failed)* |
+    |---------------------------------------------|
 
 * And File "report.json" is not empty
 * And File "usage.json" is not empty
@@ -129,7 +130,7 @@ a fake in-process pytest runtime.
 
     | cli_args   | --messages-ndjson=messages.ndjson | -k | test_report.py |
     |------------|-----------------------------------|----|----------------|
-    | subprocess | true | | |
+    | subprocess | true                              |    |                |
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -144,6 +145,7 @@ a fake in-process pytest runtime.
 * Then the renderer terminal output includes:
 
     | Summary: 2 scenarios (1 passed, 1 failed) |
+    |-------------------------------------------|
 
 * Then File "standalone.json" is not empty
 * And File "standalone-usage.json" is not empty
@@ -156,7 +158,7 @@ a fake in-process pytest runtime.
 
     | cli_args   | --cucumber-progress | -k | test_report.py |
     |------------|---------------------|----|----------------|
-    | subprocess | true | | |
+    | subprocess | true                |    |                |
 
 * Then pytest exits with test failures
 * And the renderer terminal output includes:

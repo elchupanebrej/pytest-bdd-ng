@@ -13,7 +13,6 @@
     ```python
     from pytest_bdd import given
 
-
     @given("a passing step")
     def _pass():
         pass
@@ -27,19 +26,24 @@
 
 ## Scenario: JUnit XML output contains test suite structure
 * When run pytest
+
     | cli_args | --cucumber-junit=report.xml |
+    |----------|-----------------------------|
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 2      |
 * And JUnit XML report "report.xml" has suite totals:
+
     | tests | failures |
     |-------|----------|
     | 2     | 1        |
-
 ## Scenario: JUnit XML contains test case elements
 * When run pytest
-    | cli_args | --cucumber-junit=report.xml |
+
+ | cli_args | --cucumber-junit=report.xml |
+ |----------|-----------------------------|
 * Then JUnit XML report "report.xml" contains testcase for "passing scenario"
 
 ## Scenario: JUnit XML contains failure element on failed test
@@ -53,16 +57,19 @@
     ```python
     from pytest_bdd import given
 
-
     @given("a failing step")
     def _fail():
         assert False
     ```
 * When run pytest
+
     | cli_args | --cucumber-junit=report.xml |
+    |----------|-----------------------------|
 * Then JUnit XML report "report.xml" contains failure for "failing scenario"
 
 ## Scenario: JUnit XML output is valid XML
 * When run pytest
+
     | cli_args | --cucumber-junit=report.xml |
+    |----------|-----------------------------|
 * Then JUnit XML report "report.xml" is valid XML

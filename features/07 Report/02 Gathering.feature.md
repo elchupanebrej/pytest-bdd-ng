@@ -118,3 +118,4 @@ Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/h
 * And pytest outcome must match lines:
 
     | *test_complex.py::test_complex*alien0*PASSED* |
+    |-----------------------------------------------|

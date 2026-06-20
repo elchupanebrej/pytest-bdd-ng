@@ -43,3 +43,4 @@
 * And pytest outcome must match lines:
 
     | *FeatureConcreteParseError:* |
+    |------------------------------|

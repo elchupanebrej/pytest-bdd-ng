@@ -47,8 +47,11 @@
 
 ## Scenario: Batch collection flag can disable batch mode
 * When run pytest
+
     | cli_args | --disable-batch-collection |
+    |----------|----------------------------|
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 3      |
@@ -62,6 +65,7 @@
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 3      |
@@ -78,8 +82,11 @@
     scenarios("malformed.feature.md")
     ```
 * When run pytest
+
     | cli_args | test_malformed.py |
+    |----------|-------------------|
 * Then pytest outcome must contain tests with statuses:
+
     | failed |
     |--------|
     | 0      |

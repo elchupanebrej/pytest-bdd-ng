@@ -46,6 +46,7 @@
 * When run pytest
 
     | cli_args | -m | scenario_tag_10 and not scenario_tag_01 | -vv |
+    |----------|----|-----------------------------------------|-----|
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -95,6 +96,7 @@
 * When run pytest
 
     | cli_args | -m | tag | -vv |
+    |----------|----|-----|-----|
 
 * Then pytest outcome must contain tests with statuses:
 

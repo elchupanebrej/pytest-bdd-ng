@@ -34,6 +34,7 @@
 * When run pytest
 
     | cli_args | -k | test_http.py |
+    |----------|----|--------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
@@ -70,6 +71,7 @@
 * When run pytest
 
     | cli_args | -k | test_http.py |
+    |----------|----|--------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
@@ -125,6 +127,7 @@
 * When run pytest
 
     | cli_args | -k | test_http.py |
+    |----------|----|--------------|
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -182,6 +185,7 @@
 * When run pytest
 
     | cli_args | -k | test_http.py |
+    |----------|----|--------------|
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -236,6 +240,7 @@
 * When run pytest
 
     | cli_args | -k | test_http.py |
+    |----------|----|--------------|
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -281,6 +286,7 @@
 * When run pytest
 
     | subprocess | true |
+    |------------|------|
 
 * Then pytest outcome must contain tests with statuses:
 

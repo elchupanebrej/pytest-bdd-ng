@@ -4,39 +4,36 @@
   plugin that generates Allure results during the test run.
 
 ## Scenario: Convert a minimal valid NDJSON to Allure results
-  Given a cucumber messages NDJSON file with one passing scenario
-  When the allure-cucumber converter processes the file
-  Then an Allure result JSON file is created
-  And the result JSON validates against the Allure3 events schema
-  And the result has status "passed"
+  * Given a cucumber messages NDJSON file with one passing scenario
+  * When the allure-cucumber converter processes the file
+  * Then an Allure result JSON file is created
+  * And the result JSON validates against the Allure3 events schema
+  * And the result has status "passed"
 
 ## Scenario: Convert NDJSON with multiple scenarios
-  Given a cucumber messages NDJSON file with two scenarios
-  When the allure-cucumber converter processes the file
-  Then two Allure result JSON files are created
-  And a container JSON file references both results
+  * Given a cucumber messages NDJSON file with two scenarios
+  * When the allure-cucumber converter processes the file
+  * Then two Allure result JSON files are created
+  * And a container JSON file references both results
 
 ## Scenario: Handle empty NDJSON gracefully
-  Given an empty cucumber messages NDJSON file
-  When the allure-cucumber converter processes the file
-  Then no error occurs
+  * Given an empty cucumber messages NDJSON file
+  * When the allure-cucumber converter processes the file
+  * Then no error occurs
 
 ## Scenario: CLI rejects nonexistent input file
-  Given a nonexistent NDJSON file path
-  When the allure-cucumber CLI is invoked with that path
-  Then the CLI exits with a non-zero code
+  * Given a nonexistent NDJSON file path
+  * When the allure-cucumber CLI is invoked with that path
+  * Then the CLI exits with a non-zero code
 
 ## Scenario: Runtime plugin generates Allure results during pytest run
-  Given File "features/sample.feature" with content:
-
+  * Given File "features/sample.feature" with content:
     ```gherkin
     Feature: Sample
       Scenario: Passing
         Given a passing step
     ```
-
-  And File "conftest.py" with content:
-
+  * And File "conftest.py" with content:
     ```python
     from pytest_bdd import given
 
@@ -44,51 +41,42 @@
     def _():
       pass
     ```
-
-  And File "test_sample.py" with content:
-
+  * And File "test_sample.py" with content:
     ```python
     from pytest_bdd import scenarios
 
     test = scenarios("sample.feature")
     ```
+  * And File "allure-results/messages.ndjson" with Cucumber Messages content for one passing scenario
+  * When run pytest
 
-  And File "allure-results/messages.ndjson" with Cucumber Messages content for one passing scenario
-
-  When run pytest
-
-    | cli_args | --allure-cucumber-out | allure-output | -k | test_sample.py |
-
-  Then pytest outcome must contain tests with statuses:
+  | cli_args | --allure-cucumber-out | allure-output | -k | test_sample.py |
+  |----------|-----------------------|---------------|----|----------------|
+  * Then pytest outcome must contain tests with statuses:
 
     | passed |
     |--------|
     | 1      |
+  * And Directory "allure-output" contains Allure result JSON files
+  * And Allure result files validate against the Allure3 events schema
+  * When run docker
 
-  And Directory "allure-output" contains Allure result JSON files
-  And Allure result files validate against the Allure3 events schema
-
-  When run docker
-
-    | image   | allure3-local:latest |
-    | command | allure generate /allure-results -o /allure-report   |
-    | volume  | allure-output:/allure-results:ro          |
-    | volume  | allure-report:/allure-report                |
-
-  Then Directory "allure-report" contains Allure HTML report with index.html
-  And Allure HTML report contains scenario name "Passing"
+    | image   | allure3-local:latest                              |
+    |---------|---------------------------------------------------|
+    | command | allure generate /allure-results -o /allure-report |
+    | volume  | allure-output:/allure-results:ro                  |
+    | volume  | allure-report:/allure-report                      |
+  * Then Directory "allure-report" contains Allure HTML report with index.html
+  * And Allure HTML report contains scenario name "Passing"
 
 ## Scenario: Live mode generates Allure results without NDJSON file
-  Given File "features/live.feature" with content:
-
+  * Given File "features/live.feature" with content:
     ```gherkin
     Feature: Live mode test
       Scenario: Passing live
         Given a passing step
     ```
-
-  And File "conftest.py" with content:
-
+  * And File "conftest.py" with content:
     ```python
     from pytest_bdd import given
 
@@ -96,31 +84,27 @@
     def _():
       pass
     ```
-
-  And File "test_live.py" with content:
-
+  * And File "test_live.py" with content:
     ```python
     from pytest_bdd import scenarios
 
     test = scenarios("live.feature")
     ```
-
-  When run pytest
+  * When run pytest
 
     | cli_args | --allure-cucumber-out | allure-live-output | -k | test_live.py |
-
-  Then pytest outcome must contain tests with statuses:
+    |----------|-----------------------|--------------------|----|--------------|
+  * Then pytest outcome must contain tests with statuses:
 
     | passed |
     |--------|
     | 1      |
 
-  And Directory "allure-live-output" contains Allure result JSON files
-  And Allure result files validate against the Allure3 events schema
+  * And Directory "allure-live-output" contains Allure result JSON files
+  * And Allure result files validate against the Allure3 events schema
 
 ## Scenario: Runtime plugin renders full pytest-bdd feature surface in an Allure report
-  Given File "full_surface.feature" with content:
-
+  * Given File "full_surface.feature" with content:
     ```gherkin
     @allure-ui @feature-tag
     Feature: Local Allure full surface
@@ -171,8 +155,7 @@
             | outline pass | pass    |
     ```
 
-  And File "conftest.py" with content:
-
+  * And File "conftest.py" with content:
     ```python
     from pytest_bdd import given, parsers, then, when
 
@@ -222,90 +205,91 @@
         raise RuntimeError(message)
     ```
 
-  And File "test_full_surface.py" with content:
-
+  * And File "test_full_surface.py" with content:
     ```python
     from pytest_bdd import scenarios
 
     test = scenarios("full_surface.feature")
     ```
-
-  When run pytest
+  * When run pytest
 
     | cli_args | --messages-ndjson | messages.ndjson | --allure-cucumber-messages-in | messages.ndjson | --allure-cucumber-out | allure-full-results | test_full_surface.py |
+    |--------|-----------------|---------------|-----------------------------|---------------|---------------------|-------------------|--------------------|
 
-  Then pytest outcome must contain tests with statuses:
+  * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
     |--------|--------|
     | 2      | 2      |
 
-  And the local allure-cucumber plugin generated results for "4" scenarios
+  * And the local allure-cucumber plugin generated results for "4" scenarios
+  * When run docker
 
-  When run docker
-
-    | image   | allure3-local:latest |
+    | image   | allure3-local:latest                                        |
+    |---------|-------------------------------------------------------------|
     | command | allure generate /allure-full-results -o /allure-full-report |
-    | volume  | allure-full-results:/allure-full-results:ro               |
-    | volume  | allure-full-report:/allure-full-report                     |
+    | volume  | allure-full-results:/allure-full-results:ro                 |
+    | volume  | allure-full-report:/allure-full-report                      |
 
-  Then Directory "allure-full-report" contains Allure HTML report with index.html
-
-  When the Allure report is opened in a browser
-  Then the Allure report shows "4" tests
-  And the Allure report shows scenario statuses:
+  * Then Directory "allure-full-report" contains Allure HTML report with index.html
+  * When the Allure report is opened in a browser
+  * Then the Allure report shows "4" tests
+  * And the Allure report shows scenario statuses:
 
     | scenario                  | status |
+    |---------------------------|--------|
     | Passing full surface      | passed |
     | Failing assertion surface | failed |
     | Failing exception surface | failed |
     | Outline status surface    | passed |
 
-  And the Allure report shows step counts:
+  * And the Allure report shows step counts:
 
     | scenario                  | steps |
+    |---------------------------|-------|
     | Passing full surface      | 7     |
     | Failing assertion surface | 4     |
     | Failing exception surface | 4     |
     | Outline status surface    | 4     |
 
-  And the Allure report shows tags:
+  * And the Allure report shows tags:
 
-    | scenario                  | tags                                     |
-    | Passing full surface      | @allure-ui,@feature-tag,@pass,@attachments |
-    | Failing assertion surface | @allure-ui,@feature-tag,@assertion       |
-    | Failing exception surface | @allure-ui,@feature-tag,@exception       |
+    | scenario                  | tags                                           |
+    |---------------------------|------------------------------------------------|
+    | Passing full surface      | @allure-ui,@feature-tag,@pass,@attachments     |
+    | Failing assertion surface | @allure-ui,@feature-tag,@assertion             |
+    | Failing exception surface | @allure-ui,@feature-tag,@exception             |
     | Outline status surface    | @allure-ui,@feature-tag,@outline,@examples-tag |
 
-  And the Allure report shows attachments:
+  * And the Allure report shows attachments:
 
     | scenario                  | attachments |
+    |---------------------------|-------------|
     | Passing full surface      | 2           |
     | Failing assertion surface | 1           |
     | Failing exception surface | 1           |
     | Outline status surface    | 1           |
 
-  And the Allure report shows descriptions and structured arguments
-  And the Allure report shows failure messages:
+  * And the Allure report shows descriptions and structured arguments
+  * And the Allure report shows failure messages:
 
     | scenario                  | message        |
+    |---------------------------|----------------|
     | Failing assertion surface | expected proof |
     | Failing exception surface | runtime proof  |
 
 ## Scenario: Convert existing NDJSON file to Allure report via CLI
-  Given File "existing-messages.ndjson" with Cucumber Messages content for one passing scenario
+  * Given File "existing-messages.ndjson" with Cucumber Messages content for one passing scenario
+  * When run `python -m pytest_bdd.plugin.allure_formatter.cli existing-messages.ndjson --output allure-cli-output`
+  * Then Directory "allure-cli-output" contains Allure result JSON files
+  * And Directory "allure-cli-output" contains a container JSON file referencing the results
+  * When run docker
 
-  When run `python -m pytest_bdd.plugin.allure_formatter.cli existing-messages.ndjson --output allure-cli-output`
+    | image   | allure3-local:latest                              |
+    |---------|---------------------------------------------------|
+    | command | allure generate /allure-results -o /allure-report |
+    | volume  | allure-cli-output:/allure-results:ro              |
+    | volume  | allure-cli-report:/allure-report                  |
 
-  Then Directory "allure-cli-output" contains Allure result JSON files
-  And Directory "allure-cli-output" contains a container JSON file referencing the results
-
-  When run docker
-
-    | image   | allure3-local:latest |
-    | command | allure generate /allure-results -o /allure-report   |
-    | volume  | allure-cli-output:/allure-results:ro      |
-    | volume  | allure-cli-report:/allure-report           |
-
-  Then Directory "allure-cli-report" contains Allure HTML report with index.html
-  And Allure HTML report contains scenario name "Passing"
+  * Then Directory "allure-cli-report" contains Allure HTML report with index.html
+  * And Allure HTML report contains scenario name "Passing"

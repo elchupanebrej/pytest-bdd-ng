@@ -6,9 +6,10 @@
 * Then Mimetype resolves to <mimetype>
 
 ### Examples:
-    | extension  | mimetype                       |
-    |------------|--------------------------------|
-    | .bdd.hjson | application/x.struct_bdd+hjson |
-    | .bdd.json5 | application/x.struct_bdd+json5 |
-    | .bdd.toml  | application/x.struct_bdd+toml  |
-    | .bdd.hocon | application/x.struct_bdd+hocon |
+
+| extension  | mimetype                       |
+|------------|--------------------------------|
+| .bdd.hjson | application/x.struct_bdd+hjson |
+| .bdd.json5 | application/x.struct_bdd+json5 |
+| .bdd.toml  | application/x.struct_bdd+toml  |
+| .bdd.hocon | application/x.struct_bdd+hocon |

@@ -74,6 +74,7 @@
 * When run pytest
 
     | cli_args | -k | test_ok_by_ini |
+    |----------|----|----------------|
 
 * Then pytest outcome must contain tests with statuses:
 
@@ -92,6 +93,7 @@
 * When run pytest
 
     | cli_args | -k | test_ok_by_param |
+    |----------|----|------------------|
 
 * Then pytest outcome must contain tests with statuses:
 

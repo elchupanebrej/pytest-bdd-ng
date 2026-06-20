@@ -22,3 +22,4 @@
 * Then pytest outcome must match lines:
 
     | *FeatureConcreteParseError* |
+    |-----------------------------|

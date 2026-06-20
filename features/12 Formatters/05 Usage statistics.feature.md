@@ -26,11 +26,17 @@
     ```
 
 ## Scenario: Usage formatter shows step definition counts
-* When run pytest with usage formatter
+* When run pytest
+
+    | cli_args | --cucumber-usage |
+    |----------|------------------|
 * Then Usage output shows 1 step definitions used
 
 ## Scenario: Usage JSON formatter produces valid JSON
-* When run pytest with usage JSON formatter
+* When run pytest
+
+    | cli_args | --cucumber-usage-json=standalone-usage.json |
+    |----------|---------------------------------------------|
 * Then Usage JSON is valid
 
 ## Scenario: Usage detects unused step definitions
@@ -48,10 +54,16 @@
     def _unused():
         pass
     ```
-* When run pytest with usage formatter
+* When run pytest
+
+    | cli_args | --cucumber-usage |
+    |----------|------------------|
 * Then Usage output shows 2 step definitions used
 * And Usage output shows 0 step definitions used
 
 ## Scenario: Usage JSON contains step match counts
-* When run pytest with usage JSON formatter
+* When run pytest
+
+    | cli_args | --cucumber-usage-json=standalone-usage.json |
+    |----------|---------------------------------------------|
 * Then Usage JSON is valid

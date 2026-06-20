@@ -16,10 +16,12 @@
 * And worker "gw1" is waiting for a failure
 
 ## Examples:
-    | phase    |
-    | setup    |
-    | call     |
-    | teardown |
+
+| phase    |
+|----------|
+| setup    |
+| call     |
+| teardown |
 
 ## Scenario: Investigation artifacts are written as JSON and Markdown
 * Given a debug MCP session on worker "gw0"

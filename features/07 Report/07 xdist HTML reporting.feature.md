@@ -69,9 +69,10 @@ through its explicit public lifecycle contract.
     |--------|--------|
     | 3      | 1      |
 * And HTML report "out.html" contains scenario outcomes:
-    | scenario  | status |
-    |-----------|--------|
-    | Pass one  | passed |
-    | Pass two  | passed |
-    | Pass three| passed |
-    | Fail four | failed |
+
+    | scenario   | status |
+    |------------|--------|
+    | Pass one   | passed |
+    | Pass two   | passed |
+    | Pass three | passed |
+    | Fail four  | failed |

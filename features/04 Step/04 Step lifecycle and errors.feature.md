@@ -21,6 +21,7 @@
 * And pytest outcome must match lines:
 
     | *StepDefinitionNotFoundError:* |
+    |--------------------------------|
 
 ## Scenario: One function can serve multiple step aliases
 * Given File "steps.feature" with content:

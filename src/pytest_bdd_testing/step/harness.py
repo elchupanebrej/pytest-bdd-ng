@@ -132,6 +132,17 @@ def _parse_outcome_counts(pytest_result) -> dict[str, int]:
     return counts
 
 
+def _fake_node_runtime_installed() -> bool:
+    return any(
+        key in os.environ
+        for key in (
+            "PYTEST_BDD_FAKE_NODE_CAPTURE_DIR",
+            "NODE_PATH",
+            "FAKE_GLOBAL_NODE_MODULES_ROOT",
+        )
+    )
+
+
 # ── step definitions ─────────────────────────────────────────────────
 
 
@@ -177,8 +188,11 @@ def run_pytest(testdir: "Testdir", step, attach):  # pylint: disable=E0102  # in
     cli_args = list(options_dict.get("cli_args", []))
     run_mode = resolve_pytester_run_mode(options_dict)
     if run_mode == "subprocess" and requests_terminal_formatter_output(*cli_args):
-        preserve_fake = "PYTEST_BDD_FAKE_NODE_CAPTURE_DIR" in os.environ
-        outcome = run_pytest_via_real_entrypoint(testdir, *cli_args, preserve_fake_node=preserve_fake)
+        outcome = run_pytest_via_real_entrypoint(
+            testdir,
+            *cli_args,
+            preserve_fake_node=_fake_node_runtime_installed(),
+        )
         harness_stdout = ""
         harness_stderr = ""
     else:

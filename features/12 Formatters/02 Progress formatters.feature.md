@@ -28,19 +28,29 @@
     ```
 
 ## Scenario: Progress formatter shows output during run
-* When run pytest with progress formatter
+* When run pytest
+
+    | cli_args | --cucumber-progress |
+    |----------|---------------------|
 * Then Progress output shows .
 
 ## Scenario: Progress bar formatter shows bar during run
-* When run pytest with progress bar formatter
+* When run pytest
+
+    | cli_args | --cucumber-progress-bar |
+    |----------|-------------------------|
 * Then Progress output shows .
 
 ## Scenario: Progress formatter quiet mode
-* When run pytest with progress formatter
-    | cli_args | -q |
+* When run pytest
+
+    | cli_args | --cucumber-progress | -q |
+    |----------|---------------------|----|
 * Then Progress output shows .
 
 ## Scenario: Progress formatter verbose mode
-* When run pytest with progress formatter
-    | cli_args | -v |
+* When run pytest
+
+    | cli_args | --cucumber-progress | -v |
+    |----------|---------------------|----|
 * Then Progress output shows .

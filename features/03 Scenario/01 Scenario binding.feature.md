@@ -45,6 +45,7 @@
 * When run pytest
 
     | cli_args | -k | test_simple.py |
+    |----------|----|----------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
@@ -80,6 +81,7 @@
 * When run pytest
 
     | cli_args | -k | test_not_found.py |
+    |----------|----|-------------------|
 * Then pytest outcome must contain tests with statuses:
 
     | skipped | failed |

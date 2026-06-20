@@ -91,6 +91,7 @@
 * When run pytest
 
     | cli_args | -k | test_none.py |
+    |----------|----|--------------|
 * Then pytest outcome must contain tests with statuses:
 
     | skipped | failed |

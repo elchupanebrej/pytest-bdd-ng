@@ -21,9 +21,15 @@
     ```
 
 ## Scenario: Snippets formatter suggests undefined step
-* When run pytest with snippets formatter
+* When run pytest
+
+    | cli_args | --cucumber-snippets |
+    |----------|----------------------|
 * Then Snippet output suggests step definition for an undefined step
 
 ## Scenario: Snippet template format is correct
-* When run pytest with snippets formatter
+* When run pytest
+
+    | cli_args | --cucumber-snippets |
+    |----------|---------------------|
 * Then Snippet output suggests step definition for @given

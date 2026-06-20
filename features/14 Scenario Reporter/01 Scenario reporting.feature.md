@@ -55,6 +55,7 @@
 ## Scenario: Scenario reporter records passed scenario
 * When run pytest with scenario reporter
 * Then pytest outcome must contain tests with statuses:
+
     | passed |
     |--------|
     | 1      |

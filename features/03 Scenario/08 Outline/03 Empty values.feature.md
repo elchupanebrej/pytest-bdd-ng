@@ -51,6 +51,7 @@
 * When run pytest
 
     | cli_args | -k | test_outline.py |
+    |----------|----|-----------------|
 * Then pytest outcome must contain tests with statuses:
 
     | passed | failed |
