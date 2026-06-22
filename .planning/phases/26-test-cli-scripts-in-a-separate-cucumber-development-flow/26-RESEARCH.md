@@ -287,22 +287,21 @@ from pytest_bdd_testing.step.development import *  # noqa: F403, E402
 |---|-------|---------|---------------|
 | A1 | No additional package install is required for Phase 26. | Standard Stack | Low; if a hidden CLI dependency is missing, planner needs an install/checkpoint task. This is supported by SPEC scope and current focused test pass. [CITED: 26-SPEC.md] [VERIFIED: focused pytest run] |
 
-## Open Questions
+## Resolved Questions
 
-1. **Should P26-DEV-06 add an explicit `scripts/arch.py analyze-gaps` scenario?**
-   - What we know: The plan and requirement mention gap analysis, and `scripts/arch.py` has an `analyze-gaps` subcommand. [CITED: 26-01-PLAN.md] [VERIFIED: codebase grep]
-   - What's unclear: Current `03 Architecture Tooling.feature.md` covers injection and score collection, not a distinct gap-analysis scenario. [VERIFIED: codebase grep]
-   - Recommendation: Planner should add a focused gap-analysis scenario or document why score collection is sufficient. [VERIFIED: codebase grep]
+No unresolved research questions remain after revision iteration 1.
 
-2. **Should P26-DEV-07 add an explicit E2E migration-threshold scenario?**
-   - What we know: `compatibility_matrix.py` supports `--report-e2e-migration-threshold`. [VERIFIED: codebase grep]
-   - What's unclear: Current `04 Compatibility Matrix.feature.md` does not invoke that flag. [VERIFIED: codebase grep]
-   - Recommendation: Add a small mock tests/features scenario if strict requirement coverage is needed. [VERIFIED: codebase grep]
+1. **RESOLVED: P26-DEV-06 explicit `scripts/arch.py analyze-gaps` coverage**
+   - Resolution: `26-02-PLAN.md` Task 1 adds the focused gap-analysis scenario and requires `python scripts/arch.py analyze-gaps` per D-02. [CITED: 26-02-PLAN.md]
+   - Result: Score collection from 26-01 remains preserved, and the literal gap-analysis surface is covered by 26-02. [CITED: 26-01-PLAN.md] [CITED: 26-02-PLAN.md]
 
-3. **Should P26-DEV-10 wording be revised to match D-04?**
-   - What we know: D-04 forbids direct shell-script execution and current feature documents the gap. [CITED: 26-CONTEXT.md] [VERIFIED: codebase grep]
-   - What's unclear: Requirement text still says "cover orchestration." [CITED: 26-SPEC.md]
-   - Recommendation: Planner should preserve D-04 and phrase verification as "shell audit presence/gap documented." [CITED: 26-CONTEXT.md]
+2. **RESOLVED: P26-DEV-07 explicit E2E migration-threshold coverage**
+   - Resolution: `26-02-PLAN.md` Task 2 adds the focused `--report-e2e-migration-threshold` scenario and invokes `python -m pytest_bdd.script.compatibility_matrix ...` per D-01. [CITED: 26-02-PLAN.md]
+   - Result: Compatibility and tox-environment coverage from 26-01 remains preserved, and the literal migration-threshold report surface is covered by 26-02. [CITED: 26-01-PLAN.md] [CITED: 26-02-PLAN.md]
+
+3. **RESOLVED: P26-DEV-10 wording versus D-04**
+   - Resolution: Locked D-04 controls implementation. Phase 26 preserves shell audit coverage as presence plus architectural-gap documentation, not direct shell execution. [CITED: 26-CONTEXT.md]
+   - Result: `26-01-PLAN.md` Task 3 and `26-02-PLAN.md` Task 3 keep the D-04 boundary and add a no-bash/no-sh static gate for `scripts/run_messages_coverage_audit.sh`. [CITED: 26-01-PLAN.md] [CITED: 26-02-PLAN.md]
 
 ## Environment Availability
 
