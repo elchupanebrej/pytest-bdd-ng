@@ -70,6 +70,7 @@ DEVELOPMENT.rst           Development guidelines
 
 ## Additional development guide
 
+- If Microsoft Windows in use - use `wsl2` where possible.
 - Follow repository linting/formatting via `ruff` and pre-commit hooks.
 - Keep compatibility behavior aligned with pytest Python-version support matrix.
 - Documentation, specification and planning artifacts MUST be written in English.

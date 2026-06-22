@@ -725,7 +725,16 @@ def copy_schema_tree(source: Path, destination: Path) -> None:
     if destination.exists():
         destination.chmod(destination.stat().st_mode | stat.S_IWRITE)
     shutil.rmtree(str(destination), ignore_errors=True)
-    shutil.copytree(str(source), str(destination))
+    destination.mkdir(parents=True, exist_ok=True)
+    for path in source.rglob("*"):
+        if path.is_file():
+            rel_path = path.relative_to(source)
+            dest_name = rel_path.name
+            if dest_name.endswith(".json") and not dest_name.endswith(".schema.json"):
+                dest_name = dest_name[:-5] + ".schema.json"
+            dest_file = destination / rel_path.parent / dest_name
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, dest_file)
 
 
 def fetch_schema_tree(destination: Path) -> None:
@@ -924,8 +933,19 @@ def collect_schema_drift(expected: Path, actual: Path) -> tuple[str, ...]:
         #arch-eval:entity_fullness=3
         #arch-eval:locational_stability=4
     """
-    expected_files = {path.relative_to(expected).as_posix(): path for path in expected.rglob("*") if path.is_file()}
-    actual_files = {path.relative_to(actual).as_posix(): path for path in actual.rglob("*") if path.is_file()}
+
+    # pylint: disable=missing-responsibility-doc,missing-architecture-score
+    def normalize_key(key: str) -> str:
+        if key.endswith(".json") and not key.endswith(".schema.json"):
+            return key[:-5] + ".schema.json"
+        return key
+
+    expected_files = {
+        normalize_key(path.relative_to(expected).as_posix()): path for path in expected.rglob("*") if path.is_file()
+    }
+    actual_files = {
+        normalize_key(path.relative_to(actual).as_posix()): path for path in actual.rglob("*") if path.is_file()
+    }
 
     changed = [
         f"changed: {relative_path}"

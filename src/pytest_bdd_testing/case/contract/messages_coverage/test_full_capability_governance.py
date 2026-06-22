@@ -115,74 +115,101 @@ def test_messages_capabilities_are_implemented_or_governed(tmp_path: Path) -> No
         #test-eval:setup_complexity=1
         #test-eval:assertions_clarity=5
     """
-    messages_file = tmp_path / "messages-e2e.ndjson"
-    report_file = tmp_path / "governance-e2e.json"
+    import shutil
 
-    subprocess_env = dict(os.environ)
-    subprocess_env["PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT"] = "1"
-    subprocess_env.update(
-        {
-            "CI": "true",
-            "GITHUB_ACTIONS": "true",
-            "GITHUB_RUN_NUMBER": "42",
-            "GITHUB_RUN_ID": "4242",
-            "GITHUB_REF": "refs/heads/coverage-audit",
-            "GITHUB_REF_TYPE": "branch",
-            "GITHUB_REF_NAME": "coverage-audit",
-            "GITHUB_SHA": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-            "GITHUB_SERVER_URL": "https://github.com",
-            "GITHUB_REPOSITORY": "pytest-dev/pytest-bdd-ng",
-        },
-    )
+    src_dir = REPO_ROOT / "src/pytest_bdd_testing/case/contract/messages_coverage"
+    dest_dir = REPO_ROOT / "tests/messages_coverage"
+    resource_dir = REPO_ROOT / "src/pytest_bdd_testing/resource"
 
-    for target, expect_failure, env_overrides in PROBE_CASES:
-        _run_capture_case(
-            messages_file=messages_file,
-            env=subprocess_env,
-            target=target,
-            expect_failure=expect_failure,
-            env_overrides=env_overrides,
+    if dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    for path in src_dir.glob("**/*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        content = path.read_text(encoding="utf-8")
+        content = content.replace('Path(__file__).parents[3] / "resource"', f'Path(r"{resource_dir.as_posix()}")')
+        content = content.replace('Path(__file__).parents[4] / "resource"', f'Path(r"{resource_dir.as_posix()}")')
+
+        rel_path = path.relative_to(src_dir)
+        target_path = dest_dir / rel_path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        target_path.write_text(content, encoding="utf-8")
+
+    try:  # noqa: PLW0717 - cleanup must remove the generated compatibility tree after the full governance flow.
+        messages_file = tmp_path / "messages-e2e.ndjson"
+        report_file = tmp_path / "governance-e2e.json"
+
+        subprocess_env = dict(os.environ)
+        subprocess_env["PYTEST_BDD_RUN_MESSAGES_COVERAGE_AUDIT"] = "1"
+        subprocess_env.update(
+            {
+                "CI": "true",
+                "GITHUB_ACTIONS": "true",
+                "GITHUB_RUN_NUMBER": "42",
+                "GITHUB_RUN_ID": "4242",
+                "GITHUB_REF": "refs/heads/coverage-audit",
+                "GITHUB_REF_TYPE": "branch",
+                "GITHUB_REF_NAME": "coverage-audit",
+                "GITHUB_SHA": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+                "GITHUB_SERVER_URL": "https://github.com",
+                "GITHUB_REPOSITORY": "pytest-dev/pytest-bdd-ng",
+            },
         )
 
-    exit_code = main(
-        [
-            "report",
-            "--messages-file",
-            str(messages_file),
-            "--baseline-release",
-            "v32.current",
-            "--schema",
-            str(GOVERNANCE_SCHEMA),
-            "--decisions",
-            str(DECISIONS_FILE),
-            "--mandatory-capabilities-file",
-            str(MANDATORY_FILE),
-            "--runtime-required-capabilities-file",
-            str(RUNTIME_REQUIRED_FILE),
-            "--require-runtime-required-covered",
-            "--require-non-runtime-classified",
-            "--require-fully-governed",
-            "--output",
-            str(report_file),
-        ],
-    )
+        for target, expect_failure, env_overrides in PROBE_CASES:
+            _run_capture_case(
+                messages_file=messages_file,
+                env=subprocess_env,
+                target=target,
+                expect_failure=expect_failure,
+                env_overrides=env_overrides,
+            )
 
-    payload = json.loads(report_file.read_text(encoding="utf-8"))
-    assert exit_code == 0
-    assert payload["summary"]["blocked_capabilities"] == 0
-    assert payload["summary"]["implemented_capabilities"] >= MIN_IMPLEMENTED_CAPABILITIES
-    assert payload["summary"]["runtime_required_total"] == payload["summary"]["runtime_required_covered"]
-    assert payload["summary"]["runtime_required_missing"] == 0
-    assert payload["summary"]["non_runtime_required_total"] >= payload["summary"]["non_runtime_covered"]
-    assert payload["summary"]["non_runtime_required_total"] >= payload["summary"]["non_runtime_classified"]
-    assert payload["summary"]["mandatory_scope_violations"] == 0
-    assert all(
-        not capability["runtime_required"] or capability["observed_runtime"] for capability in payload["capabilities"]
-    )
-    assert all(capability["status"] != "Pending" for capability in payload["capabilities"])
+        exit_code = main(
+            [
+                "report",
+                "--messages-file",
+                str(messages_file),
+                "--baseline-release",
+                "v32.current",
+                "--schema",
+                str(GOVERNANCE_SCHEMA),
+                "--decisions",
+                str(DECISIONS_FILE),
+                "--mandatory-capabilities-file",
+                str(MANDATORY_FILE),
+                "--runtime-required-capabilities-file",
+                str(RUNTIME_REQUIRED_FILE),
+                "--require-runtime-required-covered",
+                "--require-non-runtime-classified",
+                "--require-fully-governed",
+                "--output",
+                str(report_file),
+            ],
+        )
 
-    capabilities_by_id = {capability["capability_id"]: capability for capability in payload["capabilities"]}
-    for capability_id in REQUIRED_BACKGROUND_DESCRIPTION_CAPABILITIES:
-        capability = capabilities_by_id[capability_id]
-        assert capability["observed_runtime"], f"{capability_id} must be covered by runtime evidence"
-        assert capability["status"] == "Implemented"
+        payload = json.loads(report_file.read_text(encoding="utf-8"))
+        assert exit_code == 0
+        assert payload["summary"]["blocked_capabilities"] == 0
+        assert payload["summary"]["implemented_capabilities"] >= MIN_IMPLEMENTED_CAPABILITIES
+        assert payload["summary"]["runtime_required_total"] == payload["summary"]["runtime_required_covered"]
+        assert payload["summary"]["runtime_required_missing"] == 0
+        assert payload["summary"]["non_runtime_required_total"] >= payload["summary"]["non_runtime_covered"]
+        assert payload["summary"]["non_runtime_required_total"] >= payload["summary"]["non_runtime_classified"]
+        assert payload["summary"]["mandatory_scope_violations"] == 0
+        assert all(
+            not capability["runtime_required"] or capability["observed_runtime"]
+            for capability in payload["capabilities"]
+        )
+        assert all(capability["status"] != "Pending" for capability in payload["capabilities"])
+
+        capabilities_by_id = {capability["capability_id"]: capability for capability in payload["capabilities"]}
+        for capability_id in REQUIRED_BACKGROUND_DESCRIPTION_CAPABILITIES:
+            capability = capabilities_by_id[capability_id]
+            assert capability["observed_runtime"], f"{capability_id} must be covered by runtime evidence"
+            assert capability["status"] == "Implemented"
+    finally:
+        if dest_dir.exists():
+            shutil.rmtree(dest_dir)

@@ -1,3 +1,4 @@
+# mypy: warn_unused_ignores=False
 """
 Implement concrete logic for the module-level entity as described by the owning module's architecture contract.
 

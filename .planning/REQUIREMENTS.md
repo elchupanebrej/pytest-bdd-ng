@@ -1,4 +1,4 @@
-# Requirements: pytest-bdd-ng
+﻿# Requirements: pytest-bdd-ng
 
 **Defined:** 2026-05-12
 **Core Value:** Reliable, frictionless BDD testing in pytest
@@ -69,6 +69,20 @@
 - [x] **P21-BDD-01**: Enrich queued failures with pytest-bdd-ng metadata: feature, scenario, step, tags, examples row, and generated pytest nodeid
 - [x] **P21-BDD-02**: Bridge agent-produced investigation artifacts into the existing pytest-bdd-ng BDD run artifact hook
 
+### Phase 26: Development Script BDD
+
+- [x] **P26-DEV-01**: Add a Development BDD feature space covering repository-specific scripts, CLIs, and pre-commit quality gates.
+- [x] **P26-DEV-02**: Add shared development step definitions for mock file setup, command execution in the test directory, exit-code checks, and stdout/stderr assertions.
+- [x] **P26-DEV-03**: Register development steps in the E2E conftest and add an E2E loader for `features/18 Development/`.
+- [x] **P26-DEV-04**: Cover the `allure-cucumber` converter CLI with success and missing-input scenarios.
+- [x] **P26-DEV-05**: Cover `validate_feature_headings.py` clean and failing heading validation scenarios.
+- [x] **P26-DEV-06**: Cover `scripts/arch.py` responsibility injection, score collection, and gap analysis scenarios.
+- [x] **P26-DEV-07**: Cover the `compatibility_matrix` CLI compatibility, tox environment, and E2E migration-report scenarios.
+- [x] **P26-DEV-08**: Cover `sync_messages_contract_schemas.py` clean and drift scenarios.
+- [x] **P26-DEV-09**: Cover `render_cucumber_formatters` standalone NDJSON-to-summary rendering.
+- [x] **P26-DEV-10**: Cover `scripts/run_messages_coverage_audit.sh` governance report orchestration.
+- [x] **P26-DEV-11**: Update Phase 26 roadmap/planning artifacts with goals, success criteria, blockers, and verification commands.
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -103,7 +117,6 @@
 | TEST-01 | Phase 14 — Gap Closure | Complete |
 | TEST-02 | Phase 14 — Gap Closure | Complete |
 | TEST-03 | Phase 6 — Integration Testing | Complete |
-<<<<<<< HEAD
 | P21-MCP-01 | Phase 21 — pdb MCP integration | Complete |
 | P21-MCP-02 | Phase 21 — pdb MCP integration | Complete |
 | P21-MCP-03 | Phase 21 — pdb MCP integration | Complete |
@@ -120,14 +133,26 @@
 | CCK-05 | Phase 20 — Allure Converter Wave 6 | Pending |
 | CCK-06 | Phase 20 — Allure Converter Wave 6 | Pending |
 | CCK-07 | Phase 20 — Allure Converter Wave 6 | Pending |
+| P26-DEV-01 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-02 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-03 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-04 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-05 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-06 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-07 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-08 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-09 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-10 | Phase 26 — Development Script BDD | Complete |
+| P26-DEV-11 | Phase 26 — Development Script BDD | Complete |
 
 **Coverage:**
 
 - v1 requirements: 16 total
 - CCK requirements: 7 total
-- Mapped to phases: 23
+- P26 requirements: 11 total
+- Mapped to phases: 34
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-12*
-*Last updated: 2026-06-13 — traceability synced after gap closure audit*
+*Last updated: 2026-06-20 - Phase 26 development-script ingest*

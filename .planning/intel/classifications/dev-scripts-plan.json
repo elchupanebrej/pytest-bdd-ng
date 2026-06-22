@@ -1,0 +1,20 @@
+{
+  "path": "specs/026-dev-scripts-bdd/plan.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "locked": false,
+  "source": "explicit",
+  "summary": "Implementation plan for Phase 26 BDD E2E coverage of repository development scripts and CLIs.",
+  "requirements": [
+    "Add pytest_bdd_testing.step.development step definitions.",
+    "Register development steps in E2E conftest.",
+    "Add src/pytest_bdd_testing/case/e2e/feature/test_18_development.py loader.",
+    "Add seven feature files under features/18 Development/.",
+    "Update Phase 26 roadmap details."
+  ],
+  "constraints": [
+    "Messages Coverage Audit scenario is blocked by undefined_parameter runtime probe failure.",
+    "Verification target is pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py.",
+    "Run lint and custom-rules checks after implementation."
+  ]
+}

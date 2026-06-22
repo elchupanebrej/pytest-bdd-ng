@@ -359,7 +359,21 @@ def run_command(testdir, command: str, attach) -> subprocess.CompletedProcess[st
     if command_args and command_args[0] == "python":
         command_args[0] = sys.executable
     env = dict(os.environ)
-    repo_root = Path(__file__).resolve().parents[4]
+    repo_root = Path(__file__).resolve().parents[3]
+    if len(command_args) > 1 and command_args[0] in {"bash", "sh"}:
+        script_path = Path(command_args[1])
+        repo_script_path = repo_root / script_path
+        env["UV"] = "uv"
+        env["UV_PROJECT_ENVIRONMENT"] = "/tmp/pytest-bdd-messages-audit-venv"  # noqa: S108 - WSL bash needs a POSIX venv path outside the Windows project .venv.
+        env.pop("VIRTUAL_ENV", None)
+        if not script_path.is_absolute() and repo_script_path.exists():
+            script_arg = repo_script_path.as_posix()
+            if len(script_arg) > 2 and script_arg[1:3] == ":/":
+                script_arg = f"/mnt/{script_arg[0].lower()}{script_arg[2:]}"
+            command_args[1] = script_arg
+        bash_command = " ".join(shlex.quote(arg) for arg in command_args[1:])
+        bash_command = f"UV=uv UV_PROJECT_ENVIRONMENT=/tmp/pytest-bdd-messages-audit-venv VIRTUAL_ENV= {bash_command}"
+        command_args = [command_args[0], "-lc", bash_command]
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(repo_root / "src"), env.get("PYTHONPATH", "")]))
     result = subprocess.run(command_args, check=False, capture_output=True, text=True, cwd=str(testdir.tmpdir), env=env)
     attach_command_result_outputs(attach, result, label="standalone-renderer", command=command)
@@ -382,7 +396,7 @@ def renderer_terminal_output_includes(request: pytest.FixtureRequest, step) -> N
         ])
     combined_output = "\n".join(fragment for fragment in output_fragments if fragment)
     for line in lines:
-        assert_that(re.search(re.escape(line).replace("\\*", ".*"), combined_output), is_(True), combined_output)
+        assert_that(bool(re.search(re.escape(line).replace("\\*", ".*"), combined_output)), is_(True), combined_output)
 
 
 @given(re.compile(r'Copy path from "(?P<initial_path>[^"]+)" to test path "(?P<final_path>[^"]+)"'))

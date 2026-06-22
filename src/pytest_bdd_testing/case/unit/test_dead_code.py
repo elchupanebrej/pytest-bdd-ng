@@ -6,7 +6,7 @@ Uses [tool.vulture] config from pyproject.toml (ignore_names, paths).
 
 from __future__ import annotations
 
-import subprocess  # noqa: S404
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,7 +16,7 @@ pytestmark = [pytest.mark.unit]
 
 VULTURE_AVAILABLE: bool
 try:
-    subprocess.run(  # noqa: S603
+    subprocess.run(
         [str(Path(sys.executable)), "-m", "vulture", "--version"],
         check=True,
         capture_output=True,
@@ -41,7 +41,7 @@ class TestDeadCode:
             "--min-confidence",
             "80",
         ]
-        result = subprocess.run(  # noqa: S603 - command arguments are fixed by the test
+        result = subprocess.run(
             vulture_command,
             check=False,
             capture_output=True,
