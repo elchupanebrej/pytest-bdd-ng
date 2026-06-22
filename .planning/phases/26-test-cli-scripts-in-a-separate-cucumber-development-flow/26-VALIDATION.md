@@ -21,6 +21,25 @@ Prove that Phase 26 has executable Development BDD coverage for every locked req
 | Custom rules gate | `rtk powershell -NoProfile -Command "make custom-rules"` | Project architecture/custom lint rules |
 | D-04 no-shell gate | `rtk powershell -NoProfile -Command "python -c \"from pathlib import Path; import re, sys; text='\\n'.join(p.read_text(encoding='utf-8') for p in Path('features/18 Development').glob('*.feature.md')); sys.exit(1 if re.search(r'run `(?:bash|sh)\\s+scripts/run_messages_coverage_audit\\.sh', text) else 0)\""` | Locked D-04 shell boundary |
 
+## Fast Feedback Gates
+
+Use these narrow gates during task work. Reserve the full Focused Development E2E command for wave and phase validation because research measured the full loader at about 80 seconds.
+
+| Scope | Command | When |
+|-------|---------|------|
+| Loader collection | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py --collect-only -q"` | After adding the Development E2E loader or feature-file entries. |
+| Allure converter | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k '(Convert and Cucumber) or (missing and NDJSON)'"` | While editing `01 Allure Converter CLI.feature.md`. |
+| Heading validator | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k 'Heading and validation'"` | While editing `02 Headings Validator.feature.md`. |
+| Architecture tooling | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k '(responsibility and template) or scores or (Analyze and gaps)'"` | While editing `03 Architecture Tooling.feature.md`. |
+| Compatibility matrix | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k 'compatibility or incompatible or tox or (migration and threshold)'"` | While editing `04 Compatibility Matrix.feature.md`. |
+| Schema sync | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k 'schema'"` | While editing `05 Messages Contract Schema Sync.feature.md`. |
+| Formatter renderer | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k 'summary'"` | While editing `06 Cucumber Formatter Renderer.feature.md`. |
+| Messages audit boundary | `rtk powershell -NoProfile -Command "python -m pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py -q -k 'shell and script and gap'"` | While preserving D-04 in `07 Messages Coverage Audit.feature.md`. |
+
+## Scope Sanity Note
+
+Plan 26-01 remains a 13-file coherent ATDD slice. The file count is high because one contributor-facing Development flow needs feature docs, shared step definitions, E2E registration, loader wiring, and validation traceability to land together. Splitting those artifacts would not reduce behavioral risk; 26-02 already isolates the later literal CLI gap-closure work.
+
 ## Requirement-to-Gate Map
 
 | Requirement | Primary Plan | Validation |
