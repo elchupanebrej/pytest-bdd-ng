@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: Milestone v1.0 audit passed
 stopped_at: Phase 26 context gathered
-last_updated: "2026-06-20T21:21:15.591Z"
+last_updated: "2026-06-22T10:52:53.490Z"
 last_activity: 2026-06-13 -- remaining gaps closed; docs/api/generated moved to docs/_build
 progress:
   total_phases: 22

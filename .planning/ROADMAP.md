@@ -529,3 +529,27 @@ Plans:
 - [x] 20-30-PLAN.md — A5: Port custom static rules into unified Pylint checker plugin (Wave 3, depends on 20-29)
 - [x] 20-31-PLAN.md — A5: Enable Pylint cyclic-import and duplicate-code checks and fix violations (Wave 4, depends on 20-30)
 - [x] 20-32-PLAN.md — D4: Full responsibility documentation for every `src/pytest_bdd/` Python entity (Wave 18, depends on 20-30 and 20-31)
+
+### Phase 26: Test CLI scripts in a separate Cucumber Development flow
+
+**Goal:** Add executable BDD coverage for repository development scripts, command-line tools, and pre-commit quality gates in a focused `features/18 Development/` flow.
+**Requirements**: P26-DEV-01, P26-DEV-02, P26-DEV-03, P26-DEV-04, P26-DEV-05, P26-DEV-06, P26-DEV-07, P26-DEV-08, P26-DEV-09, P26-DEV-10, P26-DEV-11
+**Depends on:** Phase 25
+**Plans:** 2/2 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+  1. `features/18 Development/` contains BDD feature coverage for Allure conversion, heading validation, architecture tooling, compatibility matrix, messages schema sync, Cucumber formatter rendering, and messages coverage audit orchestration.
+  2. Shared development steps support isolated mock file creation, command execution in the test directory, exit-code assertions, and stdout/stderr assertions.
+  3. E2E registration imports the development steps and exposes `src/pytest_bdd_testing/case/e2e/feature/test_18_development.py` as the loader for the Development feature space.
+  4. The known Messages Coverage Audit probe issue is documented as a blocker/risk until resolved or explicitly scoped.
+  5. Focused verification target `pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py` is the primary phase test.
+
+Plans:
+**Wave 1**
+
+- [x] 26-01-PLAN.md - Development script ATDD/BDD coverage
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 26-02-PLAN.md - Close Development CLI literal coverage gaps
