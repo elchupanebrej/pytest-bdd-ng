@@ -128,133 +128,132 @@ def _run_allure_docker(allure_output: Path, report_dir: Path) -> subprocess.Comp
     )
 
 
-class TestAllureConsumption:
-    """Validate Allure can consume converter output (GAP-02)."""
+@pytest.mark.docker
+def test_allure_docker_consumes_output(docker_backend, allure_output, tmp_path):  # noqa: ARG001
+    """Allure Docker service can consume converter output without errors."""
+    report_dir = tmp_path / "allure-report"
+    report_dir.mkdir()
 
-    @pytest.mark.docker
-    def test_allure_docker_consumes_output(self, docker_backend, allure_output, tmp_path):  # noqa: ARG002
-        """Allure Docker service can consume converter output without errors."""
-        report_dir = tmp_path / "allure-report"
-        report_dir.mkdir()
+    result = _run_allure_docker(allure_output, report_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
+    assert (report_dir / "index.html").exists(), "Allure report index.html not created"
 
-        result = _run_allure_docker(allure_output, report_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
-        assert (report_dir / "index.html").exists(), "Allure report index.html not created"
 
-    @pytest.mark.docker
-    def test_allure_report_contains_test_results(self, docker_backend, allure_output, tmp_path):  # noqa: ARG002
-        """Allure report contains expected test results."""
-        report_dir = tmp_path / "allure-report"
-        report_dir.mkdir()
+@pytest.mark.docker
+def test_allure_report_contains_test_results(docker_backend, allure_output, tmp_path):  # noqa: ARG001
+    """Allure report contains expected test results."""
+    report_dir = tmp_path / "allure-report"
+    report_dir.mkdir()
 
-        result = _run_allure_docker(allure_output, report_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
+    result = _run_allure_docker(allure_output, report_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
 
-        data_dir = report_dir / "data"
-        if not data_dir.exists():
-            pytest.skip("Allure report data directory not found (Docker might not have generated report)")
+    data_dir = report_dir / "data"
+    if not data_dir.exists():
+        pytest.skip("Allure report data directory not found (Docker might not have generated report)")
 
-        test_results_dir = data_dir / "test-results"
-        if test_results_dir.exists():
-            result_files = list(test_results_dir.glob("*.json"))
-        else:
-            result_files = list(data_dir.glob("*-result.json"))
+    test_results_dir = data_dir / "test-results"
+    if test_results_dir.exists():
+        result_files = list(test_results_dir.glob("*.json"))
+    else:
+        result_files = list(data_dir.glob("*-result.json"))
 
-        if len(result_files) == 0:
-            pytest.skip("Allure report contains no result files (Docker might not have generated report)")
+    if len(result_files) == 0:
+        pytest.skip("Allure report contains no result files (Docker might not have generated report)")
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            assert "name" in instance, f"Result {f.name} missing name field"
-            assert "status" in instance, f"Result {f.name} missing status field"
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        assert "name" in instance, f"Result {f.name} missing name field"
+        assert "status" in instance, f"Result {f.name} missing status field"
 
 
 @pytest.mark.browser
-class TestAllureUIValidation:
-    """Validate Allure UI renders all fields correctly via Playwright (GAP-02)."""
+@pytest.mark.docker
+@pytest.mark.slow
+def test_allure_ui_renders_test_count(docker_backend, allure_output, tmp_path):  # noqa: ARG001
+    """Allure UI shows correct test count."""
+    report_dir = tmp_path / "allure-report"
+    report_dir.mkdir()
 
-    @pytest.mark.docker
-    @pytest.mark.slow
-    def test_allure_ui_renders_test_count(self, docker_backend, allure_output, tmp_path):  # noqa: ARG002
-        """Allure UI shows correct test count."""
-        report_dir = tmp_path / "allure-report"
-        report_dir.mkdir()
+    result = _run_allure_docker(allure_output, report_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
 
-        result = _run_allure_docker(allure_output, report_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
+    data_dir = report_dir / "data"
+    if not data_dir.exists():
+        pytest.skip("Allure report data directory not found")
 
-        data_dir = report_dir / "data"
-        if not data_dir.exists():
-            pytest.skip("Allure report data directory not found")
+    test_results_dir = data_dir / "test-results"
+    if test_results_dir.exists():
+        result_files = list(test_results_dir.glob("*.json"))
+    else:
+        result_files = list(data_dir.glob("*-result.json"))
 
-        test_results_dir = data_dir / "test-results"
-        if test_results_dir.exists():
-            result_files = list(test_results_dir.glob("*.json"))
-        else:
-            result_files = list(data_dir.glob("*-result.json"))
+    if len(result_files) == 0:
+        pytest.skip("Allure report contains no result files (Docker might not have generated report)")
 
-        if len(result_files) == 0:
-            pytest.skip("Allure report contains no result files (Docker might not have generated report)")
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        assert instance.get("name"), f"Test result {f.name} should have a name"
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            assert instance.get("name"), f"Test result {f.name} should have a name"
 
-    @pytest.mark.docker
-    @pytest.mark.slow
-    def test_allure_ui_renders_steps(self, docker_backend, allure_output, tmp_path):  # noqa: ARG002
-        """Allure UI renders step hierarchy correctly."""
-        report_dir = tmp_path / "allure-report"
-        report_dir.mkdir()
+@pytest.mark.browser
+@pytest.mark.docker
+@pytest.mark.slow
+def test_allure_ui_renders_steps(docker_backend, allure_output, tmp_path):  # noqa: ARG001
+    """Allure UI renders step hierarchy correctly."""
+    report_dir = tmp_path / "allure-report"
+    report_dir.mkdir()
 
-        result = _run_allure_docker(allure_output, report_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
+    result = _run_allure_docker(allure_output, report_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
 
-        data_dir = report_dir / "data"
-        if not data_dir.exists():
-            pytest.skip("Allure report data directory not found")
+    data_dir = report_dir / "data"
+    if not data_dir.exists():
+        pytest.skip("Allure report data directory not found")
 
-        test_results_dir = data_dir / "test-results"
-        if test_results_dir.exists():
-            result_files = list(test_results_dir.glob("*.json"))
-        else:
-            result_files = list(data_dir.glob("*-result.json"))
+    test_results_dir = data_dir / "test-results"
+    if test_results_dir.exists():
+        result_files = list(test_results_dir.glob("*.json"))
+    else:
+        result_files = list(data_dir.glob("*-result.json"))
 
-        if len(result_files) == 0:
-            pytest.skip("Allure report contains no result files (Docker might not have generated report)")
+    if len(result_files) == 0:
+        pytest.skip("Allure report contains no result files (Docker might not have generated report)")
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            assert "steps" in instance, f"Result {f.name} should have steps field"
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        assert "steps" in instance, f"Result {f.name} should have steps field"
 
-    @pytest.mark.docker
-    @pytest.mark.slow
-    def test_allure_ui_renders_attachments(self, docker_backend, allure_output, tmp_path):  # noqa: ARG002
-        """Allure UI renders attachments correctly."""
-        report_dir = tmp_path / "allure-report"
-        report_dir.mkdir()
 
-        result = _run_allure_docker(allure_output, report_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
+@pytest.mark.browser
+@pytest.mark.docker
+@pytest.mark.slow
+def test_allure_ui_renders_attachments(docker_backend, allure_output, tmp_path):  # noqa: ARG001
+    """Allure UI renders attachments correctly."""
+    report_dir = tmp_path / "allure-report"
+    report_dir.mkdir()
 
-        data_dir = report_dir / "data"
-        if not data_dir.exists():
-            pytest.skip("Allure report data directory not found")
+    result = _run_allure_docker(allure_output, report_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Allure Docker command failed (expected in CI): {result.stderr[:200]}")
 
-        test_results_dir = data_dir / "test-results"
-        if test_results_dir.exists():
-            result_files = list(test_results_dir.glob("*.json"))
-        else:
-            result_files = list(data_dir.glob("*-result.json"))
+    data_dir = report_dir / "data"
+    if not data_dir.exists():
+        pytest.skip("Allure report data directory not found")
 
-        if len(result_files) == 0:
-            pytest.skip("Allure report contains no result files (Docker might not have generated report)")
+    test_results_dir = data_dir / "test-results"
+    if test_results_dir.exists():
+        result_files = list(test_results_dir.glob("*.json"))
+    else:
+        result_files = list(data_dir.glob("*-result.json"))
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            assert "attachments" in instance, f"Result {f.name} should have attachments field"
+    if len(result_files) == 0:
+        pytest.skip("Allure report contains no result files (Docker might not have generated report)")
+
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        assert "attachments" in instance, f"Result {f.name} should have attachments field"

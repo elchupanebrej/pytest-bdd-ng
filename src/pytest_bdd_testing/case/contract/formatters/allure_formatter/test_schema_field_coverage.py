@@ -262,329 +262,336 @@ def maximal_container() -> dict:
     }
 
 
-class TestPythonModelFieldCoverage:
-    """Verify Python model can produce every schema field (GAP-01)."""
+def test_test_result_all_required_fields(allure_schema_path):
+    """AllureTestResult has all required fields."""
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    result = AllureTestResult(uuid="test-required")
+    data = {
+        "uuid": result.uuid,
+        "name": "minimal test",
+        "status": "passed",
+        "stage": "finished",
+        "start": 0,
+        "stop": 0,
+        "labels": [],
+        "links": [],
+        "steps": [],
+        "attachments": [],
+        "parameters": [],
+    }
+    jsonschema.validate(data, schema)
 
-    def test_test_result_all_required_fields(self, allure_schema_path):
-        """AllureTestResult has all required fields."""
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        result = AllureTestResult(uuid="test-required")
-        data = {
-            "uuid": result.uuid,
-            "name": "minimal test",
-            "status": "passed",
-            "stage": "finished",
-            "start": 0,
-            "stop": 0,
-            "labels": [],
-            "links": [],
-            "steps": [],
-            "attachments": [],
-            "parameters": [],
-        }
-        jsonschema.validate(data, schema)
 
-    def test_test_result_all_optional_fields(self, allure_schema_path):
-        """AllureTestResult has all optional fields populated."""
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        result = AllureTestResult(
-            uuid="test-uuid-001",
-            name="test with all fields",
-            fullName="com.example.TestClass.test_method",
-            historyId="hist-abc123",
-            testCaseId="tc-001",
-            status="passed",
-            statusDetails=AllureStatusDetails(
-                message="all passed",
-                trace="trace here",
-                actual="42",
-                expected="42",
-                known=False,
-                flaky=False,
+def test_test_result_all_optional_fields(allure_schema_path):
+    """AllureTestResult has all optional fields populated."""
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    result = AllureTestResult(
+        uuid="test-uuid-001",
+        name="test with all fields",
+        fullName="com.example.TestClass.test_method",
+        historyId="hist-abc123",
+        testCaseId="tc-001",
+        status="passed",
+        statusDetails=AllureStatusDetails(
+            message="all passed",
+            trace="trace here",
+            actual="42",
+            expected="42",
+            known=False,
+            flaky=False,
+        ),
+        stage="finished",
+        description="A test with all fields",
+        descriptionHtml="<p>A test with all fields</p>",
+        start=1000000,
+        stop=1005000,
+        labels=[
+            AllureLabel(name="suite", value="Suite"),
+            AllureLabel(name="epic", value="Epic"),
+        ],
+        links=[
+            AllureLink(name="issue", url="https://issue.example.com", type="issue"),
+            AllureLink(name="tms", url="https://tms.example.com", type="tms"),
+            AllureLink(name="link", url="https://link.example.com", type="link"),
+        ],
+        steps=[
+            AllureStepResult(
+                name="step",
+                uuid="step-uuid",
+                status="passed",
+                statusDetails=AllureStatusDetails(message="ok"),
+                stage="finished",
+                description="step desc",
+                descriptionHtml="<div>step</div>",
+                start=1000001,
+                stop=1002000,
+                steps=[],
+                attachments=[
+                    AllureAttachment(name="file.txt", source="file.txt", type="text/plain", size=100),
+                ],
+                parameters=[
+                    AllureParameter(name="p", value="v", excluded=False, mode="default"),
+                ],
             ),
-            stage="finished",
-            description="A test with all fields",
-            descriptionHtml="<p>A test with all fields</p>",
-            start=1000000,
-            stop=1005000,
-            labels=[
-                AllureLabel(name="suite", value="Suite"),
-                AllureLabel(name="epic", value="Epic"),
-            ],
-            links=[
-                AllureLink(name="issue", url="https://issue.example.com", type="issue"),
-                AllureLink(name="tms", url="https://tms.example.com", type="tms"),
-                AllureLink(name="link", url="https://link.example.com", type="link"),
-            ],
-            steps=[
-                AllureStepResult(
-                    name="step",
-                    uuid="step-uuid",
-                    status="passed",
-                    statusDetails=AllureStatusDetails(message="ok"),
-                    stage="finished",
-                    description="step desc",
-                    descriptionHtml="<div>step</div>",
-                    start=1000001,
-                    stop=1002000,
-                    steps=[],
-                    attachments=[
-                        AllureAttachment(name="file.txt", source="file.txt", type="text/plain", size=100),
-                    ],
-                    parameters=[
-                        AllureParameter(name="p", value="v", excluded=False, mode="default"),
-                    ],
-                ),
-            ],
-            attachments=[
-                AllureAttachment(name="log.txt", source="log.txt", type="text/plain", size=500),
-            ],
-            parameters=[
-                AllureParameter(name="env", value="ci"),
-                AllureParameter(name="secret", value="***", excluded=True, mode="masked"),
-            ],
-        )
-        data = {
-            "uuid": result.uuid,
-            "name": result.name,
-            "fullName": result.fullName,
-            "historyId": result.historyId,
-            "testCaseId": result.testCaseId,
-            "status": result.status,
-            "statusDetails": {
-                "message": result.statusDetails.message,
-                "trace": result.statusDetails.trace,
-                "actual": result.statusDetails.actual,
-                "expected": result.statusDetails.expected,
-                "known": result.statusDetails.known,
-                "flaky": result.statusDetails.flaky,
-            },
-            "stage": result.stage,
-            "description": result.description,
-            "descriptionHtml": result.descriptionHtml,
-            "start": result.start,
-            "stop": result.stop,
-            "labels": [{"name": lbl.name, "value": lbl.value} for lbl in result.labels],
-            "links": [{"name": lnk.name, "url": lnk.url, "type": lnk.type} for lnk in result.links],
-            "steps": [
-                {
-                    "uuid": s.uuid,
-                    "name": s.name,
-                    "status": s.status,
-                    "statusDetails": {"message": s.statusDetails.message},
-                    "stage": s.stage,
-                    "description": s.description,
-                    "descriptionHtml": s.descriptionHtml,
-                    "start": s.start,
-                    "stop": s.stop,
-                    "steps": [],
-                    "attachments": [
-                        {"name": a.name, "source": a.source, "type": a.type, "size": a.size} for a in s.attachments
-                    ],
-                    "parameters": [
-                        {"name": p.name, "value": p.value, "excluded": p.excluded, "mode": p.mode} for p in s.parameters
-                    ],
-                }
-                for s in result.steps
-            ],
-            "attachments": [
-                {"name": a.name, "source": a.source, "type": a.type, "size": a.size} for a in result.attachments
-            ],
-            "parameters": [
-                {"name": p.name, "value": p.value, "excluded": p.excluded, "mode": p.mode} for p in result.parameters
-            ],
-        }
-        jsonschema.validate(data, schema)
-
-    def test_container_all_optional_fields(self, allure_schema_path):
-        """AllureContainer has all optional fields populated."""
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        container = AllureContainer(
-            uuid="container-uuid-001",
-            name="Field Coverage Container",
-            children=["test-uuid-001"],
-            befores=[
-                AllureFixtureResult(
-                    uuid="before-001",
-                    type="before",
-                    name="setUp",
-                    testResults=["test-uuid-001"],
-                    status="passed",
-                    statusDetails=AllureStatusDetails(message="ok"),
-                    stage="finished",
-                    description="before desc",
-                    descriptionHtml="<b>before</b>",
-                    start=999000,
-                    stop=999500,
-                    steps=[],
-                    attachments=[],
-                    parameters=[],
-                ),
-            ],
-            afters=[
-                AllureFixtureResult(
-                    uuid="after-001",
-                    type="after",
-                    name="tearDown",
-                    testResults=["test-uuid-001"],
-                    status="passed",
-                    stage="finished",
-                    start=1005500,
-                    stop=1006000,
-                    steps=[],
-                    attachments=[],
-                    parameters=[],
-                ),
-            ],
-            links=[AllureLink(name="proj", url="https://example.com", type="link")],
-            start=998000,
-            stop=1007000,
-        )
-        data = {
-            "uuid": container.uuid,
-            "name": container.name,
-            "children": container.children,
-            "description": "",
-            "descriptionHtml": "",
-            "befores": [
-                {
-                    "uuid": fx.uuid,
-                    "testResults": fx.testResults,
-                    "type": fx.type,
-                    "name": fx.name,
-                    "status": fx.status,
-                    "statusDetails": {"message": fx.statusDetails.message, "trace": fx.statusDetails.trace},
-                    "stage": fx.stage,
-                    "description": fx.description,
-                    "descriptionHtml": fx.descriptionHtml,
-                    "start": fx.start,
-                    "stop": fx.stop,
-                    "steps": [],
-                    "attachments": [],
-                    "parameters": [],
-                }
-                for fx in container.befores
-            ],
-            "afters": [
-                {
-                    "uuid": fx.uuid,
-                    "testResults": fx.testResults,
-                    "type": fx.type,
-                    "name": fx.name,
-                    "status": fx.status,
-                    "stage": fx.stage,
-                    "start": fx.start,
-                    "stop": fx.stop,
-                    "steps": [],
-                    "attachments": [],
-                    "parameters": [],
-                }
-                for fx in container.afters
-            ],
-            "links": [{"name": lnk.name, "url": lnk.url, "type": lnk.type} for lnk in container.links],
-            "start": container.start,
-            "stop": container.stop,
-        }
-        jsonschema.validate(data, schema)
+        ],
+        attachments=[
+            AllureAttachment(name="log.txt", source="log.txt", type="text/plain", size=500),
+        ],
+        parameters=[
+            AllureParameter(name="env", value="ci"),
+            AllureParameter(name="secret", value="***", excluded=True, mode="masked"),
+        ],
+    )
+    data = {
+        "uuid": result.uuid,
+        "name": result.name,
+        "fullName": result.fullName,
+        "historyId": result.historyId,
+        "testCaseId": result.testCaseId,
+        "status": result.status,
+        "statusDetails": {
+            "message": result.statusDetails.message,
+            "trace": result.statusDetails.trace,
+            "actual": result.statusDetails.actual,
+            "expected": result.statusDetails.expected,
+            "known": result.statusDetails.known,
+            "flaky": result.statusDetails.flaky,
+        },
+        "stage": result.stage,
+        "description": result.description,
+        "descriptionHtml": result.descriptionHtml,
+        "start": result.start,
+        "stop": result.stop,
+        "labels": [{"name": lbl.name, "value": lbl.value} for lbl in result.labels],
+        "links": [{"name": lnk.name, "url": lnk.url, "type": lnk.type} for lnk in result.links],
+        "steps": [
+            {
+                "uuid": s.uuid,
+                "name": s.name,
+                "status": s.status,
+                "statusDetails": {"message": s.statusDetails.message},
+                "stage": s.stage,
+                "description": s.description,
+                "descriptionHtml": s.descriptionHtml,
+                "start": s.start,
+                "stop": s.stop,
+                "steps": [],
+                "attachments": [
+                    {"name": a.name, "source": a.source, "type": a.type, "size": a.size} for a in s.attachments
+                ],
+                "parameters": [
+                    {"name": p.name, "value": p.value, "excluded": p.excluded, "mode": p.mode} for p in s.parameters
+                ],
+            }
+            for s in result.steps
+        ],
+        "attachments": [
+            {"name": a.name, "source": a.source, "type": a.type, "size": a.size} for a in result.attachments
+        ],
+        "parameters": [
+            {"name": p.name, "value": p.value, "excluded": p.excluded, "mode": p.mode} for p in result.parameters
+        ],
+    }
+    jsonschema.validate(data, schema)
 
 
-class TestMaximalResultValidates:
-    """Validate a maximal fixture with all fields against the schema."""
+def test_container_all_optional_fields(allure_schema_path):
+    """AllureContainer has all optional fields populated."""
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    container = AllureContainer(
+        uuid="container-uuid-001",
+        name="Field Coverage Container",
+        children=["test-uuid-001"],
+        befores=[
+            AllureFixtureResult(
+                uuid="before-001",
+                type="before",
+                name="setUp",
+                testResults=["test-uuid-001"],
+                status="passed",
+                statusDetails=AllureStatusDetails(message="ok"),
+                stage="finished",
+                description="before desc",
+                descriptionHtml="<b>before</b>",
+                start=999000,
+                stop=999500,
+                steps=[],
+                attachments=[],
+                parameters=[],
+            ),
+        ],
+        afters=[
+            AllureFixtureResult(
+                uuid="after-001",
+                type="after",
+                name="tearDown",
+                testResults=["test-uuid-001"],
+                status="passed",
+                stage="finished",
+                start=1005500,
+                stop=1006000,
+                steps=[],
+                attachments=[],
+                parameters=[],
+            ),
+        ],
+        links=[AllureLink(name="proj", url="https://example.com", type="link")],
+        start=998000,
+        stop=1007000,
+    )
+    data = {
+        "uuid": container.uuid,
+        "name": container.name,
+        "children": container.children,
+        "description": "",
+        "descriptionHtml": "",
+        "befores": [
+            {
+                "uuid": fx.uuid,
+                "testResults": fx.testResults,
+                "type": fx.type,
+                "name": fx.name,
+                "status": fx.status,
+                "statusDetails": {"message": fx.statusDetails.message, "trace": fx.statusDetails.trace},
+                "stage": fx.stage,
+                "description": fx.description,
+                "descriptionHtml": fx.descriptionHtml,
+                "start": fx.start,
+                "stop": fx.stop,
+                "steps": [],
+                "attachments": [],
+                "parameters": [],
+            }
+            for fx in container.befores
+        ],
+        "afters": [
+            {
+                "uuid": fx.uuid,
+                "testResults": fx.testResults,
+                "type": fx.type,
+                "name": fx.name,
+                "status": fx.status,
+                "stage": fx.stage,
+                "start": fx.start,
+                "stop": fx.stop,
+                "steps": [],
+                "attachments": [],
+                "parameters": [],
+            }
+            for fx in container.afters
+        ],
+        "links": [{"name": lnk.name, "url": lnk.url, "type": lnk.type} for lnk in container.links],
+        "start": container.start,
+        "stop": container.stop,
+    }
+    jsonschema.validate(data, schema)
 
-    def test_maximal_result_validates(self, allure_schema_path, maximal_test_result):
-        """A TestResult with ALL optional fields populated must validate."""
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        jsonschema.validate(maximal_test_result, schema)
 
-    def test_maximal_container_validates(self, allure_schema_path, maximal_container):
-        """A Container with ALL optional fields populated must validate."""
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        jsonschema.validate(maximal_container, schema)
+def test_maximal_result_validates(allure_schema_path, maximal_test_result):
+    """A TestResult with ALL optional fields populated must validate."""
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    jsonschema.validate(maximal_test_result, schema)
 
 
-class TestFieldCoverageMatrix:
-    """Verify every schema field is exercised by at least one test."""
+def test_maximal_container_validates(allure_schema_path, maximal_container):
+    """A Container with ALL optional fields populated must validate."""
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    jsonschema.validate(maximal_container, schema)
 
-    def test_test_result_fields_covered(self, maximal_test_result):
-        """Every TestResult field must appear in the maximal fixture."""
-        required = SCHEMA_FIELDS["TestResult"]["required"]
-        optional = SCHEMA_FIELDS["TestResult"]["optional"]
-        for field in required + optional:
-            assert field in maximal_test_result, f"TestResult.{field} not covered"
 
-    def test_status_details_fields_covered(self, maximal_test_result):
-        """Every StatusDetails field must appear in the maximal fixture."""
-        sd = maximal_test_result["statusDetails"]
-        for field in SCHEMA_FIELDS["StatusDetails"]["optional"]:
-            assert field in sd, f"StatusDetails.{field} not covered"
+def test_test_result_fields_covered(maximal_test_result):
+    """Every TestResult field must appear in the maximal fixture."""
+    required = SCHEMA_FIELDS["TestResult"]["required"]
+    optional = SCHEMA_FIELDS["TestResult"]["optional"]
+    for field in required + optional:
+        assert field in maximal_test_result, f"TestResult.{field} not covered"
 
-    def test_label_fields_covered(self, maximal_test_result):
-        """Every Label field must appear in the maximal fixture."""
-        for label in maximal_test_result["labels"]:
-            for field in SCHEMA_FIELDS["Label"]["required"]:
-                assert field in label, f"Label.{field} not covered"
 
-    def test_link_fields_covered(self, maximal_test_result):
-        """Every Link field must appear in the maximal fixture."""
-        for link in maximal_test_result["links"]:
-            for field in SCHEMA_FIELDS["Link"]["required"] + SCHEMA_FIELDS["Link"]["optional"]:
-                assert field in link, f"Link.{field} not covered"
+def test_status_details_fields_covered(maximal_test_result):
+    """Every StatusDetails field must appear in the maximal fixture."""
+    sd = maximal_test_result["statusDetails"]
+    for field in SCHEMA_FIELDS["StatusDetails"]["optional"]:
+        assert field in sd, f"StatusDetails.{field} not covered"
 
-    def test_attachment_fields_covered(self, maximal_test_result):
-        """Every Attachment field must appear in the maximal fixture."""
-        for att in maximal_test_result["attachments"]:
-            for field in SCHEMA_FIELDS["Attachment"]["required"] + SCHEMA_FIELDS["Attachment"]["optional"]:
-                assert field in att, f"Attachment.{field} not covered"
 
-    def test_parameter_fields_covered(self, maximal_test_result):
-        """Every Parameter field must appear in the maximal fixture."""
-        for param in maximal_test_result["parameters"]:
-            for field in SCHEMA_FIELDS["Parameter"]["required"] + SCHEMA_FIELDS["Parameter"]["optional"]:
-                assert field in param, f"Parameter.{field} not covered"
+def test_label_fields_covered(maximal_test_result):
+    """Every Label field must appear in the maximal fixture."""
+    for label in maximal_test_result["labels"]:
+        for field in SCHEMA_FIELDS["Label"]["required"]:
+            assert field in label, f"Label.{field} not covered"
 
-    def test_step_result_fields_covered(self, maximal_test_result):
-        """Every StepResult field must appear in the maximal fixture."""
-        for step in maximal_test_result["steps"]:
-            for field in SCHEMA_FIELDS["StepResult"]["required"] + SCHEMA_FIELDS["StepResult"]["optional"]:
-                assert field in step, f"StepResult.{field} not covered"
 
-    def test_container_fields_covered(self, maximal_container):
-        """Every Container field must appear in the maximal fixture."""
-        required = SCHEMA_FIELDS["TestResultContainer"]["required"]
-        optional = SCHEMA_FIELDS["TestResultContainer"]["optional"]
-        for field in required + optional:
-            assert field in maximal_container, f"Container.{field} not covered"
+def test_link_fields_covered(maximal_test_result):
+    """Every Link field must appear in the maximal fixture."""
+    for link in maximal_test_result["links"]:
+        for field in SCHEMA_FIELDS["Link"]["required"] + SCHEMA_FIELDS["Link"]["optional"]:
+            assert field in link, f"Link.{field} not covered"
 
-    def test_fixture_result_fields_covered(self, maximal_container):
-        """Every FixtureResult field must appear in the maximal fixture."""
-        for fixture in maximal_container["befores"] + maximal_container["afters"]:
-            for field in SCHEMA_FIELDS["FixtureResult"]["required"] + SCHEMA_FIELDS["FixtureResult"]["optional"]:
-                assert field in fixture, f"FixtureResult.{field} not covered"
 
-    def test_valid_status_enum_values(self):
-        """All Status enum values must be valid."""
-        for status in VALID_STATUSES:
-            assert status in VALID_STATUSES
+def test_attachment_fields_covered(maximal_test_result):
+    """Every Attachment field must appear in the maximal fixture."""
+    for att in maximal_test_result["attachments"]:
+        for field in SCHEMA_FIELDS["Attachment"]["required"] + SCHEMA_FIELDS["Attachment"]["optional"]:
+            assert field in att, f"Attachment.{field} not covered"
 
-    def test_valid_stage_enum_values(self):
-        """All Stage enum values must be valid."""
-        for stage in VALID_STAGES:
-            assert stage in VALID_STAGES
 
-    def test_valid_link_type_enum_values(self):
-        """All Link type enum values must be valid."""
-        for lt in VALID_LINK_TYPES:
-            assert lt in VALID_LINK_TYPES
+def test_parameter_fields_covered(maximal_test_result):
+    """Every Parameter field must appear in the maximal fixture."""
+    for param in maximal_test_result["parameters"]:
+        for field in SCHEMA_FIELDS["Parameter"]["required"] + SCHEMA_FIELDS["Parameter"]["optional"]:
+            assert field in param, f"Parameter.{field} not covered"
 
-    def test_valid_param_mode_enum_values(self):
-        """All Parameter mode enum values must be valid."""
-        for mode in VALID_PARAM_MODES:
-            assert mode in VALID_PARAM_MODES
 
-    def test_valid_fixture_type_enum_values(self):
-        """All FixtureResult type enum values must be valid."""
-        for ft in VALID_FIXTURE_TYPES:
-            assert ft in VALID_FIXTURE_TYPES
+def test_step_result_fields_covered(maximal_test_result):
+    """Every StepResult field must appear in the maximal fixture."""
+    for step in maximal_test_result["steps"]:
+        for field in SCHEMA_FIELDS["StepResult"]["required"] + SCHEMA_FIELDS["StepResult"]["optional"]:
+            assert field in step, f"StepResult.{field} not covered"
+
+
+def test_container_fields_covered(maximal_container):
+    """Every Container field must appear in the maximal fixture."""
+    required = SCHEMA_FIELDS["TestResultContainer"]["required"]
+    optional = SCHEMA_FIELDS["TestResultContainer"]["optional"]
+    for field in required + optional:
+        assert field in maximal_container, f"Container.{field} not covered"
+
+
+def test_fixture_result_fields_covered(maximal_container):
+    """Every FixtureResult field must appear in the maximal fixture."""
+    for fixture in maximal_container["befores"] + maximal_container["afters"]:
+        for field in SCHEMA_FIELDS["FixtureResult"]["required"] + SCHEMA_FIELDS["FixtureResult"]["optional"]:
+            assert field in fixture, f"FixtureResult.{field} not covered"
+
+
+def test_valid_status_enum_values():
+    """All Status enum values must be valid."""
+    for status in VALID_STATUSES:
+        assert status in VALID_STATUSES
+
+
+def test_valid_stage_enum_values():
+    """All Stage enum values must be valid."""
+    for stage in VALID_STAGES:
+        assert stage in VALID_STAGES
+
+
+def test_valid_link_type_enum_values():
+    """All Link type enum values must be valid."""
+    for lt in VALID_LINK_TYPES:
+        assert lt in VALID_LINK_TYPES
+
+
+def test_valid_param_mode_enum_values():
+    """All Parameter mode enum values must be valid."""
+    for mode in VALID_PARAM_MODES:
+        assert mode in VALID_PARAM_MODES
+
+
+def test_valid_fixture_type_enum_values():
+    """All FixtureResult type enum values must be valid."""
+    for ft in VALID_FIXTURE_TYPES:
+        assert ft in VALID_FIXTURE_TYPES
 
 
 DOCKER_ASSETS_DIR = (
@@ -620,68 +627,62 @@ def _run_docker_compose(compose_file: Path, service: str, output_dir: Path) -> s
 
 
 @pytest.mark.docker
-class TestJavaCucumberFieldCoverage:
-    """Verify Java cucumber-java can produce every schema field via Docker."""
+def test_java_produces_all_schema_fields(docker_backend, allure_schema_path, tmp_path):  # noqa: ARG001
+    """Run Java cucumber suite in Docker, validate output against schema."""
+    compose_file = DOCKER_ASSETS_DIR / "java" / "docker-compose.yml"
+    if not compose_file.exists():
+        pytest.skip("Java cucumber Docker assets not yet created")
 
-    def test_java_produces_all_schema_fields(self, docker_backend, allure_schema_path, tmp_path):  # noqa: ARG002
-        """Run Java cucumber suite in Docker, validate output against schema."""
-        compose_file = DOCKER_ASSETS_DIR / "java" / "docker-compose.yml"
-        if not compose_file.exists():
-            pytest.skip("Java cucumber Docker assets not yet created")
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    output_dir = tmp_path / "allure-results"
+    output_dir.mkdir()
 
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        output_dir = tmp_path / "allure-results"
-        output_dir.mkdir()
+    result = _run_docker_compose(compose_file, "java-cucumber", output_dir)
+    if result.returncode != 0:
+        pytest.skip(f"Java cucumber Docker build/run failed (expected in CI without Java): {result.stderr[:200]}")
 
-        result = _run_docker_compose(compose_file, "java-cucumber", output_dir)
-        if result.returncode != 0:
-            pytest.skip(f"Java cucumber Docker build/run failed (expected in CI without Java): {result.stderr[:200]}")
+    result_files = list(output_dir.glob("*-result.json"))
+    container_files = list(output_dir.glob("*-container.json"))
+    assert len(result_files) >= 1, "Java should produce at least one result file"
+    assert len(container_files) >= 1, "Java should produce at least one container file"
 
-        result_files = list(output_dir.glob("*-result.json"))
-        container_files = list(output_dir.glob("*-container.json"))
-        assert len(result_files) >= 1, "Java should produce at least one result file"
-        assert len(container_files) >= 1, "Java should produce at least one container file"
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        jsonschema.validate(instance, schema)
+        assert instance.get("name"), f"Result {f.name} missing name"
+        assert instance.get("status") in VALID_STATUSES, f"Result {f.name} has invalid status"
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            jsonschema.validate(instance, schema)
-            assert instance.get("name"), f"Result {f.name} missing name"
-            assert instance.get("status") in VALID_STATUSES, f"Result {f.name} has invalid status"
-
-        for f in container_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            jsonschema.validate(instance, schema)
+    for f in container_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        jsonschema.validate(instance, schema)
 
 
 @pytest.mark.docker
-class TestJsCucumberFieldCoverage:
-    """Verify JavaScript cucumber-js can produce every schema field via Docker."""
+def test_js_produces_all_schema_fields(docker_backend, allure_schema_path, tmp_path):  # noqa: ARG001
+    """Run JS cucumber suite in Docker, validate output against schema."""
+    compose_file = DOCKER_ASSETS_DIR / "js" / "docker-compose.yml"
+    if not compose_file.exists():
+        pytest.skip("JS cucumber Docker assets not yet created")
 
-    def test_js_produces_all_schema_fields(self, docker_backend, allure_schema_path, tmp_path):  # noqa: ARG002
-        """Run JS cucumber suite in Docker, validate output against schema."""
-        compose_file = DOCKER_ASSETS_DIR / "js" / "docker-compose.yml"
-        if not compose_file.exists():
-            pytest.skip("JS cucumber Docker assets not yet created")
+    schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
+    output_dir = tmp_path / "allure-results"
+    output_dir.mkdir()
 
-        schema = json.loads(allure_schema_path.read_text(encoding="utf-8"))
-        output_dir = tmp_path / "allure-results"
-        output_dir.mkdir()
+    result = _run_docker_compose(compose_file, "js-cucumber", output_dir)
+    if result.returncode != 0:
+        pytest.skip(f"JS cucumber Docker build/run failed (expected in CI without Node): {result.stderr[:200]}")
 
-        result = _run_docker_compose(compose_file, "js-cucumber", output_dir)
-        if result.returncode != 0:
-            pytest.skip(f"JS cucumber Docker build/run failed (expected in CI without Node): {result.stderr[:200]}")
+    result_files = list(output_dir.glob("*-result.json"))
+    container_files = list(output_dir.glob("*-container.json"))
+    assert len(result_files) >= 1, "JS should produce at least one result file"
+    assert len(container_files) >= 1, "JS should produce at least one container file"
 
-        result_files = list(output_dir.glob("*-result.json"))
-        container_files = list(output_dir.glob("*-container.json"))
-        assert len(result_files) >= 1, "JS should produce at least one result file"
-        assert len(container_files) >= 1, "JS should produce at least one container file"
+    for f in result_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        jsonschema.validate(instance, schema)
+        assert instance.get("name"), f"Result {f.name} missing name"
+        assert instance.get("status") in VALID_STATUSES, f"Result {f.name} has invalid status"
 
-        for f in result_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            jsonschema.validate(instance, schema)
-            assert instance.get("name"), f"Result {f.name} missing name"
-            assert instance.get("status") in VALID_STATUSES, f"Result {f.name} has invalid status"
-
-        for f in container_files:
-            instance = json.loads(f.read_text(encoding="utf-8"))
-            jsonschema.validate(instance, schema)
+    for f in container_files:
+        instance = json.loads(f.read_text(encoding="utf-8"))
+        jsonschema.validate(instance, schema)

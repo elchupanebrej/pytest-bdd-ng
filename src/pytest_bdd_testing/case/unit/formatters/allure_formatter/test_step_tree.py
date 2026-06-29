@@ -47,53 +47,55 @@ def _make_case_started() -> MagicMock:
     return projection
 
 
-class TestStepTree:
-    """Tests for build_step_tree function."""
+def test_empty_projections() -> None:
+    """Empty list returns empty result."""
+    result = build_step_tree([])
+    assert result == []
 
-    def test_empty_projections(self) -> None:
-        """Empty list returns empty result."""
-        result = build_step_tree([])
-        assert result == []
 
-    def test_single_step(self) -> None:
-        """One Started/Finished pair produces one root step."""
-        projections = [_make_step_started("s1"), _make_step_finished("s1")]
-        result = build_step_tree(projections)
-        assert len(result) == 1
-        assert result[0]["status"] == "passed"
+def test_single_step() -> None:
+    """One Started/Finished pair produces one root step."""
+    projections = [_make_step_started("s1"), _make_step_finished("s1")]
+    result = build_step_tree(projections)
+    assert len(result) == 1
+    assert result[0]["status"] == "passed"
 
-    def test_two_sibling_steps(self) -> None:
-        """Two sequential steps produce two root siblings."""
-        projections = [
-            _make_step_started("s1"),
-            _make_step_finished("s1"),
-            _make_step_started("s2"),
-            _make_step_finished("s2"),
-        ]
-        result = build_step_tree(projections)
-        assert len(result) == 2
 
-    def test_status_mapping(self) -> None:
-        """Step finished status is captured on the step."""
-        projections = [_make_step_started("s1"), _make_step_finished("s1", "failed")]
-        result = build_step_tree(projections)
-        assert result[0]["status"] == "failed"
+def test_two_sibling_steps() -> None:
+    """Two sequential steps produce two root siblings."""
+    projections = [
+        _make_step_started("s1"),
+        _make_step_finished("s1"),
+        _make_step_started("s2"),
+        _make_step_finished("s2"),
+    ]
+    result = build_step_tree(projections)
+    assert len(result) == 2
 
-    def test_case_started_adds_marker(self) -> None:
-        """TestCaseStarted adds a marker step."""
-        projections = [
-            _make_case_started(),
-            _make_step_started("s1"),
-            _make_step_finished("s1"),
-        ]
-        result = build_step_tree(projections)
-        assert len(result) >= 1
 
-    def test_unknown_event_type_ignored(self) -> None:
-        """Unknown event types are skipped gracefully."""
-        projection = MagicMock(spec=ExecutionProjection)
-        projection.payload_kind = MagicMock()
-        projection.payload_kind.value = "UnknownEvent"
-        projection.payload = MagicMock()
-        result = build_step_tree([projection])
-        assert result == []
+def test_status_mapping() -> None:
+    """Step finished status is captured on the step."""
+    projections = [_make_step_started("s1"), _make_step_finished("s1", "failed")]
+    result = build_step_tree(projections)
+    assert result[0]["status"] == "failed"
+
+
+def test_case_started_adds_marker() -> None:
+    """TestCaseStarted adds a marker step."""
+    projections = [
+        _make_case_started(),
+        _make_step_started("s1"),
+        _make_step_finished("s1"),
+    ]
+    result = build_step_tree(projections)
+    assert len(result) >= 1
+
+
+def test_unknown_event_type_ignored() -> None:
+    """Unknown event types are skipped gracefully."""
+    projection = MagicMock(spec=ExecutionProjection)
+    projection.payload_kind = MagicMock()
+    projection.payload_kind.value = "UnknownEvent"
+    projection.payload = MagicMock()
+    result = build_step_tree([projection])
+    assert result == []

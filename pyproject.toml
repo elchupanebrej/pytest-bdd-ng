@@ -316,7 +316,7 @@ module = [
 ]
 
 [tool.pylint.main]
-ignore-paths = [".*case.*"]
+ignore-paths = []
 load-plugins = ["pytest_bdd._pylint"]
 
 [tool.pylint.messages_control]

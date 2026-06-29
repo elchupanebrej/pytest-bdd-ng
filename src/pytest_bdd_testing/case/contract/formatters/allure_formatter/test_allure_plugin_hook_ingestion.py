@@ -18,99 +18,97 @@ if TYPE_CHECKING:
 pytestmark = [pytest.mark.contract]
 
 
-class TestAllurePluginHookIngestion:
-    """Validate hook ingestion mode produces Allure results."""
+def test_live_mode_produces_allure_results(testdir: Testdir, tmp_path: Path):
+    """Running pytest with --allure-cucumber-out only produces Allure results."""
+    testdir.makepyprojecttoml(
+        """
+        [tool.pytest.ini_options]
+        addopts = "-v"
+        """,
+    )
+    testdir.makeconftest(
+        """
+        from pytest_bdd import scenarios, given, then, parsers
 
-    def test_live_mode_produces_allure_results(self, testdir: Testdir, tmp_path: Path):
-        """Running pytest with --allure-cucumber-out only produces Allure results."""
-        testdir.makepyprojecttoml(
-            """
-            [tool.pytest.ini_options]
-            addopts = "-v"
-            """,
-        )
-        testdir.makeconftest(
-            """
-            from pytest_bdd import scenarios, given, then, parsers
+        scenarios("test.feature")
 
-            scenarios("test.feature")
+        @given("a passing step")
+        def a_passing_step():
+            pass
 
-            @given("a passing step")
-            def a_passing_step():
-                pass
+        @then("the test passes")
+        def the_test_passes():
+            pass
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        test="""
+        Feature: Hook ingestion test
+          Scenario: Passing scenario
+            Given a passing step
+            Then the test passes
+        """,
+    )
 
-            @then("the test passes")
-            def the_test_passes():
-                pass
-            """,
-        )
-        testdir.makefile(
-            ".feature",
-            test="""
-            Feature: Hook ingestion test
-              Scenario: Passing scenario
-                Given a passing step
-                Then the test passes
-            """,
-        )
+    output_dir = tmp_path / "allure-results"
+    result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
-        output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
+    assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 
-        assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
+    result_files = list(output_dir.glob("*-result.json"))
+    assert len(result_files) > 0, "No Allure result files produced in live mode"
 
-        result_files = list(output_dir.glob("*-result.json"))
-        assert len(result_files) > 0, "No Allure result files produced in live mode"
+    for result_file in result_files:
+        with Path(result_file).open(encoding="utf-8") as f:
+            data = json.load(f)
+        assert "name" in data, f"Result file {result_file.name} missing 'name' field"
+        assert "status" in data, f"Result file {result_file.name} missing 'status' field"
 
-        for result_file in result_files:
-            with Path(result_file).open(encoding="utf-8") as f:
-                data = json.load(f)
-            assert "name" in data, f"Result file {result_file.name} missing 'name' field"
-            assert "status" in data, f"Result file {result_file.name} missing 'status' field"
 
-    def test_live_mode_does_not_use_messages_ndjson(self, testdir: Testdir, tmp_path: Path):
-        """Live mode works without an NDJSON import flag."""
-        testdir.makepyprojecttoml(
-            """
-            [tool.pytest.ini_options]
-            addopts = "-v"
-            """,
-        )
-        testdir.makeconftest(
-            """
-            from pytest_bdd import scenarios, given, then
+def test_live_mode_does_not_use_messages_ndjson(testdir: Testdir, tmp_path: Path):
+    """Live mode works without an NDJSON import flag."""
+    testdir.makepyprojecttoml(
+        """
+        [tool.pytest.ini_options]
+        addopts = "-v"
+        """,
+    )
+    testdir.makeconftest(
+        """
+        from pytest_bdd import scenarios, given, then
 
-            scenarios("test.feature")
+        scenarios("test.feature")
 
-            @given("a passing step")
-            def a_passing_step():
-                pass
+        @given("a passing step")
+        def a_passing_step():
+            pass
 
-            @then("the test passes")
-            def the_test_passes():
-                pass
-            """,
-        )
-        testdir.makefile(
-            ".feature",
-            test="""
-            Feature: No NDJSON flag test
-              Scenario: Simple scenario
-                Given a passing step
-                Then the test passes
-            """,
-        )
+        @then("the test passes")
+        def the_test_passes():
+            pass
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        test="""
+        Feature: No NDJSON flag test
+          Scenario: Simple scenario
+            Given a passing step
+            Then the test passes
+        """,
+    )
 
-        output_dir = tmp_path / "allure-results"
-        result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
+    output_dir = tmp_path / "allure-results"
+    result = testdir.runpytest(f"--allure-cucumber-out={output_dir}")
 
-        assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
+    assert result.ret == 0, f"pytest failed: {result.stdout.str()}\n{result.stderr.str()}"
 
-        result_files = list(output_dir.glob("*-result.json"))
-        assert len(result_files) > 0, "No Allure result files produced"
+    result_files = list(output_dir.glob("*-result.json"))
+    assert len(result_files) > 0, "No Allure result files produced"
 
-        # Verify the result contains a valid scenario name
-        for result_file in result_files:
-            with Path(result_file).open(encoding="utf-8") as f:
-                data = json.load(f)
-            assert data.get("name"), "Result file has empty name"
+    # Verify the result contains a valid scenario name
+    for result_file in result_files:
+        with Path(result_file).open(encoding="utf-8") as f:
+            data = json.load(f)
+        assert data.get("name"), "Result file has empty name"

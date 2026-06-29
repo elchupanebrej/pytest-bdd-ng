@@ -67,97 +67,92 @@ def output_dir(tmp_path: Path) -> Path:
     return output
 
 
-class TestCollector:
-    """Tests for the collector module."""
-
-    def test_group_by_test_case_empty(self) -> None:
-        """Test grouping with empty projections."""
-        grouped, structural = group_by_test_case([])
-        assert grouped == {}
-        assert structural == {}
-
-    def test_group_by_test_case_single(self, mock_projection: MagicMock) -> None:
-        """Test grouping with a single projection."""
-        grouped, _structural = group_by_test_case([mock_projection])
-        assert len(grouped) == 1
-        assert "test-123" in grouped
+def test_group_by_test_case_empty() -> None:
+    """Test grouping with empty projections."""
+    grouped, structural = group_by_test_case([])
+    assert grouped == {}
+    assert structural == {}
 
 
-class TestMapper:
-    """Tests for the mapper module."""
-
-    def test_map_status_passed(self) -> None:
-        """Test mapping passed status."""
-        assert _map_status("passed") == "passed"
-
-    def test_map_status_failed(self) -> None:
-        """Test mapping failed status."""
-        assert _map_status("failed") == "failed"
-
-    def test_map_status_unknown(self) -> None:
-        """Test mapping unknown status."""
-        assert _map_status("unknown") == "skipped"
-
-    def test_map_test_case_to_result(self) -> None:
-        """Test mapping a test case to AllureTestResult with structural context."""
-        proj = MagicMock(spec=ExecutionProjection)
-        proj.payload_kind = MagicMock()
-        proj.payload_kind.value = "test_case_started"
-        proj.payload = MagicMock(spec=MsgTestCaseStarted)
-        proj.payload.test_case_id = "tc-1"
-        proj.payload.timestamp = 1234567890
-        mock_tc = MagicMock()
-        mock_tc.pickle_id = "pk-1"
-        mock_pickle = MagicMock()
-        mock_pickle.name = "Test Feature"
-        mock_pickle.steps = []
-        structural = {
-            ("test_case", "tc-1"): mock_tc,
-            ("pickle", "pk-1"): mock_pickle,
-        }
-        result = map_test_case_to_result("test-123", [proj], structural)
-        assert isinstance(result, AllureTestResult)
-        assert result.uuid == "test-123"
-        assert result.name == "Test Feature"
-
-    def test_map_unmappable_to_attachment(self, mock_projection: MagicMock) -> None:
-        """Test mapping unmappable event to attachment."""
-        attachment = map_unmappable_to_attachment(mock_projection)
-        assert isinstance(attachment, AllureAttachment)
-        assert attachment.name.startswith("unmapped-")
+def test_group_by_test_case_single(mock_projection: MagicMock) -> None:
+    """Test grouping with a single projection."""
+    grouped, _structural = group_by_test_case([mock_projection])
+    assert len(grouped) == 1
+    assert "test-123" in grouped
 
 
-class TestStepTree:
-    """Tests for the step_tree module."""
-
-    def test_build_step_tree_empty(self) -> None:
-        """Test building step tree from empty projections."""
-        result = build_step_tree([])
-        assert result == []
+def test_map_status_passed() -> None:
+    """Test mapping passed status."""
+    assert _map_status("passed") == "passed"
 
 
-class TestEmitter:
-    """Tests for the emitter module."""
+def test_map_status_failed() -> None:
+    """Test mapping failed status."""
+    assert _map_status("failed") == "failed"
 
-    def test_emit_results_empty(self, output_dir: Path) -> None:
-        """Test emitting empty results."""
-        emit_results([], output_dir)
-        assert output_dir.exists()
 
-    def test_emit_results_single(self, output_dir: Path) -> None:
-        """Test emitting a single result."""
-        result = AllureTestResult(uuid="test-123", name="Test")
-        emit_results([result], output_dir)
-        files = list(output_dir.glob("*-result.json"))
-        assert len(files) == 1
-        content = json.loads(files[0].read_text(encoding="utf-8"))
-        assert content["uuid"] == "test-123"
+def test_map_status_unknown() -> None:
+    """Test mapping unknown status."""
+    assert _map_status("unknown") == "skipped"
 
-    def test_emit_container_single(self, output_dir: Path) -> None:
-        """Test emitting a container referencing one result."""
-        result = AllureTestResult(uuid="test-456", name="Test")
-        container_path = emit_container([result], output_dir)
-        assert container_path.exists()
-        content = json.loads(container_path.read_text(encoding="utf-8"))
-        assert "uuid" in content
-        assert content["children"] == ["test-456"]
+
+def test_map_test_case_to_result() -> None:
+    """Test mapping a test case to AllureTestResult with structural context."""
+    proj = MagicMock(spec=ExecutionProjection)
+    proj.payload_kind = MagicMock()
+    proj.payload_kind.value = "test_case_started"
+    proj.payload = MagicMock(spec=MsgTestCaseStarted)
+    proj.payload.test_case_id = "tc-1"
+    proj.payload.timestamp = 1234567890
+    mock_tc = MagicMock()
+    mock_tc.pickle_id = "pk-1"
+    mock_pickle = MagicMock()
+    mock_pickle.name = "Test Feature"
+    mock_pickle.steps = []
+    structural = {
+        ("test_case", "tc-1"): mock_tc,
+        ("pickle", "pk-1"): mock_pickle,
+    }
+    result = map_test_case_to_result("test-123", [proj], structural)
+    assert isinstance(result, AllureTestResult)
+    assert result.uuid == "test-123"
+    assert result.name == "Test Feature"
+
+
+def test_map_unmappable_to_attachment(mock_projection: MagicMock) -> None:
+    """Test mapping unmappable event to attachment."""
+    attachment = map_unmappable_to_attachment(mock_projection)
+    assert isinstance(attachment, AllureAttachment)
+    assert attachment.name.startswith("unmapped-")
+
+
+def test_build_step_tree_empty() -> None:
+    """Test building step tree from empty projections."""
+    result = build_step_tree([])
+    assert result == []
+
+
+def test_emit_results_empty(output_dir: Path) -> None:
+    """Test emitting empty results."""
+    emit_results([], output_dir)
+    assert output_dir.exists()
+
+
+def test_emit_results_single(output_dir: Path) -> None:
+    """Test emitting a single result."""
+    result = AllureTestResult(uuid="test-123", name="Test")
+    emit_results([result], output_dir)
+    files = list(output_dir.glob("*-result.json"))
+    assert len(files) == 1
+    content = json.loads(files[0].read_text(encoding="utf-8"))
+    assert content["uuid"] == "test-123"
+
+
+def test_emit_container_single(output_dir: Path) -> None:
+    """Test emitting a container referencing one result."""
+    result = AllureTestResult(uuid="test-456", name="Test")
+    container_path = emit_container([result], output_dir)
+    assert container_path.exists()
+    content = json.loads(container_path.read_text(encoding="utf-8"))
+    assert "uuid" in content
+    assert content["children"] == ["test-456"]
