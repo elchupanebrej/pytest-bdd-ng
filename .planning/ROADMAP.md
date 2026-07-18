@@ -10,7 +10,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 
 - [x] **Phase 1: Foundation Cleanup** — Remove dead Allure plugin; remove legacy --cucumberjson CLI flag
 - [x] **Phase 2: Code Quality Gates** — Eliminate 96 return None instances; replace 22 bare except Exception
-- [ ] **Phase 3: Core Runtime Refactor** — Split 1422-line scenario_run.py into 3 focused model modules
+- [x] **Phase 3: Core Runtime Refactor** — Split 1422-line scenario_run.py into 3 focused model modules (completed 2026-07-07)
 - [x] **Phase 4: Plugin Refactoring** — Code generator to class-based pattern; reduce other large files
 - [ ] **Phase 5: Unit Test Fortification** — Comprehensive unit test coverage for core modules
 - [ ] **Phase 6: Integration Testing** — Edge case coverage for step matching and execution lifecycle
@@ -18,7 +18,7 @@ A two-iteration hardening initiative for a mature BDD testing library. **Iterati
 - [ ] **Phase 8: BDD Acceptance Testing** — Expand feature tests for undocumented behaviors
 - [ ] **Phase 9: Compatibility Streamlining** — Remove dead shims; consolidate legacy compat layer
 - [x] **Phase 10: Pattern Unification** — Consistent plugin patterns; eliminate cross-plugin imports (completed 2026-05-16)
-- [ ] **Phase 11: Audit & Prune** — Dead code removal; stale module evaluation; final CI validation
+- [x] **Phase 11: Audit & Prune** — Dead code removal; stale module evaluation; final CI validation
 - [x] **Phase 12: Restructure test suite into semantic groups** — Semantic test tree migration, Makefile API, testing/ package
 - [x] **Phase 13: Unify cucumber-json plugins INI/CLI options** — Consolidate INI and CLI cucumber-json reporters
 - [x] **Phase 14: Gap Closure** — Achieve 70% unit test coverage; resolve BDD feature test failures
@@ -238,19 +238,19 @@ Plans:
 **Plans**: 5 plans
 Plans:
 
-- [ ] 11-01-PLAN.md — Remove confirmed dead code (feature_locator.py, util/temp_root.py, validate_requested_pair)
-- [ ] 11-02-PLAN.md — Split steps.py (971L) into steps/ package: Registry, Matcher, Definition, decorators
-- [ ] 11-03-PLAN.md — Split message_capability_governance.py (853L) into schema/capabilities/decisions/cli
-- [ ] 11-04-PLAN.md — Split run.py (783L) into model/run/ package: stages, lifecycle, refs
-- [ ] 11-05-PLAN.md — Plugin audit docs (17 plugins), decopatch health, CI matrix validation
+- [x] 11-01-PLAN.md — Remove confirmed dead code (feature_locator.py, util/temp_root.py, validate_requested_pair)
+- [x] 11-02-PLAN.md — Split steps.py (971L) into steps/ package: Registry, Matcher, Definition, decorators
+- [x] 11-03-PLAN.md — Split message_capability_governance.py (853L) into schema/capabilities/decisions/cli
+- [x] 11-04-PLAN.md — Split run.py (783L) into model/run/ package: stages, lifecycle, refs
+- [x] 11-05-PLAN.md — Plugin audit docs (17 plugins), decopatch health, CI matrix validation
 
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Cleanup | 2/2 | Complete | 2026-05-12 |
-| 2. Code Quality Gates | 4/4 | Complete | 2026-05-12 |
-| 3. Core Runtime Refactor | 3/3 | Complete | 2026-05-13 |
+| 1. Foundation Cleanup | 2/2 | Complete    | 2026-05-12 |
+| 2. Code Quality Gates | 4/4 | Complete    | 2026-05-12 |
+| 3. Core Runtime Refactor | 3/3 | Complete    | 2026-05-13 |
 | 4. Plugin Refactoring | 6/6 | Complete | 2026-05-14 |
 | 5. Unit Test Fortification | 4/4 | Complete | 2026-05-14 |
 | 6. Integration Testing | 4/4 | Complete | 2026-05-14 |
@@ -258,7 +258,7 @@ Plans:
 | 8. BDD Acceptance Testing | 8/8 | Complete | 2026-05-15 |
 | 9. Compatibility Streamlining | 2/2 | Complete | 2026-05-16 |
 | 10. Pattern Unification | 1/1 | Complete | 2026-05-16 |
-| 11. Audit & Prune | 0/5 | Not started | - |
+| 11. Audit & Prune | 5/5 | Complete | 2026-05-17 |
 | 12. Restructure test suite | 6/6 | Complete | 2026-05-20 |
 | 13. Unify cucumber-json plugins | 3/3 | Complete | 2026-05-20 |
 | 14. Gap Closure | 4/4 | Complete | 2026-05-21 |
@@ -266,13 +266,16 @@ Plans:
 | 16. Vulture pre-commit hook | 1/1 | Complete | 2026-05-25 |
 | 17. Adapt GitHub CI to use make and validate with act | 2/2 | Complete    | 2026-05-28 |
 | 20. docs/architecture/allure.md | 7/7 | Complete | 2026-06-11 |
+| 29. CCK Closure | 1/1 | Complete | 2026-07-02 |
+| 30. Add a new phase from todo | 2/2 | Complete | 2026-07-02 |
+| 31. Add __tracebackhide__ = True module-level to all src/pytest_bdd/ modules | 3/3 | Complete    | 2026-07-09 |
 
 ### Phase 12: Restructure test suite into semantic groups
 
 **Goal:** Restructure the test suite so `tests/cases/` communicates semantic purpose, `tests/assets/` holds passive data only, shared active harness code lives under internal `src/pytest_bdd/testing/`, and Makefile targets are the documented human API for local, full, semantic, slow, and environment-specific runs.
 **Requirements**: P12-01, P12-02, P12-03, P12-04, P12-05, P12-06, P12-07, P12-08, P12-09, P12-10
 **Depends on:** Phase 11
-**Plans:** 6/6 plans complete
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -500,12 +503,12 @@ Plans:
 ### Gap Closure Phase 3 — Test Package & __init__.py Cleanup (Waves 16-17)
 
 **Requirements**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10
-**Goal:** Extract tests to independent `pytest_bdd_testing` package, fix Docker compose paths, eliminate `__all__` and empty `__init__.py`, update init_rules.py enforcement
+**Goal:** Extract tests to independent `pytest_bdd_toolchain` package, fix Docker compose paths, eliminate `__all__` and empty `__init__.py`, update init_rules.py enforcement
 
 **Success Criteria** (what must be TRUE):
 
-  1. Tests live at `src/pytest_bdd_testing/` — a completely separate package at `./src` level
-  2. `testing = ["pytest_bdd_testing"]` in `[project.optional-dependencies]`
+  1. Tests live at `src/pytest_bdd_toolchain/` — a completely separate package at `./src` level
+  2. `testing = ["pytest_bdd_toolchain"]` in `[project.optional-dependencies]`
   3. `tests/` directory at repo root fully removed
   4. All Docker paths resolve from repo root; docker-compose context = 5 levels (correct)
   5. Zero empty `__init__.py` files — all deleted per PEP 420
@@ -519,7 +522,7 @@ Plans:
 Plans:
 **Wave 1** *(R1-R4: test package extraction + Docker rework)*
 
-- [x] 20-26-PLAN.md — R1+R2: Move testing/ → pytest_bdd_testing/, rewrite imports, update pyproject.toml + Makefile (Wave 1)
+- [x] 20-26-PLAN.md — R1+R2: Move testing/ → pytest_bdd_toolchain/, rewrite imports, update pyproject.toml + Makefile (Wave 1)
 - [x] 20-27-PLAN.md — R3+R4: Delete tests/, fix Docker compose+Dockerfiles+entrypoints+Makefile (Wave 2, depends on 20-26)
 
 **Wave 2** *(R5-R9: __init__.py elimination + namespace + rules)*
@@ -541,9 +544,9 @@ Plans:
 
   1. `features/18 Development/` contains BDD feature coverage for Allure conversion, heading validation, architecture tooling, compatibility matrix, messages schema sync, Cucumber formatter rendering, and messages coverage audit orchestration.
   2. Shared development steps support isolated mock file creation, command execution in the test directory, exit-code assertions, and stdout/stderr assertions.
-  3. E2E registration imports the development steps and exposes `src/pytest_bdd_testing/case/e2e/feature/test_18_development.py` as the loader for the Development feature space.
+  3. E2E registration imports the development steps and exposes `src/pytest_bdd_toolchain/case/e2e/feature/test_18_development.py` as the loader for the Development feature space.
   4. The known Messages Coverage Audit probe issue is documented as a blocker/risk until resolved or explicitly scoped.
-  5. Focused verification target `pytest src/pytest_bdd_testing/case/e2e/feature/test_18_development.py` is the primary phase test.
+  5. Focused verification target `pytest src/pytest_bdd_toolchain/case/e2e/feature/test_18_development.py` is the primary phase test.
 
 Plans:
 **Wave 1**
@@ -553,3 +556,321 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 26-02-PLAN.md - Close Development CLI literal coverage gaps
+
+### Phase 27: Replace Make&sh with Act
+
+**Goal:** Replace Make and shell development entrypoints with local GitHub Actions workflow targets and Python command
+surfaces while preserving GitHub-hosted CI/release workflows.
+**Depends on:** Phase 26
+**Plans:** 2/2 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+  1. Local development targets are runnable through explicit workflow jobs and produce durable artifacts under neutral
+     local artifact paths.
+
+  2. GitHub-hosted CI workflows remain present and clearly documented as CI-owned, not local target replacements.
+  3. Every workflow file explains whether it is CI-owned or local/manual artifact-producing infrastructure.
+  4. Every file under `scripts/` is accounted for by BDD/ATDD coverage, facade coverage, or explicit private-helper
+     classification behind a covered facade.
+
+  5. Feature files in `features/18 Development` describe the capability, reason to exist, and framework pain covered;
+     they do not present the local runner as the feature target.
+
+  6. Touched contract tests follow project test style: PyHamcrest assertions and module-level test functions.
+
+Plans:
+
+**Wave 1**
+
+- [x] 27-01-PLAN.md - Replace Make and shell scripts with local workflow/Python command surface
+
+**Wave 2** *(blocked on Wave 1 findings review)*
+
+- [x] 27-02-PLAN.md - Close workflow boundary, artifact naming, direct JSON, scripts coverage, and test-style findings
+
+### Phase 28: Extract pytest_bdd_toolchain
+
+**Goal:** Extract `pytest_bdd_toolchain` into `pytest_bdd_toolchain` — a standalone package with all 11 development
+scripts as `pbt-*` entrypoints, updated documentation, and zero regressions.
+**Depends on:** Phase 27
+**Plans:** 1/1 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+1. `python -c "import pytest_bdd_toolchain"` succeeds
+2. `python -c "import pytest_bdd_toolchain"` fails with ImportError
+3. All 11 `pbt-*` commands execute without import errors
+4. Scoped `rg` checks over active code/config/docs and current planning surfaces return zero old-name matches
+5. Full test suite passes with zero regressions
+6. Python 3.10-3.14 compatibility is preserved
+
+Plans:
+
+- [x] 28-01-PLAN.md — Rename `pytest_bdd_toolchain` to `pytest_bdd_toolchain`, move development scripts into
+      `src/pytest_bdd_toolchain/tool/`, register `pbt-*` entrypoints, update references, and validate the rename.
+
+### Phase 29: CCK Closure
+
+**Goal:** Close CCK-01 through CCK-07 documentation gaps from v1.0 milestone audit — reconcile requirements, specs, and verification artifacts with actual implementation state.
+**Depends on:** Phase 28
+**Plans:** 1/1 plans complete
+
+**Success Criteria** (what must be TRUE):
+
+1. All CCK-01..07 requirements marked [x] in REQUIREMENTS.md
+2. Spec 045 success criteria all marked [x]
+3. Phase 29 VERIFICATION.md exists
+4. ROADMAP.md includes Phase 29
+
+Plans:
+
+- [x] 29-01-PLAN.md — Close gap: CCK-01..CCK-07 - Allure CCK compatibility evidence
+
+### Phase 30: Add a new phase from todo
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 29
+**Plans:** 2/2 plans complete
+
+Plans:
+
+- [x] 30-PLAN.md
+
+- [x] TBD (run /gsd-plan-phase 30 to break down) (completed 2026-07-02)
+- [x] 30-02-PLAN.md — Migrate codebase to BLQ import-form rules and re-enable BLQ1506/1508/1509/1510/1511/1512
+
+### Phase 31: Add __tracebackhide__ = True module-level to all src/pytest_bdd/ modules
+
+**Goal:** Add `__tracebackhide__ = True` at the module level in all non-empty Python files under `src/pytest_bdd/` to hide library-internal implementation details from pytest tracebacks when user tests fail.
+**Requirements**: None
+**Depends on:** Phase 30
+**Plans:** 3/3 plans complete
+
+Plans:
+**Wave 1**
+
+- [x] 31-01-PLAN.md — Scaffold integration test to verify traceback hiding behavior
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 31-02-PLAN.md — Automate module-level tracebackhide insertion and remove redundant declarations
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 31-03-PLAN.md — Verify full test suite and confirm traceback hiding integration tests pass
+
+### Phase 32: Implement Unbound Feature Detection
+
+**Goal:** Detect `.feature` and `.feature.md` files (plus shortcut formats: `.url`, `.desktop`, `.webloc`) in `features_base_dir` that exist on disk but are NOT bound to any pytest test collection. Report them as `pytest.skipped` items with configurable severity (skip/warn/error).
+**Requirements**: TBD
+**Depends on:** Phase 31
+**Plans:** 2 plans
+
+**Success Criteria** (what must be TRUE):
+
+  1. Unbound feature files appear as SKIPPED in pytest output with a clear reason ("Feature not bound to any test module")
+  2. Bound feature files are NOT reported as skipped — no false positives
+  3. Feature files with `@unbound` tag are excluded from detection per BDD conventions
+  4. Severity is configurable: INI `bdd_unbound_features` and CLI `--unbound-features` with values skip (default), warn, error
+  5. Shortcut files (`.url`, `.desktop`, `.webloc`) resolve to their target files before checking collection status
+  6. Symlinks are followed during recursive scan; symlink loops are safely handled
+  7. xdist worker nodes do not run duplicate detection — only the controller node injects skip items
+  8. Unit tests cover detection logic; integration tests verify end-to-end behavior through pytester
+
+Plans:
+**Wave 1**
+
+- [x] 32-01-PLAN.md — Config model + CLI/INI registration + unbound.py detection module + hook integration
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 32-02-PLAN.md — Unit tests (16) and integration tests (10) for unbound feature detection
+
+### Phase 33: Gather failed CI logs into workflow artifact
+
+**Goal:** After any `main.yml` run with failed matrix cells, produce a single downloadable workflow artifact containing raw step output with metadata headers for each failed cell, without modifying existing `test` or `test-xdist-remote` jobs.
+**Requirements**: TBD
+**Depends on:** Phase 32
+**Plans:** 1/1 plans complete
+
+Plans:
+
+- [x] 33-01-PLAN.md — Add collect-failed-logs job to main.yml with github-script and upload-artifact
+
+### Phase 34: Move remaining CCK testing utilities out of pytest_bdd/testing
+
+**Goal:** Move CCK testing utilities from library to toolchain and fix UnboundFeatureItem crash
+**Requirements**: CCK-MIGRATION, UNBOUND-FIX
+**Depends on:** Phase 33
+**Plans:** 1/1 plans complete
+
+Plans:
+
+- [x] 34-01-PLAN.md — Move cck.py to toolchain, update consumer imports, delete pytest_bdd/testing/ and fix UnboundFeatureItem crash
+
+### Phase 35: Improve library typing using best practices from awesome-python-typing
+
+**Goal:** Establish strict static typing across production and non-test toolchain code, configure Pyright verifytypes package validation, and implement isolated wheel typing contract tests.
+
+**Scope amendment (2026-07-13):** `src/pytest_bdd_toolchain/case/**` is test-suite code and is excluded from the strict-mypy implementation gate. All remaining `pytest_bdd` and non-test `pytest_bdd_toolchain` modules remain in scope without suppressions.
+**Requirements**: TBD
+**Depends on:** Phase 34
+**Plans:** 66/140 plans executed
+
+Plans:
+
+- [x] 35-04-PLAN.md
+- [x] 35-05-PLAN.md
+- [x] 35-06-PLAN.md
+- [x] 35-07-PLAN.md
+- [x] 35-08-PLAN.md
+- [x] 35-09-PLAN.md
+- [x] 35-10-PLAN.md
+- [x] 35-100-PLAN.md
+- [x] 35-101-PLAN.md
+- [x] 35-102-PLAN.md
+- [x] 35-103-PLAN.md
+- [x] 35-104-PLAN.md
+- [x] 35-105-PLAN.md
+- [x] 35-106-PLAN.md
+- [x] 35-107-PLAN.md
+- [x] 35-108-PLAN.md
+- [x] 35-109-PLAN.md
+- [x] 35-11-PLAN.md
+- [x] 35-110-PLAN.md
+- [x] 35-111-PLAN.md
+- [x] 35-112-PLAN.md
+- [x] 35-113-PLAN.md
+- [x] 35-114-PLAN.md
+- [x] 35-115-PLAN.md
+- [x] 35-116-PLAN.md
+- [x] 35-117-PLAN.md
+- [x] 35-118-PLAN.md
+- [x] 35-119-PLAN.md
+- [x] 35-12-PLAN.md
+- [x] 35-120-PLAN.md
+- [x] 35-121-PLAN.md
+- [x] 35-122-PLAN.md
+- [x] 35-123-PLAN.md
+- [x] 35-124-PLAN.md
+- [x] 35-125-PLAN.md
+- [x] 35-126-PLAN.md
+- [x] 35-127-PLAN.md
+- [x] 35-128-PLAN.md
+- [x] 35-129-PLAN.md
+- [x] 35-13-PLAN.md
+- [x] 35-130-PLAN.md
+- [x] 35-131-PLAN.md
+- [x] 35-132-PLAN.md
+- [x] 35-133-PLAN.md
+- [x] 35-134-PLAN.md
+- [x] 35-135-PLAN.md
+- [x] 35-136-PLAN.md
+- [x] 35-137-PLAN.md
+- [x] 35-14-PLAN.md
+- [x] 35-15-PLAN.md
+- [x] 35-16-PLAN.md
+- [x] 35-17-PLAN.md
+- [x] 35-18-PLAN.md
+- [x] 35-19-PLAN.md
+- [x] 35-20-PLAN.md
+- [x] 35-21-PLAN.md
+- [x] 35-22-PLAN.md
+- [x] 35-23-PLAN.md
+- [x] 35-24-PLAN.md
+- [x] 35-25-PLAN.md
+- [x] 35-26-PLAN.md
+- [x] 35-27-PLAN.md
+- [x] 35-28-PLAN.md
+- [ ] 35-29-PLAN.md
+- [ ] 35-30-PLAN.md
+- [ ] 35-31-PLAN.md
+- [ ] 35-32-PLAN.md
+- [ ] 35-33-PLAN.md
+- [ ] 35-34-PLAN.md
+- [ ] 35-35-PLAN.md
+- [ ] 35-36-PLAN.md
+- [ ] 35-37-PLAN.md
+- [ ] 35-38-PLAN.md
+- [ ] 35-39-PLAN.md
+- [ ] 35-40-PLAN.md
+- [ ] 35-41-PLAN.md
+- [ ] 35-42-PLAN.md
+- [ ] 35-43-PLAN.md
+- [ ] 35-44-PLAN.md
+- [ ] 35-45-PLAN.md
+- [ ] 35-46-PLAN.md
+- [ ] 35-47-PLAN.md
+- [ ] 35-48-PLAN.md
+- [ ] 35-49-PLAN.md
+- [ ] 35-50-PLAN.md
+- [ ] 35-51-PLAN.md
+- [ ] 35-52-PLAN.md
+- [ ] 35-53-PLAN.md
+- [ ] 35-54-PLAN.md
+- [ ] 35-55-PLAN.md
+- [ ] 35-56-PLAN.md
+- [ ] 35-57-PLAN.md
+- [ ] 35-58-PLAN.md
+- [ ] 35-59-PLAN.md
+- [ ] 35-60-PLAN.md
+- [ ] 35-61-PLAN.md
+- [ ] 35-62-PLAN.md
+- [ ] 35-63-PLAN.md
+- [ ] 35-64-PLAN.md
+- [ ] 35-65-PLAN.md
+- [ ] 35-66-PLAN.md
+- [ ] 35-67-PLAN.md
+- [ ] 35-68-PLAN.md
+- [ ] 35-69-PLAN.md
+- [ ] 35-70-PLAN.md
+- [ ] 35-71-PLAN.md
+- [ ] 35-72-PLAN.md
+- [ ] 35-73-PLAN.md
+- [ ] 35-74-PLAN.md
+- [ ] 35-75-PLAN.md
+- [ ] 35-76-PLAN.md
+- [ ] 35-77-PLAN.md
+- [ ] 35-78-PLAN.md
+- [ ] 35-79-PLAN.md
+- [ ] 35-80-PLAN.md
+- [ ] 35-81-PLAN.md
+- [ ] 35-82-PLAN.md
+- [ ] 35-83-PLAN.md
+- [ ] 35-84-PLAN.md
+- [ ] 35-85-PLAN.md
+- [ ] 35-86-PLAN.md
+- [ ] 35-87-PLAN.md
+- [ ] 35-88-PLAN.md
+- [ ] 35-89-PLAN.md
+- [ ] 35-90-PLAN.md
+- [ ] 35-91-PLAN.md
+- [ ] 35-92-PLAN.md
+- [ ] 35-93-PLAN.md
+- [ ] 35-94-PLAN.md
+- [ ] 35-95-PLAN.md
+- [ ] 35-96-PLAN.md
+- [ ] 35-97-PLAN.md
+- [ ] 35-98-PLAN.md
+- [ ] 35-99-PLAN.md
+
+- [x] 35-01-PLAN.md — Establish no-bypass mypy, Pyright strict Python-3.10/All discovery config, Allure stubs, and baseline ledger.
+- [x] 35-02-PLAN.md — Make the enum, importlib metadata/resources, parser, and path compatibility source slice strict-mypy clean and record isolated evidence.
+- [x] 35-03-PLAN.md — Make the pathlib, pytest, runtime compatibility, struct-BDD, and sys compatibility source slice strict-mypy clean and record isolated evidence.
+- [x] 35-04..35-137-PLAN.md — One hundred thirty-four independently executable source slices; each owns at most five modules and only its own evidence record.
+- [x] 35-138-PLAN.md — Build the fresh-wheel, venv-local mypy/Pyright public contract and load its Development BDD acceptance coverage through the real toolchain E2E paths.
+- [x] 35-139-PLAN.md — Run and classify full-scope upstream-Pyright strict and ty discovery; promote neither without evidence.
+- [x] 35-140-PLAN.md — Aggregate isolated evidence into the canonical inventory and run independently asserted final source and installed-wheel gates.
+
+### Phase 36: Integrate BDD/ATDD tests into development workflow and UAT phase
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 35
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 36 to break down)

@@ -2,16 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone v1.0 audit passed
-stopped_at: Phase 26 context gathered
-last_updated: "2026-06-22T10:52:53.490Z"
-last_activity: 2026-06-13 -- remaining gaps closed; docs/api/generated moved to docs/_build
+current_phase: 35
+current_phase_name: improve-library-typing-using-best-practices-from-awesome-pyt
+status: executing
+stopped_at: Completed 35-28-PLAN.md
+last_updated: "2026-07-18T11:12:22.606Z"
+last_activity: 2026-07-18
+last_activity_desc: Phase 35 execution started
 progress:
-  total_phases: 22
-  completed_phases: 21
-  total_plans: 107
-  completed_plans: 107
-  percent: 95
+  total_phases: 31
+  completed_phases: 29
+  total_plans: 229
+  completed_plans: 155
+  percent: 68
 ---
 
 # Project State
@@ -21,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12)
 
 **Core value:** Reliable, frictionless BDD testing in pytest
-**Current focus:** Phase 26 - Test CLI scripts in a separate Cucumber Development flow
+**Current focus:** Phase 35 — improve-library-typing-using-best-practices-from-awesome-pyt
 
 ## Current Position
 
-Phase: 20 (multiple-refactorings) — EXECUTING
-Plan: 1 of 32
-Status: Milestone v1.0 audit passed
-Last activity: 2026-06-13 -- remaining gaps closed; docs/api/generated moved to docs/_build
+Phase: 35 (improve-library-typing-using-best-practices-from-awesome-pyt) — EXECUTING
+Plan: 29 of 140
+Status: Ready to execute
+Last activity: 2026-07-18 — Phase 35 execution started
 
-Progress: [█████████░] 99%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -57,12 +60,28 @@ Updated after each plan completion.
 | 19 | P03 | 36 min | 4 | 80 |
 | 19 | P04 | 75 min | 4 | 6 |
 | Phase 20 P01 | 45 min | 3 tasks | 13 files |
+| Phase 26 P1 | 45 min | 3 tasks | 39 files |
+| Phase 26 P2 | 15 min | 3 tasks | 3 files |
+| Phase 34 P01 | 26min | 5 tasks | 6 files |
+| Phase 35 P02 | 5 min | 1 task | 1 file |
+| Phase 35 P03 | 5 min | 1 task | 1 file |
+| Phase 35 P04 | 5 min | 1 task | 2 files |
+| Phase 35 P05 | 5 min | 1 task | 1 file |
+| Phase 35 P06 | 5 min | 1 task | 1 file |
+| Phase 35 P23 | 10 min | 1 tasks | 2 files |
+| Phase 35 P25 | 18 min | 1 tasks | 2 files |
+| Phase 35 P26 | 1h | 1 tasks | 2 files |
+| Phase 35 P27 | 20 min | 1 tasks | 2 files |
+| Phase 35 P28 | 15 min | 1 tasks | 1 files |
 
 ## Quick Tasks Completed
 
 | Slug | Date | Status | Summary |
 |------|------|--------|---------|
 | 260611-allure3-docker | 2026-06-11 | complete ✓ | Replace Allure 2 with Allure 3 Docker image |
+| 260705-vmm-move-package-src-pytest-bdd-pylint-to-to | 2026-07-05 | complete ✓ | Move package src/pytest_bdd/_pylint to toolchain |
+| 260705-wpf-i-don-t-want-have-in-project-private-pac | 2026-07-05 | complete ✓ | Rename private source packages |
+| 260716-wsl2-git-env-manual | 2026-07-16 | complete ✓ | Document WSL2 Git environment setup in AGENTS.md |
 
 ## Accumulated Context
 
@@ -86,7 +105,17 @@ Recent decisions affecting current work:
 - [Phase 19]: Active contributor documentation now names make docs instead of the removed feature RST generator.
 - [Phase 19]: Remote xdist Docker assets copy README.md, matching current package metadata.
 - [Phase 19]: ReadTheDocs preview, README rendering, and CHANGES rendering remain explicit blocking UAT gates before merge.
-- [Phase 20-26]: Removed `testing` extra from pyproject.toml — pytest_bdd_testing is local-only, not on PyPI. R1 satisfied by separate package structure, not dependency declaration.
+- [Phase 20-26]: Removed `testing` extra from pyproject.toml — pytest_bdd_toolchain is local-only, not on PyPI. R1 satisfied by separate package structure, not dependency declaration.
+- [Phase 34]: Migrated cck.py testing utilities from public pytest_bdd package to local-only toolchain package to prevent public API contamination.
+- [Phase 34]: Switched UnboundFeatureItem to from_parent construction to align with pytest 9.x API contracts.
+- [Phase 35]: Record the already-clean five-module source slice as isolated strict-mypy evidence without rewriting source files.
+- [Phase 35]: Keep shared STATE.md and ROADMAP.md outside the plan-owned commits.
+- [Phase 35]: Record the already-clean five-module source slice without rewriting pre-existing source changes.
+- [Phase 35]: Keep shared STATE.md, ROADMAP.md, .pre-commit-config.yaml, and the shared typing inventory outside the plan-owned commits.
+- [Phase 35]: Record the already-clean five-module source slice without rewriting pre-existing source changes.
+- [Phase 35]: Keep STATE.md, ROADMAP.md, .pre-commit-config.yaml, and the shared typing inventory outside the plan-owned commits.
+- [Phase 35]: Record the already-clean five-module source slice without rewriting pre-existing source changes.
+- [Phase 35]: Keep STATE.md, ROADMAP.md, .pre-commit-config.yaml, and the shared typing inventory outside the plan-owned commits.
 
 ### Roadmap Evolution
 
@@ -100,15 +129,22 @@ Recent decisions affecting current work:
 - Phase 20a added: docs/architecture/allure.md
 - Phase 26 added: Test CLI scripts in a separate Cucumber Development flow
 - Phase 26 ingested: development-script BDD requirements, roadmap detail, and phase planning artifacts from `specs/026-dev-scripts-bdd/`
+- Phase 27 added: Replace Make&sh with Act
+- Phase 30 added: Add a new phase from todo
+- Phase 30 Plan 02 added: migrate codebase to satisfy BLQ1506/1508/1509/1510/1511/1512 and remove temporary global disables
+- Phase 30 completed: BLQ import-form rules enabled globally after codebase migration
+- Phase 31 added: Add __tracebackhide__ = True module-level to all src/pytest_bdd/ modules
 
 ### Pending Todos
 
 - [ ] Improve library typing using best practices from awesome-python-typing.
 - [ ] Integrate BDD/ATDD tests into development workflow and UAT phase.
-- [ ] No TestClasses are allowed in tests - enforce via ruff rule.
+- [x] No TestClasses are allowed in tests - enforce via ruff rule.
 - [ ] Expand feature tests for undocumented behaviors.
 - [ ] Split xdist-remote tests into separate parallel GHA executor job.
 - [ ] Gather failed CI logs into workflow artifact.
+- [ ] Re-approach arch review script with SKILL + validation pipeline (tooling, 2026-07-12).
+- [ ] Fix Doc generation and move it inside act tool job for local runs (tooling, 2026-07-12).
 - [ ] Remove __init__.py usage and unify ruff rules project layout.
 - [ ] Create custom pylint rule for noqa without reason.
 
@@ -139,11 +175,14 @@ Recent decisions affecting current work:
 | 2026-06-02 | 260602-lhn | seems-file-locator-doesn-t-preserve-file | complete | Fix file locator preserving file paths |
 | 2026-06-02 | 260602-ruq | fix-all-failing-tests-in-pr-141-jobs-loc | complete | Fix all failing tests in PR 141 jobs locally |
 | 2026-06-13 | 260613-ag | handoff-and-commit | complete | Create hand-off document and commit all changes |
-| 2026-06-15 | 260615-kzf | run-pylint-architecture-injector-on-src- | complete | Run pylint architecture injector on src/pytest_bdd_testing excluding cases |
-| 2026-06-20 | 260620-o6j | rewrite-all-assert-statements-in-src-pyt | complete | Rewrite all assert statements in src/pytest_bdd_testing/step to use pyhamcrest matchers |
+| 2026-06-15 | 260615-kzf | run-pylint-architecture-injector-on-src- | complete | Run pylint architecture injector on src/pytest_bdd_toolchain excluding cases |
+| 2026-06-20 | 260620-o6j | rewrite-all-assert-statements-in-src-pyt | complete | Rewrite all assert statements in src/pytest_bdd_toolchain/step to use pyhamcrest matchers |
+| 2026-07-02 | 260702-l8f | rebase-current-branch-onto-refactoring-a | complete | Rebase current branch onto refactoring-antigravity branch |
+| 2026-07-05 | 260705-vmm | move-package-src-pytest-bdd-pylint-to-to | complete | Move package src/pytest_bdd/_pylint to toolchain |
+| 2026-07-05 | 260705-wpf | i-don-t-want-have-in-project-private-pac | complete | Rename private source packages |
 
 ## Session Continuity
 
-Last session: 2026-06-20T21:21:15.530Z
-Stopped at: Phase 26 context gathered
-Resume file: .planning/phases/26-test-cli-scripts-in-a-separate-cucumber-development-flow/26-CONTEXT.md
+Last session: 2026-07-18T11:12:22.266Z
+Stopped at: Completed 35-28-PLAN.md
+Resume file: None
