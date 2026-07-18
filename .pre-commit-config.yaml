@@ -42,7 +42,7 @@ repos:
       - id: markdownlint
         # Use a managed nodeenv so WSL does not pick up the Windows npm shim.
         language_version: 22.0.0
-        exclude: ^(specs/|AGENTS\.md$|docs/architecture/OBJECT_MAP\.md$)
+        exclude: ^(specs/|AGENTS\.md$)
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
@@ -74,6 +74,7 @@ repos:
         # architecture and repository rules that Ruff cannot express.
         entry: >-
           uv run --python 3.14 pylint
+          --ignore-patterns=cases
           src/pytest_bdd/
           src/pytest_bdd_testing/
         language: python
