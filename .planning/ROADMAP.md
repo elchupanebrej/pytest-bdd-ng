@@ -717,7 +717,7 @@ Plans:
 **Scope amendment (2026-07-13):** `src/pytest_bdd_toolchain/case/**` is test-suite code and is excluded from the strict-mypy implementation gate. All remaining `pytest_bdd` and non-test `pytest_bdd_toolchain` modules remain in scope without suppressions.
 **Requirements**: TBD
 **Depends on:** Phase 34
-**Plans:** 132/140 plans executed
+**Plans:** 133/140 plans executed
 
 Plans:
 
@@ -850,7 +850,7 @@ Plans:
 - [x] 35-92-PLAN.md
 - [x] 35-93-PLAN.md
 - [x] 35-94-PLAN.md
-- [ ] 35-95-PLAN.md
+- [x] 35-95-PLAN.md
 - [ ] 35-96-PLAN.md
 - [ ] 35-97-PLAN.md
 - [ ] 35-98-PLAN.md
