@@ -1,3 +1,0 @@
-from typing import Any
-
-async def open(path: Any, mode: str = ..., **kwargs: Any) -> Any: ...

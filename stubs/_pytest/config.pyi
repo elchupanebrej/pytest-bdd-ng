@@ -1,9 +1,0 @@
-from typing import Any
-
-class Config:
-    stash: Any
-
-class ExitCode: ...
-class PytestPluginManager: ...
-
-def _prepareconfig(*args: Any, **kwargs: Any) -> Config: ...

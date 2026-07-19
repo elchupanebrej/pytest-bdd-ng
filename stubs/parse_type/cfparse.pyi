@@ -1,6 +1,0 @@
-from typing import Any
-
-class Parser:
-    def parse(self, string: str, evaluate_result: bool = ...) -> Any | None: ...
-
-def cfparse(format: str, string: str, extra_types: Any = ...) -> Any: ...
