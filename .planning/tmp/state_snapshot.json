@@ -1,0 +1,19 @@
+{
+  "current_phase": "03",
+  "current_phase_name": "Core Runtime Refactor",
+  "total_phases": null,
+  "current_plan": null,
+  "total_plans_in_phase": null,
+  "status": "completed",
+  "progress_percent": null,
+  "last_activity": "2026-07-07",
+  "last_activity_desc": "Phase 02 complete, transitioned to Phase 03",
+  "decisions": [],
+  "blockers": [],
+  "paused_at": null,
+  "session": {
+    "last_date": "2026-07-02T15:41:51.156Z",
+    "stopped_at": "Phase 30 complete",
+    "resume_file": ".planning/phases/30-add-a-new-phase-from-todo/30-CONTEXT.md"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "path": "specs/026-dev-scripts-bdd/tasks.txt",
+  "type": "DOC",
+  "confidence": "high",
+  "locked": false,
+  "source": "explicit",
+  "summary": "Completion checklist for seven Phase 26 Development feature files.",
+  "requirements": [
+    "01 Allure Converter CLI.feature.md complete.",
+    "02 Headings Validator.feature.md complete.",
+    "03 Architecture Tooling.feature.md complete.",
+    "04 Compatibility Matrix.feature.md complete.",
+    "05 Messages Contract Schema Sync.feature.md complete.",
+    "06 Cucumber Formatter Renderer.feature.md complete.",
+    "07 Messages Coverage Audit.feature.md complete."
+  ],
+  "constraints": [
+    "Checklist says feature files are already done, so merge should preserve existing implementation work."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "source": "conversation-context:act-artifact-bdd-contract",
+  "type": "DOC",
+  "precedence": "DOC",
+  "classified_at": "2026-06-23",
+  "phase": 27,
+  "title": "Act artifact-producing BDD contract",
+  "summary": "Phase 27 BDD/e2e coverage must run real act jobs as isolated artifact producers and assert durable artifacts produced through the bind-mounted workspace. Mock tools and exit-code-only assertions are insufficient.",
+  "requirements": [
+    "Phase 27 BDD scenarios for development workflow targets must invoke real act jobs rather than fake tools.",
+    "Act jobs must produce durable, host-visible artifacts in stable workspace paths.",
+    "BDD assertions must inspect produced artifacts and their content or parseability; successful exit code alone is not sufficient.",
+    "Workflow jobs may pass output from one act invocation to another through stable workspace artifacts or workflow job dependencies.",
+    "The artifact acquisition strategy must be agreed before implementation."
+  ],
+  "conflicts": [
+    "Current Phase 27 validation notes still describe fake external dependencies for Messages/Docs BDD scenarios.",
+    "Current Act BDD coverage records dry-run success as sufficient for workflow target validation."
+  ]
+}

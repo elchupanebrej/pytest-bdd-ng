@@ -1,0 +1,8 @@
+[
+  { "id": "R1", "text": "Rename `pytest_bdd_testing` package to `pytest_bdd_toolchain`", "shapes": ["stateful"] },
+  { "id": "R2", "text": "Move all 11 scripts to `src/pytest_bdd_toolchain/tool/` as `pbt-*` entrypoints", "shapes": ["stateful", "collection"] },
+  { "id": "R3", "text": "Update all documentation (README, CHANGELOG, DEVELOPMENT.rst, all references)", "shapes": ["text"] },
+  { "id": "R4", "text": "Maintain Python 3.10-3.14 compatibility", "shapes": ["numeric-range"] },
+  { "id": "R5", "text": "Full test suite passes with zero failures", "shapes": ["stateful"] },
+  { "id": "R6", "text": "All scripts work as `pbt-*` entrypoints after moving", "shapes": ["stateful"] }
+]

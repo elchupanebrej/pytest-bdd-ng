@@ -1,0 +1,31 @@
+{
+  "source_path": "/mnt/c/Users/bulky/Projects/pytest-bdd/wsl-codex/docs/phase35-mypy-error-handoff.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Phase 35 mypy remediation handoff",
+  "summary": "Operational handoff documenting the strict-mypy baseline, temporary case-suite exclusion, remaining error distribution, and recommended Phase 35 remediation order.",
+  "scope": [
+    "Phase 35 typing remediation",
+    "mypy configuration",
+    "pytest_bdd_toolchain.case",
+    "pytest_bdd_toolchain.step",
+    "pytest_bdd_toolchain.tool",
+    "pytest_bdd.plugin",
+    "typing evidence",
+    "pre-commit validation"
+  ],
+  "cross_refs": [
+    "pyproject.toml",
+    "src/pytest_bdd/gherkin_go/_build.py",
+    ".planning/phases/35-improve-library-typing-using-best-practices-from-awesome-pyt/35-TYPING-EVIDENCE/35-04.md",
+    ".planning/phases/35-improve-library-typing-using-best-practices-from-awesome-pyt/35-04-SUMMARY.md",
+    ".planning/phases/35-improve-library-typing-using-best-practices-from-awesome-pyt/35-TYPING-BASELINE.md",
+    ".planning/phases/35-improve-library-typing-using-best-practices-from-awesome-pyt/",
+    ".planning/STATE.md",
+    ".planning/phases/35-improve-library-typing-using-best-practices-from-awesome-pyt/35-TYPING-VALIDATION-RESEARCH.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Classified as DOC because it is a status and planning handoff rather than an accepted decision, product requirement, or technical contract. It proposes a temporary scope change and remediation sequence for later review."
+}

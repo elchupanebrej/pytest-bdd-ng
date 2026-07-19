@@ -1,0 +1,21 @@
+{
+  "path": "specs/026-dev-scripts-bdd/development_script_exploration.md",
+  "type": "DOC",
+  "confidence": "high",
+  "locked": false,
+  "source": "explicit",
+  "summary": "Inventory of repository development scripts and CLIs that need ATDD/BDD E2E coverage in a new Development feature space.",
+  "requirements": [
+    "Cover scripts/arch.py facade commands at E2E level.",
+    "Cover validate_feature_headings.py pre-commit wrapper behavior.",
+    "Cover compatibility_matrix console script behavior.",
+    "Cover sync_messages_contract_schemas.py drift checking.",
+    "Cover render_cucumber_formatters standalone formatter CLI.",
+    "Cover scripts/run_messages_coverage_audit.sh orchestration."
+  ],
+  "constraints": [
+    "Feature coverage belongs under features/18 Development/ or equivalent development-focused space.",
+    "Use mock files and isolated test directories for command execution.",
+    "Prioritize user-facing and pre-commit quality-gate CLIs."
+  ]
+}
