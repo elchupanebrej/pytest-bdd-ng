@@ -1,0 +1,40 @@
+{
+  "contract_schema": "1.0",
+  "product": {
+    "name": "pytest-bdd-ng",
+    "version": "2.3.1"
+  },
+  "capabilities": [
+    {
+      "name": "workspace.describe",
+      "version": "1.2",
+      "status": "supported"
+    },
+    {
+      "name": "validation.entrypoint",
+      "version": "1.0",
+      "status": "supported"
+    },
+    {
+      "name": "git.boundary",
+      "version": "1.0",
+      "status": "supported"
+    }
+  ],
+  "utilities": [
+    {
+      "name": "workspace.describe",
+      "command": [
+        "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+        "-c",
+        "import json, subprocess, sys\nr_root = subprocess.run([\"git\", \"rev-parse\", \"--show-toplevel\"], capture_output=True, text=True, cwd=\".\")\nr_status = subprocess.run([\"git\", \"status\", \"--porcelain\"], capture_output=True, text=True, cwd=\".\")\nprint(json.dumps({\"root\": r_root.stdout.strip(), \"clean\": r_status.stdout.strip() == \"\"}))\n"
+      ],
+      "schema": ".pdi/schemas/workspace-describe.json",
+      "acceptance": "passed"
+    }
+  ],
+  "evidence": {
+    "product_acceptance": true,
+    "compatibility_fixture": true
+  }
+}
