@@ -194,10 +194,7 @@ def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, defa
     tc_id = scenario.id or default_id or "test-case-1"
     p_id = pickle_id or scenario.id or "pickle-1"
     test_steps = [
-        messages.TestStep(
-            id=f"{tc_id}-step-{i}",
-            pickle_step_id=s.id or f"{p_id}-step-{i}",
-        )
+        messages.TestStep(id=f"{tc_id}-step-{i}", pickle_step_id=s.id or f"{p_id}-step-{i}")
         for i, s in enumerate(scenario.all_steps)
     ]
     return messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
@@ -205,6 +202,87 @@ def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, defa
 
 def test_case_to_envelope(test_case: messages.TestCase) -> messages.Envelope:
     return messages.Envelope(test_case=test_case)
+
+
+def make_test_run_started(timestamp: float | int | datetime | None = None) -> messages.Envelope:
+    return messages.Envelope(test_run_started=messages.TestRunStarted(timestamp=make_timestamp(timestamp)))
+
+
+def make_test_run_finished(
+    timestamp: float | int | datetime | None = None, success: bool = True, message: str | None = None
+) -> messages.Envelope:
+    payload = messages.TestRunFinished(timestamp=make_timestamp(timestamp), success=success, message=message)
+    return messages.Envelope(test_run_finished=payload)
+
+
+def make_test_case_started(
+    test_case_id: str,
+    id: str | None = None,
+    attempt: int = 0,
+    timestamp: float | int | datetime | None = None,
+    worker_id: str | None = None,
+) -> messages.Envelope:
+    payload = messages.TestCaseStarted(
+        id=id or f"tcs-{test_case_id}",
+        test_case_id=test_case_id,
+        attempt=attempt,
+        timestamp=make_timestamp(timestamp),
+        worker_id=worker_id,
+    )
+    return messages.Envelope(test_case_started=payload)
+
+
+def make_test_case_finished(
+    test_case_started_id: str, timestamp: float | int | datetime | None = None, will_be_retried: bool = False
+) -> messages.Envelope:
+    payload = messages.TestCaseFinished(
+        test_case_started_id=test_case_started_id, timestamp=make_timestamp(timestamp), will_be_retried=will_be_retried
+    )
+    return messages.Envelope(test_case_finished=payload)
+
+
+def make_test_step_started(
+    test_case_started_id: str, test_step_id: str, timestamp: float | int | datetime | None = None
+) -> messages.Envelope:
+    payload = messages.TestStepStarted(
+        test_case_started_id=test_case_started_id, test_step_id=test_step_id, timestamp=make_timestamp(timestamp)
+    )
+    return messages.Envelope(test_step_started=payload)
+
+
+def make_test_step_finished(
+    test_case_started_id: str,
+    test_step_id: str,
+    status: messages.Status | str = messages.Status.passed,
+    duration: float = 0.0,
+    message: str | None = None,
+    timestamp: float | int | datetime | None = None,
+) -> messages.Envelope:
+    if isinstance(status, str):
+        status = (
+            messages.Status[status.lower()]
+            if status.lower() in messages.Status.__members__
+            else messages.Status(status.upper())
+        )
+    result = messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
+    payload = messages.TestStepFinished(
+        test_case_started_id=test_case_started_id,
+        test_step_id=test_step_id,
+        test_step_result=result,
+        timestamp=make_timestamp(timestamp),
+    )
+    return messages.Envelope(test_step_finished=payload)
+
+
+def envelope_to_dict(message: messages.Envelope) -> dict:
+    validate_envelope_shape(message)
+    return message.model_dump(exclude_none=True, by_alias=True)
+
+
+def envelope_from_dict(payload: dict) -> messages.Envelope:
+    env = messages.Envelope.model_validate(payload)
+    validate_envelope_shape(env)
+    return env
 
 
 def validate_envelope_shape(envelope: messages.Envelope) -> None:
@@ -217,10 +295,18 @@ __all__ = [
     "background_to_message",
     "data_table_to_message",
     "doc_string_to_message",
+    "envelope_from_dict",
+    "envelope_to_dict",
     "feature_to_envelope",
     "feature_to_gherkin_document",
     "make_duration",
     "make_location",
+    "make_test_case_finished",
+    "make_test_case_started",
+    "make_test_run_finished",
+    "make_test_run_started",
+    "make_test_step_finished",
+    "make_test_step_started",
     "make_timestamp",
     "pickle_to_envelope",
     "rule_to_message",
