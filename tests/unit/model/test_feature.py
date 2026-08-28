@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pytest_bdd.model.background import Background
+from pytest_bdd.model.document import GherkinDocument
 from pytest_bdd.model.feature import Feature
 from pytest_bdd.model.rule import Rule
 from pytest_bdd.model.scenario import Scenario
@@ -27,3 +28,12 @@ def test_feature_model() -> None:
     assert feature.tag_names == ("core",)
     assert len(feature.all_scenarios) == 2
     assert feature.uri == "test.feature"
+
+
+def test_gherkin_document_model() -> None:
+    feat = Feature(name="F", uri="test.feature")
+    doc = GherkinDocument(uri="test.feature", feature=feat, comments=("# a comment",), id="doc-1")
+    assert doc.uri == "test.feature"
+    assert doc.feature == feat
+    assert doc.comments == ("# a comment",)
+    assert doc.id == "doc-1"
