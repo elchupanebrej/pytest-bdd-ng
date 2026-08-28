@@ -1,11 +1,17 @@
 """pytest-bdd Exceptions."""
 
+from __future__ import annotations
 
-class ScenarioIsDecoratorOnly(Exception):
+
+class PytestBDDError(Exception):
+    """Base pytest-bdd exception."""
+
+
+class ScenarioIsDecoratorOnly(PytestBDDError):
     """Scenario can be only used as decorator."""
 
 
-class ScenarioValidationError(Exception):
+class ScenarioValidationError(PytestBDDError):
     """Base class for scenario validation."""
 
 
@@ -25,15 +31,15 @@ class FeatureExamplesNotValidError(ScenarioValidationError):
     """Feature example table is not valid."""
 
 
-class StepDefinitionNotFoundError(Exception):
+class StepDefinitionNotFoundError(PytestBDDError):
     """StepHandler definition not found."""
 
 
-class NoScenariosFound(Exception):
+class NoScenariosFound(PytestBDDError):
     """No scenarios found."""
 
 
-class FeatureParseError(Exception):
+class FeatureParseError(PytestBDDError):
     """Feature parse error."""
 
 
@@ -42,6 +48,6 @@ class FeatureConcreteParseError(FeatureParseError):
 
     message = "{0}.\nLine number: {1}.\nLine: {2}.\nFile: {3}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation."""
         return self.message.format(*self.args)

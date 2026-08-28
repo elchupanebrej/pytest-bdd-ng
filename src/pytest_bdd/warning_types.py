@@ -1,5 +1,5 @@
-from pytest import PytestWarning
+from __future__ import annotations
 
 
-class PytestBDDStepDefinitionWarning(PytestWarning):
+class PytestBDDStepDefinitionWarning(UserWarning):
     __module__ = "pytest_bdd"
