@@ -1,0 +1,46 @@
+# docs/architecture/layers.toml
+# Strict cycle-free DAG architecture specification for pytest-bdd-ng.
+# A module imports only from its own layer and below, never above.
+
+[layers]
+L0 = { order = 0, name = "core", allowed_imports = [] }
+L1 = { order = 1, name = "compatibility", allowed_imports = ["L0"] }
+L2a = { order = 2, name = "domain", allowed_imports = ["L0"] }
+L2b = { order = 3, name = "message", allowed_imports = ["L0", "L2a"] }
+L2c = { order = 4, name = "runtime", allowed_imports = ["L0", "L1", "L2a", "L2b"] }
+L3 = { order = 5, name = "parsing", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c"] }
+L4 = { order = 6, name = "steps", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c", "L3"] }
+L5 = { order = 7, name = "collection_execution", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c", "L3", "L4"] }
+L6 = { order = 8, name = "plugins", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c", "L3", "L4", "L5"] }
+L7 = { order = 9, name = "bootstrap", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c", "L3", "L4", "L5", "L6"] }
+
+[modules]
+"pytest_bdd.const" = "L0"
+"pytest_bdd.exceptions" = "L0"
+"pytest_bdd.warning_types" = "L0"
+"pytest_bdd.types" = "L0"
+"pytest_bdd.mimetype" = "L0"
+"pytest_bdd.utils" = "L0"
+"pytest_bdd.util" = "L0"
+"pytest_bdd.packaging" = "L0"
+"pytest_bdd.npm_resource" = "L0"
+"pytest_bdd.compatibility" = "L1"
+"pytest_bdd.model" = "L2a"
+"pytest_bdd.message_converter" = "L2b"
+"pytest_bdd.messages" = "L2b"
+"pytest_bdd.runtime" = "L2c"
+"pytest_bdd.lifecycle" = "L2c"
+"pytest_bdd.scenario_run" = "L2c"
+"pytest_bdd.run" = "L2c"
+"pytest_bdd.parser" = "L3"
+"pytest_bdd.parsers" = "L3"
+"pytest_bdd.tag_expression" = "L3"
+"pytest_bdd.steps" = "L4"
+"pytest_bdd.collector" = "L5"
+"pytest_bdd.collector_batch" = "L5"
+"pytest_bdd.scenario_locator" = "L5"
+"pytest_bdd.feature_locator" = "L5"
+"pytest_bdd.scenario" = "L5"
+"pytest_bdd.live_reporting" = "L5"
+"pytest_bdd.plugin" = "L6"
+"pytest_bdd.__init__" = "L7"

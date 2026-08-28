@@ -4,7 +4,6 @@ Compatibility module for pytest
 
 from __future__ import annotations
 
-import sys
 from operator import ge
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -78,8 +77,12 @@ if PYTEST6:
     # noinspection PyUnresolvedReferences
     from _pytest.mark import MarkMatcher
 
-    # noinspection PyUnresolvedReferences
-    from _pytest.mark.expression import Expression, ParseError
+    try:
+        from _pytest.mark.expression import Expression, ParseError
+    except ImportError:
+        from _pytest.mark.expression import Expression  # type: ignore[no-redef]
+
+        ParseError = Exception  # type: ignore[misc, assignment]
 
     __all__ += [
         "MarkMatcher",

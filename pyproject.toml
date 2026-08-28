@@ -37,11 +37,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: Utilities",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13"
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14"
 ]
 dependencies = [
   "aiohttp",
@@ -78,13 +78,28 @@ maintainers = [
 ]
 name = "pytest-bdd-ng"
 readme = {file = "README.rst", content-type = "text/x-rst"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "2.3.1"
 
-[project.entry-points]
-pytest11 = {"pytest-bdd" = "pytest_bdd.plugin"}
-
 [project.optional-dependencies]
+lint = [
+  "ruff>=0.4.0",
+  "vulture>=2.11",
+  "deptry>=0.16.0",
+  "bandit>=1.7.8",
+  "pip-audit>=2.7.0"
+]
+typecheck = [
+  "pyright>=1.1.350",
+  "mypy>=1.10.0"
+]
+test = [
+  "pytest>=7.0.0",
+  "attrs>=22.2.0"
+]
+mutation = [
+  "mutmut>=3.0.0"
+]
 allure = [
   "allure-python-commons",
   "allure-pytest"
@@ -96,91 +111,76 @@ doc-gen = [
   'pycmarkgfm',
   'pypandoc'
 ]
-full = [
-  "pytest-bdd-ng[allure]",
-  "pytest-bdd-ng[doc-gen]",
-  "pytest-bdd-ng[struct-bdd]",
-  "pytest-bdd-ng[test]",
-  "pytest-bdd-ng[testtypes]"
-]
 struct-bdd = [
   "hjson",
   "json5",
   "pyhocon",
-  'tomli;python_version<"3.11.0"',
   "PyYAML",
   "types-PyYAML"
 ]
-test = [
-  "allure-python-commons-test",
-  "execnet",
-  "packaging",
-  "PyHamcrest",
-  "pytest-httpserver",
-  "python-coveralls",
-  "pytest-bdd-ng[doc-gen];python_version>='3.12.0'"
-]
-testenv = [
-  "tox~=4.0",
-  "codecov"
-]
-testtypes = [
-  "mypy",
-  "types-certifi",
-  "types-docopt",
-  "types-setuptools"
-]
 
-[project.scripts]
-bdd_tree_to_rst = "pytest_bdd.script.bdd_tree_to_rst:main"
-
-[project.urls]
-Documentation = "https://pytest-bdd-ng.readthedocs.io/en/default/"
-Repository = "https://github.com/elchupanebrej/pytest-bdd-ng"
-
-[tool.black]
+[tool.ruff]
+target-version = "py310"
 line-length = 120
-target-version = ["py39", "py310", "py311", "py312", "py313"]
-verbose = true
 
-[tool.isort]
-line_length = 120
-multi_line_output = 3
-profile = "black"
+[tool.ruff.lint]
+select = [
+  "E", "F", "B", "UP", "SIM", "I", "C4", "RET", "TCH", "RUF",
+  "PL",
+  "S"
+]
+ignore = [
+  "S101",
+  "PLR0913",
+  "PLR0912",
+  "PLR0915",
+  "PLR2004"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004", "S", "ARG001", "ARG002"]
+"src/*/plugin.py" = ["ARG001"]
+"src/pytest_bdd/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__"]
+pythonVersion = "3.10"
+typeCheckingMode = "strict"
+reportUnknownMemberType = "warning"
+reportMissingTypeStubs = "none"
+
+[tool.deptry]
+known_first_party = ["pytest_bdd"]
+
+[tool.mutmut]
+mutate_only_covered_lines = true
 
 [tool.mypy]
-files = "src/pytest_bdd/**/*.py"
-install_types = true
-non_interactive = true
-plugins = [
-  "pydantic.mypy"
-]
+python_version = "3.10"
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
 show_error_codes = true
-warn_return_any = true
-warn_unused_configs = true
 
-[[tool.mypy.overrides]]
-ignore_missing_imports = true
-module = [
-  "allure_commons.*",
-  "allure_pytest.*",
-  "attr.*",
-  "ci_environment.*",
-  "cucumber_expressions.*",
-  "cucumber_tag_expressions.*",
-  "decopatch.*",
-  "execnet.*",
-  "gherkin.*",
-  "hjson",
-  "json5",
-  "makefun",
-  "mako.*",
-  "ordered_set",
-  "parse",
-  "parse_type.*",
-  "pluggy.*",
-  "_pytest.*",
-  "pyhocon",
-  "pytest.*",
-  "yaml.*"
+[tool.mypy-src]
+disallow_untyped_defs = true
+
+[tool.mypy-tests]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore::DeprecationWarning",
+  "ignore::ImportWarning",
+  "ignore::pytest.PytestConfigWarning"
+]
+markers = [
+  "unit: Unit tests",
+  "integration: Integration tests",
+  "contract: Contract tests",
+  "e2e: End-to-end tests",
+  "external: External integration tests"
 ]
