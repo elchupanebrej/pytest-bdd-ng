@@ -6,7 +6,7 @@
 L0 = { order = 0, name = "core", allowed_imports = [] }
 L1 = { order = 1, name = "compatibility", allowed_imports = ["L0"] }
 L2a = { order = 2, name = "domain", allowed_imports = ["L0"] }
-L2b = { order = 3, name = "message", allowed_imports = ["L0", "L2a"] }
+L2b = { order = 3, name = "message", allowed_imports = ["L0", "L1", "L2a"] }
 L2c = { order = 4, name = "runtime", allowed_imports = ["L0", "L1", "L2a", "L2b"] }
 L3 = { order = 5, name = "parsing", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c"] }
 L4 = { order = 6, name = "steps", allowed_imports = ["L0", "L1", "L2a", "L2b", "L2c", "L3"] }
@@ -25,6 +25,14 @@ L7 = { order = 9, name = "bootstrap", allowed_imports = ["L0", "L1", "L2a", "L2b
 "pytest_bdd.packaging" = "L0"
 "pytest_bdd.npm_resource" = "L0"
 "pytest_bdd.compatibility" = "L1"
+"pytest_bdd.model.message_capability" = "L2b"
+"pytest_bdd.model.message_converter" = "L2b"
+"pytest_bdd.model.message_extension" = "L2b"
+"pytest_bdd.model.messages_extension" = "L2b"
+"pytest_bdd.model.message_serialization" = "L2b"
+"pytest_bdd.model.message_transport" = "L2b"
+"pytest_bdd.model.message_registry" = "L2b"
+"pytest_bdd.model.message_stream_validation" = "L2b"
 "pytest_bdd.model" = "L2a"
 "pytest_bdd.message_converter" = "L2b"
 "pytest_bdd.messages" = "L2b"
