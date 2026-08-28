@@ -8,11 +8,13 @@ from operator import ge
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+import pytest
 from _pytest.config import Config, PytestPluginManager
 from _pytest.config.argparsing import Parser
 from _pytest.fixtures import FixtureDef, FixtureLookupError, call_fixture_func
 from _pytest.main import Session, wrap_session
 from _pytest.mark import Mark, MarkDecorator
+from _pytest.outcomes import Exit, Failed
 from _pytest.python import Metafunc
 from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
@@ -24,29 +26,32 @@ from pytest_bdd.compatibility.typing import TypeAlias
 from pytest_bdd.packaging import compare_distribution_version
 
 __all__ = [
-    "assert_outcomes",
-    "Item",
+    "PYTEST6",
+    "PYTEST7",
     "CallInfo",
-    "call_fixture_func",
     "Config",
+    "Exit",
     "ExitCode",
+    "Failed",
     "FixtureDef",
     "FixtureLookupError",
     "FixtureRequest",
-    "get_config_root_path",
+    "Item",
     "Mark",
     "MarkDecorator",
     "Metafunc",
     "Module",
     "Parser",
     "PytestPluginManager",
-    "PYTEST6",
-    "PYTEST7",
     "RunResult",
     "Session",
     "TerminalReporter",
-    "Testdir",
     "TestReport",
+    "Testdir",
+    "assert_outcomes",
+    "call_fixture_func",
+    "get_config_root_path",
+    "is_testrun_success",
     "wrap_session",
 ]
 
@@ -85,8 +90,8 @@ if PYTEST6:
         ParseError = Exception  # type: ignore[misc, assignment]
 
     __all__ += [
-        "MarkMatcher",
         "Expression",
+        "MarkMatcher",
         "ParseError",
     ]
 else:
@@ -197,3 +202,7 @@ else:
 
 def get_metafunc_call_arg(call, arg):
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
+
+
+def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
+    return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
