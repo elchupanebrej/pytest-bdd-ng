@@ -7,6 +7,7 @@ from pytest_bdd.model.examples import Example, Examples
 from pytest_bdd.model.feature import Feature
 from pytest_bdd.model.rule import Rule
 from pytest_bdd.model.scenario import Pickle, Scenario
+from pytest_bdd.model.serialization import as_dict, from_dict, from_json, to_json
 from pytest_bdd.model.step import Step, StepType
 from pytest_bdd.model.table import DataTable, TableCell, TableRow
 from pytest_bdd.model.tag import Tag
@@ -27,4 +28,8 @@ __all__ = [
     "TableCell",
     "TableRow",
     "Tag",
+    "as_dict",
+    "from_dict",
+    "from_json",
+    "to_json",
 ]
