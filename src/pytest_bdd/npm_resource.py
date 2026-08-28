@@ -1,16 +1,22 @@
+from __future__ import annotations
+
 import glob
 import os
 import subprocess
 from functools import wraps
 from itertools import chain
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
 
 
-def _check_subprocess(func):
+def _check_subprocess(func: Callable[..., Any]) -> Callable[..., bool]:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> bool:
         try:
             func(*args, **kwargs)
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, OSError):
             return False
         else:
             return True
@@ -18,24 +24,24 @@ def _check_subprocess(func):
     return wrapper
 
 
-def get_npm_root(global_install=False):
-    command = "npm root -g" if global_install else "npm root"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+def get_npm_root(global_install: bool = False) -> str:
+    cmd = ["npm", "root", "-g"] if global_install else ["npm", "root"]
+    return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 
 @_check_subprocess
-def check_npm():
-    command = "npm --version"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+def check_npm() -> str:
+    cmd = ["npm", "--version"]
+    return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 
 @_check_subprocess
-def check_npm_package(package_name, global_install=False):
-    command = f'npm list -g "{package_name}"' if global_install else f"npm list {package_name}"
-    return subprocess.check_output(command, shell=True).decode("utf-8").strip()
+def check_npm_package(package_name: str, global_install: bool = False) -> str:
+    cmd = ["npm", "list", "-g", package_name] if global_install else ["npm", "list", package_name]
+    return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 
-def find_resource(package_name, resource_path):
+def find_resource(package_name: str, resource_path: str) -> Iterator[str]:
     # Check local node_modules
     local_npm_root = get_npm_root(global_install=False)
     local_resource_path = os.path.join(local_npm_root, package_name, resource_path)

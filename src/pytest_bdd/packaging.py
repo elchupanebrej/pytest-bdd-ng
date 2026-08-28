@@ -1,22 +1,28 @@
+from __future__ import annotations
+
 from functools import lru_cache
+from importlib.metadata import version
 from operator import eq
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from packaging.utils import Version
+from packaging.version import Version
 
-from pytest_bdd.compatibility.importlib.metadata import version
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def get_distribution_version(distribution_name: str) -> Version:
     return Version(version(distribution_name))
 
 
-def parse_version(version: str) -> Version:
-    return Version(version)
+def parse_version(version_str: str) -> Version:
+    return Version(version_str)
 
 
 @lru_cache
 def compare_distribution_version(
-    distribution_name: str, version: str, operator: Callable[[Any, Any], bool] = eq
+    distribution_name: str,
+    version_str: str,
+    operator: Callable[[Any, Any], bool] = eq,
 ) -> bool:
-    return operator(get_distribution_version(distribution_name), parse_version(version))
+    return operator(get_distribution_version(distribution_name), parse_version(version_str))
