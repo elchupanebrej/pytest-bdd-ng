@@ -1,10 +1,31 @@
-import sys
+from __future__ import annotations
 
-if sys.version_info >= (3, 10):
-    from importlib.metadata import *
-    from importlib.metadata import version
-else:
-    from importlib_metadata import *
-    from importlib_metadata import version
+from importlib.metadata import (
+    Distribution,
+    DistributionFinder,
+    PackageMetadata,
+    PackageNotFoundError,
+    distribution,
+    distributions,
+    entry_points,
+    files,
+    metadata,
+    packages_distributions,
+    requires,
+    version,
+)
 
-__all__ = ["version"]
+__all__ = [
+    "Distribution",
+    "DistributionFinder",
+    "PackageMetadata",
+    "PackageNotFoundError",
+    "distribution",
+    "distributions",
+    "entry_points",
+    "files",
+    "metadata",
+    "packages_distributions",
+    "requires",
+    "version",
+]
