@@ -1,37 +1,16 @@
-"""Feature.
+"""Feature legacy shim."""
 
-The way of describing the behavior is based on Gherkin language
+from __future__ import annotations
 
-Syntax example:
-
-    Feature: Articles
-        Scenario: Publishing the article
-            Given I'm an author user
-            And I have an article
-            When I go to the article page
-            And I press the publish button
-            Then I should not see the error message
-
-            # Note: will query the database
-            And the article should be published
-
-:note: The "#" symbol is used for comments.
-:note: There are no multiline steps, the description of the step must fit in
-one line.
-"""
-
-from collections.abc import Sequence
 from itertools import chain
-from textwrap import dedent
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from attr import Factory, attrib, attrs
 
-from messages import (  # type:ignore[attr-defined, import-untyped]
+from messages import (
     Background,
     Examples,
     GherkinDocument,
-    Location,
     Pickle,
     Rule,
     Scenario,
@@ -39,29 +18,20 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     TableRow,
     Tag,
 )
-from messages import Feature as FeatureMessage  # type:ignore[attr-defined]
-from pytest_bdd.const import TAG_PREFIX
-from pytest_bdd.utils import _itemgetter, deepattrgetter
+from messages import Feature as FeatureMessage
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 @attrs
 class Feature:
-    gherkin_document: GherkinDocument = attrib()
-    uri = attrib()
-    filename: str = attrib()
+    gherkin_document: GherkinDocument | None = attrib(default=None)
+    uri: str = attrib(default="")
+    filename: str = attrib(default="")
 
     registry: dict = attrib(default=Factory(dict))
     pickles: Sequence[Pickle] = attrib(default=Factory(list))
-
-    def __attrs_post_init__(self):
-        self.fill_registry()
-
-    @staticmethod
-    def load_pickles(scenarios_data) -> Sequence[Pickle]:
-        return [*map(Pickle.model_validate, scenarios_data)]  # type: ignore[attr-defined] # migration to pydantic2
-
-    def fill_registry(self):
-        self.registry.update(self.get_child_ids_gen(self.gherkin_document.feature))
 
     @classmethod
     def get_child_ids_gen(cls, obj):
@@ -107,11 +77,9 @@ class Feature:
         elif isinstance(obj, TableRow | Step):
             yield obj.id, obj
 
-    load_gherkin_document = staticmethod(GherkinDocument.model_validate)  # type: ignore[attr-defined] # migration to pydantic2
-
     @property
     def name(self) -> str | None:
-        if self.gherkin_document.feature is not None:
+        if self.gherkin_document and self.gherkin_document.feature is not None:
             return cast("str", self.gherkin_document.feature.name)
         return None
 
@@ -123,40 +91,7 @@ class Feature:
         return None
 
     @property
-    def line_number(self):
-        return self.gherkin_document.feature.location.line
-
-    @property
     def description(self):
-        return dedent(self.gherkin_document.feature.description)
-
-    @property
-    def tag_names(self):
-        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in self.gherkin_document.feature.tags)
-
-    def build_pickle_table_rows_breadcrumb(self, pickle):
-        getter = deepattrgetter("location.line", default=-1)
-        table_rows_lines = ",".join(f"line: {getter(row)[0]}" for row in self._get_pickle_ast_table_rows(pickle))
-        return f"[table_rows:[{table_rows_lines}]]" if table_rows_lines else ""
-
-    def _get_pickle_ast_table_rows(self, pickle):
-        return [node for node in self._get_linked_ast_nodes(pickle) if type(node) is TableRow]
-
-    def _get_linked_ast_nodes(self, obj):
-        return _itemgetter(
-            *((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
-            *getattr(obj, "ast_node_ids", ()),
-        )(self.registry)
-
-    def _get_pickle_tag_names(self, pickle: Pickle):
-        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in pickle.tags)
-
-    def _get_pickle_ast_scenario(self, pickle: Pickle) -> Scenario:
-        return cast("Scenario", next(node for node in self._get_linked_ast_nodes(pickle) if type(node) is Scenario))
-
-    def _get_pickle_line_number(self, pickle: Pickle):
-        return (
-            cast("Location", location).line
-            if (location := self._get_pickle_ast_scenario(pickle).location) is not None
-            else -1
-        )
+        if self.gherkin_document and self.gherkin_document.feature:
+            return self.gherkin_document.feature.description
+        return ""
