@@ -27,10 +27,11 @@ from typing import cast
 
 from attr import Factory, attrib, attrs
 
-from messages import (  # type:ignore[attr-defined, import-untyped]  # type:ignore[attr-defined, import-untyped]
+from messages import (  # type:ignore[attr-defined, import-untyped]
     Background,
     Examples,
     GherkinDocument,
+    Location,
     Pickle,
     Rule,
     Scenario,
@@ -66,13 +67,11 @@ class Feature:
     def get_child_ids_gen(cls, obj):
         if isinstance(obj, FeatureMessage):
             yield from chain.from_iterable(
-                map(
-                    cls.get_child_ids_gen,
-                    chain(
-                        obj.tags,
-                        chain.from_iterable(
-                            filter(None, [child.rule, child.background, child.scenario]) for child in obj.children
-                        ),
+                cls.get_child_ids_gen(c)
+                for c in chain(
+                    obj.tags,
+                    chain.from_iterable(
+                        filter(None, [child.rule, child.background, child.scenario]) for child in obj.children
                     ),
                 )
             )
@@ -81,12 +80,10 @@ class Feature:
         elif isinstance(obj, Rule):
             yield obj.id, obj
             yield from chain.from_iterable(
-                map(
-                    cls.get_child_ids_gen,
-                    chain(
-                        obj.tags,
-                        chain.from_iterable(filter(None, [child.background, child.scenario]) for child in obj.children),
-                    ),
+                cls.get_child_ids_gen(c)
+                for c in chain(
+                    obj.tags,
+                    chain.from_iterable(filter(None, [child.background, child.scenario]) for child in obj.children),
                 )
             )
         elif isinstance(obj, Background):
@@ -95,19 +92,17 @@ class Feature:
         elif isinstance(obj, Scenario):
             yield obj.id, obj
             yield from chain.from_iterable(
-                map(
-                    cls.get_child_ids_gen,
-                    chain(
-                        obj.tags,
-                        obj.steps,
-                        obj.examples,
-                    ),
+                cls.get_child_ids_gen(c)
+                for c in chain(
+                    obj.tags,
+                    obj.steps,
+                    obj.examples,
                 )
             )
         elif isinstance(obj, Examples):
             yield obj.id, obj
             yield from chain.from_iterable(
-                map(cls.get_child_ids_gen, chain(obj.tags, [obj.table_header], obj.table_body))
+                cls.get_child_ids_gen(c) for c in chain(obj.tags, [obj.table_header], obj.table_body)
             )
         elif isinstance(obj, TableRow | Step):
             yield obj.id, obj
@@ -152,3 +147,16 @@ class Feature:
             *((obj.ast_node_id,) if hasattr(obj, "ast_node_id") else ()),
             *getattr(obj, "ast_node_ids", ()),
         )(self.registry)
+
+    def _get_pickle_tag_names(self, pickle: Pickle):
+        return sorted(tag.name.lstrip(TAG_PREFIX) for tag in pickle.tags)
+
+    def _get_pickle_ast_scenario(self, pickle: Pickle) -> Scenario:
+        return cast("Scenario", next(node for node in self._get_linked_ast_nodes(pickle) if type(node) is Scenario))
+
+    def _get_pickle_line_number(self, pickle: Pickle):
+        return (
+            cast("Location", location).line
+            if (location := self._get_pickle_ast_scenario(pickle).location) is not None
+            else -1
+        )
