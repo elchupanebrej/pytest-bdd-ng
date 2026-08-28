@@ -137,6 +137,9 @@ ignore = [
   "PLR2004"
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["pytest_bdd"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["PLR2004", "S", "ARG001", "ARG002"]
 "src/*/plugin.py" = ["ARG001"]

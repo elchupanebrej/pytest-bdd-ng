@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 
 import pytest
+
 from pytest_bdd.compatibility.tomllib import TOMLDecodeError, load, loads
 
 
