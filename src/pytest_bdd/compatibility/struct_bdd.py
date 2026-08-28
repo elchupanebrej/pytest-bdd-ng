@@ -1,6 +1,15 @@
+from __future__ import annotations
+
+import importlib.util
+
+STRUCT_BDD_INSTALLED: bool = False
+
 try:
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
-except ImportError:
+    STRUCT_BDD_INSTALLED = (
+        importlib.util.find_spec("pytest_bdd.plugin.struct_bdd.parser") is not None
+        or importlib.util.find_spec("pytest_bdd.struct_bdd.parser") is not None
+    )
+except (ImportError, AttributeError):
     STRUCT_BDD_INSTALLED = False
-else:
-    STRUCT_BDD_INSTALLED = True
+
+__all__ = ["STRUCT_BDD_INSTALLED"]
