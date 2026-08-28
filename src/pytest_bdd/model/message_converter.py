@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import messages
@@ -18,6 +20,22 @@ if TYPE_CHECKING:
 
 def make_location(line: int = 0, column: int | None = None) -> messages.Location:
     return messages.Location(line=line, column=column)
+
+
+def make_timestamp(dt_or_seconds: float | int | datetime | None = None) -> messages.Timestamp:
+    if dt_or_seconds is None:
+        dt_or_seconds = time.time()
+    if isinstance(dt_or_seconds, datetime):
+        dt_or_seconds = dt_or_seconds.timestamp()
+    sec = int(dt_or_seconds)
+    nanos = int((dt_or_seconds - sec) * 1e9)
+    return messages.Timestamp(seconds=sec, nanos=nanos)
+
+
+def make_duration(seconds_float: float = 0.0) -> messages.Duration:
+    sec = int(seconds_float)
+    nanos = int((seconds_float - sec) * 1e9)
+    return messages.Duration(seconds=sec, nanos=nanos)
 
 
 def tag_to_message(tag: Tag, default_id: str = "") -> messages.Tag:
@@ -126,6 +144,69 @@ def feature_to_envelope(feature: Feature, uri: str = "") -> messages.Envelope:
     return messages.Envelope(gherkin_document=feature_to_gherkin_document(feature, uri=uri))
 
 
+def step_to_pickle_step(step: Step, default_id: str = "") -> messages.PickleStep:
+    st_id = step.id or default_id
+    arg: messages.PickleStepArgument | None = None
+    if step.doc_string:
+        arg = messages.PickleStepArgument(
+            doc_string=messages.PickleDocString(
+                content=step.doc_string.content,
+                media_type=step.doc_string.media_type,
+            )
+        )
+    elif step.data_table:
+        arg = messages.PickleStepArgument(
+            data_table=messages.PickleTable(
+                rows=[
+                    messages.PickleTableRow(cells=[messages.PickleTableCell(value=c.value) for c in r.cells])
+                    for r in step.data_table.rows
+                ]
+            )
+        )
+    return messages.PickleStep(
+        id=st_id,
+        text=step.name,
+        ast_node_ids=[step.id] if step.id else [],
+        argument=arg,
+    )
+
+
+def scenario_to_pickle(scenario: Scenario, uri: str = "", default_id: str = "") -> messages.Pickle:
+    sc_id = scenario.id or default_id or "pickle-1"
+    steps = [step_to_pickle_step(s, f"{sc_id}-step-{i}") for i, s in enumerate(scenario.all_steps)]
+    tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
+    return messages.Pickle(
+        id=sc_id,
+        uri=uri,
+        name=scenario.name,
+        language="en",
+        steps=steps,
+        tags=tags,
+        ast_node_ids=[scenario.id] if scenario.id else [],
+    )
+
+
+def pickle_to_envelope(pickle: messages.Pickle) -> messages.Envelope:
+    return messages.Envelope(pickle=pickle)
+
+
+def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, default_id: str = "") -> messages.TestCase:
+    tc_id = scenario.id or default_id or "test-case-1"
+    p_id = pickle_id or scenario.id or "pickle-1"
+    test_steps = [
+        messages.TestStep(
+            id=f"{tc_id}-step-{i}",
+            pickle_step_id=s.id or f"{p_id}-step-{i}",
+        )
+        for i, s in enumerate(scenario.all_steps)
+    ]
+    return messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
+
+
+def test_case_to_envelope(test_case: messages.TestCase) -> messages.Envelope:
+    return messages.Envelope(test_case=test_case)
+
+
 def validate_envelope_shape(envelope: messages.Envelope) -> None:
     if not has_single_payload(envelope):
         msg = "Envelope must include exactly one payload field"
@@ -138,10 +219,17 @@ __all__ = [
     "doc_string_to_message",
     "feature_to_envelope",
     "feature_to_gherkin_document",
+    "make_duration",
     "make_location",
+    "make_timestamp",
+    "pickle_to_envelope",
     "rule_to_message",
     "scenario_to_message",
+    "scenario_to_pickle",
+    "scenario_to_test_case",
     "step_to_message",
+    "step_to_pickle_step",
     "tag_to_message",
+    "test_case_to_envelope",
     "validate_envelope_shape",
 ]
