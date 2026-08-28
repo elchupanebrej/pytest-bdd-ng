@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Callable, Protocol, Sequence, cast
 
 import pytest
 from _pytest.config import Config, PytestPluginManager
@@ -49,9 +49,12 @@ __all__ = [
     "TestReport",
     "Testdir",
     "assert_outcomes",
+    "build_fixture_def",
     "call_fixture_func",
     "get_config_root_path",
     "is_testrun_success",
+    "make_mark",
+    "make_mark_decorator",
     "wrap_session",
 ]
 
@@ -206,3 +209,56 @@ def get_metafunc_call_arg(call, arg):
 
 def is_testrun_success(exitstatus: int | pytest.ExitCode) -> bool:
     return (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is pytest.ExitCode.OK
+
+
+class _LegacyFixtureDefFactory(Protocol):
+    def __call__(
+        self,
+        fixturemanager: object,
+        baseid: str | None,
+        argname: str,
+        func: Callable[[], object],
+        scope: object,
+        params: Sequence[object] | None,
+        ids: tuple[object | None, ...] | Callable[[object], object | None] | None = None,
+        *,
+        _ispytest: bool = False,
+    ) -> FixtureDef: ...
+
+
+def build_fixture_def(
+    request: FixtureRequest,
+    *,
+    baseid: str | None,
+    argname: str,
+    func: Callable[[], object],
+    scope: object,
+    params: Sequence[object] | None,
+) -> FixtureDef:
+    if PYTEST81:
+        return FixtureDef(  # type: ignore[call-arg]
+            request.config,
+            baseid,
+            argname,
+            func,
+            scope,  # type: ignore[arg-type]
+            params,
+            None,
+            _ispytest=PYTEST8,
+        )
+    legacy_fixture_def = cast("_LegacyFixtureDefFactory", FixtureDef)
+    return legacy_fixture_def(request._fixturemanager, baseid, argname, func, scope, params)
+
+
+def make_mark(
+    name: str,
+    args: tuple[object, ...] = (),
+    kwargs: dict[str, object] | None = None,
+) -> Mark:
+    if kwargs is None:
+        kwargs = {}
+    return Mark(name, args=args, kwargs=kwargs, _ispytest=True)  # type: ignore[call-arg]
+
+
+def make_mark_decorator(mark: Mark) -> MarkDecorator:
+    return MarkDecorator(mark, _ispytest=True)  # type: ignore[call-arg]
