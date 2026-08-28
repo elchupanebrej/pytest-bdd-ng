@@ -3,27 +3,23 @@
 import base64
 import pickle
 import re
-import sys
 from collections import defaultdict
-from collections.abc import Collection, Mapping, Sequence
-from contextlib import contextmanager, nullcontext, suppress
+from collections.abc import Callable, Collection, Mapping, Sequence
+from contextlib import nullcontext, suppress
 from enum import Enum
 from functools import reduce
 from inspect import getframeinfo, signature
 from itertools import tee
 from operator import attrgetter, getitem, itemgetter
-from re import Pattern
 from sys import _getframe
-from typing import TYPE_CHECKING, Any, Callable, Dict, Literal, Optional, Protocol, Type, Union, cast, runtime_checkable
+from typing import Any, Literal, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urlparse
 
-from _pytest.fixtures import FixtureDef, FixtureRequest
-
-from pytest_bdd.compatibility.pytest import PYTEST8, PYTEST81, fail
 from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX
+from pytest_bdd.util.data_table import data_table_to_dicts
+from pytest_bdd.util.temp_root import prefer_posix_temp_root
 
-if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import RunResult
+__all__ = ["data_table_to_dicts", "prefer_posix_temp_root"]
 
 
 @runtime_checkable
@@ -67,11 +63,7 @@ def convert_str_to_python_name(s: Any) -> str:
     s2 = re.sub(r"[^.a-zA-Z0-9]", "_", s1)
     s3 = re.sub(r"_+", "_", s2)
     s4 = s3.strip("_")
-    if re.match(r"\d.*", s4):
-        result_s = f"_{s4}"
-    else:
-        result_s = s4
-    return result_s
+    return f"_{s4}" if re.match(r"\d.*", s4) else s4
 
 
 _DUMP_START = "_pytest_bdd_>>>"
@@ -86,17 +78,6 @@ def dump_obj(*objects: Any) -> None:
         print(f"{_DUMP_START}{encoded}{_DUMP_END}")
 
 
-def collect_dumped_objects(result: "RunResult"):
-    """Parse all the objects dumped with `dump_object` from the result.
-
-    Note: You must run the result with output to stdout enabled.
-    For example, using ``testdir.runpytest("-s")``.
-    """
-    stdout = result.stdout.str()  # pytest < 6.2, otherwise we could just do str(result.stdout)
-    payloads = re.findall(rf"{_DUMP_START}(.*?){_DUMP_END}", stdout)
-    return [pickle.loads(base64.b64decode(payload)) for payload in payloads]
-
-
 class DefaultMapping(defaultdict):
     Skip = object()
 
@@ -109,7 +90,7 @@ class DefaultMapping(defaultdict):
             intercessor = self[...]
             if intercessor is self.Skip:
                 raise KeyError(key)
-            elif isinstance(intercessor, Callable):
+            if isinstance(intercessor, Callable):
                 value = intercessor(key)
             elif intercessor is ...:
                 value = key
@@ -117,8 +98,7 @@ class DefaultMapping(defaultdict):
                 value = intercessor
             self[key] = value
             return value
-        else:
-            return super().__missing__(key)
+        return super().__missing__(key)
 
     def warm_up(self, *items):
         for item in items:
@@ -127,64 +107,23 @@ class DefaultMapping(defaultdict):
 
     @classmethod
     def instantiate_from_collection_or_bool(
-        cls, bool_or_items: Union[Collection[str], dict[str, Any], Any] = True, *, warm_up_keys=()
+        cls, bool_or_items: Collection[str] | dict[str, Any] | Any = True, *, warm_up_keys=()
     ):
         if isinstance(bool_or_items, Collection):
             if not isinstance(bool_or_items, Mapping):
-                bool_or_items = zip(*tee(iter(bool_or_items)))
+                bool_or_items = zip(*tee(iter(bool_or_items)), strict=False)
         else:
-            bool_or_items = cast(dict, {...: ...} if bool_or_items else {...: DefaultMapping.Skip})
+            bool_or_items = cast("dict", {...: ...} if bool_or_items else {...: DefaultMapping.Skip})
         return cls(bool_or_items, warm_up_keys=warm_up_keys)
-
-
-def inject_fixture(request: FixtureRequest, arg: str, value: Any) -> None:
-    """Inject fixture into pytest fixture request.
-    :param request: pytest fixture request
-    :param arg: argument name
-    :param value: argument value
-    """
-
-    fd = FixtureDef(
-        **(
-            {"config": request.config} if PYTEST81 else {"fixturemanager": request._fixturemanager}  # type:ignore
-        ),
-        baseid=None,
-        argname=arg,
-        func=lambda: value,
-        scope="function",
-        params=None,
-        **({"_ispytest": True} if PYTEST8 else {}),  # type:ignore[arg-type]
-    )
-    fd.cached_result = (value, 0, None)
-
-    old_fd = request._fixture_defs.get(arg)
-    add_fixturename = arg not in request.fixturenames
-
-    def fin():
-        request._fixturemanager._arg2fixturedefs[arg].remove(fd)
-        request._fixture_defs[arg] = old_fd
-
-        if add_fixturename:
-            request._pyfuncitem._fixtureinfo.names_closure.remove(arg)
-
-    request.addfinalizer(fin)
-
-    # inject fixture definition
-    request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)
-    # inject fixture value in request cache
-    request._fixture_defs[arg] = fd
-    if add_fixturename:
-        request._pyfuncitem._fixtureinfo.names_closure.append(arg)
 
 
 def _itemgetter(*items):
     def func(obj):
         if len(items) == 0:
             return []
-        elif len(items) == 1:
+        if len(items) == 1:
             return [obj[items[0]]] if items[0] != "" else []
-        else:
-            return itemgetter(*items)(obj)
+        return itemgetter(*items)(obj)
 
     return func
 
@@ -197,24 +136,24 @@ class Empty(Enum):
 
 
 def getitemdefault(
-    obj, index, default=Empty.empty, default_factory: Optional[Callable] = None, treat_as_empty=Empty.empty
+    obj, index, default=Empty.empty, default_factory: Callable | None = None, treat_as_empty=Empty.empty
 ):
     if default is not Empty.empty:
         if default_factory is not None:
             raise ValueError("Both 'default' and 'default_factory' were specified")
-        else:
-            default_factory = lambda: default
+
+        def default_factory():
+            return default
+
     try:
         item = getitem(obj, index)
     except KeyError:
         if default_factory is None:
             raise
-        else:
-            item = default_factory()
+        item = default_factory()
     if item is not treat_as_empty:
         return item
-    else:
-        raise KeyError(f"{index}")
+    raise KeyError(f"{index}")
 
 
 def deepattrgetter(*attrs, **kwargs):
@@ -240,9 +179,7 @@ def deepattrgetter(*attrs, **kwargs):
     return fn
 
 
-def setdefaultattr(
-    obj, key, value: Union[Literal[Empty.empty], Any] = Empty.empty, value_factory: Optional[Callable] = None
-):
+def setdefaultattr(obj, key, value: Literal[Empty.empty] | Any = Empty.empty, value_factory: Callable | None = None):
     if value is not Empty.empty and value_factory is not None:
         raise ValueError("Both 'value' and 'value_factory' were specified")
     with suppress(AttributeError):
@@ -262,8 +199,7 @@ def flip(func):
         if len(args) > 1:
             first, *other, last = args
             return func(last, *other, first, **kwargs)
-        else:
-            return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
     return wrapped
 
@@ -279,7 +215,7 @@ class StringableProtocol(Protocol):
     def __str__(self) -> str: ...  # pragma: no cover
 
 
-def stringify(value: Union[StringableProtocol, str, bytes]) -> str:
+def stringify(value: StringableProtocol | str | bytes) -> str:
     return str(value, **({"encoding": "utf-8"} if isinstance(value, bytes) else {}))
 
 
@@ -294,34 +230,6 @@ class IdGenerator:
             self._id_counter += 1
 
     get_next_id = __next__
-
-
-@contextmanager
-def doesnt_raise(
-    expected_exception: Union[type[Exception], Sequence[type[Exception]]],
-    *,
-    match: Optional[Union[str, Pattern[str]]] = None,
-    suppress_not_matched=True,
-):
-    """
-
-    :param expected_exception: Expected exception/s which don't have to be raised; If it raised - test fails
-    :param match: Message which will be count as failing test. If message is not matched - function passes
-    :param suppress_not_matched: If specified - all non-matched exceptions will be suppressed
-    :return:
-    """
-
-    try:
-        yield
-    except expected_exception:  # type:ignore[misc]
-        ex_type, ex_value, ex_traceback = sys.exc_info()
-        is_matched = True
-        if match is not None:
-            is_matched = bool(re.search(match, f"{ex_value}"))
-        if is_matched:
-            fail(f"{ex_value}")
-        elif not suppress_not_matched:
-            raise
 
 
 def is_local_url(urllike):
