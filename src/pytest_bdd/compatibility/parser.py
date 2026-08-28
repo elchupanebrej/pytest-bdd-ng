@@ -1,24 +1,40 @@
-from collections.abc import Sequence
-from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, Tuple, Union, runtime_checkable
+from __future__ import annotations
 
-from attr import attrib, attrs
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+from attrs import define
 
 from pytest_bdd.compatibility.pytest import Config
-from pytest_bdd.utils import IdGenerator, PytestBDDIdGeneratorHandler
+from pytest_bdd.types.protocol import HasPytestStash
+from pytest_bdd.utils import IdGenerator
 
-if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.model import Feature
+if TYPE_CHECKING:
+    try:
+        from cucumber_messages import GherkinDocument
+    except ImportError:
+        from messages import GherkinDocument  # type: ignore[no-redef]
+
+
+@define
+class ParsedFeature:
+    gherkin_document: GherkinDocument
+    filename: str
+    raw_data: str
 
 
 @runtime_checkable
-@attrs
 class ParserProtocol(Protocol):
-    id_generator: Optional[IdGenerator] = attrib(default=None, kw_only=True)
-    # Defines which files would be parsed
-    glob: Callable[[Path], Sequence[Union[str, Path]]]
+    id_generator: IdGenerator | None = None
 
     def parse(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler], path: Path, uri: str, *args, **kwargs
-    ) -> tuple["Feature", str]:  # pragma: no cover
-        ...
+        self,
+        config: Config | HasPytestStash,
+        path: Path,
+        uri: str,
+        *args: object,
+        **kwargs: object,
+    ) -> ParsedFeature: ...
+
+
+__all__ = ["ParsedFeature", "ParserProtocol"]
