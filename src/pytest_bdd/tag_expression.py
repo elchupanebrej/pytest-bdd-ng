@@ -1,105 +1,60 @@
-from itertools import cycle
-from operator import attrgetter
-from typing import AbstractSet, List, Optional, Protocol, Type, TypeVar, Union, runtime_checkable
+from __future__ import annotations
 
-from _pytest.mark import Mark
-from attr import attrib, attrs
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+from attrs import frozen
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 
-from pytest_bdd.compatibility.pytest import PYTEST6, PYTEST83
-
-if PYTEST6:
-    from pytest_bdd.compatibility.pytest import Expression, MarkMatcher, ParseError
-
-TagExpressionType = TypeVar("TagExpressionType", bound="TagExpression")
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 @runtime_checkable
-class TagExpression(Protocol):
-    @classmethod
-    def parse(cls: type[TagExpressionType], expression: str) -> TagExpressionType:
-        raise NotImplementedError  # pragma: no cover
-
-    def evaluate(self, marks: list[Mark]) -> bool:
-        raise NotImplementedError  # pragma: no cover
+class TagExpressionProtocol(Protocol):
+    def evaluate(self, tags: Iterable[str | Any]) -> bool: ...
 
 
-@attrs
-class _ModernTagExpression(TagExpression):
-    expression: Optional["Expression"] = attrib()
+@frozen
+class TagExpression:
+    expression_str: str
+    compiled: Any = None
 
     @classmethod
-    def parse(cls, expression):
+    def parse(cls, expression: str) -> TagExpression:
+        cleaned = expression.strip()
+        if not cleaned:
+            return cls(expression_str="", compiled=None)
         try:
-            return cls(expression=Expression.compile(expression) if expression != "" else None)
-        except ParseError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
-
-
-@attrs
-class _EnhancedMarksTagExpression(_ModernTagExpression):
-    """Used for 8.3<=pytest"""
-
-    def evaluate(self, marks):
-        return self.expression.evaluate(MarkMatcher.from_markers(marks)) if self.expression is not None else True
-
-
-@attrs
-class _MarksTagExpression(_ModernTagExpression):
-    """Used for 6.0<=pytest<8.3"""
-
-    def evaluate(self, marks):
-        return (
-            self.expression.evaluate(MarkMatcher(map(attrgetter("name"), marks)))
-            if self.expression is not None
-            else True
-        )
-
-
-@attrs
-class _FallbackMarksTagExpression(TagExpression):
-    """Used for pytest<6.0"""
-
-    expression: Optional[str] = attrib()
-
-    @classmethod
-    def parse(cls, expression):
-        try:
-            if expression != "":
-                eval(expression, {})
-        except SyntaxError as e:
-            raise ValueError(f"Unable parse mark expression: {expression}: {e}") from e
-        except NameError:
-            pass
-        return cls(expression=expression if expression != "" else None)
-
-    def evaluate(self, marks):
-        return (
-            eval(self.expression, {}, dict(zip(map(attrgetter("name"), marks), cycle([True]))))
-            if self.expression is not None
-            else True
-        )
-
-
-MarksTagExpression: type[Union[_EnhancedMarksTagExpression, _MarksTagExpression, _FallbackMarksTagExpression]]
-if PYTEST83:
-    MarksTagExpression = _EnhancedMarksTagExpression
-elif PYTEST6:
-    MarksTagExpression = _MarksTagExpression
-else:
-    MarksTagExpression = _FallbackMarksTagExpression
-
-
-@attrs
-class GherkinTagExpression(TagExpression):
-    expression: TagExpressionParser = attrib()
-
-    @classmethod
-    def parse(cls, expression):
-        try:
-            return cls(expression=TagExpressionParser.parse(expression))
+            compiled = TagExpressionParser.parse(cleaned)
+            return cls(expression_str=cleaned, compiled=compiled)
         except TagExpressionError as e:
-            raise ValueError(f"Unable parse tag expression: {expression}: {e}") from e
+            raise ValueError(f"Unable to parse tag expression: {expression}: {e}") from e
 
-    def evaluate(self, marks):
-        return self.expression.evaluate(map(attrgetter("name"), marks))
+    def evaluate(self, tags: Iterable[str | Any]) -> bool:
+        if self.compiled is None:
+            return True
+        norm: set[str] = set()
+        for t in tags:
+            name = getattr(t, "name", str(t))
+            clean = name.lstrip("@")
+            norm.add(name)
+            norm.add(clean)
+            norm.add(f"@{clean}")
+        return bool(self.compiled.evaluate(list(norm)))
+
+
+def parse_tag_expression(expression: str) -> TagExpression:
+    return TagExpression.parse(expression)
+
+
+# Compatibility aliases
+GherkinTagExpression = TagExpression
+MarksTagExpression = TagExpression
+
+__all__ = [
+    "GherkinTagExpression",
+    "MarksTagExpression",
+    "TagExpression",
+    "TagExpressionProtocol",
+    "parse_tag_expression",
+]
