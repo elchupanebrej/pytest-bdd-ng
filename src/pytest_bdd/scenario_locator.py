@@ -1,30 +1,22 @@
-# ruff: noqa
 from __future__ import annotations
 
-import asyncio
-import os
-import ssl
-import sys
-from collections.abc import Callable, Iterable  # noqa: TC003
-from contextlib import suppress
 from functools import partial, reduce
 from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
-import aiohttp
-import certifi
-from attrs import Factory, attrib, attrs, define, field
+from attrs import define, field
 
 from pytest_bdd.parser import ParserRegistry, default_parser_registry
 from pytest_bdd.utils import is_local_url
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+
     from pytest_bdd.model import Feature, Scenario
     from pytest_bdd.parser import ParserProtocol
 
