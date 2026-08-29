@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import linecache
+import mimetypes
 from contextlib import ExitStack
 from functools import partial
 from itertools import filterfalse
@@ -12,7 +13,7 @@ from subprocess import CalledProcessError, check_output
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from attr import attrib, attrs
-from attrs import define
+from attrs import define, field
 
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
@@ -75,12 +76,43 @@ class BaseParser:
         gherkin_document = Feature.load_gherkin_document(gherkin_document_raw_dict)
         pickles_data = PicklesCompiler(id_generator=self.id_generator).compile(gherkin_document_raw_dict)
         pickles = Feature.load_pickles(pickles_data)
-        return Feature(  # type: ignore[call-arg]
-            gherkin_document=gherkin_document,
-            uri=gherkin_document.uri,
-            pickles=pickles,
-            filename=filename,
-        )
+        return Feature(gherkin_document=gherkin_document, uri=gherkin_document.uri, pickles=pickles, filename=filename)  # type: ignore[call-arg]
+
+
+@define
+class ParserRegistry:
+    _parsers_by_key: dict[str, ParserProtocol | type[ParserProtocol]] = field(factory=dict)
+
+    def register(self, key: str, parser: ParserProtocol | type[ParserProtocol]) -> None:
+        self._parsers_by_key[key.lower()] = parser
+
+    def get_parser(self, key: str) -> ParserProtocol | None:
+        entry = self._parsers_by_key.get(key.lower())
+        if entry is None:
+            return None
+        if isinstance(entry, type):
+            return entry()
+        return entry
+
+    def get_parser_for_mimetype(self, mimetype: str) -> ParserProtocol | None:
+        return self.get_parser(mimetype)
+
+    def get_parser_for_path(self, path: Path | str) -> ParserProtocol | None:
+        p = Path(path)
+        name = p.name.lower()
+        for key in self._parsers_by_key:
+            if key.startswith(".") and name.endswith(key):
+                return self.get_parser(key)
+        suffix = p.suffix.lower()
+        if suffix in self._parsers_by_key:
+            return self.get_parser(suffix)
+        guessed_type, _ = mimetypes.guess_type(str(p))
+        if guessed_type and guessed_type.lower() in self._parsers_by_key:
+            return self.get_parser(guessed_type)
+        return None
+
+
+default_parser_registry = ParserRegistry()
 
 
 @attrs
@@ -159,3 +191,13 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_document_raw_dict["uri"] = uri
         feature = self.build_feature(gherkin_document_raw_dict, filename=str(path.as_posix()))
         return feature, path.read_text()
+
+
+__all__ = [
+    "BaseParser",
+    "GherkinParser",
+    "MarkdownGherkinParser",
+    "ParserProtocol",
+    "ParserRegistry",
+    "default_parser_registry",
+]
