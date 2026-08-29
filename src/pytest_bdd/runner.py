@@ -1,28 +1,163 @@
-from collections import deque
+from __future__ import annotations
+
 from contextlib import contextmanager
 from functools import partial
 from itertools import zip_longest
 from operator import attrgetter
-from typing import Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from pluggy import PluginManager
 from pytest import hookimpl
 
-from messages import PickleStep  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd import exceptions
-from pytest_bdd.compatibility.pytest import FixtureRequest, Item, call_fixture_func
-from pytest_bdd.model import Feature
-from pytest_bdd.model import Pickle as Scenario
-from pytest_bdd.steps import StepHandler
-from pytest_bdd.utils import DefaultMapping, get_args, inject_fixture
+from pytest_bdd.compatibility.pytest import (
+    FixtureRequest,
+    Item,
+    call_fixture_func,
+    inject_fixture,
+)
+from pytest_bdd.steps.manager import StepDefinitionManager
+from pytest_bdd.steps.matcher import Matcher
+from pytest_bdd.utils import DefaultMapping, get_args
+
+if TYPE_CHECKING:
+    from collections import deque
+    from collections.abc import Iterator
+
+    from pluggy import PluginManager
+
+    from pytest_bdd.model.feature import Feature
+    from pytest_bdd.model.scenario import Scenario
+
+
+class StepRunner:
+    """Handles execution of individual steps in a scenario."""
+
+    def match_to_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, previous_step: Any):
+        try:
+            return request.config.hook.pytest_bdd_match_step_definition_to_step(
+                request=request,
+                feature=feature,
+                scenario=scenario,
+                step=step,
+                previous_step=previous_step,
+            )
+        except (Matcher.MatchNotFoundError, StepDefinitionManager.Matcher.MatchNotFoundError) as e:
+            step_text = getattr(step, "name", getattr(step, "text", str(step)))
+            step_kw = getattr(step, "keyword", "")
+            step_line = getattr(step, "line", getattr(step, "line_number", 0))
+            scen_name = getattr(scenario, "name", "")
+            feat_uri = getattr(feature, "uri", "")
+            raise exceptions.StepDefinitionNotFoundError(
+                f'Step definition is not found: "{step_text}". '
+                f'Step keyword: "{step_kw}". '
+                f"Line {step_line} "
+                f'in scenario "{scen_name}" '
+                f'in the feature "{feat_uri}"'
+            ) from e
+
+    def inject_step_parameters_as_fixtures(
+        self, request: FixtureRequest, step_params: dict | None = None, params_fixtures_mapping: dict | None = None
+    ) -> None:
+        step_params = step_params or {}
+        params_fixtures_mapping = (
+            DefaultMapping.instantiate_from_collection_or_bool(
+                params_fixtures_mapping or {}, warm_up_keys=step_params.keys()
+            )
+            or {}
+        )
+
+        for param, fixture_name in params_fixtures_mapping.items():
+            if fixture_name is None or fixture_name is ...:
+                continue
+            inject_fixture(request, fixture_name, step_params[param])
+
+    def get_step_function_kwargs(
+        self, request: FixtureRequest, step: Any, step_definition: Any, step_params: dict
+    ) -> Iterator[tuple[str, Any]]:
+        for param in get_args(step_definition.func):
+            try:
+                yield param, step_params[param]
+            except KeyError:
+                try:
+                    yield param, {"step": step}[param]
+                except KeyError:
+                    yield param, request.getfixturevalue(param)
+
+    def inject_target_fixtures(self, request: FixtureRequest, step_definition: Any, step_result: Any) -> None:
+        target_fixtures = getattr(step_definition, "target_fixtures", [])
+        if len(target_fixtures) == 1:
+            injectable_fixtures = [(target_fixtures[0], step_result)]
+        elif step_result is not None and len(target_fixtures) != 0:
+            injectable_fixtures = list(zip(target_fixtures, step_result, strict=False))
+        else:
+            injectable_fixtures = list(zip_longest(target_fixtures, []))
+
+        for target_fixture, return_value in injectable_fixtures:
+            inject_fixture(request, target_fixture, return_value)
+
+    def run_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, previous_step: Any) -> Any:
+        __tracebackhide__ = True
+        hook_kwargs: dict[str, Any] = {
+            "request": request,
+            "feature": feature,
+            "scenario": scenario,
+            "step": step,
+            "previous_step": previous_step,
+        }
+
+        try:
+            step_definition = self.match_to_step(request, feature, scenario, step, previous_step)
+        except exceptions.StepDefinitionNotFoundError as exception:
+            hook_kwargs["exception"] = exception
+            request.config.hook.pytest_bdd_step_func_lookup_error(**hook_kwargs)
+            raise
+        else:
+            hook_kwargs["step_func"] = step_definition.func
+            hook_kwargs["step_definition"] = step_definition
+
+        request.config.hook.pytest_bdd_before_step(**hook_kwargs)
+
+        step_params = (
+            step_definition.get_parameters(request, step) if hasattr(step_definition, "get_parameters") else {}
+        )
+        try:
+            self.inject_step_parameters_as_fixtures(
+                request,
+                step_params=step_params,
+                params_fixtures_mapping=getattr(step_definition, "params_fixtures_mapping", None),
+            )
+
+            step_function_kwargs = dict(self.get_step_function_kwargs(request, step, step_definition, step_params))
+            hook_kwargs["step_func_args"] = step_function_kwargs
+
+            request.config.hook.pytest_bdd_before_step_call(**hook_kwargs)
+
+            step_caller = request.config.hook.pytest_bdd_get_step_caller(**hook_kwargs)
+            if step_caller is None:
+                step_caller = partial(
+                    call_fixture_func,
+                    fixturefunc=step_definition.func,
+                    request=request,
+                    kwargs=step_function_kwargs,
+                )
+
+            step_result = step_caller()
+
+            self.inject_target_fixtures(request, step_definition, step_result)
+            request.config.hook.pytest_bdd_after_step(**hook_kwargs)
+            return step_result
+        except Exception as exception:
+            hook_kwargs["exception"] = exception
+            request.config.hook.pytest_bdd_step_error(**hook_kwargs)
+            raise
 
 
 class ScenarioRunner:
     def __init__(self) -> None:
-        self.request: Optional[FixtureRequest] = None
-        self.feature: Optional[Feature] = None
+        self.request: FixtureRequest | None = None
+        self.feature: Feature | None = None
         self.scenario = None
-        self.plugin_manager: Optional[PluginManager] = None
+        self.plugin_manager: PluginManager | None = None
 
     @hookimpl(tryfirst=True)
     def pytest_runtest_call(self, item: Item):
@@ -31,7 +166,7 @@ class ScenarioRunner:
             self.request = item._request
             self.feature = self.request.getfixturevalue("feature")
             self.scenario = self.request.getfixturevalue("scenario")
-            self.plugin_manager = cast(PluginManager, self.request.config.hook)
+            self.plugin_manager = cast("PluginManager", self.request.config.hook)
             self.plugin_manager.pytest_bdd_before_scenario(  # type:ignore[attr-defined]
                 request=self.request, feature=self.feature, scenario=self.scenario
             )
@@ -52,12 +187,6 @@ class ScenarioRunner:
                 item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
 
     def pytest_bdd_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
-        """Execute the scenarios.
-
-        :param feature: Feature.
-        :param scenario: Scenario.
-        :param request: request.
-        """
         __tracebackhide__ = True
         steps: deque = request.getfixturevalue("steps_left")
         steps.extend(scenario.steps)
@@ -68,7 +197,6 @@ class ScenarioRunner:
 
     @hookimpl(trylast=True)
     def pytest_bdd_get_step_dispatcher(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
-        """Provide alternative approach to execute steps"""
         __tracebackhide__ = True
 
         def dispatcher(left_steps):
@@ -86,15 +214,19 @@ class ScenarioRunner:
     @contextmanager
     def extended_step_context(self, feature: Feature, scenario, step):
         try:
-            if isinstance(step, PickleStep):
-                step.__dict__["doc_string"] = feature._get_step_doc_string(step)
-                step.__dict__["data_table"] = feature._get_step_data_table(step)
-                step.__dict__["keyword"] = feature._get_step_keyword(step)
-                step.__dict__["line_number"] = feature._get_step_line_number(step)
-            scenario.__dict__["description"] = feature.registry[scenario.ast_node_ids[0]].description
+            if hasattr(step, "__dict__"):
+                if hasattr(feature, "_get_step_doc_string"):
+                    step.__dict__["doc_string"] = feature._get_step_doc_string(step)
+                if hasattr(feature, "_get_step_data_table"):
+                    step.__dict__["data_table"] = feature._get_step_data_table(step)
+                if hasattr(feature, "_get_step_keyword"):
+                    step.__dict__["keyword"] = feature._get_step_keyword(step)
+                if hasattr(feature, "_get_step_line_number"):
+                    step.__dict__["line_number"] = feature._get_step_line_number(step)
+            scenario.__dict__["description"] = getattr(scenario, "description", None)
             yield
         finally:
-            if isinstance(step, PickleStep):
+            if hasattr(step, "__dict__"):
                 step.__dict__.pop("doc_string", None)
                 step.__dict__.pop("data_table", None)
                 step.__dict__.pop("keyword", None)
@@ -104,13 +236,13 @@ class ScenarioRunner:
     def pytest_bdd_run_step(self, request, feature: Feature, scenario, step, previous_step):
         __tracebackhide__ = True
         with self.extended_step_context(feature, scenario, step):
-            hook_kwargs = dict(
-                request=request,
-                feature=feature,
-                scenario=scenario,
-                step=step,
-                previous_step=previous_step,
-            )
+            hook_kwargs = {
+                "request": request,
+                "feature": feature,
+                "scenario": scenario,
+                "step": step,
+                "previous_step": previous_step,
+            }
 
             try:
                 step_definition = self._match_to_step(step, previous_step)
@@ -148,11 +280,10 @@ class ScenarioRunner:
 
     @hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
-        # Execute the step as if it was a pytest fixture, so that we can allow "yield" statements in it
         return partial(call_fixture_func, fixturefunc=step_definition.func, request=request, kwargs=step_func_args)
 
     def _inject_step_parameters_as_fixtures(
-        self, step_params: Optional[dict] = None, params_fixtures_mapping: Optional[dict] = None
+        self, step_params: dict | None = None, params_fixtures_mapping: dict | None = None
     ):
         step_params = step_params or {}
         params_fixtures_mapping = (
@@ -165,7 +296,7 @@ class ScenarioRunner:
         for param, fixture_name in params_fixtures_mapping.items():
             if fixture_name is None or fixture_name is ...:
                 continue
-            inject_fixture(cast(FixtureRequest, self.request), fixture_name, step_params[param])
+            inject_fixture(cast("FixtureRequest", self.request), fixture_name, step_params[param])
 
     def _get_step_function_kwargs(self, step, step_definition, step_params):
         for param in get_args(step_definition.func):
@@ -173,7 +304,7 @@ class ScenarioRunner:
                 yield param, step_params[param]
             except KeyError:
                 try:
-                    yield param, dict(step=step)[param]
+                    yield param, {"step": step}[param]
                 except KeyError:
                     yield param, self.request.getfixturevalue(param)
 
@@ -181,9 +312,9 @@ class ScenarioRunner:
         if len(step_definition.target_fixtures) == 1:
             injectable_fixtures = [(step_definition.target_fixtures[0], step_result)]
         elif step_result is not None and len(step_definition.target_fixtures) != 0:
-            injectable_fixtures = zip(step_definition.target_fixtures, step_result)
+            injectable_fixtures = list(zip(step_definition.target_fixtures, step_result, strict=False))
         else:
-            injectable_fixtures = zip_longest(step_definition.target_fixtures, [])
+            injectable_fixtures = list(zip_longest(step_definition.target_fixtures, []))
 
         for target_fixture, return_value in injectable_fixtures:
             inject_fixture(self.request, target_fixture, return_value)
@@ -197,11 +328,16 @@ class ScenarioRunner:
                 step=step,
                 previous_step=previous_step,
             )
-        except StepHandler.Matcher.MatchNotFoundError as e:
+        except (Matcher.MatchNotFoundError, StepDefinitionManager.Matcher.MatchNotFoundError) as e:
+            step_text = getattr(step, "name", getattr(step, "text", str(step)))
+            step_kw = getattr(step, "keyword", "")
+            step_line = getattr(step, "line", getattr(step, "line_number", 0))
+            scen_name = getattr(self.scenario, "name", "")
+            feat_uri = getattr(self.feature, "uri", "")
             raise exceptions.StepDefinitionNotFoundError(
-                f'Step definition is not found: "{step.text}". '
-                f'Step keyword: "{step.keyword}". '
-                f"Line {step.line_number} "
-                f'in scenario "{self.scenario.name}" '
-                f'in the feature "{self.feature.uri}"'
+                f'Step definition is not found: "{step_text}". '
+                f'Step keyword: "{step_kw}". '
+                f"Line {step_line} "
+                f'in scenario "{scen_name}" '
+                f'in the feature "{feat_uri}"'
             ) from e
