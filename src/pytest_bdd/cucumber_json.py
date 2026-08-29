@@ -4,9 +4,8 @@ import json
 import math
 import os
 import time
-from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, Union, cast, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
 
@@ -44,19 +43,19 @@ def configure(config: Union[Config, "BaseConfig"]) -> None:
     cucumber_json_path = config.option.cucumber_json_path
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
-        cast(Config, config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)
-        config.pluginmanager.register(cast(Config, config)._bddcucumberjson)
+        cast("Config", config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)
+        config.pluginmanager.register(cast("Config", config)._bddcucumberjson)
 
 
 def unconfigure(config: Union[Config, "BaseConfig"]) -> None:
     xml = getattr(config, "_bddcucumberjson", None)
     if xml is not None:
-        _config = cast(Config, config)
+        _config = cast("Config", config)
         del _config._bddcucumberjson
         config.pluginmanager.unregister(xml)
 
 
-class ElementType(Enum):
+class ElementType(str, Enum):
     background = "background"
     scenario = "scenario"
 
@@ -66,11 +65,11 @@ class Argument(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    value: Optional[str] = None
-    offset: Optional[float] = None
+    value: str | None = None
+    offset: float | None = None
 
 
-class Status(Enum):
+class Status(str, Enum):
     passed = "passed"
     failed = "failed"
     skipped = "skipped"
@@ -84,9 +83,9 @@ class DocString(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    line: Optional[float] = None
-    value: Optional[str] = None
-    content_type: Optional[str] = None
+    line: float | None = None
+    value: str | None = None
+    content_type: str | None = None
 
 
 class DataTableRow(BaseModel):
@@ -103,7 +102,7 @@ class Tag(BaseModel):
         populate_by_name=True,
     )
     name: str
-    line: Optional[float] = None
+    line: float | None = None
 
 
 class Match(BaseModel):
@@ -111,8 +110,8 @@ class Match(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    location: Optional[str] = None
-    arguments: Optional[list["Argument"]] = None
+    location: str | None = None
+    arguments: list[Argument] | None = None
 
 
 class Result(BaseModel):
@@ -120,9 +119,9 @@ class Result(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    duration: Optional[float] = None
-    status: "Status"
-    error_message: Optional[str] = None
+    duration: float | None = None
+    status: Status
+    error_message: str | None = None
 
 
 class Step(BaseModel):
@@ -130,13 +129,13 @@ class Step(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    keyword: Optional[str] = None
-    line: Optional[float] = None
-    match: Optional["Match"] = None
-    name: Optional[str] = None
-    result: Optional["Result"] = None
-    doc_string: Optional["DocString"] = None
-    rows: Optional[list["DataTableRow"]] = None
+    keyword: str | None = None
+    line: float | None = None
+    match: Match | None = None
+    name: str | None = None
+    result: Result | None = None
+    doc_string: DocString | None = None
+    rows: list[DataTableRow] | None = None
 
 
 class Hook(BaseModel):
@@ -144,7 +143,7 @@ class Hook(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    match: Optional["Match"] = None
+    match: "Match | None" = None
     result: "Result"
 
 
@@ -153,17 +152,17 @@ class Element(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    start_timestamp: Optional[str] = None
-    line: Optional[float] = None
-    id: Optional[str] = None
-    type: Optional["ElementType"] = None
-    keyword: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    before: Optional[list["Hook"]] = None
-    steps: Optional[list["Step"]] = None
-    after: Optional[list["Hook"]] = None
-    tags: Optional[list["Tag"]] = None
+    start_timestamp: str | None = None
+    line: float | None = None
+    id: str | None = None
+    type: ElementType | None = None
+    keyword: str | None = None
+    name: str | None = None
+    description: str | None = None
+    before: list[Hook] | None = None
+    steps: list[Step] | None = None
+    after: list[Hook] | None = None
+    tags: list[Tag] | None = None
 
 
 class Feature(BaseModel):
@@ -171,14 +170,14 @@ class Feature(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    uri: Optional[str] = None
-    id: Optional[str] = None
-    line: Optional[float] = None
-    keyword: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    elements: Optional[list["Element"]] = None
-    tags: Optional[list["Tag"]] = None
+    uri: str | None = None
+    id: str | None = None
+    line: float | None = None
+    keyword: str | None = None
+    name: str | None = None
+    description: str | None = None
+    elements: list[Element] | None = None
+    tags: list[Tag] | None = None
 
 
 class CucumberJson(BaseModel):
@@ -186,8 +185,8 @@ class CucumberJson(BaseModel):
         extra="forbid",
         populate_by_name=True,
     )
-    implementation: Optional[str] = None
-    features: Optional[list["Feature"]] = None
+    implementation: str | None = None
+    features: list[Feature] | None = None
 
 
 class LogBDDCucumberJSON:
@@ -212,10 +211,10 @@ class LogBDDCucumberJSON:
             result = {"status": "failed", "error_message": str(report.longrepr) if error_message else ""}
         elif report.skipped:
             result = {"status": "skipped"}
-        result["duration"] = int(math.floor((10**9) * step["duration"]))  # nanosec
+        result["duration"] = math.floor((10**9) * step["duration"])  # nanosec
         return result
 
-    def _serialize_tags(self, item: dict[str, Any]) -> Sequence[dict[str, Any]]:
+    def _serialize_tags(self, item: dict[str, Any]) -> list[dict[str, Any]]:
         """Serialize item's tags.
 
         :param item: json-serialized `Scenario` or `Feature`.
