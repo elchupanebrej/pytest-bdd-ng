@@ -54,6 +54,7 @@ __all__ = [
     "build_fixture_def",
     "call_fixture_func",
     "get_config_root_path",
+    "inject_fixture",
     "is_testrun_success",
     "make_mark",
     "make_mark_decorator",
@@ -264,3 +265,46 @@ def make_mark(
 
 def make_mark_decorator(mark: Mark) -> MarkDecorator:
     return MarkDecorator(mark, _ispytest=True)  # type: ignore[call-arg]
+
+
+def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
+    fd = build_fixture_def(
+        request,
+        baseid=None,
+        argname=arg,
+        func=lambda: value,
+        scope="function",
+        params=None,
+    )
+    fd.cached_result = (value, 0, None)
+
+    cached_defs = getattr(request, "_fixture_defs", {}) if hasattr(request, "_fixture_defs") else {}
+    old_fd: FixtureDef | None = cached_defs.get(arg)
+    fixturenames = getattr(request, "fixturenames", [])
+    add_fixturename = arg not in fixturenames
+
+    def fin() -> None:
+        if hasattr(request, "_fixturemanager") and hasattr(request._fixturemanager, "_arg2fixturedefs"):
+            arg_defs = request._fixturemanager._arg2fixturedefs.get(arg, [])
+            if fd in arg_defs:
+                arg_defs.remove(fd)
+        if hasattr(request, "_fixture_defs"):
+            if old_fd is None:
+                request._fixture_defs.pop(arg, None)
+            else:
+                request._fixture_defs[arg] = old_fd
+
+        if add_fixturename and hasattr(request, "_pyfuncitem") and hasattr(request._pyfuncitem, "_fixtureinfo"):
+            names = getattr(request._pyfuncitem._fixtureinfo, "names_closure", [])
+            if arg in names:
+                names.remove(arg)
+
+    if hasattr(request, "addfinalizer"):
+        request.addfinalizer(fin)
+
+    if hasattr(request, "_fixturemanager") and hasattr(request._fixturemanager, "_arg2fixturedefs"):
+        request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)
+    if hasattr(request, "_fixture_defs"):
+        request._fixture_defs[arg] = fd
+    if add_fixturename and hasattr(request, "_pyfuncitem") and hasattr(request._pyfuncitem, "_fixtureinfo"):
+        getattr(request._pyfuncitem._fixtureinfo, "names_closure", []).append(arg)
