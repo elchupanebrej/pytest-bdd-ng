@@ -64,78 +64,37 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     parser_type: type[ParserProtocol] | None = None
     parser: ParserProtocol | None = None
 
-    async def fetch(self, session: aiohttp.ClientSession, url):
-        sslcontext = ssl.create_default_context(cafile=certifi.where())
-        async with session.get(url, ssl=sslcontext) as response:
-            return response.content_type, await response.text(encoding=self.encoding)
-
-    async def fetch_all(self, urls):
-        async with aiohttp.ClientSession() as session:
-            return await asyncio.gather(*[self.fetch(session, url) for url in urls], return_exceptions=True)
-
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
-        urls = [*filterfalse(is_local_url, self.url_paths)]
+    def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
+        reg = registry or default_parser_registry
+        urls = list(filterfalse(is_local_url, self.url_paths))
         if self.features_base_url is not None:
-            urls.extend(map(partial(urljoin, f"{self.features_base_url}/"), filter(is_local_url, self.url_paths)))
-        if not urls:
-            return
-        loop = asyncio.new_event_loop()
-        responses = loop.run_until_complete(self.fetch_all(urls))
-
-        # Wait 250 ms for the underlying SSL connections to close
-        loop.run_until_complete(asyncio.sleep(0.250))
-        loop.close()
-
-        hook_handler = cast(Config, config).hook
-        encoding = self.encoding
-
-        for url, response in zip(urls, responses):
-            if isinstance(response, Exception):
-                continue
-
-            mimetype, feature_content = response
-
-            if self.mimetype is not None:
-                mimetype = self.mimetype
-
-                if isinstance(mimetype, Mimetype):
-                    mimetype = mimetype.value
-
-            if self.parser_type is None:
-                parser_type = hook_handler.pytest_bdd_get_parser(
-                    config=config,
-                    mimetype=mimetype,
+            urls.extend(
+                map(
+                    partial(urljoin, f"{self.features_base_url}/"),
+                    filter(is_local_url, self.url_paths),
                 )
-            else:
-                parser_type = self.parser_type
+            )
 
-            if parser_type is None:
-                break
-
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
-
+        for url in urls:
             try:
-                filename = None
-                with NamedTemporaryFile(mode="w", delete=False) as f:
-                    filename = f.name
-                    f.write(feature_content)
+                with urlopen(url) as resp:  # noqa: S310
+                    content_type = resp.headers.get_content_type()
+                    content = resp.read().decode(self.encoding)
 
-                feature, feature_data = parser.parse(
-                    config,
-                    Path(filename),
-                    url,
-                    *self.parse_args.args,
-                    **{**dict(encoding=encoding), **self.parse_args.kwargs},
-                )
-                try:
-                    yield feature, Source(uri=url, data=feature_data, media_type=mimetype)  # type: ignore[call-arg] # migration to pydantic2
-                except ValidationError as e:
-                    # Workaround because of https://github.com/cucumber/messages/issues/161
-                    yield feature, None
-            finally:
-                if filename is not None:
-                    with suppress(Exception):
-                        os.unlink(filename)
+                media_type = self.mimetype or content_type
+                p = self.parser
+                if p is None:
+                    if self.parser_type is not None:
+                        p = self.parser_type()
+                    elif media_type:
+                        p = reg.get_parser_for_mimetype(media_type)
+                    else:
+                        p = reg.get_parser_for_path(url)
+
+                if p is not None:
+                    yield p.parse_text(content, uri=url)
+            except Exception:  # noqa: S112
+                continue
 
 
 @attrs
