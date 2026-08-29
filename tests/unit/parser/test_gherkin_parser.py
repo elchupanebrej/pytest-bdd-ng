@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from pytest_bdd.parser import GherkinParser
+from typing import TYPE_CHECKING
+
+import pytest
+
+from pytest_bdd.exceptions import FeatureConcreteParseError
+from pytest_bdd.parser import GherkinParser, default_parser_registry
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_parse_basic_gherkin_feature() -> None:
@@ -92,3 +100,64 @@ def test_parse_scenario_outline_and_examples() -> None:
     assert [c.value for c in ex.header.cells] == ["var"]
     assert len(ex.rows) == 2
     assert [r.cells[0].value for r in ex.rows] == ["one", "two"]
+
+
+def test_parse_rules_with_scenarios() -> None:
+    text = """
+    Feature: Rule Feature
+      Rule: First Rule
+        Background:
+          Given rule background step
+
+        @rule_sc_tag
+        Scenario: Scenario inside rule
+          Given inside rule
+    """
+    parser = GherkinParser()
+    feature = parser.parse_text(text)
+
+    assert len(feature.rules) == 1
+    rule = feature.rules[0]
+    assert rule.name == "First Rule"
+    assert rule.background is not None
+    assert len(rule.scenarios) == 1
+    assert rule.scenarios[0].name == "Scenario inside rule"
+    assert [t.name for t in rule.scenarios[0].tags] == ["@rule_sc_tag"]
+
+
+def test_parse_syntax_error_raises_feature_concrete_parse_error() -> None:
+    text = """
+    Feature: Broken
+      Scenario: Broken Scenario
+        Given something
+        Invalid syntax without keyword
+    """
+    parser = GherkinParser()
+    with pytest.raises(FeatureConcreteParseError) as exc_info:
+        parser.parse_text(text, uri="broken.feature")
+
+    assert exc_info.value.args[1] > 0
+    assert exc_info.value.args[3] == "broken.feature"
+    assert "Line number:" in str(exc_info.value)
+
+
+def test_parse_file_path(tmp_path: Path) -> None:
+    feature_file = tmp_path / "example.feature"
+    feature_file.write_text(
+        "Feature: File Feature\n  Scenario: File Scenario\n    Given file step\n",
+        encoding="utf-8",
+    )
+    parser = GherkinParser()
+    feature = parser.parse(feature_file)
+    assert feature.name == "File Feature"
+    assert feature.filename == str(feature_file.as_posix())
+
+
+def test_default_registry_has_gherkin_parser() -> None:
+    p1 = default_parser_registry.get_parser_for_path("test.feature")
+    p2 = default_parser_registry.get_parser_for_path("test.gherkin")
+    p3 = default_parser_registry.get_parser_for_mimetype("text/x-gherkin")
+
+    assert isinstance(p1, GherkinParser)
+    assert isinstance(p2, GherkinParser)
+    assert isinstance(p3, GherkinParser)
