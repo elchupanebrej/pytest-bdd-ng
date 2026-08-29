@@ -4,7 +4,10 @@ import re
 from pathlib import Path
 from typing import Optional, Union
 
-import execnet.gateway_base
+import pytest
+
+execnet = pytest.importorskip("execnet")
+execnet_gateway_base = execnet.gateway_base
 
 
 class OfType:

@@ -146,9 +146,39 @@ ignore = [
 known-first-party = ["pytest_bdd"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PLR2004", "S", "ARG001", "ARG002"]
+"docs/**" = ["ALL"]
+"tests/**" = [
+  "PLR2004",
+  "S",
+  "ARG001",
+  "ARG002",
+  "PLC0415",
+  "PLW1641",
+  "TCH",
+  "B015",
+  "SIM117",
+  "E501",
+  "UP",
+  "B905",
+  "RET504",
+  "I001",
+  "RUF101",
+  "RUF100",
+  "RUF001",
+  "RUF002",
+  "RUF003",
+  "RUF021",
+  "F541",
+  "C4",
+  "E402",
+]
 "src/*/plugin.py" = ["ARG001"]
 "src/pytest_bdd/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
+"src/pytest_bdd/struct_bdd/**" = ["PLC0415", "TCH", "ARG001", "ARG002"]
+"src/pytest_bdd/script/**" = ["RET503", "PLC0415"]
+"src/pytest_bdd/utils.py" = ["PLC0415"]
+"src/pytest_bdd/testing_utils.py" = ["B905"]
+"src/pytest_bdd/webloc.py" = ["C408"]
 
 [tool.pyright]
 include = ["src"]
@@ -160,6 +190,46 @@ reportMissingTypeStubs = "none"
 
 [tool.deptry]
 known_first_party = ["pytest_bdd"]
+
+[tool.deptry.package_module_name_map]
+allure-python-commons = "allure_commons"
+allure-pytest = "allure_pytest"
+cuke-messages = "messages"
+cucumber-expressions = "cucumber_expressions"
+cucumber-tag-expressions = "cucumber_tag_expressions"
+gherkin-official = "gherkin"
+PyYAML = "yaml"
+types-PyYAML = "types_pyyaml"
+
+[tool.deptry.per_rule_ignores]
+DEP001 = ["allure_commons", "strenum", "tomllib"]
+DEP002 = [
+  "aiohttp",
+  "certifi",
+  "chevron",
+  "ci-environment",
+  "decopatch",
+  "filelock",
+  "importlib-metadata",
+  "importlib-resources",
+  "makefun",
+  "Mako",
+  "ordered_set",
+  "parse",
+  "parse_type",
+  "py",
+  "ruff",
+  "vulture",
+  "deptry",
+  "bandit",
+  "pip-audit",
+  "pyright",
+  "mypy",
+  "mutmut",
+  "pandoc",
+  "types-PyYAML",
+]
+DEP003 = ["pluggy", "tomli"]
 
 [tool.mutmut]
 mutate_only_covered_lines = true

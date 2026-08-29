@@ -2,8 +2,11 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
+import pytest
 from pytest import mark
-from pytest_httpserver import HTTPServer
+
+pytest_httpserver = pytest.importorskip("pytest_httpserver")
+HTTPServer = pytest_httpserver.HTTPServer
 
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetypes import Mimetype

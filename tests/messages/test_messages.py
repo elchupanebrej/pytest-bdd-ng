@@ -82,6 +82,10 @@ def parse_and_unflold_messages(lines):
     return list(map(unfold_message, parsed_messages))
 
 
+import pytest
+
+
+@pytest.mark.skipif(not (samples_path / "minimal" / "minimal.feature").exists(), reason="compatibility-kit devkit samples not present")
 def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     testdir.makefile(
         ".feature",

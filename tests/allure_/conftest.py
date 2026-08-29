@@ -3,7 +3,20 @@ from functools import partial
 from unittest import mock
 
 import pytest
-from hamcrest import all_of, any_of, assert_that, contains_string, equal_to, has_entry, has_item, has_property
+
+try:
+    import hamcrest
+    all_of = hamcrest.all_of
+    any_of = hamcrest.any_of
+    assert_that = hamcrest.assert_that
+    contains_string = hamcrest.contains_string
+    equal_to = hamcrest.equal_to
+    has_entry = hamcrest.has_entry
+    has_item = hamcrest.has_item
+    has_property = hamcrest.has_property
+except ImportError:
+    hamcrest = None
+    all_of = any_of = assert_that = contains_string = equal_to = has_entry = has_item = has_property = None
 
 from pytest_bdd import given, parsers, then, when
 from pytest_bdd.compatibility.allure import ALLURE_INSTALLED

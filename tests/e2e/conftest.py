@@ -7,8 +7,15 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pytest
 from pytest import fixture
-from pytest_httpserver import HTTPServer
+
+try:
+    import pytest_httpserver
+    HTTPServer = pytest_httpserver.HTTPServer
+except ImportError:
+    pytest_httpserver = None
+    HTTPServer = None
 
 from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
