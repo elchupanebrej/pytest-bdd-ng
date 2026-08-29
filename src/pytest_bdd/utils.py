@@ -5,7 +5,7 @@ import pickle
 import re
 from collections import defaultdict
 from collections.abc import Callable, Collection, Mapping, Sequence
-from contextlib import nullcontext, suppress
+from contextlib import contextmanager, nullcontext, suppress
 from enum import Enum
 from functools import reduce
 from inspect import getframeinfo, signature
@@ -15,11 +15,37 @@ from sys import _getframe
 from typing import Any, Literal, Protocol, Union, cast, runtime_checkable
 from urllib.parse import urlparse
 
+import pytest
+
 from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX
 from pytest_bdd.util.data_table import data_table_to_dicts
 from pytest_bdd.util.temp_root import prefer_posix_temp_root
 
-__all__ = ["data_table_to_dicts", "prefer_posix_temp_root"]
+__all__ = [
+    "DefaultMapping",
+    "Empty",
+    "IdGenerator",
+    "PytestBDDIdGeneratorHandler",
+    "collect_dumped_objects",
+    "compose",
+    "convert_str_to_python_name",
+    "data_table_to_dicts",
+    "deepattrgetter",
+    "doesnt_raise",
+    "dump_obj",
+    "flip",
+    "get_args",
+    "get_caller_module_locals",
+    "get_caller_module_path",
+    "getitemdefault",
+    "inject_fixture",
+    "is_local_url",
+    "is_url_parsable",
+    "make_python_name",
+    "prefer_posix_temp_root",
+    "setdefaultattr",
+    "stringify",
+]
 
 
 @runtime_checkable
@@ -76,6 +102,87 @@ def dump_obj(*objects: Any) -> None:
         dump = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
         encoded = base64.b64encode(dump).decode("ascii")
         print(f"{_DUMP_START}{encoded}{_DUMP_END}")
+
+
+def collect_dumped_objects(result: Any) -> list[object]:
+    """Collect dumped objects from test run result."""
+    stdout = result.stdout.str() if hasattr(result.stdout, "str") else str(result.stdout)
+    payloads = re.findall(rf"{_DUMP_START}(.*?){_DUMP_END}", stdout)
+    return [pickle.loads(base64.b64decode(payload)) for payload in payloads]  # noqa: S301
+
+
+@contextmanager
+def doesnt_raise(
+    expected_exception: type[BaseException] | tuple[type[BaseException], ...] = Exception,
+    *,
+    match: str | re.Pattern[str] | None = None,
+    suppress_not_matched: bool = True,
+):
+    """Context manager asserting that a block does not raise specific exception(s)."""
+    try:
+        yield
+    except expected_exception as ex:
+        is_matched = True
+        if match is not None:
+            is_matched = bool(re.search(match, f"{ex}"))
+        if is_matched:
+            pytest.fail(f"{ex}")
+        elif not suppress_not_matched:
+            raise
+
+
+def inject_fixture(request: Any, arg: str, value: Any) -> None:
+    """Inject fixture value dynamically into active pytest fixture request."""
+    try:
+        from _pytest.fixtures import FixtureDef
+    except ImportError:
+        return
+
+    try:
+        fd = FixtureDef(  # type: ignore[call-arg]
+            request.config,
+            None,
+            arg,
+            lambda: value,
+            "function",
+            None,
+            None,
+            _ispytest=True,
+        )
+    except TypeError:
+        legacy_fd = cast("Any", FixtureDef)
+        fd = legacy_fd(request._fixturemanager, None, arg, lambda: value, "function", None)
+
+    fd.cached_result = (value, 0, None)
+
+    cached_defs = getattr(request, "_fixture_defs", {}) if hasattr(request, "_fixture_defs") else {}
+    old_fd = cached_defs.get(arg)
+    fixturenames = getattr(request, "fixturenames", [])
+    add_fixturename = arg not in fixturenames
+
+    def fin() -> None:
+        if hasattr(request, "_fixturemanager") and hasattr(request._fixturemanager, "_arg2fixturedefs"):
+            arg_defs = request._fixturemanager._arg2fixturedefs.get(arg, [])
+            if fd in arg_defs:
+                arg_defs.remove(fd)
+        if hasattr(request, "_fixture_defs"):
+            if old_fd is None:
+                request._fixture_defs.pop(arg, None)
+            else:
+                request._fixture_defs[arg] = old_fd
+
+        if add_fixturename and hasattr(request, "_pyfuncitem") and hasattr(request._pyfuncitem, "_fixtureinfo"):
+            names = getattr(request._pyfuncitem._fixtureinfo, "names_closure", [])
+            if arg in names:
+                names.remove(arg)
+
+    request.addfinalizer(fin)
+    if hasattr(request, "_fixturemanager") and hasattr(request._fixturemanager, "_arg2fixturedefs"):
+        request._fixturemanager._arg2fixturedefs.setdefault(arg, []).insert(0, fd)
+    if hasattr(request, "_fixture_defs"):
+        request._fixture_defs[arg] = fd
+    if add_fixturename and hasattr(request, "_pyfuncitem") and hasattr(request._pyfuncitem, "_fixtureinfo"):
+        request._pyfuncitem._fixtureinfo.names_closure.append(arg)
 
 
 class DefaultMapping(defaultdict):
