@@ -175,47 +175,35 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return f"file:{rel_feature_path.as_posix()}"
 
-    def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
-        features_base_dir = self._resolve_features_base_dir(config)
-        already_resolved_feature_paths = set()
+    def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
+        reg = registry or default_parser_registry
+        base_dir = self._resolve_features_base_dir(config)
+        seen: set[str] = set()
 
-        for feature_path in self._gen_feature_paths(features_base_dir=features_base_dir):
-            feature_path_key = str(feature_path)
-            if feature_path_key in already_resolved_feature_paths:
-                break
+        for feature_path in self._gen_feature_paths(base_dir):
+            canon_key = str(feature_path.resolve())
+            if canon_key in seen:
+                continue
+            seen.add(canon_key)
 
-            uri = self._build_file_uri(features_base_dir, feature_path)
-            already_resolved_feature_paths.add(feature_path_key)
-            hook_handler = cast(Config, config).hook
-            encoding = self.encoding
+            uri = self._build_file_uri(base_dir, feature_path)
+            p = self.parser
+            if p is None:
+                if self.parser_type is not None:
+                    p = self.parser_type()
+                elif self.mimetype is not None:
+                    p = reg.get_parser_for_mimetype(self.mimetype)
+                else:
+                    p = reg.get_parser_for_path(feature_path)
 
-            if self.mimetype is None:
-                media_type = hook_handler.pytest_bdd_get_mimetype(config=config, path=feature_path)
-            else:
-                media_type = self.mimetype
+            if p is not None:
+                yield p.parse(feature_path, uri=uri, encoding=self.encoding)
 
-            if self.parser_type is None:
-                parser_type = hook_handler.pytest_bdd_get_parser(
-                    config=config,
-                    mimetype=media_type,
-                )
-            else:
-                parser_type = self.parser_type
 
-            if parser_type is None:
-                break
-
-            parser = parser_type(id_generator=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator)
-
-            feature, feature_data = parser.parse(
-                config,
-                feature_path,
-                uri,
-                *self.parse_args.args,
-                **{**dict(encoding=encoding), **self.parse_args.kwargs},
-            )
-            try:
-                yield feature, Source(uri=uri, data=feature_data, media_type=media_type)  # type: ignore[call-arg] # migration to pydantic2
-            except ValidationError as e:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+__all__ = [
+    "FileScenarioLocator",
+    "ScenarioLocatorFeatureResolver",
+    "ScenarioLocatorFilterMixin",
+    "ScenarioLocatorResolver",
+    "UrlScenarioLocator",
+]
