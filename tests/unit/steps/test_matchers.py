@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import re as std_re
 
+import parse as base_parse
+from cucumber_expressions.expression import CucumberExpression
+from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+
 from pytest_bdd.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
 from pytest_bdd.parsers.cucumber_expression import cucumber_expression
 from pytest_bdd.parsers.cucumber_regex import cucumber_regular_expression
+from pytest_bdd.parsers.heuristic import heuristic
 from pytest_bdd.parsers.parse_parser import cfparse, parse
 from pytest_bdd.parsers.re_parser import re as bdd_re
 from pytest_bdd.parsers.string_parser import string
@@ -81,3 +86,24 @@ def test_parse_and_cfparse_parser() -> None:
     cf = cfparse("I have {count:d} cucumbers")
     assert cf.is_matching(None, "I have 12 cucumbers")
     assert cf.parse_arguments(None, "I have 12 cucumbers") == {"count": 12}
+
+
+def test_heuristic_parser() -> None:
+    h = heuristic("I have {count:d} cucumbers")
+    assert h.is_matching(None, "I have 7 cucumbers")
+    assert h.parse_arguments(None, "I have 7 cucumbers") == {"count": 7}
+    assert str(h) == "I have {count:d} cucumbers"
+
+
+def test_step_parser_build_factory() -> None:
+    p_re = StepParser.build(std_re.compile(r"hello (?P<name>\w+)"))
+    assert isinstance(p_re, bdd_re)
+
+    p_parse = StepParser.build(base_parse.compile("hello {name}"))
+    assert isinstance(p_parse, parse)
+
+    p_cuke = StepParser.build(CucumberExpression("hello {word}", ParameterTypeRegistry()))
+    assert isinstance(p_cuke, cucumber_expression)
+
+    p_str = StepParser.build("hello world")
+    assert isinstance(p_str, heuristic)

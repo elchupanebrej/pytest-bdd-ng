@@ -9,7 +9,7 @@ from re import compile as re_compile
 from typing import TYPE_CHECKING, cast
 
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
-from pytest_bdd.parsers.base import StepParser
+from pytest_bdd.parsers.base import StepParser, register_parser
 from pytest_bdd.utils import stringify
 
 if TYPE_CHECKING:
@@ -58,3 +58,6 @@ class re(StepParser):
 
     def __str__(self) -> str:
         return stringify(self.pattern)
+
+
+register_parser(lambda parserlike: isinstance(parserlike, _RePattern), re)

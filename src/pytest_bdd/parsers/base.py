@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import importlib
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Final, Protocol, TypeAlias, cast, runtime_checkable
 
 from attrs import field, frozen
 
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Callable, Collection, Iterable
 
     from pytest_bdd.compatibility.pytest import FixtureRequest
 
@@ -48,6 +49,35 @@ class StepParserProtocol(Protocol):
     def __str__(self) -> str: ...
 
 
+_PARSER_MODULES: Final = (
+    "pytest_bdd.parsers.re_parser",
+    "pytest_bdd.parsers.parse_parser",
+    "pytest_bdd.parsers.cucumber_expression",
+    "pytest_bdd.parsers.cucumber_regex",
+    "pytest_bdd.parsers.heuristic",
+)
+_PARSER_REGISTRY: list[tuple[Callable[[StepParserLike], bool], Callable[[StepParserLike], object]]] = []
+_FALLBACK_PARSER_BUILDER: Callable[[StepParserLike], object] | None = None
+_PARSER_MODULES_LOADED = False
+
+
+def register_parser(predicate: Callable[[StepParserLike], bool], builder: Callable[[StepParserLike], object]) -> None:
+    _PARSER_REGISTRY.append((predicate, builder))
+
+
+def register_fallback_parser(builder: Callable[[StepParserLike], object]) -> None:
+    global _FALLBACK_PARSER_BUILDER  # noqa: PLW0603
+    _FALLBACK_PARSER_BUILDER = builder
+
+
+def _load_parser_modules() -> None:
+    global _PARSER_MODULES_LOADED  # noqa: PLW0603
+    if not _PARSER_MODULES_LOADED:
+        for mod in _PARSER_MODULES:
+            importlib.import_module(mod)
+        _PARSER_MODULES_LOADED = True
+
+
 class StepParser(StepParserProtocol, ABC):
     @abstractmethod
     def parse_arguments(
@@ -72,4 +102,10 @@ class StepParser(StepParserProtocol, ABC):
     def build(cls, parserlike: StepParserLike) -> StepParser:
         if isinstance(parserlike, StepParserProtocol):
             return cast("StepParser", parserlike)
-        raise ParserBuildValueError(parserlike)
+        _load_parser_modules()
+        for predicate, builder in _PARSER_REGISTRY:
+            if predicate(parserlike):
+                return cast("StepParser", builder(parserlike))
+        if _FALLBACK_PARSER_BUILDER is None:
+            raise ParserBuildValueError(parserlike)
+        return cast("StepParser", _FALLBACK_PARSER_BUILDER(parserlike))

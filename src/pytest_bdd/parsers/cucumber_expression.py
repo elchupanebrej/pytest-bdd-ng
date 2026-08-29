@@ -10,7 +10,7 @@ from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
-from pytest_bdd.parsers.base import RegistryMode, StepParser
+from pytest_bdd.parsers.base import RegistryMode, StepParser, register_parser
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -88,3 +88,6 @@ class cucumber_expression(_CucumberExpression):
     @property
     def arguments(self) -> Collection[str]:
         return []
+
+
+register_parser(lambda parserlike: isinstance(parserlike, CucumberExpression), cucumber_expression)

@@ -8,7 +8,7 @@ import parse as base_parse
 import parse_type.cfparse as base_cfparse
 
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
-from pytest_bdd.parsers.base import ParserBuildValueError, StepParser
+from pytest_bdd.parsers.base import ParserBuildValueError, StepParser, register_parser
 from pytest_bdd.utils import StringableProtocol, stringify
 
 if TYPE_CHECKING:
@@ -78,3 +78,6 @@ class cfparse(parse):
     def __init__(self, *args: object, **kwargs: object) -> None:
         kwargs.setdefault("builder", base_cfparse.Parser)
         super().__init__(*args, **kwargs)
+
+
+register_parser(lambda parserlike: isinstance(parserlike, base_parse.Parser), parse)
