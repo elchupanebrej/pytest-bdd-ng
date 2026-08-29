@@ -55,7 +55,11 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
                 def get_marks():
                     if _kind is HookKind.mark:
                         return list(request.node.iter_markers())
-                    scenario = request.getfixturevalue("scenario")
+                    feature = request.getfixturevalue("feature") if "feature" in request.fixturenames else None
+                    scenario = request.getfixturevalue("scenario") if "scenario" in request.fixturenames else None
+                    feat_tags = getattr(feature, "tags", ()) or ()
+                    scen_tags = getattr(scenario, "tags", ()) or ()
+                    all_tags = feat_tags + scen_tags
                     return [
                         Mark(
                             tag.name,
@@ -63,7 +67,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
                             kwargs={},
                             **({"_ispytest": True} if PYTEST7 else {}),  # type: ignore[arg-type]
                         )
-                        for tag in scenario.tags
+                        for tag in all_tags
                     ]
 
                 is_matching = parsed_expression.evaluate(get_marks())

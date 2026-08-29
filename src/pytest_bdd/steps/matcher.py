@@ -45,8 +45,42 @@ class Matcher:
     ) -> Definition:
         self.request, self.feature, self.scenario = request, feature, scenario
         self.step, self.previous_step, self.step_registry = step, previous_step, step_registry
-        if self.step.type not in {StepType.unknown, "Unknown", None} or self.step_type_context is None:
-            self.step_type_context = self.step.type
+        step_type = self.step.type
+        if hasattr(step_type, "value"):
+            step_type_str = str(step_type.value).lower()
+        elif step_type is not None:
+            step_type_str = str(step_type).lower()
+        else:
+            step_type_str = ""
+
+        if step_type_str in ("context", "given"):
+            step_type = StepType.context
+        elif step_type_str in ("action", "when"):
+            step_type = StepType.action
+        elif step_type_str in ("outcome", "then"):
+            step_type = StepType.outcome
+        elif step_type_str in ("conjunction", "and", "but", "*"):
+            step_type = "Conjunction"
+        elif not step_type:
+            kw = (getattr(self.step, "keyword", "") or "").strip().lower()
+            if kw == "given":
+                step_type = StepType.context
+            elif kw == "when":
+                step_type = StepType.action
+            elif kw == "then":
+                step_type = StepType.outcome
+            elif kw in ("and", "but", "*"):
+                step_type = "Conjunction"
+            else:
+                step_type = StepType.unknown
+
+        if step_type in {StepType.context, StepType.action, StepType.outcome}:
+            self.step_type_context = step_type
+        elif self.step_type_context is None:
+            prev_type = getattr(previous_step, "type", None) if previous_step else None
+            self.step_type_context = (
+                prev_type if prev_type in {StepType.context, StepType.action, StepType.outcome} else StepType.context
+            )
         matchers = (self.strict_matcher, self.unspecified_matcher, self.liberal_matcher)
         matches = list(self.find_step_definition_matches(self.step_registry, matchers))
         if matches:
@@ -64,9 +98,16 @@ class Matcher:
 
     def liberal_matcher(self, defn: Definition) -> bool:
         if defn.liberal is None:
-            opt = getattr(getattr(self.config, "option", None), str(Steps.Cli.LIBERAL_OPTION), None)
-            getini = getattr(self.config, "getini", lambda _: False)
-            is_lib = getini(str(Steps.Ini.LIBERAL_OPTION)) if opt is None else opt
+            cli_name = getattr(Steps.Cli.LIBERAL_OPTION, "value", str(Steps.Cli.LIBERAL_OPTION))
+            ini_name = getattr(Steps.Ini.LIBERAL_OPTION, "value", str(Steps.Ini.LIBERAL_OPTION))
+            opt = getattr(getattr(self.config, "option", None), cli_name, None)
+            if opt is None:
+                try:
+                    is_lib = getattr(self.config, "getini", lambda _: False)(ini_name)
+                except (ValueError, KeyError):
+                    is_lib = False
+            else:
+                is_lib = opt
         else:
             is_lib = defn.liberal
         return all(
