@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from pytest_bdd.compatibility.pytest import Item as PytestItem
 from pytest_bdd.compatibility.pytest import Module as PytestModule
 from pytest_bdd.compatibility.pytest import Package as PytestPackage
 from pytest_bdd.scenario import FeaturePathType as PathType
@@ -18,6 +19,8 @@ from pytest_bdd.webloc import read as webloc_read
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
+
+    from pytest_bdd.compatibility.pytest import Config
 
 
 class Module(PytestModule):
@@ -114,3 +117,49 @@ class FeatureFileModule(Module):
 
 
 FeatureFileCollector = FeatureFileModule
+
+
+class ScenarioItem(PytestItem):
+    """Pytest Item representing an executable BDD scenario test item."""
+
+    def __init__(
+        self,
+        name: str,
+        parent: Any = None,
+        config: Config | None = None,
+        session: Any = None,
+        nodeid: str | None = None,
+        feature: Any = None,
+        scenario: Any = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(name, parent=parent, config=config, session=session, nodeid=nodeid, **kwargs)
+        self.feature = feature
+        self.scenario = scenario
+
+    @classmethod
+    def from_parent(
+        cls,
+        parent: Any,
+        *,
+        name: str,
+        feature: Any = None,
+        scenario: Any = None,
+        **kwargs: Any,
+    ) -> ScenarioItem:
+        return super().from_parent(
+            parent=parent,
+            name=name,
+            feature=feature,
+            scenario=scenario,
+            **kwargs,
+        )
+
+    def runtest(self) -> None:
+        """Execute scenario test."""
+        pass
+
+    def reportinfo(self) -> tuple[Any, int | None, str]:
+        path = getattr(self, "path", getattr(self, "fspath", None))
+        line = getattr(self.scenario, "line", None) if self.scenario else None
+        return path, line, f"Scenario: {self.name}"
