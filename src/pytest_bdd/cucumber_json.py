@@ -245,7 +245,7 @@ class LogBDDCucumberJSON:
             step_name = step["name"]
 
             return {
-                "keyword": step.get("keyword", ""),
+                "keyword": step.get("keyword", "").strip(),
                 "name": step_name,
                 "line": step.get("line_number"),
                 "match": {"location": ""},
@@ -254,12 +254,15 @@ class LogBDDCucumberJSON:
 
         feature_info = scenario["feature"]
         filename = feature_info["filename"]
+        rel_filename = feature_info.get("rel_filename") or feature_info.get("filename") or ""
+        if rel_filename.startswith("file:"):
+            rel_filename = rel_filename[5:]
         if filename not in self.features:
             self.features[filename] = {
                 "keyword": "Feature",
-                "uri": feature_info["rel_filename"],
-                "name": feature_info["name"] or feature_info["rel_filename"],
-                "id": feature_info["rel_filename"].lower().replace(" ", "-"),
+                "uri": rel_filename,
+                "name": feature_info["name"] or rel_filename,
+                "id": rel_filename,
                 "line": feature_info["line_number"],
                 "description": feature_info.get("description", ""),
                 "tags": self._serialize_tags(feature_info),
@@ -267,11 +270,12 @@ class LogBDDCucumberJSON:
             }
 
         item_name = getattr(report, "item", {}).get("name", scenario["name"])
+        sc_name = scenario["name"].split("[table_rows:")[0]
         self.features[filename]["elements"].append(
             {
                 "keyword": "Scenario",
                 "id": item_name,
-                "name": scenario["name"],
+                "name": sc_name,
                 "line": scenario["line_number"],
                 "description": "",
                 "tags": self._serialize_tags(scenario),

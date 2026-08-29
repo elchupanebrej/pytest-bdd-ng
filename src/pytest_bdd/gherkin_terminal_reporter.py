@@ -68,11 +68,13 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
             return super().pytest_runtest_logreport(report)
 
         scenario = report.scenario
+        sc_name = scenario["name"].split("[table_rows:")[0]
         self.ensure_newline()
         self._tw.write(f"Feature: {scenario['feature']['name']}\n", blue=True)
-        self._tw.write(f"    Scenario: {scenario['name']}", **scenario_markup)
-        if self.verbosity > 1:
-            self._tw.write("\n")
+        if self.verbosity == 1:
+            self._tw.write(f"    Scenario: {sc_name}    {word}\n", **scenario_markup)
+        elif self.verbosity > 1:
+            self._tw.write(f"    Scenario: {sc_name}\n", **scenario_markup)
             has_already_failed = False
             for step in scenario["steps"]:
                 step_markup = {"red" if step.get("failed") else "green": True}
@@ -81,10 +83,13 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
                     step_markup["bold"] = True
                     has_already_failed = True
                 step_status_text = "(FAILED)" if step.get("failed") else "(PASSED)"
+                step_kw = step.get("keyword", "").strip()
                 self._tw.write(
-                    f"        {step.get('keyword', '')} {step.get('name', '')} {step_status_text}\n",
+                    f"        {step_kw} {step.get('name', '')} {step_status_text}\n",
                     **step_markup,
                 )
-        self._tw.write(f"    {word}\n", **word_markup)
+            self._tw.write(f"    {word}\n", **word_markup)
+        else:
+            self._tw.write(f"    Scenario: {sc_name} {word}\n", **scenario_markup)
         self.stats.setdefault(cat, []).append(rep)
         return None
