@@ -153,7 +153,8 @@ class StepRunner:
 
 
 class ScenarioRunner:
-    def __init__(self) -> None:
+    def __init__(self, step_runner: StepRunner | None = None) -> None:
+        self.step_runner = step_runner or StepRunner()
         self.request: FixtureRequest | None = None
         self.feature: Feature | None = None
         self.scenario = None
@@ -167,26 +168,32 @@ class ScenarioRunner:
             self.feature = self.request.getfixturevalue("feature")
             self.scenario = self.request.getfixturevalue("scenario")
             self.plugin_manager = cast("PluginManager", self.request.config.hook)
-            self.plugin_manager.pytest_bdd_before_scenario(  # type:ignore[attr-defined]
+            self.plugin_manager.pytest_bdd_before_scenario(  # type: ignore[attr-defined]
                 request=self.request, feature=self.feature, scenario=self.scenario
             )
             try:
-                self.plugin_manager.pytest_bdd_run_scenario(  # type:ignore[attr-defined]
+                self.plugin_manager.pytest_bdd_run_scenario(  # type: ignore[attr-defined]
                     request=self.request,
                     feature=self.feature,
                     scenario=self.scenario,
                 )
             finally:
-                self.plugin_manager.pytest_bdd_after_scenario(  # type:ignore[attr-defined]
+                self.plugin_manager.pytest_bdd_after_scenario(  # type: ignore[attr-defined]
                     request=self.request, feature=self.feature, scenario=self.scenario
                 )
 
             # Allow to test function use updated fixtures directly
             fixturenames = getattr(item, "fixturenames", [])
             for argname in fixturenames:
-                item.funcargs[argname] = item._request.getfixturevalue(argname)  # type:ignore[attr-defined]
+                item.funcargs[argname] = item._request.getfixturevalue(argname)  # type: ignore[attr-defined]
 
     def pytest_bdd_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
+        """Execute the scenarios.
+
+        :param feature: Feature.
+        :param scenario: Scenario.
+        :param request: request.
+        """
         __tracebackhide__ = True
         steps: deque = request.getfixturevalue("steps_left")
         steps.extend(scenario.steps)
@@ -197,6 +204,7 @@ class ScenarioRunner:
 
     @hookimpl(trylast=True)
     def pytest_bdd_get_step_dispatcher(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
+        """Provide alternative approach to execute steps"""
         __tracebackhide__ = True
 
         def dispatcher(left_steps):
@@ -212,7 +220,7 @@ class ScenarioRunner:
         return dispatcher
 
     @contextmanager
-    def extended_step_context(self, feature: Feature, scenario, step):
+    def extended_step_context(self, feature: Feature, scenario: Any, step: Any):
         try:
             if hasattr(step, "__dict__"):
                 if hasattr(feature, "_get_step_doc_string"):
@@ -236,67 +244,19 @@ class ScenarioRunner:
     def pytest_bdd_run_step(self, request, feature: Feature, scenario, step, previous_step):
         __tracebackhide__ = True
         with self.extended_step_context(feature, scenario, step):
-            hook_kwargs = {
-                "request": request,
-                "feature": feature,
-                "scenario": scenario,
-                "step": step,
-                "previous_step": previous_step,
-            }
-
-            try:
-                step_definition = self._match_to_step(step, previous_step)
-            except exceptions.StepDefinitionNotFoundError as exception:
-                hook_kwargs["exception"] = exception
-                request.config.hook.pytest_bdd_step_func_lookup_error(**hook_kwargs)
-                raise
-            else:
-                hook_kwargs["step_func"] = step_definition.func
-                hook_kwargs["step_definition"] = step_definition
-
-            request.config.hook.pytest_bdd_before_step(**hook_kwargs)
-
-            hook_kwargs["step_func_args"] = {}
-            step_params = step_definition.get_parameters(request, step)
-            try:
-                self._inject_step_parameters_as_fixtures(
-                    step_params=step_params, params_fixtures_mapping=step_definition.params_fixtures_mapping
-                )
-
-                step_function_kwargs = dict(self._get_step_function_kwargs(step, step_definition, step_params))
-                hook_kwargs["step_func_args"] = step_function_kwargs
-
-                request.config.hook.pytest_bdd_before_step_call(**hook_kwargs)
-
-                step_caller = request.config.hook.pytest_bdd_get_step_caller(**hook_kwargs)
-                step_result = step_caller()
-
-                self._inject_target_fixtures(step_definition, step_result)
-                request.config.hook.pytest_bdd_after_step(**hook_kwargs)
-            except Exception as exception:
-                hook_kwargs["exception"] = exception
-                request.config.hook.pytest_bdd_step_error(**hook_kwargs)
-                raise
+            return self.step_runner.run_step(request, feature, scenario, step, previous_step)
 
     @hookimpl(trylast=True)
     def pytest_bdd_get_step_caller(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+        # Execute the step as if it was a pytest fixture, so that we can allow "yield" statements in it
         return partial(call_fixture_func, fixturefunc=step_definition.func, request=request, kwargs=step_func_args)
 
     def _inject_step_parameters_as_fixtures(
         self, step_params: dict | None = None, params_fixtures_mapping: dict | None = None
     ):
-        step_params = step_params or {}
-        params_fixtures_mapping = (
-            DefaultMapping.instantiate_from_collection_or_bool(
-                params_fixtures_mapping or {}, warm_up_keys=step_params.keys()
-            )
-            or {}
+        return self.step_runner.inject_step_parameters_as_fixtures(
+            cast(FixtureRequest, self.request), step_params, params_fixtures_mapping
         )
-
-        for param, fixture_name in params_fixtures_mapping.items():
-            if fixture_name is None or fixture_name is ...:
-                continue
-            inject_fixture(cast("FixtureRequest", self.request), fixture_name, step_params[param])
 
     def _get_step_function_kwargs(self, step, step_definition, step_params):
         for param in get_args(step_definition.func):
