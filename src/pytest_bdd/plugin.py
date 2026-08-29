@@ -82,6 +82,20 @@ __registry = StepHandler.Registry()
 
 
 @pytest.fixture
+def pytestbdd_step_runner() -> ScenarioRunner:
+    """Fixture containing scenario step runner."""
+    return ScenarioRunner()
+
+
+@pytest.fixture
+def pytestbdd_id_generator(pytestconfig: Config) -> IdGenerator:
+    """Fixture containing ID generator."""
+    if hasattr(pytestconfig, "stash"):
+        return IdGenerator.from_stash(pytestconfig.stash)
+    return getattr(pytestconfig, "pytest_bdd_id_generator", IdGenerator())
+
+
+@pytest.fixture
 def step_registry() -> StepHandler.Registry:
     """Fixture containing registry of all user-defined steps"""
     return __registry
@@ -91,7 +105,7 @@ step_registry.__pytest_bdd_step_registry__ = __registry  # type: ignore[attr-def
 
 
 @pytest.fixture
-def step_matcher(pytestconfig) -> StepHandler.Matcher:
+def step_matcher(pytestconfig: Config) -> StepHandler.Matcher:
     """Fixture containing matcher to help find step definition for selected step of scenario"""
     return StepHandler.Matcher(pytestconfig)  # type: ignore[call-arg]
 
