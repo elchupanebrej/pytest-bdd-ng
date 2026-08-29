@@ -1,3 +1,7 @@
+"""Cucumber Messages streaming and HTML report plugin."""
+
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -13,7 +17,7 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import Callable, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, cast
 
 import chevron
 import pytest
@@ -24,9 +28,11 @@ from filelock import FileLock
 from pydantic import ValidationError
 from pytest import ExitCode, Session, hookimpl
 
-from messages import Attachment, Ci, ContentEncoding, Duration  # type:ignore[attr-defined, import-untyped]
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined, import-untyped]
+from messages import (
+    Attachment,
+    Ci,
+    ContentEncoding,
+    Duration,
     Hook,
     Location,
     Meta,
@@ -46,6 +52,7 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     TestStepStarted,
     Timestamp,
 )
+from messages import Envelope as Message
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
     Config,
@@ -58,20 +65,20 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import Matcher
 from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 
 
 @attrs(eq=False)
 class MessagePlugin:
     config: Config = attrib()
-    current_test_case = attrib(default=None)
-    current_test_case_step_to_definition_mapping = attrib(default=None)
-    parameter_type_registry: set[int] = set()
-    hook_registry: set[int] = set()
-    npm_formatter_package = "@cucumber/html-formatter"
+    current_test_case: TestCase | None = attrib(default=None)
+    current_test_case_step_to_definition_mapping: dict[int, Any] | None = attrib(default=None)
+    parameter_type_registry: ClassVar[set[int]] = set()
+    hook_registry: ClassVar[set[int]] = set()
+    npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
-    def __attrs_post_init__(self):
+    def __attrs_post_init__(self) -> None:
         self.is_disabled = all(
             [
                 self.config.option.messages_ndjson_path is None,
@@ -93,8 +100,8 @@ class MessagePlugin:
         if self.config.option.cucumber_html_path is not None:
             self.check_npm_and_cucumber_packages()
 
-    def start_process_messages_thread(self):
-        self.process_messages_io_queue = Queue()
+    def start_process_messages_thread(self) -> None:
+        self.process_messages_io_queue: Queue[str] = Queue()
         self.process_messages_stop_event = Event()
         self.process_messages_thread = Thread(
             target=type(self).process_messages,
@@ -108,13 +115,13 @@ class MessagePlugin:
         self.process_messages_thread.start()
         sleep(0)
 
-    def finish_process_messages_thread(self):
+    def finish_process_messages_thread(self) -> None:
         self.process_messages_io_queue.join()
         self.process_messages_stop_event.set()
         self.process_messages_thread.join()
 
     @staticmethod
-    def process_messages(queue: Queue, stop_event: Event, messages_file_path: Union[str, Path]):
+    def process_messages(queue: Queue[str], stop_event: Event, messages_file_path: str | Path) -> None:
         with tempfile.TemporaryDirectory() as tmpdirname:
             last_enter = False
             while not (stop_event.is_set() and last_enter):  # give one more enter to take all left messages
@@ -122,30 +129,32 @@ class MessagePlugin:
                     last_enter = True
 
                 lock_file = os.path.join(tmpdirname, f"{messages_file_path}.lock")
-                with FileLock(lock_file):
-                    with Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f:
-                        lines = []
-                        while not queue.empty():
-                            try:
-                                message_json = queue.get(timeout=1)
-                            except Empty:
-                                sleep(0)
-                                continue
-
-                            try:
-                                Message.model_validate(json.loads(message_json))  # type: ignore[attr-defined] # migration to pydantic2
-                            except ValidationError:
-                                logging.exception(f"Failed to parse:\n{pformat(message_json)}\n", exc_info=True)
-                            else:
-                                lines.append(f"{message_json}\n")
-                            finally:
-                                queue.task_done()
+                with (
+                    FileLock(lock_file),
+                    Path(messages_file_path).open(mode="at+", buffering=1, encoding="utf-8") as f,
+                ):
+                    lines = []
+                    while not queue.empty():
+                        try:
+                            message_json = queue.get(timeout=1)
+                        except Empty:
                             sleep(0)
-                        f.writelines(lines)
-                        f.flush()
+                            continue
+
+                        try:
+                            Message.model_validate(json.loads(message_json))
+                        except ValidationError:
+                            logging.exception("Failed to parse:\n%s\n", pformat(message_json), exc_info=True)
+                        else:
+                            lines.append(f"{message_json}\n")
+                        finally:
+                            queue.task_done()
+                        sleep(0)
+                    f.writelines(lines)
+                    f.flush()
 
     @staticmethod
-    def get_timestamp():
+    def get_timestamp() -> Timestamp:
         timestamp = time_ns()
         test_run_started_seconds = timestamp // 10**9
         test_run_started_nanos = timestamp - test_run_started_seconds * 10**9
@@ -177,7 +186,7 @@ class MessagePlugin:
             help="cucumber html report at given path.",
         )
 
-    def generate_html_report(self):
+    def generate_html_report(self) -> None:
         if self.is_disabled:
             return
         script_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.js")))
@@ -185,7 +194,7 @@ class MessagePlugin:
         template_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "index.mustache.html")))
 
         template_raw = template_path.read_text(encoding="utf-8")
-        template = re.sub(r"\{\{", "{{&", template_raw)  # It is not completely in agree with documentation
+        template = re.sub(r"\{\{", "{{&", template_raw)  # It is not completely in agreement with documentation
 
         with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
             messages = ",".join(f.readlines())
