@@ -1,20 +1,26 @@
+from __future__ import annotations
+
 import collections
-from collections.abc import Iterable
 from enum import Enum
-from pathlib import Path
-from typing import Callable, Optional, Type, Union
+from typing import TYPE_CHECKING, Any
 
 from pytest import mark
 
-from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import Parser
-from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.utils import compose, make_python_name
 
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from pathlib import Path
+
+    from pytest_bdd.compatibility.parser import ParserProtocol
+    from pytest_bdd.compatibility.pytest import Parser
+    from pytest_bdd.mimetypes import Mimetype
+
 Args = collections.namedtuple("Args", ["args", "kwargs"])
+DEFAULT_PARSE_ARGS = Args((), {})
 
 
-def add_options(parser: Parser):
+def add_options(parser: Parser) -> None:
     """Add pytest-bdd options."""
     group = parser.getgroup("bdd", "Scenario")
     group.addoption(
@@ -57,18 +63,18 @@ class FeaturePathType(Enum):
 
 
 def scenario(
-    feature_name: Optional[Union[Path, str]] = None,
-    scenario_name: Optional[str] = None,
+    feature_name: Path | str | None = None,
+    scenario_name: str | None = None,
     encoding: str = "utf-8",
-    features_base_dir: Optional[Union[Path, str]] = None,
-    features_base_url=None,
-    features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
-    features_mimetype: Optional[Mimetype] = None,
-    return_test_decorator=True,
-    parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args=Args((), {}),
-    locators=(),
-):
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    return_test_decorator: bool = True,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Any = DEFAULT_PARSE_ARGS,
+    locators: Any = (),
+) -> Any:
     """
     Scenario decorator.
 
@@ -79,7 +85,7 @@ def scenario(
     :param features_base_url: Feature base url from where features will be loaded
     :param features_path_type: If feature path is not absolute helps to select if filepath or url will be used
     :param features_mimetype: Helps to select appropriate parser if non-standard file extension is used
-    :param return_test_decorator; Return test decorator or generated test
+    :param return_test_decorator: Return test decorator or generated test
     :param parser_type: Parser used to parse feature-like file
     :param parse_args: args consumed by parser during parsing
     :param locators: Feature locators to load Features; Could be custom
@@ -100,18 +106,18 @@ def scenario(
 
 
 def scenarios(
-    *feature_paths: Union[Path, str],
-    filter_: Optional[Union[str, Callable]] = None,
-    return_test_decorator=False,
+    *feature_paths: Path | str,
+    filter_: str | Callable | None = None,
+    return_test_decorator: bool = False,
     encoding: str = "utf-8",
-    features_base_dir: Optional[Union[Path, str]] = None,
-    features_base_url: Optional[str] = None,
-    features_path_type: Optional[Union[FeaturePathType, str]] = FeaturePathType.PATH,
-    features_mimetype: Optional[Mimetype] = None,
-    parser_type: Optional[type[ParserProtocol]] = None,
-    parse_args=Args((), {}),
-    locators=(),
-):
+    features_base_dir: Path | str | None = None,
+    features_base_url: str | None = None,
+    features_path_type: FeaturePathType | str | None = FeaturePathType.PATH,
+    features_mimetype: Mimetype | None = None,
+    parser_type: type[ParserProtocol] | None = None,
+    parse_args: Any = DEFAULT_PARSE_ARGS,
+    locators: Any = (),
+) -> Any:
     """
     Function to bind feature files to pytest runtime
 
@@ -122,10 +128,9 @@ def scenarios(
     :param features_base_url: Feature base url from where features will be loaded
     :param features_path_type: If feature path is not absolute helps to select if filepath or url will be used
     :param features_mimetype: Helps to select appropriate parser if non-standard file extension is used
-    :param return_test_decorator; Return test decorator or generated test
+    :param return_test_decorator: Return test decorator or generated test
     :param parser_type: Parser used to parse feature-like file
     :param parse_args: args consumed by parser during parsing
-    :param return_test_decorator; Return test decorator or generated test
     :param locators: Feature locators to load Features; Could be custom
     """
     if features_base_dir and features_base_url:
@@ -154,11 +159,10 @@ def scenarios(
 
     if return_test_decorator:
         return decorator
-    else:
 
-        @decorator
-        def test(): ...
+    @decorator
+    def test(): ...
 
-        test.__name__ = next(iter(test_names))
+    test.__name__ = next(iter(test_names))
 
-        return test
+    return test
