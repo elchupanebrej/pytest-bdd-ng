@@ -1,45 +1,63 @@
+from __future__ import annotations
+
 from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
-from pathlib import Path
-from typing import Optional, Tuple, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
 from pytest_bdd.compatibility.pytest import Module as PytestModule
+from pytest_bdd.compatibility.pytest import Package as PytestPackage
 from pytest_bdd.scenario import FeaturePathType as PathType
 from pytest_bdd.scenario import scenarios
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import StepDefinitionManager
 from pytest_bdd.utils import convert_str_to_python_name
 from pytest_bdd.webloc import read as webloc_read
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
+
 
 class Module(PytestModule):
-    def collect(self):
-        StepHandler.Registry.inject_registry_fixture_and_register_steps(self.obj)
+    def collect(self) -> Iterable[Any]:
+        StepDefinitionManager.Registry.inject_registry_fixture(self.obj)
+        return super().collect()
+
+
+ModuleCollector = Module
+
+
+class PackageCollector(PytestPackage):
+    """Pytest package collector that registers steps and injects registry fixtures at package level."""
+
+    def collect(self) -> Iterable[Any]:
+        if hasattr(self, "obj") and self.obj is not None:
+            StepDefinitionManager.Registry.inject_registry_fixture(self.obj)
         return super().collect()
 
 
 class FeatureFileModule(Module):
     def _getobj(self):
         path: Path = self.get_path()
-        if ".url" == path.suffixes[-1]:
+        if path.suffixes and path.suffixes[-1] == ".url":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_url_file(path)
-        elif ".desktop" == path.suffixes[-1]:
+        elif path.suffixes and path.suffixes[-1] == ".desktop":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_desktop_file(path)
-        elif ".webloc" == path.suffixes[-1]:
+        elif path.suffixes and path.suffixes[-1] == ".webloc":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_weblock_file(path)
         else:
             feature_pathlike, features_path_type, base_dir = path, PathType.PATH, None
         return self._build_test_module(feature_pathlike, features_path_type, base_dir)
 
-    def _build_test_module(self, path: Optional[Path], features_path_type: PathType, base_dir: Optional[Path]):
+    def _build_test_module(self, path: Path | None, features_path_type: PathType, base_dir: Path | None):
         module_name = convert_str_to_python_name(f"{path}_{uuid4()}")
 
         module_spec = ModuleSpec(module_name, None)
         module = module_from_spec(module_spec)
 
-        module.test_scenarios = scenarios(  # type:ignore[attr-defined]
+        module.test_scenarios = scenarios(  # type: ignore[attr-defined]
             *((path,) if path is not None else []),
             filter_=None,
             return_test_decorator=False,
@@ -51,7 +69,9 @@ class FeatureFileModule(Module):
         return module
 
     @staticmethod
-    def detect_uri_pathtype(path) -> tuple[str, PathType]:
+    def detect_uri_pathtype(path: str | None) -> tuple[str | None, PathType]:
+        if path is None:
+            return None, PathType.UNDEFINED
         try:
             parsed_url = urlparse(path)
         except Exception:
@@ -67,23 +87,30 @@ class FeatureFileModule(Module):
         return path, features_path_type
 
     @classmethod
-    def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str, PathType, Optional[str]]:
+    def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
         config_parser = ConfigParser()
         config_parser.read(path)
 
         config_data = config_parser["InternetShortcut"]
         working_dir = config_data.get("WorkingDirectory", None)
         url = config_data.get("URL", None)
-        return *cls.detect_uri_pathtype(url), working_dir  # type: ignore[return-value]
+        raw_path, path_type = cls.detect_uri_pathtype(url)
+        return raw_path, path_type, working_dir
 
     @classmethod
-    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> Optional[str]:
+    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
         config_parser = ConfigParser()
         config_parser.read(path)
 
         config_data = config_parser["Desktop Entry"]
-        return *cls.detect_uri_pathtype(config_data["URL"] if config_data["Type"] == "Link" else None), None  # type: ignore[return-value]
+        url = config_data["URL"] if config_data.get("Type") == "Link" else None
+        raw_path, path_type = cls.detect_uri_pathtype(url)
+        return raw_path, path_type, None
 
     @classmethod
-    def get_feature_pathlike_from_weblock_file(cls, path: Path) -> str:
-        return *cls.detect_uri_pathtype(cast(str, webloc_read(str(path)))), None  # type: ignore[return-value]
+    def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
+        raw_path, path_type = cls.detect_uri_pathtype(cast("str", webloc_read(str(path))))
+        return raw_path, path_type, None
+
+
+FeatureFileCollector = FeatureFileModule
