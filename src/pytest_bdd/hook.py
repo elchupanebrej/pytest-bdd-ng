@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from enum import Enum
 from inspect import isfunction, isgeneratorfunction, signature
 from itertools import count, product, starmap
-from typing import Optional, Union
 
 from _pytest.mark import Mark
 from decopatch import function_decorator
@@ -26,12 +27,12 @@ class HookConjunction(Enum):
     around = "around"
 
 
-def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str, HookKind]):
+def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
     _conjunction = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     _kind = HookKind(kind) if isinstance(kind, str) else kind
 
     @function_decorator
-    def decorator_wrapper(expression: Optional[str] = None, name: Optional[str] = None):
+    def decorator_wrapper(expression: str | None = None, name: str | None = None):
         _expression: str = expression if expression is not None else ""
 
         def decorator(func):
@@ -44,28 +45,26 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
 
             @wraps(func, prepend_args="request", remove_args="request")
             def hook(request: FixtureRequest, *args, **kwargs):
-                _ExpressionType = {
+                _expression_type = {
                     HookKind.mark: MarksTagExpression,
                     HookKind.tag: GherkinTagExpression,
                 }[_kind]
 
-                # mypy@Python 3.8 complains "ABCMeta" has no attribute "parse"  [attr-defined] what is wrong
-                parsed_expression: TagExpression = _ExpressionType.parse(_expression)  # type: ignore[attr-defined]
+                parsed_expression: TagExpression = _expression_type.parse(_expression)  # type: ignore[attr-defined]
 
-                get_marks = lambda: list(
-                    {
-                        HookKind.mark: request.node.iter_markers(),
-                        HookKind.tag: map(
-                            lambda tag: Mark(  # type: ignore[no-any-return]
-                                tag.name,
-                                args=tuple(),
-                                kwargs={},
-                                **({"_ispytest": True} if PYTEST7 else {}),  # type:ignore[arg-type]
-                            ),
-                            request.getfixturevalue("scenario").tags,
-                        ),
-                    }[_kind]
-                )
+                def get_marks():
+                    if _kind is HookKind.mark:
+                        return list(request.node.iter_markers())
+                    scenario = request.getfixturevalue("scenario")
+                    return [
+                        Mark(
+                            tag.name,
+                            args=(),
+                            kwargs={},
+                            **({"_ispytest": True} if PYTEST7 else {}),  # type: ignore[arg-type]
+                        )
+                        for tag in scenario.tags
+                    ]
 
                 is_matching = parsed_expression.evaluate(get_marks())
 
@@ -79,9 +78,10 @@ def decorator_builder(conjunction: Union[str, HookConjunction], kind: Union[str,
                 ):
                     raise ValueError(f"_{_conjunction.value}")
 
-                _args, _kwargs = args, {
+                _args = args
+                _kwargs = {
                     **kwargs,
-                    **({"request": request} if "request" in func_sig.parameters.keys() else {}),
+                    **({"request": request} if "request" in func_sig.parameters else {}),
                 }
 
                 if is_matching:
