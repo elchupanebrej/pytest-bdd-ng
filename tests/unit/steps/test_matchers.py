@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import re as std_re
+
 from pytest_bdd.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
+from pytest_bdd.parsers.re_parser import re as bdd_re
 from pytest_bdd.parsers.string_parser import string
 
 
@@ -37,3 +40,15 @@ def test_string_parser() -> None:
     assert parser.parse_arguments(None, "I have 5 apples") == {}
     assert parser.arguments == []
     assert str(parser) == "I have 5 apples"
+
+
+def test_re_parser_named_and_anonymous() -> None:
+    parser = bdd_re(r"I have (?P<count>\d+) (?P<fruit>\w+)")
+    assert parser.is_matching(None, "I have 5 apples")
+    assert parser.arguments == ["count", "fruit"]
+    assert parser.parse_arguments(None, "I have 5 apples") == {"count": "5", "fruit": "apples"}
+
+    compiled = bdd_re(std_re.compile(r"I have (\d+) (\w+)"))
+    assert compiled.is_matching(None, "I have 3 oranges")
+    args = compiled.parse_arguments(None, "I have 3 oranges", anonymous_group_names=["num", "item"])
+    assert args == {"num": "3", "item": "oranges"}
