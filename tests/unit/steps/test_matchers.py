@@ -3,6 +3,7 @@ from __future__ import annotations
 import re as std_re
 
 from pytest_bdd.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
+from pytest_bdd.parsers.cucumber_expression import cucumber_expression
 from pytest_bdd.parsers.re_parser import re as bdd_re
 from pytest_bdd.parsers.string_parser import string
 
@@ -52,3 +53,10 @@ def test_re_parser_named_and_anonymous() -> None:
     assert compiled.is_matching(None, "I have 3 oranges")
     args = compiled.parse_arguments(None, "I have 3 oranges", anonymous_group_names=["num", "item"])
     assert args == {"num": "3", "item": "oranges"}
+
+
+def test_cucumber_expression_parser() -> None:
+    parser = cucumber_expression("I have {int} cucumbers", parameter_type_registry=RegistryMode.GLOBAL)
+    assert parser.is_matching(None, "I have 5 cucumbers") and not parser.is_matching(None, "I have five cucumbers")
+    args = parser.parse_arguments(None, "I have 5 cucumbers", anonymous_group_names=["count"])
+    assert args == {"count": 5}
