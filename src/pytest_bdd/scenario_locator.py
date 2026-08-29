@@ -1,8 +1,11 @@
+# ruff: noqa
+from __future__ import annotations
+
 import asyncio
 import os
 import ssl
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable  # noqa: TC003
 from contextlib import suppress
 from functools import partial, reduce
 from itertools import filterfalse
@@ -10,55 +13,46 @@ from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Callable, Optional, Protocol, Tuple, Type, Union, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from urllib.parse import urljoin
+from urllib.request import urlopen
 
 import aiohttp
 import certifi
-from _pytest.config import Config
-from attr import Factory, attrib, attrs
-from pydantic import ValidationError
+from attrs import Factory, attrib, attrs, define, field
 
-from messages import Source  # type:ignore[attr-defined, import-untyped]
-from pytest_bdd.compatibility.parser import ParserProtocol
-from pytest_bdd.compatibility.pytest import get_config_root_path
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.model import Feature, Pickle
-from pytest_bdd.scenario import Args
-from pytest_bdd.utils import PytestBDDIdGeneratorHandler, is_local_url
+from pytest_bdd.parser import ParserRegistry, default_parser_registry
+from pytest_bdd.utils import is_local_url
+
+if TYPE_CHECKING:
+    from pytest_bdd.model import Feature, Scenario
+    from pytest_bdd.parser import ParserProtocol
 
 
 @runtime_checkable
 class ScenarioLocatorFeatureResolver(Protocol):
-    def resolve_features(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
-    ) -> Iterable[tuple[Feature, Source]]:  # pragma: no cover
-        ...
+    def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]: ...
 
 
 @runtime_checkable
 class ScenarioLocatorResolver(Protocol):
     def resolve(
-        self, config: Union[Config, PytestBDDIdGeneratorHandler]
-    ) -> Iterable[tuple[Feature, Pickle, Source]]:  # pragma: no cover
-        ...
+        self, config: Any = None, registry: ParserRegistry | None = None
+    ) -> Iterable[tuple[Feature, Scenario]]: ...
 
 
-@attrs
-class ScenarioLocatorFilterMixin(ScenarioLocatorFeatureResolver, ScenarioLocatorResolver):
-    filter_: Optional[Callable[[Config, Feature, Pickle], tuple[Feature, Pickle]]] = attrib(default=None, kw_only=True)
+@define
+class ScenarioLocatorFilterMixin:
+    filter_: Callable[[Any, Feature, Scenario], bool] | None = field(default=None, kw_only=True)
 
-    def filter_scenarios(self, feature, config):
-        return (
-            (feature, pickle)
-            for pickle in feature.pickles
-            if self.filter_ is None or self.filter_(config, feature, pickle)
-        )  # type: ignore
+    def filter_scenarios(self, feature: Feature, config: Any = None) -> Iterable[tuple[Feature, Scenario]]:
+        for scenario in feature.scenarios:
+            if self.filter_ is None or self.filter_(config, feature, scenario):
+                yield feature, scenario
 
-    def resolve(self, config):
-        for feature, feature_data in self.resolve_features(config):
-            for _, pickle in self.filter_scenarios(feature, config):
-                yield feature, pickle, feature_data
+    def resolve(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[tuple[Feature, Scenario]]:
+        for feature in self.resolve_features(config, registry=registry):  # type: ignore[attr-defined]
+            yield from self.filter_scenarios(feature, config)
 
 
 @attrs
