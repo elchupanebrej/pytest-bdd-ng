@@ -113,3 +113,51 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
 before_mark, before_tag, after_mark, after_tag, around_mark, around_tag = starmap(
     decorator_builder, product(HookConjunction, HookKind)
 )
+
+
+class HookCaller:
+    """Dispatches pytest-bdd lifecycle hooks via pytest hook relay."""
+
+    def __init__(self, hook_relay) -> None:
+        self.hook = hook_relay
+
+    def before_scenario(self, request, feature, scenario) -> None:
+        if hasattr(self.hook, "pytest_bdd_before_scenario"):
+            self.hook.pytest_bdd_before_scenario(request=request, feature=feature, scenario=scenario)
+
+    def after_scenario(self, request, feature, scenario) -> None:
+        if hasattr(self.hook, "pytest_bdd_after_scenario"):
+            self.hook.pytest_bdd_after_scenario(request=request, feature=feature, scenario=scenario)
+
+    def before_step(self, request, feature, scenario, step, step_func) -> None:
+        if hasattr(self.hook, "pytest_bdd_before_step"):
+            self.hook.pytest_bdd_before_step(
+                request=request, feature=feature, scenario=scenario, step=step, step_func=step_func
+            )
+
+    def after_step(self, request, feature, scenario, step, step_func, step_func_args, step_definition) -> None:
+        if hasattr(self.hook, "pytest_bdd_after_step"):
+            self.hook.pytest_bdd_after_step(
+                request=request,
+                feature=feature,
+                scenario=scenario,
+                step=step,
+                step_func=step_func,
+                step_func_args=step_func_args,
+                step_definition=step_definition,
+            )
+
+    def step_error(
+        self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
+    ) -> None:
+        if hasattr(self.hook, "pytest_bdd_step_error"):
+            self.hook.pytest_bdd_step_error(
+                request=request,
+                feature=feature,
+                scenario=scenario,
+                step=step,
+                step_func=step_func,
+                step_func_args=step_func_args,
+                exception=exception,
+                step_definition=step_definition,
+            )
