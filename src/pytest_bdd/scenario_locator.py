@@ -55,14 +55,14 @@ class ScenarioLocatorFilterMixin:
             yield from self.filter_scenarios(feature, config)
 
 
-@attrs
+@define
 class UrlScenarioLocator(ScenarioLocatorFilterMixin):
-    url_paths = attrib()
-    encoding = attrib()
-    features_base_url = attrib()
-    mimetype = attrib()
-    parser_type = attrib()
-    parse_args = attrib()
+    url_paths: list[str] = field(factory=list)
+    encoding: str = "utf-8"
+    features_base_url: str | None = None
+    mimetype: str | None = None
+    parser_type: type[ParserProtocol] | None = None
+    parser: ParserProtocol | None = None
 
     async def fetch(self, session: aiohttp.ClientSession, url):
         sslcontext = ssl.create_default_context(cafile=certifi.where())
