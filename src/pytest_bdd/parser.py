@@ -176,34 +176,6 @@ default_parser_registry.register(".md", MarkdownParser)
 default_parser_registry.register("text/x-markdown", MarkdownParser)
 
 
-def _get_yaml_parser() -> ParserProtocol:
-    from pytest_bdd.struct_bdd.parser import yaml_parser
-
-    return yaml_parser
-
-
-def _get_toml_parser() -> ParserProtocol:
-    from pytest_bdd.struct_bdd.parser import toml_parser
-
-    return toml_parser
-
-
-def _get_json_parser() -> ParserProtocol:
-    from pytest_bdd.struct_bdd.parser import json_parser
-
-    return json_parser
-
-
-for _key in [".bdd.yaml", ".bdd.yml", ".yaml", ".yml", "application/x-yaml", "text/yaml"]:
-    default_parser_registry.register(_key, _get_yaml_parser)
-
-for _key in [".bdd.toml", ".toml", "application/toml"]:
-    default_parser_registry.register(_key, _get_toml_parser)
-
-for _key in [".bdd.json", ".json", "application/json"]:
-    default_parser_registry.register(_key, _get_json_parser)
-
-
 __all__ = [
     "BaseParser",
     "GherkinParser",
