@@ -20,6 +20,7 @@ from _pytest.reports import TestReport
 from _pytest.runner import CallInfo
 from _pytest.terminal import TerminalReporter
 from pytest import Module as PytestModule
+from pytest import Package
 from pytest import fail as _pytest_fail
 
 from pytest_bdd.compatibility.typing import TypeAlias
@@ -41,6 +42,7 @@ __all__ = [
     "MarkDecorator",
     "Metafunc",
     "Module",
+    "Package",
     "Parser",
     "PytestPluginManager",
     "RunResult",
