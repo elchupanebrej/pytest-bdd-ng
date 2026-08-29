@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
-from attrs import define
+from attrs import define, field
 from returns.maybe import Maybe, Nothing, Some
 
 from pytest_bdd.exceptions import (
@@ -147,7 +148,72 @@ class StashBound:
         )
 
 
+class _StashProxy:
+    _stash: Any
+
+    def get(self, key: Any, default: Any = None) -> Any:
+        if hasattr(self._stash, "get"):
+            return self._stash.get(key, default)
+        if key in self._stash:
+            return self._stash[key]
+        return default
+
+    def __getitem__(self, key: Any) -> Any:
+        return self._stash[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._stash[key] = value
+
+    def __contains__(self, key: Any) -> bool:
+        return key in self._stash
+
+
+@define(slots=True)
+class ItemStash(_StashProxy):
+    _stash: Any = field(factory=SimpleStash)
+
+    @classmethod
+    def from_item(cls, item: Any) -> ItemStash:
+        stash = getattr(item, "stash", None)
+        if stash is None:
+            stash = SimpleStash()
+            with contextlib.suppress(AttributeError, TypeError):
+                item.stash = stash
+        return cls(stash)
+
+
+@define(slots=True)
+class ConfigStash(_StashProxy):
+    _stash: Any = field(factory=SimpleStash)
+
+    @classmethod
+    def from_config(cls, config: Any) -> ConfigStash:
+        stash = getattr(config, "stash", None)
+        if stash is None:
+            stash = SimpleStash()
+            with contextlib.suppress(AttributeError, TypeError):
+                config.stash = stash
+        return cls(stash)
+
+
+@define(slots=True)
+class SessionStash(_StashProxy):
+    _stash: Any = field(factory=SimpleStash)
+
+    @classmethod
+    def from_session(cls, session: Any) -> SessionStash:
+        stash = getattr(session, "stash", None)
+        if stash is None:
+            stash = SimpleStash()
+            with contextlib.suppress(AttributeError, TypeError):
+                session.stash = stash
+        return cls(stash)
+
+
 __all__ = [
+    "ConfigStash",
+    "ItemStash",
+    "SessionStash",
     "SimpleStash",
     "StashAccess",
     "StashBound",
