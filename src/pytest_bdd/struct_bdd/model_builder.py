@@ -60,22 +60,6 @@ def _build_examples(struct_table: Any) -> tuple[L2aExamples, ...]:
 
 
 @attrs
-class _ASTBuilder:
-    model: Any = attrib()
-
-    def build(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
-
-
-@attrs
-class GherkinDocumentBuilder(_ASTBuilder):
-    model: StructStep = attrib()
-
-    def build_feature(self, filename: str | None = None, uri: str = "", id_generator: Any = None) -> L2aFeature:
-        return StepToFeatureASTBuilder(self.model).build_feature(uri=uri, filename=filename)
-
-
-@attrs
 class StepToFeatureASTBuilder(_ASTBuilder):
     model: StructStep = attrib()
 
@@ -112,51 +96,7 @@ class StepToFeatureASTBuilder(_ASTBuilder):
             filename=filename,
         )
 
-    def _build_children(self, id_generator: Any = None) -> list[Any]:
-        def _():
-            for route in self.model.routes:
-                if route.steps:
 
-                    def steps_gen(steps):
-                        for step in steps:
-                            yield Step(
-                                id=next(id_generator) if id_generator else "0",
-                                keyword="Given",
-                                location=Location(column=0, line=0),
-                                text=step.action,
-                            )
+GherkinDocumentBuilder = StepToFeatureASTBuilder
 
-                    steps = [*steps_gen(filter(lambda step: step.action is not None, route.steps))]
-
-                    yield FeatureChild(
-                        scenario=Scenario(
-                            description=route.steps[0].description or "",
-                            examples=(
-                                [ExampleASTBuilder(route.example_table).build(id_generator=id_generator)]
-                                if route.example_table.values
-                                else []
-                            ),
-                            id=next(id_generator),
-                            keyword="Scenario",
-                            location=Location(column=0, line=0),
-                            name=next(filter(bool, map(attrgetter("name"), reversed(route.steps))), ""),
-                            tags=[
-                                *map(
-                                    lambda tag_name: Tag(
-                                        id=next(id_generator),
-                                        location=Location(column=0, line=0),
-                                        name=tag_name,
-                                    ),
-                                    route.tags,
-                                )
-                            ],
-                            steps=steps,
-                        )
-                    )
-
-        return list(_())
-
-
-@attrs
-class ExampleASTBuilder(_ASTBuilder):
-    pass
+__all__ = ["GherkinDocumentBuilder", "StepToFeatureASTBuilder"]
