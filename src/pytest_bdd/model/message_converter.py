@@ -277,7 +277,7 @@ def make_test_step_finished(
 
 def envelope_to_dict(message: messages.Envelope) -> dict:
     validate_envelope_shape(message)
-    return message.model_dump(exclude_none=True, by_alias=True)
+    return message.model_dump(mode="json", exclude_none=True, by_alias=True)
 
 
 def envelope_from_dict(payload: dict) -> messages.Envelope:
